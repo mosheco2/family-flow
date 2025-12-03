@@ -31,7 +31,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- API: הבאת נתונים מלאים ---
+// --- API: נתונים לדשבורד ---
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -51,30 +51,96 @@ app.get('/api/data/:userId', async (req, res) => {
       ORDER BY t.date DESC LIMIT 20
     `);
 
-    res.json({ user, transactions: transRes.rows, family: familyMembers });
+    // שליפת משימות רלוונטיות
+    let tasksQuery = `
+      SELECT t.*, u.name as assignee_name 
+      FROM tasks t 
+      LEFT JOIN users u ON t.assigned_to = u.id 
+    `;
+    
+    // ילד רואה רק את שלו, הורה רואה הכל (אלא אם סונן)
+    if (user.role === 'child') {
+      tasksQuery += ` WHERE t.assigned_to = ${userId} AND t.status != 'approved'`; // לא מציגים משימות שכבר שולמו
+    } else {
+      tasksQuery += ` WHERE t.status != 'approved'`; // הורים רואים רק פעילות, לא היסטוריה ישנה
+    }
+    tasksQuery += ` ORDER BY t.id DESC`;
+    
+    const tasksRes = await client.query(tasksQuery);
+
+    res.json({ 
+      user, 
+      transactions: transRes.rows, 
+      family: familyMembers,
+      tasks: tasksRes.rows 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- API: הוספת תנועה ---
+// --- API: ניהול משימות ---
+
+// 1. יצירת משימה חדשה
+app.post('/api/tasks', async (req, res) => {
+    const { title, reward, assignedTo } = req.body;
+    try {
+        await client.query(`
+            INSERT INTO tasks (title, reward, status, assigned_to)
+            VALUES ($1, $2, 'pending', $3)
+        `, [title, reward, assignedTo]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. עדכון סטטוס משימה (כולל תשלום אוטומטי באישור)
+app.post('/api/tasks/update', async (req, res) => {
+    const { taskId, status } = req.body;
+    
+    try {
+        await client.query('BEGIN');
+
+        // אם הסטטוס הוא 'approved' (ההורה אישר) - מבצעים תשלום
+        if (status === 'approved') {
+            // שולפים את פרטי המשימה
+            const taskRes = await client.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+            const task = taskRes.rows[0];
+
+            if (task && task.status !== 'approved') {
+                // הוספת כסף לילד
+                await client.query(`
+                    UPDATE users SET balance = balance + $1 WHERE id = $2
+                `, [task.reward, task.assigned_to]);
+
+                // תיעוד בתנועות
+                await client.query(`
+                    INSERT INTO transactions (user_id, amount, description, category, type)
+                    VALUES ($1, $2, $3, 'tasks', 'income')
+                `, [task.assigned_to, task.reward, `בוצע: ${task.title}`, 'income']);
+            }
+        }
+
+        // עדכון הסטטוס של המשימה
+        await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [status, taskId]);
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- API: טרנזקציות (ללא שינוי) ---
 app.post('/api/transaction', async (req, res) => {
   const { userId, amount, description, category, type } = req.body;
-  
   try {
     await client.query('BEGIN');
-    
-    await client.query(`
-      INSERT INTO transactions (user_id, amount, description, category, type)
-      VALUES ($1, $2, $3, $4, $5)
-    `, [userId, amount, description, category, type]);
-
+    await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`, [userId, amount, description, category, type]);
     const factor = type === 'income' ? 1 : -1;
-    await client.query(`
-      UPDATE users SET balance = balance + $1 
-      WHERE id = $2
-    `, [amount * factor, userId]);
-
+    await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amount * factor, userId]);
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
@@ -83,19 +149,12 @@ app.post('/api/transaction', async (req, res) => {
   }
 });
 
-// --- API: יצירת משתמש חדש (ילד) - מעודכן עם יתרה התחלתית ---
+// --- API: יצירת משתמש (ללא שינוי) ---
 app.post('/api/create-user', async (req, res) => {
-    // הוספנו את initialBalance
     const { name, pin, role, initialBalance } = req.body;
-    
-    // אם לא הוזן סכום, ברירת המחדל היא 0
     const startAmount = initialBalance || 0;
-
     try {
-        await client.query(`
-            INSERT INTO users (name, role, balance, pin_code)
-            VALUES ($1, $2, $3, $4)
-        `, [name, role, startAmount, pin]);
+        await client.query(`INSERT INTO users (name, role, balance, pin_code) VALUES ($1, $2, $3, $4)`, [name, role, startAmount, pin]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
