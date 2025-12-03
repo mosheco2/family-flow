@@ -10,9 +10,10 @@
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
         .card { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .modal { background-color: rgba(0,0,0,0.5); }
-        /* אנימציה עדינה להופעת כרטיסים */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-item { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* עיצוב לצ'קבוקס מותאם אישית */
+        .shop-check:checked + div { text-decoration: line-through; color: #9ca3af; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -29,7 +30,6 @@
 
     <!-- דשבורד ראשי -->
     <div id="dashboard" class="hidden w-full max-w-md pb-24">
-        <!-- כותרת -->
         <header class="flex justify-between items-center mb-6 p-2 sticky top-0 bg-[#f0f2f5] z-10">
             <div>
                 <h2 id="user-name" class="text-2xl font-black text-gray-800"></h2>
@@ -45,18 +45,45 @@
             <h1 id="balance" class="text-5xl font-black mt-2 tracking-tight relative z-10">₪0</h1>
         </div>
 
-        <!-- אזור המשימות (החדש!) -->
-        <div class="mb-8">
+        <!-- תפריט ניווט פנימי -->
+        <div class="flex mb-6 bg-white p-1 rounded-xl shadow-sm">
+            <button onclick="switchTab('tasks')" id="tab-tasks" class="flex-1 py-2 rounded-lg font-bold text-sm bg-blue-100 text-blue-700 transition">משימות</button>
+            <button onclick="switchTab('shopping')" id="tab-shopping" class="flex-1 py-2 rounded-lg font-bold text-sm text-gray-500 hover:bg-gray-50 transition">רשימת קניות</button>
+        </div>
+
+        <!-- אזור 1: משימות -->
+        <div id="section-tasks" class="mb-8">
             <div class="flex justify-between items-center mb-3 px-1">
-                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-clipboard-list text-purple-500 ml-2"></i>משימות ואתגרים</h3>
-                <!-- כפתור הוספת משימה (רק להורים) -->
+                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-clipboard-list text-purple-500 ml-2"></i>משימות</h3>
                 <button id="btn-add-task" onclick="openTaskModal()" class="hidden text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-bold hover:bg-purple-200">+ חדש</button>
             </div>
-            
-            <div id="tasks-list" class="space-y-3">
-                <!-- כאן יופיעו המשימות -->
-            </div>
+            <div id="tasks-list" class="space-y-3"></div>
             <p id="no-tasks-msg" class="text-center text-gray-400 text-sm hidden py-4">אין משימות פתוחות כרגע 🎉</p>
+        </div>
+
+        <!-- אזור 2: רשימת קניות (חדש!) -->
+        <div id="section-shopping" class="hidden mb-8">
+            <div class="flex justify-between items-center mb-3 px-1">
+                <h3 class="font-bold text-gray-800 text-lg"><i class="fa-solid fa-cart-shopping text-pink-500 ml-2"></i>הסופר שלנו</h3>
+                <button onclick="openShoppingModal()" class="text-sm bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-bold hover:bg-pink-200">+ פריט</button>
+            </div>
+            
+            <!-- אזור בקשות ממתינות (רק הורים רואים כדי לאשר, או ילדים רואים את שלהם) -->
+            <div id="shopping-pending-area" class="mb-4 hidden">
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">בקשות ממתינות</h4>
+                <div id="shopping-pending-list" class="space-y-2"></div>
+            </div>
+
+            <!-- הרשימה הפעילה -->
+            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">רשימת קניות</h4>
+            <div id="shopping-active-list" class="space-y-2 bg-white rounded-xl shadow-sm p-2">
+                <p class="text-center text-gray-300 text-sm py-2">הרשימה ריקה</p>
+            </div>
+
+            <!-- כפתור סיום קנייה (הורים בלבד) -->
+            <button id="btn-checkout" onclick="openCheckoutModal()" class="hidden w-full mt-4 bg-gray-800 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-cash-register"></i> סיום קנייה ותשלום
+            </button>
         </div>
 
         <!-- כפתורי פעולה מהירים -->
@@ -69,7 +96,7 @@
             </button>
         </div>
 
-        <!-- אזור משפחה (הורים בלבד) -->
+        <!-- אזור משפחה -->
         <div id="family-section" class="hidden mb-8">
             <div class="flex justify-between items-end mb-4 px-1">
                 <h3 class="font-bold text-gray-800 text-lg">בני המשפחה</h3>
@@ -83,24 +110,35 @@
         <div id="transactions-list" class="space-y-3 pb-8"></div>
     </div>
 
+    <!-- מודלים -->
     <!-- מודל הוספת משימה -->
     <div id="task-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
             <h3 class="text-xl font-bold mb-4 text-center text-purple-600">משימה חדשה</h3>
-            
-            <label class="block text-sm font-bold text-gray-700 mb-1">מה צריך לעשות?</label>
-            <input type="text" id="task-title" class="w-full p-3 border rounded-xl mb-3" placeholder="למשל: לשטוף כלים">
-            
-            <label class="block text-sm font-bold text-gray-700 mb-1">כמה זה שווה?</label>
-            <input type="number" id="task-reward" class="w-full p-3 border rounded-xl mb-3" placeholder="₪10">
-
-            <label class="block text-sm font-bold text-gray-700 mb-1">מי מבצע?</label>
+            <input type="text" id="task-title" class="w-full p-3 border rounded-xl mb-3" placeholder="מה המשימה?">
+            <input type="number" id="task-reward" class="w-full p-3 border rounded-xl mb-3" placeholder="תגמול (₪)">
             <select id="task-assignee" class="w-full p-3 border rounded-xl bg-white mb-4"></select>
+            <div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 py-3 text-gray-500 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTask()" class="flex-1 py-3 bg-purple-600 text-white rounded-xl font-bold">צור</button></div>
+        </div>
+    </div>
 
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 py-3 text-gray-500 font-bold bg-gray-100 rounded-xl">ביטול</button>
-                <button onclick="submitTask()" class="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg">צור משימה</button>
-            </div>
+    <!-- מודל הוספת פריט לקניות -->
+    <div id="shopping-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-center text-pink-600">הוספה לסופר</h3>
+            <input type="text" id="shop-item-name" class="w-full p-3 border rounded-xl mb-4" placeholder="חלב, לחם, שוקולד...">
+            <div class="flex gap-3"><button onclick="document.getElementById('shopping-modal').classList.add('hidden')" class="flex-1 py-3 text-gray-500 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitShopItem()" class="flex-1 py-3 bg-pink-600 text-white rounded-xl font-bold">הוסף</button></div>
+        </div>
+    </div>
+
+    <!-- מודל סיום קנייה -->
+    <div id="checkout-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-center text-gray-800">סיום קנייה</h3>
+            <p class="text-center text-gray-500 mb-4">כל הכבוד! כל הפריטים שסומנו בעגלה ירדו מהרשימה.</p>
+            <label class="block text-sm font-bold text-gray-700 mb-1">כמה זה עלה?</label>
+            <input type="number" id="checkout-amount" class="w-full p-3 border rounded-xl mb-4 text-lg" placeholder="0.00">
+            <div class="flex gap-3"><button onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="flex-1 py-3 text-gray-500 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitCheckout()" class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold">אישור ותשלום</button></div>
         </div>
     </div>
 
@@ -108,37 +146,22 @@
     <div id="transaction-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
             <h3 id="modal-title" class="text-xl font-bold mb-4 text-center">תנועה חדשה</h3>
-            <label class="block text-sm font-bold text-gray-700 mb-1">סכום</label>
-            <input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3 text-lg" placeholder="0.00">
-            <label class="block text-sm font-bold text-gray-700 mb-1">תיאור</label>
-            <input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="על מה הכסף?">
-            <div id="t-user-select-container" class="hidden mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-1">עבור מי?</label>
-                <select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select>
-            </div>
-            <div class="flex gap-3 mt-4">
-                <button onclick="closeModal()" class="flex-1 py-3 text-gray-500 font-bold bg-gray-100 rounded-xl">ביטול</button>
-                <button onclick="submitTransaction()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">שמור</button>
-            </div>
+            <input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3" placeholder="סכום">
+            <input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור">
+            <div id="t-user-select-container" class="hidden mb-4"><select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select></div>
+            <div class="flex gap-3"><button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTransaction()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl">שמור</button></div>
         </div>
     </div>
 
-    <!-- מודל הוספת ילד (קיים) -->
+    <!-- מודל ילד (קיים) -->
     <div id="add-child-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
             <h3 class="text-xl font-bold mb-4 text-center">הוספת בן משפחה</h3>
             <input type="text" id="c-name" class="w-full p-3 border rounded-xl mb-3" placeholder="שם">
-            <input type="text" id="c-pin" class="w-full p-3 border rounded-xl mb-3" placeholder="קוד סודי (4 ספרות)" maxlength="4">
-            <label class="block text-xs font-bold text-gray-500 mb-1 mr-1">תקציב התחלתי (אופציונלי)</label>
-            <input type="number" id="c-balance" class="w-full p-3 border rounded-xl mb-3" placeholder="0">
-            <select id="c-role" class="w-full p-3 border rounded-xl mb-4 bg-white">
-                <option value="child">ילד/ה</option>
-                <option value="parent">הורה נוסף</option>
-            </select>
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('add-child-modal').classList.add('hidden')" class="flex-1 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold">ביטול</button>
-                <button onclick="addChild()" class="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg">הוסף</button>
-            </div>
+            <input type="text" id="c-pin" class="w-full p-3 border rounded-xl mb-3" placeholder="קוד">
+            <input type="number" id="c-balance" class="w-full p-3 border rounded-xl mb-3" placeholder="תקציב התחלתי">
+            <select id="c-role" class="w-full p-3 border rounded-xl mb-4 bg-white"><option value="child">ילד/ה</option><option value="parent">הורה נוסף</option></select>
+            <div class="flex gap-3"><button onclick="document.getElementById('add-child-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl">ביטול</button><button onclick="addChild()" class="flex-1 py-3 bg-green-600 text-white rounded-xl">הוסף</button></div>
         </div>
     </div>
 
@@ -146,223 +169,185 @@
         const API = '/api';
         let currentUser = null;
         let currentType = 'expense';
-        let familyMembers = [];
 
-        // --- לוגיקת כניסה ---
-        async function login() {
-            const pin = document.getElementById('pin-input').value;
-            const btn = document.querySelector('button');
-            const originalText = btn.innerText;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מתחבר...';
-            
-            try {
-                const res = await fetch(`${API}/login`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    loadDashboard();
-                } else {
-                    document.getElementById('error-msg').classList.remove('hidden');
-                    btn.innerText = originalText;
-                }
-            } catch (e) { alert('שגיאת תקשורת'); btn.innerText = originalText; }
+        // --- ניווט טאבים ---
+        function switchTab(tab) {
+            document.getElementById('section-tasks').classList.add('hidden');
+            document.getElementById('section-shopping').classList.add('hidden');
+            document.getElementById('tab-tasks').className = "flex-1 py-2 rounded-lg font-bold text-sm text-gray-500 hover:bg-gray-50 transition";
+            document.getElementById('tab-shopping').className = "flex-1 py-2 rounded-lg font-bold text-sm text-gray-500 hover:bg-gray-50 transition";
+
+            if (tab === 'tasks') {
+                document.getElementById('section-tasks').classList.remove('hidden');
+                document.getElementById('tab-tasks').className = "flex-1 py-2 rounded-lg font-bold text-sm bg-blue-100 text-blue-700 transition";
+            } else {
+                document.getElementById('section-shopping').classList.remove('hidden');
+                document.getElementById('tab-shopping').className = "flex-1 py-2 rounded-lg font-bold text-sm bg-pink-100 text-pink-700 transition";
+            }
         }
 
-        // --- טעינת דשבורד ---
+        async function login() {
+            const pin = document.getElementById('pin-input').value;
+            const res = await fetch(`${API}/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin}) });
+            const data = await res.json();
+            if (data.success) { currentUser = data.user; loadDashboard(); } 
+            else { document.getElementById('error-msg').classList.remove('hidden'); }
+        }
+
         async function loadDashboard() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
             document.getElementById('user-name').innerText = currentUser.name;
-            document.getElementById('user-role').innerText = currentUser.role === 'parent' ? 'מנהל/ת בנק' : 'לקוח צעיר';
+            document.getElementById('user-role').innerText = currentUser.role === 'parent' ? 'מנהל/ת' : 'לקוח';
 
-            // משיכת נתונים מהשרת
             const res = await fetch(`${API}/data/${currentUser.id}`);
             const data = await res.json();
             
-            // 1. עדכון יתרה
+            // יתרה ומשפחה
             document.getElementById('balance').innerText = `₪${data.user.balance}`;
-            
-            // 2. עדכון משפחה (רק להורים)
             if (currentUser.role === 'parent' && data.family) {
-                familyMembers = data.family;
                 document.getElementById('family-section').classList.remove('hidden');
-                document.getElementById('btn-add-task').classList.remove('hidden'); // הראה כפתור הוספת משימה
+                document.getElementById('btn-add-task').classList.remove('hidden');
+                document.getElementById('btn-checkout').classList.remove('hidden'); // כפתור סיום קנייה להורים
                 
-                const famList = document.getElementById('family-list');
-                famList.innerHTML = '';
+                const famList = document.getElementById('family-list'); famList.innerHTML = '';
+                const tSel = document.getElementById('task-assignee'); tSel.innerHTML = '';
+                const uSel = document.getElementById('t-user-select'); uSel.innerHTML = '';
                 
-                const taskAssignSelect = document.getElementById('task-assignee');
-                taskAssignSelect.innerHTML = ''; // איפוס בחירה למשימות
-
-                const transUserSelect = document.getElementById('t-user-select');
-                transUserSelect.innerHTML = ''; // איפוס בחירה לתנועות
-
-                data.family.forEach(member => {
-                    // רשימת בועות משפחה
-                    famList.innerHTML += `
-                        <div class="flex-shrink-0 text-center bg-white p-3 rounded-xl border w-24 shadow-sm animate-item">
-                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 font-bold text-lg">
-                                ${member.name[0]}
-                            </div>
-                            <p class="font-bold text-sm truncate">${member.name}</p>
-                            <p class="text-xs text-gray-500">₪${member.balance}</p>
-                        </div>
-                    `;
-                    
-                    // מילוי Selectים
-                    if (member.role === 'child') {
-                        taskAssignSelect.innerHTML += `<option value="${member.id}">${member.name}</option>`;
-                    }
-                    transUserSelect.innerHTML += `<option value="${member.id}">${member.name}</option>`;
+                data.family.forEach(m => {
+                    famList.innerHTML += `<div class="flex-shrink-0 text-center bg-white p-3 rounded-xl border w-24 shadow-sm animate-item"><div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 font-bold">${m.name[0]}</div><p class="font-bold text-sm truncate">${m.name}</p><p class="text-xs text-gray-500">₪${m.balance}</p></div>`;
+                    if(m.role==='child') tSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+                    uSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
                 });
             }
 
-            // 3. עדכון רשימת משימות
-            const tasksList = document.getElementById('tasks-list');
-            tasksList.innerHTML = '';
-            const tasks = data.tasks || [];
-            
-            if (tasks.length === 0) {
-                document.getElementById('no-tasks-msg').classList.remove('hidden');
-            } else {
+            // משימות
+            const tasksList = document.getElementById('tasks-list'); tasksList.innerHTML = '';
+            if (data.tasks.length === 0) document.getElementById('no-tasks-msg').classList.remove('hidden');
+            else {
                 document.getElementById('no-tasks-msg').classList.add('hidden');
-                tasks.forEach(task => {
-                    let actionButton = '';
-                    let statusIcon = '';
-                    let bgColor = 'bg-white';
-
-                    // לוגיקת תצוגה לפי סטטוס ומשתמש
-                    if (task.status === 'pending') {
-                        statusIcon = '<span class="text-orange-500 bg-orange-100 px-2 py-1 rounded text-xs font-bold">ממתין לביצוע</span>';
-                        if (currentUser.role === 'child') {
-                            actionButton = `<button onclick="updateTaskStatus(${task.id}, 'done')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm">סיימתי!</button>`;
-                        } else {
-                            actionButton = `<span class="text-gray-400 text-xs">ממתין לילד</span>`;
-                        }
-                    } else if (task.status === 'done') {
-                        statusIcon = '<span class="text-purple-500 bg-purple-100 px-2 py-1 rounded text-xs font-bold">ממתין לאישור</span>';
-                        bgColor = 'bg-purple-50 border border-purple-200'; // הדגשה להורה
-                        if (currentUser.role === 'parent') {
-                            actionButton = `
-                                <div class="flex gap-2">
-                                    <button onclick="updateTaskStatus(${task.id}, 'pending')" class="text-red-500 bg-white border border-red-200 px-3 py-1 rounded-lg text-xs font-bold">דחה</button>
-                                    <button onclick="updateTaskStatus(${task.id}, 'approved')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md">אשר ושלם</button>
-                                </div>
-                            `;
-                        } else {
-                            actionButton = `<span class="text-purple-600 text-xs font-bold"><i class="fa-solid fa-hourglass-start"></i> בבדיקה...</span>`;
-                        }
-                    }
-
-                    tasksList.innerHTML += `
-                        <div class="card p-4 flex justify-between items-center ${bgColor} animate-item">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="font-bold text-gray-800">${task.title}</span>
-                                    <span class="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-0.5 rounded-full">₪${task.reward}</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-gray-500"><i class="fa-regular fa-user"></i> ${task.assignee_name}</span>
-                                    ${statusIcon}
-                                </div>
-                            </div>
-                            <div>${actionButton}</div>
-                        </div>
-                    `;
+                data.tasks.forEach(task => {
+                    let action = currentUser.role === 'child' && task.status === 'pending' 
+                        ? `<button onclick="updateTask(${task.id}, 'done')" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">סיימתי</button>` 
+                        : (currentUser.role === 'parent' && task.status === 'done' 
+                            ? `<button onclick="updateTask(${task.id}, 'approved')" class="bg-green-500 text-white px-3 py-1 rounded text-sm">אשר</button>` 
+                            : `<span class="text-xs text-gray-400">${task.status === 'done' ? 'ממתין לאישור' : 'בתהליך'}</span>`);
+                    
+                    tasksList.innerHTML += `<div class="card p-4 flex justify-between items-center animate-item"><div><p class="font-bold">${task.title} <span class="text-yellow-600 text-xs bg-yellow-100 px-2 rounded">₪${task.reward}</span></p><p class="text-xs text-gray-500">${task.assignee_name}</p></div><div>${action}</div></div>`;
                 });
             }
 
-            // 4. עדכון רשימת תנועות
-            const transList = document.getElementById('transactions-list');
-            transList.innerHTML = '';
+            // רשימת קניות (חדש)
+            renderShoppingList(data.shopping_list);
+
+            // תנועות
+            const transList = document.getElementById('transactions-list'); transList.innerHTML = '';
             data.transactions.forEach(t => {
-                const isIncome = t.type === 'income';
-                transList.innerHTML += `
-                    <div class="card p-4 flex justify-between items-center border-r-4 ${isIncome ? 'border-green-500' : 'border-red-500'} animate-item">
-                        <div>
-                            <p class="font-bold text-gray-800">${t.description}</p>
-                            <p class="text-xs text-gray-500">${t.user_name || ''} • ${new Date(t.date).toLocaleDateString()}</p>
-                        </div>
-                        <span class="${isIncome ? 'text-green-600' : 'text-red-600'} font-bold text-lg">
-                            ${isIncome ? '+' : '-'}₪${t.amount}
-                        </span>
-                    </div>
-                `;
+                const isInc = t.type === 'income';
+                transList.innerHTML += `<div class="card p-4 flex justify-between items-center border-r-4 ${isInc?'border-green-500':'border-red-500'} animate-item"><div><p class="font-bold">${t.description}</p><p class="text-xs text-gray-500">${t.user_name||''} • ${new Date(t.date).toLocaleDateString()}</p></div><span class="${isInc?'text-green-600':'text-red-600'} font-bold">${isInc?'+':'-'}₪${t.amount}</span></div>`;
             });
         }
 
-        // --- ניהול משימות ---
-        function openTaskModal() {
-            document.getElementById('task-modal').classList.remove('hidden');
+        // --- לוגיקת קניות ---
+        function renderShoppingList(items) {
+            const pendingList = document.getElementById('shopping-pending-list');
+            const activeList = document.getElementById('shopping-active-list');
+            const pendingArea = document.getElementById('shopping-pending-area');
+            
+            pendingList.innerHTML = ''; activeList.innerHTML = '';
+            let hasActive = false;
+            let hasPending = false;
+
+            if (!items) return;
+
+            items.forEach(item => {
+                if (item.status === 'pending') {
+                    hasPending = true;
+                    // רק הורה יכול לאשר
+                    const action = currentUser.role === 'parent' 
+                        ? `<button onclick="updateShopItem(${item.id}, 'approved')" class="text-green-600 font-bold px-2">✓</button>` 
+                        : `<span class="text-xs text-gray-400">🕒</span>`;
+                    
+                    pendingList.innerHTML += `
+                        <div class="flex justify-between items-center bg-gray-50 p-2 rounded-lg text-sm">
+                            <span>${item.item_name} <span class="text-xs text-gray-400">(${item.requester_name})</span></span>
+                            ${action}
+                        </div>
+                    `;
+                } else if (item.status === 'approved' || item.status === 'in_cart') {
+                    hasActive = true;
+                    const isChecked = item.status === 'in_cart' ? 'checked' : '';
+                    // אם הורה - יכול לסמן צ'קבוקס. אם ילד - רק רואה.
+                    const checkbox = currentUser.role === 'parent' 
+                        ? `<input type="checkbox" onchange="updateShopItem(${item.id}, this.checked ? 'in_cart' : 'approved')" class="shop-check w-5 h-5 accent-pink-500 rounded cursor-pointer" ${isChecked}>`
+                        : `<span class="text-pink-500">●</span>`;
+
+                    activeList.innerHTML += `
+                        <div class="flex items-center gap-3 p-2 border-b last:border-0 animate-item">
+                            ${checkbox}
+                            <div class="${item.status === 'in_cart' ? 'line-through text-gray-400' : 'text-gray-800 font-medium'} flex-1">
+                                ${item.item_name}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if (hasPending) pendingArea.classList.remove('hidden'); else pendingArea.classList.add('hidden');
+            if (!hasActive) activeList.innerHTML = '<p class="text-center text-gray-300 text-sm py-4">הרשימה ריקה, אפשר לנוח ☕</p>';
         }
 
+        function openShoppingModal() { document.getElementById('shopping-modal').classList.remove('hidden'); }
+        function openCheckoutModal() { document.getElementById('checkout-modal').classList.remove('hidden'); }
+
+        async function submitShopItem() {
+            const name = document.getElementById('shop-item-name').value;
+            if(!name) return;
+            await fetch(`${API}/shopping/add`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({itemName: name, userId: currentUser.id}) });
+            document.getElementById('shopping-modal').classList.add('hidden');
+            loadDashboard();
+        }
+
+        async function updateShopItem(itemId, status) {
+            await fetch(`${API}/shopping/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({itemId, status}) });
+            if (status === 'approved') loadDashboard(); // רענון מלא אם אשרנו פריט
+            // אם זה רק צ'קבוקס, ה-UI כבר התעדכן ויזואלית בגלל ה-CSS, אבל רצוי לרענן אם רוצים להיות בטוחים
+        }
+
+        async function submitCheckout() {
+            const amount = document.getElementById('checkout-amount').value;
+            if(!amount) return alert('כמה זה עלה?');
+            await fetch(`${API}/shopping/checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({totalAmount: amount, userId: currentUser.id}) });
+            document.getElementById('checkout-modal').classList.add('hidden');
+            loadDashboard();
+        }
+
+        // --- פונקציות קיימות (משימות, יוזרים...) ---
+        function openTaskModal() { document.getElementById('task-modal').classList.remove('hidden'); }
         async function submitTask() {
             const title = document.getElementById('task-title').value;
             const reward = document.getElementById('task-reward').value;
             const assignedTo = document.getElementById('task-assignee').value;
-
-            if (!title || !reward) return alert('נא למלא את כל הפרטים');
-
-            await fetch(`${API}/tasks`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, reward, assignedTo })
-            });
-
-            document.getElementById('task-modal').classList.add('hidden');
+            await fetch(`${API}/tasks`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({title, reward, assignedTo}) });
+            document.getElementById('task-modal').classList.add('hidden'); loadDashboard();
+        }
+        async function updateTask(id, status) {
+            await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({taskId: id, status}) });
             loadDashboard();
         }
-
-        async function updateTaskStatus(taskId, status) {
-            await fetch(`${API}/tasks/update`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ taskId, status })
-            });
-            loadDashboard();
-        }
-
-        // --- פונקציות קיימות (ללא שינוי מהותי, רק חיבורים) ---
-        function openModal(type) {
-            currentType = type;
-            document.getElementById('transaction-modal').classList.remove('hidden');
-            document.getElementById('modal-title').innerText = type === 'income' ? 'הוספת הכנסה' : 'הוספת הוצאה';
-            if (currentUser.role === 'parent') {
-                document.getElementById('t-user-select-container').classList.remove('hidden');
-                document.getElementById('t-user-select').value = currentUser.id;
-            }
-        }
+        function openModal(type) { currentType=type; document.getElementById('transaction-modal').classList.remove('hidden'); document.getElementById('modal-title').innerText=type==='income'?'הכנסה':'הוצאה'; if(currentUser.role==='parent'){document.getElementById('t-user-select-container').classList.remove('hidden'); document.getElementById('t-user-select').value=currentUser.id;} }
         function closeModal() { document.getElementById('transaction-modal').classList.add('hidden'); }
-        
         async function submitTransaction() {
-            const amount = document.getElementById('t-amount').value;
-            const desc = document.getElementById('t-desc').value;
-            let targetUserId = currentUser.role === 'parent' ? document.getElementById('t-user-select').value : currentUser.id;
-            if (!amount) return alert('נא להכניס סכום');
-
-            await fetch(`${API}/transaction`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: targetUserId, amount, description: desc, category: 'general', type: currentType })
-            });
-            closeModal();
-            loadDashboard();
+            const amt = document.getElementById('t-amount').value; const desc = document.getElementById('t-desc').value;
+            const uid = currentUser.role==='parent'?document.getElementById('t-user-select').value:currentUser.id;
+            await fetch(`${API}/transaction`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: uid, amount: amt, description: desc, category: 'general', type: currentType}) });
+            closeModal(); loadDashboard();
         }
-
         async function addChild() {
-            const name = document.getElementById('c-name').value;
-            const pin = document.getElementById('c-pin').value;
-            const role = document.getElementById('c-role').value;
-            const balance = document.getElementById('c-balance').value;
-            if (!name || !pin) return alert('חסרים פרטים');
-
-            await fetch(`${API}/create-user`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, pin, role, initialBalance: balance })
-            });
-            document.getElementById('add-child-modal').classList.add('hidden');
-            loadDashboard();
+            const name = document.getElementById('c-name').value; const pin = document.getElementById('c-pin').value; const role = document.getElementById('c-role').value; const bal = document.getElementById('c-balance').value;
+            await fetch(`${API}/create-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, pin, role, initialBalance: bal}) });
+            document.getElementById('add-child-modal').classList.add('hidden'); loadDashboard();
         }
-
         function logout() { location.reload(); }
     </script>
 </body>
