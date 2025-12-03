@@ -31,14 +31,13 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- API: הבאת נתונים מלאים (משתמשים + תנועות) ---
+// --- API: הבאת נתונים מלאים ---
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
     const userRes = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
 
-    // אם זה הורה - נביא גם את רשימת כל הילדים כדי שיוכל לנהל אותם
     let familyMembers = [];
     if (user.role === 'parent') {
         const familyRes = await client.query('SELECT id, name, balance, role FROM users ORDER BY id');
@@ -65,13 +64,11 @@ app.post('/api/transaction', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // רישום התנועה
     await client.query(`
       INSERT INTO transactions (user_id, amount, description, category, type)
       VALUES ($1, $2, $3, $4, $5)
     `, [userId, amount, description, category, type]);
 
-    // עדכון היתרה
     const factor = type === 'income' ? 1 : -1;
     await client.query(`
       UPDATE users SET balance = balance + $1 
@@ -86,14 +83,19 @@ app.post('/api/transaction', async (req, res) => {
   }
 });
 
-// --- API: יצירת משתמש חדש (ילד) ---
+// --- API: יצירת משתמש חדש (ילד) - מעודכן עם יתרה התחלתית ---
 app.post('/api/create-user', async (req, res) => {
-    const { name, pin, role } = req.body;
+    // הוספנו את initialBalance
+    const { name, pin, role, initialBalance } = req.body;
+    
+    // אם לא הוזן סכום, ברירת המחדל היא 0
+    const startAmount = initialBalance || 0;
+
     try {
         await client.query(`
             INSERT INTO users (name, role, balance, pin_code)
-            VALUES ($1, $2, 0, $3)
-        `, [name, role, pin]);
+            VALUES ($1, $2, $3, $4)
+        `, [name, role, startAmount, pin]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
