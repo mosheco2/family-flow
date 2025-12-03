@@ -7,7 +7,7 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // השרת יחפש קבצי אתר בתיקיית public
+app.use(express.static('public'));
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -31,56 +31,75 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- API: הבאת נתונים לדשבורד ---
+// --- API: הבאת נתונים מלאים (משתמשים + תנועות) ---
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
-    // הבאת פרטי משתמש
     const userRes = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
 
-    // הבאת 5 תנועות אחרונות
-    const transRes = await client.query(`
-      SELECT * FROM transactions 
-      WHERE user_id = $1 OR (user_id IS NULL AND $2 = 'parent') 
-      ORDER BY date DESC LIMIT 5
-    `, [userId, user.role]);
+    // אם זה הורה - נביא גם את רשימת כל הילדים כדי שיוכל לנהל אותם
+    let familyMembers = [];
+    if (user.role === 'parent') {
+        const familyRes = await client.query('SELECT id, name, balance, role FROM users ORDER BY id');
+        familyMembers = familyRes.rows;
+    }
 
-    res.json({ user, transactions: transRes.rows });
+    const transRes = await client.query(`
+      SELECT t.*, u.name as user_name 
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+      ORDER BY t.date DESC LIMIT 20
+    `);
+
+    res.json({ user, transactions: transRes.rows, family: familyMembers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- API: הוספת תנועה (הכנסה/הוצאה) ---
+// --- API: הוספת תנועה ---
 app.post('/api/transaction', async (req, res) => {
   const { userId, amount, description, category, type } = req.body;
   
   try {
-    await client.query('BEGIN'); // התחלת טרנזקציה
-
-    // 1. רישום התנועה
+    await client.query('BEGIN');
+    
+    // רישום התנועה
     await client.query(`
       INSERT INTO transactions (user_id, amount, description, category, type)
       VALUES ($1, $2, $3, $4, $5)
     `, [userId, amount, description, category, type]);
 
-    // 2. עדכון היתרה של המשתמש (אם זה לא מנהל)
+    // עדכון היתרה
     const factor = type === 'income' ? 1 : -1;
     await client.query(`
       UPDATE users SET balance = balance + $1 
       WHERE id = $2
     `, [amount * factor, userId]);
 
-    await client.query('COMMIT'); // סיום ואישור
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
-    await client.query('ROLLBACK'); // ביטול אם הייתה שגיאה
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   }
 });
 
-// נתיב ברירת מחדל שמחזיר את האפליקציה
+// --- API: יצירת משתמש חדש (ילד) ---
+app.post('/api/create-user', async (req, res) => {
+    const { name, pin, role } = req.body;
+    try {
+        await client.query(`
+            INSERT INTO users (name, role, balance, pin_code)
+            VALUES ($1, $2, 0, $3)
+        `, [name, role, pin]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
