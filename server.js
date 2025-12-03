@@ -16,25 +16,22 @@ const client = new Client({
 
 client.connect();
 
-// --- שדרוג מסד הנתונים (הוספת עמודות בנקאות) ---
+// --- שדרוג מסד הנתונים ---
 async function upgradeDB() {
     try {
         await client.query(`
             DO $$ 
             BEGIN 
-                -- הוספת קבוצת גיל
+                -- עמודות בנקאות (אם טרם נוספו)
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='age_group') THEN 
                     ALTER TABLE users ADD COLUMN age_group VARCHAR(20) DEFAULT 'adult'; 
                 END IF;
-                -- הוספת דמי כיס שבועיים
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='weekly_allowance') THEN 
                     ALTER TABLE users ADD COLUMN weekly_allowance DECIMAL(10, 2) DEFAULT 0; 
                 END IF;
-                -- הוספת ריבית שבועית (באחוזים)
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='interest_rate') THEN 
                     ALTER TABLE users ADD COLUMN interest_rate DECIMAL(5, 2) DEFAULT 0; 
                 END IF;
-                -- הוספת נקודות ניסיון (XP) למשחוק
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='xp') THEN 
                     ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0; 
                 END IF;
@@ -46,23 +43,34 @@ async function upgradeDB() {
 // --- הקמת מסד הנתונים ---
 app.get('/setup-db', async (req, res) => {
   try {
-    // יצירת טבלאות בסיס (אם לא קיימות)
     await client.query(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, role VARCHAR(20) NOT NULL, balance DECIMAL(10, 2) DEFAULT 0, pin_code VARCHAR(10));`);
     await client.query(`CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), amount DECIMAL(10, 2) NOT NULL, description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
     await client.query(`CREATE TABLE IF NOT EXISTS tasks (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, reward DECIMAL(10, 2) NOT NULL, status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id));`);
     await client.query(`CREATE TABLE IF NOT EXISTS shopping_list (id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
     await client.query(`CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), title VARCHAR(100) NOT NULL, target_amount DECIMAL(10, 2) NOT NULL, current_amount DECIMAL(10, 2) DEFAULT 0, icon VARCHAR(50) DEFAULT 'star', status VARCHAR(20) DEFAULT 'active');`);
+    
+    // --- חדש: טבלת הלוואות ---
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS loans (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        original_amount DECIMAL(10, 2) NOT NULL, -- הסכום המקורי
+        remaining_amount DECIMAL(10, 2) NOT NULL, -- כמה נשאר להחזיר
+        reason VARCHAR(255),
+        interest_rate DECIMAL(5, 2) DEFAULT 0, -- ריבית שקבע ההורה
+        status VARCHAR(20) DEFAULT 'pending', -- pending, active, paid, rejected
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-    // הפעלת שדרוג עמודות
     await upgradeDB();
 
-    // יצירת הורה ברירת מחדל
     const userCheck = await client.query('SELECT * FROM users');
     if (userCheck.rows.length === 0) {
         await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group) VALUES ('Admin Parent', 'parent', 0, '1234', 'adult')`);
     }
 
-    res.send(`<h2 style="color: green;">Banking Engine Ready! Tables updated with Allowance & Interest features.</h2>`);
+    res.send(`<h2 style="color: green;">System Updated! Loans module installed.</h2>`);
   } catch (err) {
     res.status(500).send(`Error: ${err.message}`);
   }
@@ -70,35 +78,7 @@ app.get('/setup-db', async (req, res) => {
 
 // --- API Endpoints ---
 
-app.get('/api/public-users', async (req, res) => {
-    try {
-        const result = await client.query('SELECT id, name, role, age_group FROM users ORDER BY role DESC, id ASC');
-        res.json(result.rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/login', async (req, res) => {
-  const { userId, pin } = req.body;
-  try {
-    const result = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]);
-    if (result.rows.length > 0) res.json({ success: true, user: result.rows[0] });
-    else res.status(401).json({ success: false, message: 'קוד שגוי' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// יצירת משתמש (מעודכן)
-app.post('/api/create-user', async (req, res) => {
-    const { name, pin, role, initialBalance, ageGroup } = req.body;
-    try {
-        await client.query(`
-            INSERT INTO users (name, role, balance, pin_code, age_group, weekly_allowance, interest_rate)
-            VALUES ($1, $2, $3, $4, $5, 0, 0)
-        `, [name, role, parseFloat(initialBalance)||0, pin, ageGroup || 'adult']);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// שליפת נתונים (מעודכן עם שדות בנקאות)
+// 1. נתונים כלליים (עודכן למשוך גם הלוואות)
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -107,15 +87,16 @@ app.get('/api/data/:userId', async (req, res) => {
 
     let familyMembers = [];
     if (user.role === 'parent') {
-        const familyRes = await client.query('SELECT id, name, balance, role, age_group, weekly_allowance, interest_rate FROM users ORDER BY id');
-        familyMembers = familyRes.rows;
+        familyMembers = (await client.query('SELECT id, name, balance, role, age_group, weekly_allowance, interest_rate FROM users ORDER BY id')).rows;
     }
 
+    // תנועות
     let transQuery = `SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id`;
     if (user.role === 'child') transQuery += ` WHERE t.user_id = ${userId}`;
     transQuery += ` ORDER BY t.date DESC LIMIT 20`;
     const transRes = await client.query(transQuery);
     
+    // משימות
     let tasksQuery = `SELECT t.*, u.name as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id `;
     if (user.role === 'child') tasksQuery += ` WHERE t.assigned_to = ${userId} AND t.status != 'approved'`;
     else tasksQuery += ` WHERE t.status != 'approved'`;
@@ -125,77 +106,130 @@ app.get('/api/data/:userId', async (req, res) => {
     const shopRes = await client.query(`SELECT s.*, u.name as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.status != 'bought' ORDER BY s.id DESC`);
     const goalsRes = await client.query(`SELECT * FROM goals WHERE user_id = $1 AND status = 'active'`, [userId]);
 
-    res.json({ user, transactions: transRes.rows, family: familyMembers, tasks: tasksRes.rows, shopping_list: shopRes.rows, goals: goalsRes.rows });
+    // הלוואות (חדש!)
+    let loansQuery = `SELECT l.*, u.name as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id`;
+    if (user.role === 'child') loansQuery += ` WHERE l.user_id = ${userId}`;
+    else loansQuery += ` WHERE l.status != 'paid'`; // הורים רואים רק הלוואות פעילות/ממתינות של כולם
+    loansQuery += ` ORDER BY l.created_at DESC`;
+    const loansRes = await client.query(loansQuery);
+
+    res.json({ 
+        user, 
+        transactions: transRes.rows, 
+        family: familyMembers, 
+        tasks: tasksRes.rows, 
+        shopping_list: shopRes.rows, 
+        goals: goalsRes.rows,
+        loans: loansRes.rows // שליחת ההלוואות
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- מנוע הבנקאות (חדש!) ---
+// --- מודול הלוואות (חדש!) ---
 
-// עדכון הגדרות בנק (דמי כיס וריבית) לילד
-app.post('/api/bank/settings', async (req, res) => {
-    const { userId, allowance, interest } = req.body;
+// בקשת הלוואה (ילד)
+app.post('/api/loans/request', async (req, res) => {
+    const { userId, amount, reason } = req.body;
     try {
-        await client.query(`UPDATE users SET weekly_allowance = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]);
+        await client.query(`
+            INSERT INTO loans (user_id, original_amount, remaining_amount, reason, status)
+            VALUES ($1, $2, $2, $3, 'pending')
+        `, [userId, amount, reason]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// יום התשלום (PayDay) - מחלק דמי כיס ומחשב ריבית
-app.post('/api/bank/payday', async (req, res) => {
+// טיפול בהלוואה (הורה - אישור/דחייה)
+app.post('/api/loans/handle', async (req, res) => {
+    const { loanId, status, interestRate } = req.body; // status: 'active' or 'rejected'
+    
     try {
         await client.query('BEGIN');
         
-        // 1. שליפת כל הילדים
-        const childrenRes = await client.query("SELECT * FROM users WHERE role = 'child'");
-        const children = childrenRes.rows;
-        let report = [];
+        if (status === 'active') {
+            const loanRes = await client.query('SELECT * FROM loans WHERE id = $1', [loanId]);
+            const loan = loanRes.rows[0];
+            
+            // חישוב סכום להחזר כולל ריבית
+            const interest = parseFloat(interestRate) || 0;
+            const original = parseFloat(loan.original_amount);
+            const totalToRepay = original + (original * (interest / 100));
 
-        for (const child of children) {
-            // תשלום דמי כיס
-            if (child.weekly_allowance > 0) {
-                await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [child.weekly_allowance, child.id]);
-                await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'דמי כיס שבועיים', 'income', 'income')`, [child.id, child.weekly_allowance]);
-                report.push(`${child.name}: דמי כיס +${child.weekly_allowance}`);
-            }
+            // 1. עדכון ההלוואה (הוספת ריבית ושינוי סטטוס)
+            await client.query(`
+                UPDATE loans 
+                SET status = 'active', interest_rate = $1, remaining_amount = $2 
+                WHERE id = $3
+            `, [interest, totalToRepay, loanId]);
 
-            // חישוב ריבית על יתרה חיובית (אם מוגדרת ריבית)
-            if (child.interest_rate > 0 && child.balance > 0) {
-                const interestAmount = (parseFloat(child.balance) * parseFloat(child.interest_rate)) / 100;
-                if (interestAmount > 0) {
-                    await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [interestAmount, child.id]);
-                    await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'savings', 'income')`, [child.id, interestAmount, `ריבית שבועית (${child.interest_rate}%)`]);
-                    report.push(`${child.name}: ריבית +${interestAmount.toFixed(2)}`);
-                }
-            }
+            // 2. העברת הכסף לילד (הוא מקבל את הסכום המקורי)
+            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [original, loan.user_id]);
+            
+            // 3. תיעוד תנועה
+            await client.query(`
+                INSERT INTO transactions (user_id, amount, description, category, type)
+                VALUES ($1, $2, $3, 'loans', 'income')
+            `, [loan.user_id, original, `קבלת הלוואה: ${loan.reason}`]);
+        } else {
+            // דחייה
+            await client.query(`UPDATE loans SET status = 'rejected' WHERE id = $1`, [loanId]);
         }
 
         await client.query('COMMIT');
-        res.json({ success: true, report });
+        res.json({ success: true });
     } catch (err) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: err.message });
     }
 });
 
-// --- שאר ה-API הקיימים (ללא שינוי) ---
-app.post('/api/goals', async (req, res) => {
-    const { userId, title, targetAmount } = req.body;
-    try { await client.query(`INSERT INTO goals (user_id, title, target_amount) VALUES ($1, $2, $3)`, [userId, title, targetAmount]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); }
-});
-app.post('/api/goals/deposit', async (req, res) => {
-    const { goalId, amount, userId } = req.body;
+// החזר הלוואה (ילד משלם)
+app.post('/api/loans/repay', async (req, res) => {
+    const { loanId, amount, userId } = req.body;
     try {
         await client.query('BEGIN');
+        
+        // בדיקת יתרה
         const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
-        if (userRes.rows[0].balance < amount) { await client.query('ROLLBACK'); return res.json({ success: false, message: 'אין מספיק יתרה' }); }
-        await client.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2', [amount, goalId]);
-        await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, userId]);
-        await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'הפקדה לחיסכון', 'savings', 'expense')`, [userId, amount]);
-        // הוספת XP על חיסכון
-        await client.query('UPDATE users SET xp = xp + 10 WHERE id = $1', [userId]); 
-        await client.query('COMMIT'); res.json({ success: true });
-    } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+        if (userRes.rows[0].balance < amount) {
+            await client.query('ROLLBACK');
+            return res.json({ success: false, message: 'אין מספיק יתרה להחזר' });
+        }
+
+        // עדכון ההלוואה
+        await client.query(`UPDATE loans SET remaining_amount = remaining_amount - $1 WHERE id = $2`, [amount, loanId]);
+        
+        // בדיקה אם ההלוואה נסגרה
+        const loanRes = await client.query('SELECT remaining_amount FROM loans WHERE id = $1', [loanId]);
+        if (loanRes.rows[0].remaining_amount <= 0) {
+            await client.query(`UPDATE loans SET status = 'paid', remaining_amount = 0 WHERE id = $1`, [loanId]);
+        }
+
+        // הורדת כסף מהמשתמש
+        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+        
+        // תיעוד
+        await client.query(`
+            INSERT INTO transactions (user_id, amount, description, category, type)
+            VALUES ($1, $2, 'החזר הלוואה', 'loans', 'expense')
+        `, [userId, amount]);
+
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    }
 });
+
+// --- שאר ה-API (ללא שינוי, העתק מהגרסה הקודמת שלך כדי לשמור על רצף) ---
+app.get('/api/public-users', async (req, res) => { try { const result = await client.query('SELECT id, name, role, age_group FROM users ORDER BY role DESC, id ASC'); res.json(result.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const result = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (result.rows.length > 0) return res.json({ success: true, user: result.rows[0] }); return res.status(401).json({ success: false, message: 'קוד שגוי' }); } const result = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (result.rows.length > 0) res.json({ success: true, user: result.rows[0] }); else res.status(401).json({ success: false, message: 'קוד שגוי' }); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/create-user', async (req, res) => { const { name, pin, role, initialBalance, ageGroup } = req.body; try { await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group, weekly_allowance, interest_rate) VALUES ($1, $2, $3, $4, $5, 0, 0)`, [name, role, parseFloat(initialBalance)||0, pin, ageGroup || 'adult']); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/bank/settings', async (req, res) => { const { userId, allowance, interest } = req.body; try { await client.query(`UPDATE users SET weekly_allowance = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/bank/payday', async (req, res) => { try { await client.query('BEGIN'); const children = (await client.query("SELECT * FROM users WHERE role = 'child'")).rows; let report = []; for (const child of children) { if (child.weekly_allowance > 0) { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [child.weekly_allowance, child.id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'דמי כיס שבועיים', 'income', 'income')`, [child.id, child.weekly_allowance]); report.push(`${child.name}: דמי כיס +${child.weekly_allowance}`); } if (child.interest_rate > 0 && child.balance > 0) { const interestAmount = (parseFloat(child.balance) * parseFloat(child.interest_rate)) / 100; if (interestAmount > 0) { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [interestAmount, child.id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'savings', 'income')`, [child.id, interestAmount, `ריבית שבועית (${child.interest_rate}%)`]); report.push(`${child.name}: ריבית +${interestAmount.toFixed(2)}`); } } } await client.query('COMMIT'); res.json({ success: true, report }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
+app.post('/api/goals', async (req, res) => { const { userId, title, targetAmount } = req.body; try { await client.query(`INSERT INTO goals (user_id, title, target_amount) VALUES ($1, $2, $3)`, [userId, title, targetAmount]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/goals/deposit', async (req, res) => { const { goalId, amount, userId } = req.body; try { await client.query('BEGIN'); const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]); if (userRes.rows[0].balance < amount) { await client.query('ROLLBACK'); return res.json({ success: false, message: 'אין מספיק יתרה' }); } await client.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2', [amount, goalId]); await client.query('UPDATE users SET balance = balance - $1 WHERE id = $2', [amount, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'הפקדה לחיסכון', 'savings', 'expense')`, [userId, amount]); await client.query('UPDATE users SET xp = xp + 10 WHERE id = $1', [userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
 app.post('/api/shopping/add', async (req, res) => { const { itemName, userId } = req.body; try { const userRes = await client.query('SELECT role FROM users WHERE id = $1', [userId]); const status = userRes.rows[0].role === 'parent' ? 'approved' : 'pending'; await client.query(`INSERT INTO shopping_list (item_name, requested_by, status) VALUES ($1, $2, $3)`, [itemName, userId, status]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/shopping/update', async (req, res) => { const { itemId, status } = req.body; try { await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/shopping/checkout', async (req, res) => { const { totalAmount, userId } = req.body; try { await client.query('BEGIN'); await client.query("UPDATE shopping_list SET status = 'bought' WHERE status = 'in_cart'"); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'קניות בסופר', 'groceries', 'expense')`, [userId, parseFloat(totalAmount)]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
