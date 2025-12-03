@@ -15,7 +15,6 @@
         .animate-item { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .shop-check:checked + div { text-decoration: line-through; color: #9ca3af; }
-        .progress-bar { transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-tab.active { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
     </style>
 </head>
@@ -38,7 +37,7 @@
     <!-- דשבורד ראשי -->
     <div id="dashboard" class="hidden w-full max-w-md pb-32">
         <header class="flex justify-between items-center mb-6 p-4 sticky top-0 bg-[#f8fafc]/90 backdrop-blur-sm z-10">
-            <div><h2 id="user-name" class="text-3xl font-black text-gray-800 tracking-tight"></h2><div class="flex items-center gap-2 mt-1"><span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span><span id="user-rank" class="rank-badge hidden"></span></div></div>
+            <div><h2 id="user-name" class="text-3xl font-black text-gray-800 tracking-tight"></h2><div class="flex items-center gap-2 mt-1"><span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span><span id="user-xp" class="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full border border-yellow-200">✨ 0 XP</span></div></div>
             <div class="flex gap-3"><button onclick="openInviteModal()" id="btn-invite" class="hidden w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i class="fa-solid fa-user-plus"></i></button><button onclick="logout()" class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button></div>
         </header>
 
@@ -50,36 +49,42 @@
         </div>
 
         <div class="mx-4 mb-6 bg-white p-1.5 rounded-2xl shadow-sm flex overflow-x-auto gap-1 no-scrollbar">
+            <button onclick="switchTab('academy')" id="tab-academy" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-200">אקדמיה 🎓</button>
+            <button onclick="switchTab('feed')" id="tab-feed" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">עדכונים 🔔</button>
             <button onclick="switchTab('tasks')" id="tab-tasks" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">משימות</button>
             <button onclick="switchTab('goals')" id="tab-goals" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">יעדים</button>
-            <button onclick="switchTab('academy')" id="tab-academy" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-indigo-50 text-indigo-700 border border-indigo-100">אקדמיה 🎓</button>
-            <button onclick="switchTab('feed')" id="tab-feed" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">עדכונים 🔔</button>
-            <button onclick="switchTab('budget')" id="tab-budget" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-100">תקציב</button>
-            <button onclick="switchTab('loans')" id="tab-loans" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">הלוואות</button>
+            <button onclick="switchTab('shopping')" id="tab-shopping" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">קניות</button>
             <button onclick="switchTab('bank')" id="tab-bank" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-purple-50 text-purple-700 border border-purple-100">הבנק</button>
+            <button onclick="switchTab('loans')" id="tab-loans" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">הלוואות</button>
+            <button onclick="switchTab('budget')" id="tab-budget" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-100">תקציב</button>
             <button onclick="switchTab('reports')" id="tab-reports" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">תחזית</button>
         </div>
 
-        <!-- אזורים חדשים -->
+        <!-- אזור אקדמיה (חדש) -->
         <div id="section-academy" class="mx-4 mb-8 hidden">
-            <h3 class="font-bold text-gray-800 text-xl mb-4">אקדמיה פיננסית</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-800 text-xl">לומדים ומרוויחים</h3>
+                <button id="btn-add-quiz" onclick="openAddQuizModal()" class="hidden text-sm bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold">+ הוסף שיעור</button>
+            </div>
             <div id="quiz-list" class="space-y-4"></div>
-            <p id="no-quiz-msg" class="text-center text-gray-400 text-sm py-8 hidden">סיימת את כל החידונים! 🎉</p>
+            <p id="no-quiz-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">כל הכבוד! סיימת את כל המשימות הלימודיות 🎉</p>
         </div>
 
+        <!-- אזור עדכונים (חדש) -->
         <div id="section-feed" class="mx-4 mb-8 hidden">
-            <h3 class="font-bold text-gray-800 text-xl mb-4">מה חדש במשפחה?</h3>
+            <h3 class="font-bold text-gray-800 text-xl mb-4">לוח מודעות משפחתי</h3>
             <div id="feed-list" class="space-y-3"></div>
         </div>
 
         <!-- אזורים קיימים -->
-        <div id="section-tasks" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">משימות</h3><button id="btn-add-task" onclick="openTaskModal()" class="hidden text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">+ משימה</button></div><div id="tasks-list" class="space-y-3"></div><p id="no-tasks-msg" class="text-center text-gray-400 text-sm hidden py-4">אין משימות 🎉</p></div>
-        <div id="section-goals" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">היעדים שלי</h3><button onclick="openGoalModal()" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold">+ חדש</button></div><div id="goals-list" class="space-y-4"></div><p id="no-goals-msg" class="text-center text-gray-400 text-sm hidden py-4">אין יעדים ✨</p></div>
+        <div id="section-tasks" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">משימות</h3><button id="btn-add-task" onclick="openTaskModal()" class="hidden text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">+ משימה</button></div><div id="tasks-list" class="space-y-3"></div><p id="no-tasks-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין משימות 🎉</p></div>
+        <div id="section-goals" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">היעדים שלי</h3><button onclick="openGoalModal()" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold">+ חדש</button></div><div id="goals-list" class="space-y-4"></div><p id="no-goals-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">עוד לא הגדרת יעדים לחלומות שלך ✨</p></div>
         <div id="section-budget" class="mx-4 mb-8 hidden"><h3 class="font-bold text-gray-800 text-xl mb-4">תקציב חודשי</h3><div id="budget-bars" class="space-y-4"></div></div>
-        <div id="section-loans" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">הלוואות</h3><button onclick="openLoanModal()" class="text-sm bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold">+ בקש הלוואה</button></div><div id="loans-list" class="space-y-4"></div><p id="no-loans-msg" class="text-center text-gray-400 text-sm hidden py-4">אין הלוואות פעילות</p></div>
+        <div id="section-loans" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">הלוואות</h3><button onclick="openLoanModal()" class="text-sm bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold">+ בקש הלוואה</button></div><div id="loans-list" class="space-y-4"></div><p id="no-loans-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין הלוואות פעילות</p></div>
         <div id="section-bank" class="mx-4 mb-8 hidden"><div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white mb-6 shadow-lg"><h3 class="text-xl font-bold mb-1">ניהול הבנק</h3><button onclick="runPayday()" class="w-full bg-white text-purple-700 font-bold py-3 rounded-xl shadow mt-4">הפעל יום תשלום (PayDay)</button></div><h4 class="font-bold text-gray-800 mb-3 px-1">חשבונות ילדים</h4><div id="bank-accounts-list" class="space-y-3 mb-8"></div><h4 class="font-bold text-gray-800 mb-3 px-1">🏆 אלופי החיסכון</h4><div id="leaderboard-list" class="space-y-2"></div></div>
         <div id="section-reports" class="mx-4 mb-8 hidden"><h3 class="font-bold text-gray-800 text-xl mb-4">תחזית ומגמות</h3><div class="card p-6 flex flex-col items-center mb-6"><h4 class="text-sm text-gray-500 mb-2 font-bold w-full text-right">התפלגות הוצאות</h4><div class="w-full h-48 relative"><canvas id="expensesChart"></canvas></div></div><div class="card p-6 flex flex-col items-center"><h4 class="text-sm text-gray-500 mb-2 font-bold w-full text-right">מכונת הזמן (צפי יתרה) 🔮</h4><div class="w-full h-48 relative"><canvas id="forecastChart"></canvas></div><p id="forecast-text" class="text-xs text-gray-500 mt-4 text-center"></p></div></div>
-        
+        <div id="section-shopping" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">סופר</h3><button onclick="openShoppingModal()" class="text-sm bg-pink-100 text-pink-700 px-4 py-2 rounded-full font-bold">+ פריט</button></div><div id="shopping-pending-area" class="mb-4 hidden"><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">ממתינים</h4><div id="shopping-pending-list" class="space-y-2"></div></div><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">פעיל</h4><div id="shopping-active-list" class="space-y-2 bg-white rounded-2xl shadow-sm p-3 min-h-[100px]"></div><button id="btn-checkout" onclick="openCheckoutModal()" class="hidden w-full mt-6 bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3">סיום קנייה</button></div>
+
         <div class="fixed bottom-6 left-0 w-full px-4 pointer-events-none"><div class="max-w-md mx-auto grid grid-cols-2 gap-4 pointer-events-auto"><button onclick="openModal('income')" class="bg-white/90 backdrop-blur border border-green-100 text-green-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-circle-plus text-xl"></i> הכנסה</button><button onclick="openModal('expense')" class="bg-white/90 backdrop-blur border border-red-100 text-red-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-circle-minus text-xl"></i> הוצאה</button></div></div>
         <div id="family-section" class="mx-4 mb-8 hidden mt-8 pt-8 border-t border-gray-200"><h3 class="font-bold text-gray-800 text-lg mb-4">בני המשפחה</h3><div id="family-list" class="flex gap-4 overflow-x-auto pb-4 no-scrollbar"></div></div>
         <div class="mx-4 pb-20"><h3 class="font-bold text-gray-800 text-lg mb-4">פעילות אחרונה</h3><div id="transactions-list" class="space-y-3"></div></div>
@@ -88,22 +93,62 @@
     <!-- מודל חידון -->
     <div id="quiz-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
-            <div class="text-center mb-4"><i class="fa-solid fa-lightbulb text-4xl text-yellow-400"></i></div>
-            <h3 id="quiz-question" class="text-xl font-bold mb-6 text-center text-gray-800"></h3>
+            <div id="quiz-icon" class="text-center mb-4 text-4xl"></div>
+            <h3 id="quiz-question" class="text-xl font-bold mb-4 text-center text-gray-800"></h3>
+            <div id="quiz-content" class="bg-indigo-50 p-4 rounded-xl text-sm text-gray-700 mb-4 hidden leading-relaxed"></div>
             <input type="hidden" id="quiz-id">
             <div id="quiz-options" class="space-y-3 mb-4"></div>
             <button onclick="document.getElementById('quiz-modal').classList.add('hidden')" class="w-full py-3 bg-gray-100 font-bold rounded-xl mt-4">סגור</button>
         </div>
     </div>
 
-    <!-- מודלים קיימים -->
+    <!-- מודל הוספת שיעור (להורים) -->
+    <div id="add-quiz-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h3 class="text-xl font-bold mb-4 text-center text-indigo-600">הוספת שיעור</h3>
+            <label class="block text-xs font-bold text-gray-500 mb-1">סוג</label>
+            <select id="new-quiz-type" class="w-full p-3 border rounded-xl mb-3 bg-white" onchange="toggleContentField()">
+                <option value="trivia">שאלה אמריקאית (טריוויה)</option>
+                <option value="math">תרגיל חשבון</option>
+                <option value="reading">הבנת הנקרא</option>
+            </select>
+            <label class="block text-xs font-bold text-gray-500 mb-1">גיל יעד</label>
+            <select id="new-quiz-age" class="w-full p-3 border rounded-xl mb-3 bg-white">
+                <option value="child_6_10">ילד (6-10)</option>
+                <option value="child_10_15">נער (10-15)</option>
+                <option value="teen_15_18">בוגר (15+)</option>
+            </select>
+            <label class="block text-xs font-bold text-gray-500 mb-1">השאלה/התרגיל</label>
+            <input type="text" id="new-quiz-question" class="w-full p-3 border rounded-xl mb-3" placeholder="מה השאלה?">
+            
+            <div id="new-quiz-content-div" class="hidden">
+                <label class="block text-xs font-bold text-gray-500 mb-1">טקסט לקריאה</label>
+                <textarea id="new-quiz-content" class="w-full p-3 border rounded-xl mb-3" rows="3" placeholder="הטקסט שהילד יקרא..."></textarea>
+            </div>
+
+            <label class="block text-xs font-bold text-gray-500 mb-1">תשובות (הראשונה היא הנכונה, נערבב אח"כ)</label>
+            <input type="text" id="new-quiz-opt1" class="w-full p-2 border rounded-xl mb-2 bg-green-50" placeholder="התשובה הנכונה">
+            <input type="text" id="new-quiz-opt2" class="w-full p-2 border rounded-xl mb-2" placeholder="תשובה שגויה 1">
+            <input type="text" id="new-quiz-opt3" class="w-full p-2 border rounded-xl mb-2" placeholder="תשובה שגויה 2">
+            
+            <label class="block text-xs font-bold text-gray-500 mb-1">פרס (₪)</label>
+            <input type="number" id="new-quiz-reward" class="w-full p-3 border rounded-xl mb-6" value="5">
+
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('add-quiz-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button>
+                <button onclick="createQuiz()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold">צור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- שאר המודלים (קיימים) -->
     <div id="invite-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-blue-600">הזמנה</h3><div class="space-y-3 mb-6"><button onclick="generateInvite('parent','adult')" class="w-full text-right p-4 border rounded-2xl">בן/בת זוג</button><button onclick="generateInvite('child','child_6_10')" class="w-full text-right p-4 border rounded-2xl">ילד (6-10)</button><button onclick="generateInvite('child','child_10_15')" class="w-full text-right p-4 border rounded-2xl">נער (10-15)</button></div><div id="invite-link-area" class="hidden bg-blue-50 p-4 rounded-2xl mb-4 text-center"><button id="btn-send-whatsapp" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold">שלח בווצאפ</button></div><button onclick="document.getElementById('invite-modal').classList.add('hidden');" class="w-full py-3 bg-gray-100 font-bold rounded-xl">סגור</button></div></div>
     <div id="goal-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-yellow-600">יעד חדש</h3><input type="text" id="goal-title" class="w-full p-3 border rounded-xl mb-3" placeholder="למה חוסכים?"><input type="number" id="goal-target" class="w-full p-3 border rounded-xl mb-3" placeholder="כמה צריך? (₪)"><label class="block text-xs font-bold text-gray-500 mb-1 mr-1">מתי רוצים לקנות?</label><input type="date" id="goal-date" class="w-full p-3 border rounded-xl mb-6 bg-gray-50"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitGoal()" class="flex-1 py-3 bg-yellow-500 text-white rounded-xl font-bold">צור</button></div></div></div>
     <div id="deposit-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-green-600">הפקדה לחיסכון</h3><p class="text-center text-gray-500 mb-6 text-sm">הכסף ירד מהיתרה הנוכחית שלך</p><input type="hidden" id="deposit-goal-id"><input type="number" id="deposit-amount" class="w-full p-4 border-2 border-green-100 rounded-2xl mb-6 text-3xl text-center font-bold text-green-600" placeholder="₪0"><div class="flex gap-3"><button onclick="document.getElementById('deposit-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitDeposit()" class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg">הפקד</button></div></div></div>
     <div id="edit-budget-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-teal-600">עריכת תקציב</h3><p id="edit-budget-cat-name" class="text-center text-gray-600 mb-4"></p><input type="hidden" id="edit-budget-cat"><label class="block text-xs font-bold text-gray-500 mb-1">תקרה (₪)</label><input type="number" id="edit-budget-limit" class="w-full p-4 border-2 rounded-2xl mb-6 text-xl font-bold text-center"><div class="flex gap-3"><button onclick="document.getElementById('edit-budget-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="saveBudgetLimit()" class="flex-1 bg-teal-600 text-white rounded-xl">שמור</button></div></div></div>
     <div id="task-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">משימה חדשה</h3><input type="text" id="task-title" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><input type="number" id="task-reward" class="w-full p-3 border rounded-xl mb-3" placeholder="תגמול"><select id="task-assignee" class="w-full p-3 border rounded-xl mb-6 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTask()" class="flex-1 bg-purple-600 text-white rounded-xl">צור</button></div></div></div>
     <div id="shopping-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">הוספה לסופר</h3><input type="text" id="shop-item-name" class="w-full p-3 border rounded-xl mb-6" placeholder="פריט"><div class="flex gap-3"><button onclick="document.getElementById('shopping-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-600 text-white rounded-xl">הוסף</button></div></div></div>
-    <div id="transaction-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 id="modal-title" class="text-xl font-bold mb-6 text-center">תנועה</h3><input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3 text-lg" placeholder="סכום"><input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><select id="t-category" class="w-full p-3 border rounded-xl mb-3 bg-white"><option value="general">כללי</option><option value="food">אוכל</option><option value="toys">משחקים</option></select><label class="block text-xs font-bold text-gray-500 mb-1 mr-1">תאריך ביצוע/צפוי</label><input type="date" id="t-date" class="w-full p-3 border rounded-xl mb-3 bg-gray-50"><div id="t-user-select-container" class="hidden mb-6"><select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select></div><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white rounded-xl">שמור</button></div></div></div>
+    <div id="transaction-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 id="modal-title" class="text-xl font-bold mb-6 text-center">תנועה</h3><input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3 text-lg" placeholder="סכום"><input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><select id="t-category" class="w-full p-3 border rounded-xl mb-3 bg-white"><option value="general">כללי</option><option value="food">אוכל</option><option value="toys">משחקים</option><option value="clothes">בגדים</option><option value="entertainment">בילויים</option><option value="transport">נסיעות</option></select><label class="block text-xs font-bold text-gray-500 mb-1 mr-1">תאריך ביצוע/צפוי</label><input type="date" id="t-date" class="w-full p-3 border rounded-xl mb-3 bg-gray-50"><div id="t-user-select-container" class="hidden mb-6"><select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select></div><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white rounded-xl">שמור</button></div></div></div>
     <div id="checkout-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">סיום קנייה</h3><input type="number" id="checkout-amount" class="w-full p-4 border rounded-2xl mb-6 text-3xl text-center" placeholder="סה״כ"><div class="flex gap-3"><button onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitCheckout()" class="flex-1 bg-gray-900 text-white rounded-xl">אישור</button></div></div></div>
     <div id="loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-indigo-600">בקשת הלוואה</h3><input type="number" id="loan-amount" class="w-full p-3 border rounded-xl mb-3" placeholder="כמה צריך?"><input type="text" id="loan-reason" class="w-full p-3 border rounded-xl mb-6" placeholder="למה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitLoanRequest()" class="flex-1 bg-indigo-600 text-white rounded-xl">שלח</button></div></div></div>
     <div id="approve-loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-indigo-600">אישור הלוואה</h3><p id="approve-loan-desc" class="text-center text-gray-600 text-sm mb-6"></p><input type="hidden" id="approve-loan-id"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית (%)</label><input type="number" id="approve-loan-interest" class="w-full p-3 border rounded-xl mb-6 text-lg font-bold" value="0"><div class="flex gap-3"><button onclick="handleLoan('rejected')" class="flex-1 bg-red-100 text-red-600 rounded-xl">דחה</button><button onclick="handleLoan('active')" class="flex-1 bg-green-600 text-white rounded-xl">אשר</button></div></div></div>
@@ -117,9 +162,6 @@
         let currentUser = null;
         let selectedUserIdForLogin = null;
         let currentType = 'expense';
-        let expensesChart = null;
-        let forecastChart = null;
-
         const urlParams = new URLSearchParams(window.location.search);
         const isJoinMode = urlParams.get('join') === 'true';
         const joinRole = urlParams.get('role');
@@ -127,25 +169,7 @@
 
         window.onload = async () => { if (isJoinMode) initRegisterMode(); else loadUsersForLogin(); };
 
-        // --- Academy & Feed Logic (חדש!) ---
-        function renderFeed(feed) {
-            const list = document.getElementById('feed-list');
-            list.innerHTML = '';
-            if(!feed || feed.length === 0) { list.innerHTML = '<p class="text-center text-sm text-gray-400">אין עדכונים עדיין</p>'; return; }
-            feed.forEach(item => {
-                const time = new Date(item.created_at).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
-                list.innerHTML += `
-                    <div class="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-100 animate-item">
-                        <div class="bg-blue-50 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center shrink-0"><i class="fa-solid fa-${item.icon}"></i></div>
-                        <div>
-                            <p class="text-sm font-bold text-gray-800"><span class="text-blue-600">${item.user_name}</span> ${item.action}</p>
-                            <p class="text-xs text-gray-400 mt-1">${time}</p>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
+        // --- Academy Logic (New) ---
         function renderAcademy(quizzes) {
             const list = document.getElementById('quiz-list');
             list.innerHTML = '';
@@ -153,27 +177,94 @@
             document.getElementById('no-quiz-msg').classList.add('hidden');
             
             quizzes.forEach(q => {
+                let icon = 'question-circle';
+                let color = 'indigo';
+                let typeName = 'חידון';
+                if(q.type === 'math') { icon = 'calculator'; color = 'blue'; typeName = 'חשבון'; }
+                if(q.type === 'reading') { icon = 'book-open'; color = 'green'; typeName = 'קריאה'; }
+
                 list.innerHTML += `
-                    <div onclick="openQuiz(${q.id}, '${q.question.replace(/'/g, "\\'")}', ${JSON.stringify(q.options).replace(/"/g, "&quot;")})" class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg cursor-pointer transform transition hover:scale-[1.02] active:scale-95">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-lg"><i class="fa-solid fa-graduation-cap"></i> חידון</span>
-                            <span class="bg-white/20 px-2 py-1 rounded text-xs font-bold">+₪${q.reward}</span>
+                    <div onclick='openQuiz(${JSON.stringify(q).replace(/'/g, "&#39;")})' class="bg-${color}-600 text-white p-4 rounded-2xl shadow-lg cursor-pointer transform transition hover:scale-[1.02] active:scale-95 border-b-4 border-${color}-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-${icon}"></i> ${typeName}</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold shadow-sm">+₪${q.reward}</span>
                         </div>
-                        <p class="mt-2 text-indigo-100">${q.question}</p>
+                        <p class="text-${color}-100 text-sm leading-tight">${q.question.length > 40 ? q.question.substring(0,40)+'...' : q.question}</p>
                     </div>
                 `;
             });
         }
 
-        function openQuiz(id, question, options) {
-            document.getElementById('quiz-id').value = id;
-            document.getElementById('quiz-question').innerText = question;
+        function openQuiz(q) {
+            document.getElementById('quiz-id').value = q.id;
+            document.getElementById('quiz-question').innerText = q.question;
+            
+            // הצגת תוכן קריאה אם קיים
+            const contentDiv = document.getElementById('quiz-content');
+            if (q.content) {
+                contentDiv.innerHTML = `<i class="fa-solid fa-quote-right text-indigo-200 text-2xl float-right ml-2"></i> ${q.content}`;
+                contentDiv.classList.remove('hidden');
+            } else {
+                contentDiv.classList.add('hidden');
+            }
+
+            // אייקון מתאים
+            let icon = '<i class="fa-solid fa-lightbulb text-yellow-400"></i>';
+            if(q.type === 'math') icon = '<i class="fa-solid fa-calculator text-blue-400"></i>';
+            if(q.type === 'reading') icon = '<i class="fa-solid fa-book-open text-green-400"></i>';
+            document.getElementById('quiz-icon').innerHTML = icon;
+
             const optsContainer = document.getElementById('quiz-options');
             optsContainer.innerHTML = '';
-            options.forEach((opt, idx) => {
-                optsContainer.innerHTML += `<button onclick="answerQuiz(${idx})" class="w-full text-right p-3 border rounded-xl hover:bg-gray-50 font-medium">${opt}</button>`;
+            
+            // ערבוב תשובות (כדי שהנכונה לא תהיה תמיד ראשונה)
+            // אבל אנחנו צריכים לדעת מה האינדקס המקורי כדי לבדוק מול השרת
+            // בשרת אנחנו בודקים לפי correct_index של המערך המקורי.
+            // לכן נציג אותם בסדר אקראי, אבל נשלח לשרת את האינדקס המקורי.
+            
+            const optionsWithIndex = q.options.map((opt, idx) => ({opt, idx}));
+            // ערבוב פשוט
+            optionsWithIndex.sort(() => Math.random() - 0.5);
+
+            optionsWithIndex.forEach((item) => {
+                optsContainer.innerHTML += `<button onclick="answerQuiz(${item.idx})" class="w-full text-right p-4 border-2 border-indigo-50 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 font-medium transition mb-2">${item.opt}</button>`;
             });
             document.getElementById('quiz-modal').classList.remove('hidden');
+        }
+
+        // --- Parent Academy Management ---
+        function openAddQuizModal() { document.getElementById('add-quiz-modal').classList.remove('hidden'); }
+        function toggleContentField() {
+            const type = document.getElementById('new-quiz-type').value;
+            if(type === 'reading') document.getElementById('new-quiz-content-div').classList.remove('hidden');
+            else document.getElementById('new-quiz-content-div').classList.add('hidden');
+        }
+        
+        async function createQuiz() {
+            const type = document.getElementById('new-quiz-type').value;
+            const question = document.getElementById('new-quiz-question').value;
+            const content = document.getElementById('new-quiz-content').value;
+            const opt1 = document.getElementById('new-quiz-opt1').value; // Correct
+            const opt2 = document.getElementById('new-quiz-opt2').value;
+            const opt3 = document.getElementById('new-quiz-opt3').value;
+            const reward = document.getElementById('new-quiz-reward').value;
+            const targetAge = document.getElementById('new-quiz-age').value;
+
+            if(!question || !opt1 || !opt2) return alert('חסרים פרטים');
+
+            await fetch(`${API}/academy/create`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    type, question, content, 
+                    options: [opt1, opt2, opt3], // opt1 is always correct index 0 in our logic before shuffle
+                    correctIndex: 0,
+                    reward, targetAge
+                })
+            });
+            document.getElementById('add-quiz-modal').classList.add('hidden');
+            alert('השיעור נוסף בהצלחה!');
+            loadDashboard();
         }
 
         async function answerQuiz(index) {
@@ -187,49 +278,27 @@
             document.getElementById('quiz-modal').classList.add('hidden');
             if(data.correct) {
                 triggerConfetti();
-                alert(`נכון! הרווחת ₪${data.reward}\n\n${data.message}`);
+                alert(`נכון! הרווחת ₪${data.reward}`);
                 loadDashboard();
             } else {
-                alert(`טעות... ${data.message}`);
+                alert(`טעות... לא נורא!`);
             }
         }
 
-        // --- Render Functions (Updated) ---
-        function renderGoals(goals, transactions, currentBalance) {
-            const list = document.getElementById('goals-list');
+        // --- Feed Logic ---
+        function renderFeed(feed) {
+            const list = document.getElementById('feed-list');
             list.innerHTML = '';
-            if (!goals || goals.length === 0) { document.getElementById('no-goals-msg').classList.remove('hidden'); return; }
-            document.getElementById('no-goals-msg').classList.add('hidden');
-            const { weeklySavings } = calculateForecast(transactions, currentBalance);
-            const dailySavings = weeklySavings / 7;
-            goals.forEach(g => {
-                const percent = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
-                const isCompleted = percent === 100;
-                let daysLeftText = '';
-                if(g.target_date && !isCompleted) {
-                    const today = new Date(); const target = new Date(g.target_date); const diffTime = target - today; const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if(diffDays > 0) daysLeftText = `<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-bold">יעד: עוד ${diffDays} ימים</span>`;
-                    else daysLeftText = `<span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-md font-bold">איחור של ${Math.abs(diffDays)} ימים</span>`;
-                }
-                
-                // Share functionality (Crowdfunding)
-                const shareText = `היי! אני חוסך ל-${g.title} ב-FamilyFlow 🌟\nכבר צברתי ₪${g.current_amount} מתוך ₪${g.target_amount}. חסרים לי רק ₪${g.target_amount - g.current_amount}. רוצים לעזור?`;
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                
+            if(!feed || feed.length === 0) { list.innerHTML = '<p class="text-center text-sm text-gray-400">אין עדכונים עדיין</p>'; return; }
+            feed.forEach(item => {
+                const time = new Date(item.created_at).toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
                 list.innerHTML += `
-                    <div class="card p-5 animate-item border border-gray-50 mb-3 shadow-md">
-                        <div class="flex justify-between items-center mb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center text-yellow-500 text-xl shadow-inner"><i class="fa-solid fa-star"></i></div>
-                                <div><h4 class="font-bold text-gray-800 text-lg leading-tight">${g.title}</h4><div class="flex flex-col"><span class="text-xs text-gray-500 font-bold">יעד: ₪${g.target_amount}</span>${daysLeftText}</div></div>
-                            </div>
-                            <div class="flex gap-2">
-                                ${!isCompleted ? `<button onclick="window.open('${whatsappUrl}', '_blank')" class="bg-blue-100 text-blue-600 p-2 rounded-xl text-xs"><i class="fa-solid fa-share-nodes"></i></button>` : ''}
-                                ${!isCompleted ? `<button onclick="openDepositModal(${g.id})" class="bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-lg transition transform active:scale-95">הפקד</button>` : '<span class="text-green-600 font-bold text-xs bg-green-50 px-3 py-1 rounded-full border border-green-200">הושלם!</span>'}
-                            </div>
+                    <div class="flex items-start gap-4 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm animate-item">
+                        <div class="bg-blue-50 text-blue-600 rounded-full w-10 h-10 flex items-center justify-center shrink-0 shadow-inner text-lg"><i class="fa-solid fa-${item.icon}"></i></div>
+                        <div>
+                            <p class="text-sm text-gray-800 leading-relaxed"><span class="font-bold text-blue-700">${item.user_name || 'מערכת'}</span> ${item.action}</p>
+                            <p class="text-xs text-gray-400 mt-1 font-bold">${time}</p>
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-4 mb-2 overflow-hidden shadow-inner"><div class="bg-gradient-to-r from-yellow-300 to-yellow-500 h-4 rounded-full progress-bar shadow-sm" style="width: ${percent}%"></div></div>
-                        <div class="flex justify-between text-xs font-bold text-gray-400 px-1"><span>₪${g.current_amount} נצברו</span><span>${percent}%</span></div>
                     </div>
                 `;
             });
@@ -239,11 +308,15 @@
         async function loadDashboard() {
             document.getElementById('user-name').innerText = currentUser.name;
             document.getElementById('user-role').innerText = currentUser.role === 'parent' ? 'מנהל/ת' : 'לקוח';
-            
+            document.getElementById('user-xp').innerText = `✨ ${currentUser.xp || 0} XP`; // הצגת XP
+
             if (currentUser.role === 'child') {
                 document.getElementById('tab-bank').classList.add('hidden');
                 document.getElementById('tab-budget').classList.add('hidden');
                 document.getElementById('section-bank').classList.add('hidden'); 
+                
+                // הסתרת טאב הלוואות לילדים קטנים (אופציונלי, נשאיר פתוח לחינוך)
+                
                 const balance = parseFloat(currentUser.balance);
                 let rank = "חוסך מתחיל 🌱"; if(balance > 100) rank = "חוסך מתקדם 🌿"; if(balance > 500) rank = "אלוף החיסכון 🌳"; if(balance > 1000) rank = "טייקון צעיר 🦁";
                 document.getElementById('user-rank').innerText = rank; document.getElementById('user-rank').classList.remove('hidden');
@@ -257,8 +330,9 @@
                 document.getElementById('btn-add-task').classList.remove('hidden');
                 document.getElementById('btn-checkout').classList.remove('hidden');
                 document.getElementById('bank-actions-parent').classList.remove('hidden');
-                // הורים לא רואים אקדמיה (זה לילדים)
-                document.getElementById('tab-academy').classList.add('hidden');
+                
+                // הורים רואים את האקדמיה כדי להוסיף תכנים
+                document.getElementById('btn-add-quiz').classList.remove('hidden');
             }
 
             const res = await fetch(`${API}/data/${currentUser.id}`);
@@ -280,7 +354,7 @@
             renderForecastChart(data.transactions, currentUser.balance);
             renderReports(data.transactions);
             renderFeed(data.feed);
-            if(currentUser.role === 'child') renderAcademy(data.quizzes);
+            renderAcademy(data.quizzes);
 
             if (document.querySelector('.nav-tab.bg-teal-50')) return; 
             switchTab('tasks');
