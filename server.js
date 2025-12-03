@@ -22,19 +22,11 @@ async function upgradeDB() {
         await client.query(`
             DO $$ 
             BEGIN 
-                -- עמודות בנקאות (אם טרם נוספו)
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='age_group') THEN 
-                    ALTER TABLE users ADD COLUMN age_group VARCHAR(20) DEFAULT 'adult'; 
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='weekly_allowance') THEN 
-                    ALTER TABLE users ADD COLUMN weekly_allowance DECIMAL(10, 2) DEFAULT 0; 
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='interest_rate') THEN 
-                    ALTER TABLE users ADD COLUMN interest_rate DECIMAL(5, 2) DEFAULT 0; 
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='xp') THEN 
-                    ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0; 
-                END IF;
+                -- בדיקת עמודות קיימות
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='age_group') THEN ALTER TABLE users ADD COLUMN age_group VARCHAR(20) DEFAULT 'adult'; END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='weekly_allowance') THEN ALTER TABLE users ADD COLUMN weekly_allowance DECIMAL(10, 2) DEFAULT 0; END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='interest_rate') THEN ALTER TABLE users ADD COLUMN interest_rate DECIMAL(5, 2) DEFAULT 0; END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='xp') THEN ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0; END IF;
             END $$;
         `);
     } catch (e) { console.error('DB Upgrade Error:', e); }
@@ -48,18 +40,14 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE IF NOT EXISTS tasks (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, reward DECIMAL(10, 2) NOT NULL, status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id));`);
     await client.query(`CREATE TABLE IF NOT EXISTS shopping_list (id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
     await client.query(`CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), title VARCHAR(100) NOT NULL, target_amount DECIMAL(10, 2) NOT NULL, current_amount DECIMAL(10, 2) DEFAULT 0, icon VARCHAR(50) DEFAULT 'star', status VARCHAR(20) DEFAULT 'active');`);
+    await client.query(`CREATE TABLE IF NOT EXISTS loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), original_amount DECIMAL(10, 2) NOT NULL, remaining_amount DECIMAL(10, 2) NOT NULL, reason VARCHAR(255), interest_rate DECIMAL(5, 2) DEFAULT 0, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
     
-    // --- חדש: טבלת הלוואות ---
+    // --- חדש: טבלת תקציבים ---
     await client.query(`
-      CREATE TABLE IF NOT EXISTS loans (
+      CREATE TABLE IF NOT EXISTS budgets (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        original_amount DECIMAL(10, 2) NOT NULL, -- הסכום המקורי
-        remaining_amount DECIMAL(10, 2) NOT NULL, -- כמה נשאר להחזיר
-        reason VARCHAR(255),
-        interest_rate DECIMAL(5, 2) DEFAULT 0, -- ריבית שקבע ההורה
-        status VARCHAR(20) DEFAULT 'pending', -- pending, active, paid, rejected
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        category VARCHAR(50) NOT NULL UNIQUE,
+        limit_amount DECIMAL(10, 2) NOT NULL
       );
     `);
 
@@ -70,15 +58,13 @@ app.get('/setup-db', async (req, res) => {
         await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group) VALUES ('Admin Parent', 'parent', 0, '1234', 'adult')`);
     }
 
-    res.send(`<h2 style="color: green;">System Updated! Loans module installed.</h2>`);
-  } catch (err) {
-    res.status(500).send(`Error: ${err.message}`);
-  }
+    res.send(`<h2 style="color: green;">System Updated! Budget & Gamification modules ready.</h2>`);
+  } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
 // --- API Endpoints ---
 
-// 1. נתונים כלליים (עודכן למשוך גם הלוואות)
+// 1. נתונים כלליים
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -90,13 +76,11 @@ app.get('/api/data/:userId', async (req, res) => {
         familyMembers = (await client.query('SELECT id, name, balance, role, age_group, weekly_allowance, interest_rate FROM users ORDER BY id')).rows;
     }
 
-    // תנועות
     let transQuery = `SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id`;
     if (user.role === 'child') transQuery += ` WHERE t.user_id = ${userId}`;
     transQuery += ` ORDER BY t.date DESC LIMIT 20`;
     const transRes = await client.query(transQuery);
     
-    // משימות
     let tasksQuery = `SELECT t.*, u.name as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id `;
     if (user.role === 'child') tasksQuery += ` WHERE t.assigned_to = ${userId} AND t.status != 'approved'`;
     else tasksQuery += ` WHERE t.status != 'approved'`;
@@ -105,11 +89,10 @@ app.get('/api/data/:userId', async (req, res) => {
 
     const shopRes = await client.query(`SELECT s.*, u.name as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.status != 'bought' ORDER BY s.id DESC`);
     const goalsRes = await client.query(`SELECT * FROM goals WHERE user_id = $1 AND status = 'active'`, [userId]);
-
-    // הלוואות (חדש!)
+    
     let loansQuery = `SELECT l.*, u.name as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id`;
     if (user.role === 'child') loansQuery += ` WHERE l.user_id = ${userId}`;
-    else loansQuery += ` WHERE l.status != 'paid'`; // הורים רואים רק הלוואות פעילות/ממתינות של כולם
+    else loansQuery += ` WHERE l.status != 'paid'`; 
     loansQuery += ` ORDER BY l.created_at DESC`;
     const loansRes = await client.query(loansQuery);
 
@@ -120,109 +103,57 @@ app.get('/api/data/:userId', async (req, res) => {
         tasks: tasksRes.rows, 
         shopping_list: shopRes.rows, 
         goals: goalsRes.rows,
-        loans: loansRes.rows // שליחת ההלוואות
+        loans: loansRes.rows
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- מודול הלוואות (חדש!) ---
+// --- מודול תקציב (חדש!) ---
 
-// בקשת הלוואה (ילד)
-app.post('/api/loans/request', async (req, res) => {
-    const { userId, amount, reason } = req.body;
+// קבלת סטטוס תקציב חודשי
+app.get('/api/budget/status', async (req, res) => {
     try {
+        // שליפת הגדרות התקציב
+        const budgetsRes = await client.query('SELECT * FROM budgets');
+        const budgets = budgetsRes.rows; // [{category: 'food', limit_amount: 2000}, ...]
+
+        // חישוב הוצאות החודש הנוכחי לפי קטגוריה
+        const spendingRes = await client.query(`
+            SELECT category, SUM(amount) as spent 
+            FROM transactions 
+            WHERE type = 'expense' 
+            AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)
+            GROUP BY category
+        `);
+        
+        // מיזוג הנתונים
+        const result = budgets.map(b => {
+            const spentData = spendingRes.rows.find(s => s.category === b.category);
+            return {
+                category: b.category,
+                limit: parseFloat(b.limit_amount),
+                spent: spentData ? parseFloat(spentData.spent) : 0
+            };
+        });
+
+        res.json(result);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// עדכון תקרת תקציב
+app.post('/api/budget/set', async (req, res) => {
+    const { category, limit } = req.body;
+    try {
+        // שימוש ב-Upsert (Insert or Update)
         await client.query(`
-            INSERT INTO loans (user_id, original_amount, remaining_amount, reason, status)
-            VALUES ($1, $2, $2, $3, 'pending')
-        `, [userId, amount, reason]);
+            INSERT INTO budgets (category, limit_amount) VALUES ($1, $2)
+            ON CONFLICT (category) DO UPDATE SET limit_amount = $2
+        `, [category, limit]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// טיפול בהלוואה (הורה - אישור/דחייה)
-app.post('/api/loans/handle', async (req, res) => {
-    const { loanId, status, interestRate } = req.body; // status: 'active' or 'rejected'
-    
-    try {
-        await client.query('BEGIN');
-        
-        if (status === 'active') {
-            const loanRes = await client.query('SELECT * FROM loans WHERE id = $1', [loanId]);
-            const loan = loanRes.rows[0];
-            
-            // חישוב סכום להחזר כולל ריבית
-            const interest = parseFloat(interestRate) || 0;
-            const original = parseFloat(loan.original_amount);
-            const totalToRepay = original + (original * (interest / 100));
-
-            // 1. עדכון ההלוואה (הוספת ריבית ושינוי סטטוס)
-            await client.query(`
-                UPDATE loans 
-                SET status = 'active', interest_rate = $1, remaining_amount = $2 
-                WHERE id = $3
-            `, [interest, totalToRepay, loanId]);
-
-            // 2. העברת הכסף לילד (הוא מקבל את הסכום המקורי)
-            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [original, loan.user_id]);
-            
-            // 3. תיעוד תנועה
-            await client.query(`
-                INSERT INTO transactions (user_id, amount, description, category, type)
-                VALUES ($1, $2, $3, 'loans', 'income')
-            `, [loan.user_id, original, `קבלת הלוואה: ${loan.reason}`]);
-        } else {
-            // דחייה
-            await client.query(`UPDATE loans SET status = 'rejected' WHERE id = $1`, [loanId]);
-        }
-
-        await client.query('COMMIT');
-        res.json({ success: true });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// החזר הלוואה (ילד משלם)
-app.post('/api/loans/repay', async (req, res) => {
-    const { loanId, amount, userId } = req.body;
-    try {
-        await client.query('BEGIN');
-        
-        // בדיקת יתרה
-        const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
-        if (userRes.rows[0].balance < amount) {
-            await client.query('ROLLBACK');
-            return res.json({ success: false, message: 'אין מספיק יתרה להחזר' });
-        }
-
-        // עדכון ההלוואה
-        await client.query(`UPDATE loans SET remaining_amount = remaining_amount - $1 WHERE id = $2`, [amount, loanId]);
-        
-        // בדיקה אם ההלוואה נסגרה
-        const loanRes = await client.query('SELECT remaining_amount FROM loans WHERE id = $1', [loanId]);
-        if (loanRes.rows[0].remaining_amount <= 0) {
-            await client.query(`UPDATE loans SET status = 'paid', remaining_amount = 0 WHERE id = $1`, [loanId]);
-        }
-
-        // הורדת כסף מהמשתמש
-        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
-        
-        // תיעוד
-        await client.query(`
-            INSERT INTO transactions (user_id, amount, description, category, type)
-            VALUES ($1, $2, 'החזר הלוואה', 'loans', 'expense')
-        `, [userId, amount]);
-
-        await client.query('COMMIT');
-        res.json({ success: true });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// --- שאר ה-API (ללא שינוי, העתק מהגרסה הקודמת שלך כדי לשמור על רצף) ---
+// --- API לוגיקה קודמת ---
 app.get('/api/public-users', async (req, res) => { try { const result = await client.query('SELECT id, name, role, age_group FROM users ORDER BY role DESC, id ASC'); res.json(result.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const result = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (result.rows.length > 0) return res.json({ success: true, user: result.rows[0] }); return res.status(401).json({ success: false, message: 'קוד שגוי' }); } const result = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (result.rows.length > 0) res.json({ success: true, user: result.rows[0] }); else res.status(401).json({ success: false, message: 'קוד שגוי' }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/create-user', async (req, res) => { const { name, pin, role, initialBalance, ageGroup } = req.body; try { await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group, weekly_allowance, interest_rate) VALUES ($1, $2, $3, $4, $5, 0, 0)`, [name, role, parseFloat(initialBalance)||0, pin, ageGroup || 'adult']); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
@@ -236,6 +167,9 @@ app.post('/api/shopping/checkout', async (req, res) => { const { totalAmount, us
 app.post('/api/tasks', async (req, res) => { const { title, reward, assignedTo } = req.body; try { await client.query(`INSERT INTO tasks (title, reward, status, assigned_to) VALUES ($1, $2, 'pending', $3)`, [title, reward, assignedTo]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/tasks/update', async (req, res) => { const { taskId, status } = req.body; try { await client.query('BEGIN'); if (status === 'approved') { const taskRes = await client.query('SELECT * FROM tasks WHERE id = $1', [taskId]); const task = taskRes.rows[0]; if (task && task.status !== 'approved') { const reward = parseFloat(task.reward); await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [reward, task.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'tasks', 'income')`, [task.assigned_to, reward, `בוצע: ${task.title}`]); await client.query('UPDATE users SET xp = xp + 5 WHERE id = $1', [task.assigned_to]); } } await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [status, taskId]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
 app.post('/api/transaction', async (req, res) => { const { userId, amount, description, category, type } = req.body; try { const cleanAmount = parseFloat(amount); const factor = type === 'income' ? 1 : -1; await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`, [userId, cleanAmount, description, category, type]); await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [cleanAmount * factor, userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
+app.post('/api/loans/request', async (req, res) => { const { userId, amount, reason } = req.body; try { await client.query(`INSERT INTO loans (user_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $2, $3, 'pending')`, [userId, amount, reason]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post('/api/loans/handle', async (req, res) => { const { loanId, status, interestRate } = req.body; try { await client.query('BEGIN'); if (status === 'active') { const loan = (await client.query('SELECT * FROM loans WHERE id = $1', [loanId])).rows[0]; const totalToRepay = parseFloat(loan.original_amount) * (1 + (parseFloat(interestRate)||0)/100); await client.query(`UPDATE loans SET status = 'active', interest_rate = $1, remaining_amount = $2 WHERE id = $3`, [interestRate, totalToRepay, loanId]); await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [loan.original_amount, loan.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'loans', 'income')`, [loan.user_id, loan.original_amount, `קבלת הלוואה: ${loan.reason}`]); } else { await client.query(`UPDATE loans SET status = 'rejected' WHERE id = $1`, [loanId]); } await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
+app.post('/api/loans/repay', async (req, res) => { const { loanId, amount, userId } = req.body; try { await client.query('BEGIN'); const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]); if (userRes.rows[0].balance < amount) { await client.query('ROLLBACK'); return res.json({ success: false, message: 'אין מספיק יתרה' }); } await client.query(`UPDATE loans SET remaining_amount = remaining_amount - $1 WHERE id = $2`, [amount, loanId]); const loanRes = await client.query('SELECT remaining_amount FROM loans WHERE id = $1', [loanId]); if (loanRes.rows[0].remaining_amount <= 0) { await client.query(`UPDATE loans SET status = 'paid', remaining_amount = 0 WHERE id = $1`, [loanId]); } await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, 'החזר הלוואה', 'loans', 'expense')`, [userId, amount]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.listen(port, () => { console.log(`Server running on port ${port}`); });
