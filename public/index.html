@@ -6,7 +6,6 @@
     <title>FamilyFlow</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- אפקט הקונפטי -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -33,7 +32,7 @@
         <div id="server-config" class="mt-12 text-xs text-gray-300"><button onclick="document.getElementById('manual-server-input').classList.toggle('hidden')">הגדרות שרת</button><div id="manual-server-input" class="hidden mt-2"><input type="text" id="custom-app-name" placeholder="App Name" class="border p-1 rounded text-center"><button onclick="saveAppNameAndRetry()" class="bg-gray-200 px-2 py-1 rounded ml-1">שמור</button></div></div>
     </div>
 
-    <!-- מסכים מוסתרים (הרשמה, פין) -->
+    <!-- מסך הרשמה -->
     <div id="register-screen" class="hidden w-full max-w-md card p-8 text-center animate-item">
         <div class="mb-6 text-green-500 text-6xl"><i class="fa-solid fa-gift animate-bounce"></i></div><h2 class="text-3xl font-black text-gray-800 mb-2">ברוכים הבאים!</h2><p id="register-role-desc" class="text-gray-500 mb-8 text-lg">בואו נפתח לכם חשבון</p><input type="text" id="reg-name" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-3 text-lg outline-none focus:border-green-500 transition" placeholder="איך קוראים לך?"><input type="password" id="reg-pin" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-6 text-center text-xl tracking-[0.5em] outline-none focus:border-green-500 transition" placeholder="****" maxlength="4"><button onclick="completeRegistration()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-bold shadow-lg text-lg transition transform active:scale-95">יצירת חשבון</button>
     </div>
@@ -44,17 +43,8 @@
     <!-- דשבורד ראשי -->
     <div id="dashboard" class="hidden w-full max-w-md pb-32">
         <header class="flex justify-between items-center mb-6 p-4 sticky top-0 bg-[#f8fafc]/90 backdrop-blur-sm z-10">
-            <div>
-                <h2 id="user-name" class="text-3xl font-black text-gray-800 tracking-tight"></h2>
-                <div class="flex items-center gap-2 mt-1">
-                    <span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span>
-                    <span id="user-rank" class="rank-badge hidden"></span>
-                </div>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="openInviteModal()" id="btn-invite" class="hidden w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i class="fa-solid fa-user-plus"></i></button>
-                <button onclick="logout()" class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
-            </div>
+            <div><h2 id="user-name" class="text-3xl font-black text-gray-800 tracking-tight"></h2><div class="flex items-center gap-2 mt-1"><span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span><span id="user-rank" class="rank-badge hidden"></span></div></div>
+            <div class="flex gap-3"><button onclick="openInviteModal()" id="btn-invite" class="hidden w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i class="fa-solid fa-user-plus"></i></button><button onclick="logout()" class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button></div>
         </header>
 
         <div class="mx-4 mb-8">
@@ -63,82 +53,58 @@
                 <div class="relative z-10">
                     <p class="text-blue-100 text-sm font-medium mb-1">יתרה נוכחית</p>
                     <h1 id="balance" class="text-6xl font-black tracking-tighter mb-2">₪0</h1>
-                    <div id="bank-info-child" class="hidden mt-4 flex justify-center gap-4 text-xs bg-white/10 p-2 rounded-xl backdrop-blur-md">
-                        <div class="px-2 border-l border-white/20"><span class="block opacity-70">דמי כיס</span><span class="font-bold text-lg" id="info-allowance">₪0</span></div>
-                        <div class="px-2"><span class="block opacity-70">ריבית</span><span class="font-bold text-lg" id="info-interest">0%</span></div>
-                    </div>
+                    <div id="bank-info-child" class="hidden mt-4 flex justify-center gap-4 text-xs bg-white/10 p-2 rounded-xl backdrop-blur-md"><div class="px-2 border-l border-white/20"><span class="block opacity-70">דמי כיס</span><span class="font-bold text-lg" id="info-allowance">₪0</span></div><div class="px-2"><span class="block opacity-70">ריבית</span><span class="font-bold text-lg" id="info-interest">0%</span></div></div>
                 </div>
             </div>
         </div>
 
-        <!-- תפריט ניווט -->
         <div class="mx-4 mb-6 bg-white p-1.5 rounded-2xl shadow-sm flex overflow-x-auto gap-1 no-scrollbar">
-            <button onclick="switchTab('tasks')" id="tab-tasks" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500">משימות</button>
-            <button onclick="switchTab('goals')" id="tab-goals" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500">יעדים</button>
-            <button onclick="switchTab('budget')" id="tab-budget" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-100">תקציב 🧭</button>
-            <button onclick="switchTab('loans')" id="tab-loans" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500">הלוואות 💸</button>
-            <button onclick="switchTab('shopping')" id="tab-shopping" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500">קניות</button>
+            <button onclick="switchTab('tasks')" id="tab-tasks" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">משימות</button>
+            <button onclick="switchTab('goals')" id="tab-goals" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">יעדים</button>
+            <button onclick="switchTab('budget')" id="tab-budget" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-teal-50 text-teal-700 border border-teal-100">תקציב</button>
+            <button onclick="switchTab('loans')" id="tab-loans" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">הלוואות</button>
+            <button onclick="switchTab('shopping')" id="tab-shopping" class="nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap">קניות</button>
             <button onclick="switchTab('bank')" id="tab-bank" class="nav-tab hidden flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap bg-purple-50 text-purple-700 border border-purple-100">הבנק</button>
         </div>
 
-        <!-- תכנים -->
-        <div id="section-tasks" class="mx-4 mb-8 hidden">
-            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">משימות</h3><button id="btn-add-task" onclick="openTaskModal()" class="hidden text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">+ משימה</button></div>
-            <div id="tasks-list" class="space-y-3"></div><p id="no-tasks-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין משימות 🎉</p>
-        </div>
-
-        <!-- אזור תקציב (חדש!) -->
-        <div id="section-budget" class="mx-4 mb-8 hidden">
-            <h3 class="font-bold text-gray-800 text-xl mb-4">תקציב חודשי</h3>
-            <div id="budget-bars" class="space-y-4"></div>
-            <p class="text-xs text-gray-400 mt-4 text-center">* לחץ על פס תקציב כדי לערוך את היעד</p>
-        </div>
-
-        <div id="section-loans" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">הלוואות ואשראי</h3><button onclick="openLoanModal()" class="text-sm bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold">+ בקש הלוואה</button></div><div id="loans-list" class="space-y-4"></div><p id="no-loans-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין הלוואות פעילות</p></div>
-        <div id="section-goals" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">היעדים שלי</h3><button onclick="openGoalModal()" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold">+ חדש</button></div><div id="goals-list" class="space-y-4"></div><p id="no-goals-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין יעדים ✨</p></div>
-        <div id="section-shopping" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">סופר</h3><button onclick="openShoppingModal()" class="text-sm bg-pink-100 text-pink-700 px-4 py-2 rounded-full font-bold">+ פריט</button></div><div id="shopping-pending-area" class="mb-4 hidden"><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">ממתינים</h4><div id="shopping-pending-list" class="space-y-2"></div></div><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">פעיל</h4><div id="shopping-active-list" class="space-y-2 bg-white rounded-2xl shadow-sm p-3 min-h-[100px]"></div><button id="btn-checkout" onclick="openCheckoutModal()" class="hidden w-full mt-6 bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3">סיום קנייה</button></div>
+        <div id="section-tasks" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">משימות</h3><button id="btn-add-task" onclick="openTaskModal()" class="hidden text-sm bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-bold">+ משימה</button></div><div id="tasks-list" class="space-y-3"></div><p id="no-tasks-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין משימות 🎉</p></div>
+        <div id="section-budget" class="mx-4 mb-8 hidden"><h3 class="font-bold text-gray-800 text-xl mb-4">תקציב חודשי</h3><div id="budget-bars" class="space-y-4"></div><p class="text-xs text-gray-400 mt-4 text-center">* לחץ לעריכה</p></div>
+        <div id="section-loans" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">הלוואות</h3><button onclick="openLoanModal()" class="text-sm bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-bold">+ בקש הלוואה</button></div><div id="loans-list" class="space-y-4"></div><p id="no-loans-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">אין הלוואות פעילות</p></div>
         
-        <div id="section-bank" class="mx-4 mb-8 hidden">
-            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white mb-6 shadow-lg"><h3 class="text-xl font-bold mb-1">ניהול הבנק</h3><button onclick="runPayday()" class="w-full bg-white text-purple-700 font-bold py-3 rounded-xl shadow mt-4">הפעל יום תשלום (PayDay)</button></div>
-            <h4 class="font-bold text-gray-800 mb-3 px-1">חשבונות ילדים</h4><div id="bank-accounts-list" class="space-y-3"></div>
+        <!-- אזור יעדים - תיקון תצוגת כפתור הפקדה -->
+        <div id="section-goals" class="mx-4 mb-8 hidden">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">היעדים שלי</h3><button onclick="openGoalModal()" class="text-sm bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-bold hover:bg-yellow-200 transition">+ יעד חדש</button></div>
+            <div id="goals-list" class="space-y-4"></div>
+            <p id="no-goals-msg" class="text-center text-gray-400 text-sm py-8 bg-white rounded-2xl border border-dashed border-gray-200 hidden">עוד לא הגדרת יעדים לחלומות שלך ✨</p>
         </div>
 
-        <div class="fixed bottom-6 left-0 w-full px-4 pointer-events-none"><div class="max-w-md mx-auto grid grid-cols-2 gap-4 pointer-events-auto"><button onclick="openModal('income')" class="bg-white/90 backdrop-blur border border-green-100 text-green-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition hover:-translate-y-1"><i class="fa-solid fa-circle-plus text-xl"></i> הכנסה</button><button onclick="openModal('expense')" class="bg-white/90 backdrop-blur border border-red-100 text-red-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition hover:-translate-y-1"><i class="fa-solid fa-circle-minus text-xl"></i> הוצאה</button></div></div>
+        <div id="section-shopping" class="mx-4 mb-8 hidden"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-800 text-xl">סופר</h3><button onclick="openShoppingModal()" class="text-sm bg-pink-100 text-pink-700 px-4 py-2 rounded-full font-bold">+ פריט</button></div><div id="shopping-pending-area" class="mb-4 hidden"><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">ממתינים</h4><div id="shopping-pending-list" class="space-y-2"></div></div><h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">פעיל</h4><div id="shopping-active-list" class="space-y-2 bg-white rounded-2xl shadow-sm p-3 min-h-[100px]"></div><button id="btn-checkout" onclick="openCheckoutModal()" class="hidden w-full mt-6 bg-gray-900 text-white py-4 rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3">סיום קנייה</button></div>
+        <div id="section-bank" class="mx-4 mb-8 hidden"><div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white mb-6 shadow-lg"><h3 class="text-xl font-bold mb-1">ניהול הבנק</h3><button onclick="runPayday()" class="w-full bg-white text-purple-700 font-bold py-3 rounded-xl shadow mt-4">הפעל יום תשלום (PayDay)</button></div><h4 class="font-bold text-gray-800 mb-3 px-1">חשבונות ילדים</h4><div id="bank-accounts-list" class="space-y-3"></div></div>
+        <div class="fixed bottom-6 left-0 w-full px-4 pointer-events-none"><div class="max-w-md mx-auto grid grid-cols-2 gap-4 pointer-events-auto"><button onclick="openModal('income')" class="bg-white/90 backdrop-blur border border-green-100 text-green-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-circle-plus text-xl"></i> הכנסה</button><button onclick="openModal('expense')" class="bg-white/90 backdrop-blur border border-red-100 text-red-700 p-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-circle-minus text-xl"></i> הוצאה</button></div></div>
         <div id="family-section" class="mx-4 mb-8 hidden mt-8 pt-8 border-t border-gray-200"><h3 class="font-bold text-gray-800 text-lg mb-4">בני המשפחה</h3><div id="family-list" class="flex gap-4 overflow-x-auto pb-4 no-scrollbar"></div></div>
         <div class="mx-4 pb-20"><h3 class="font-bold text-gray-800 text-lg mb-4">פעילות אחרונה</h3><div id="transactions-list" class="space-y-3"></div></div>
     </div>
 
     <!-- מודלים -->
-    <div id="edit-budget-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
-            <h3 class="text-xl font-bold mb-4 text-center text-teal-600">עריכת תקציב</h3>
-            <p id="edit-budget-cat-name" class="text-center text-gray-600 mb-4"></p>
-            <input type="hidden" id="edit-budget-cat">
-            <label class="block text-xs font-bold text-gray-500 mb-1">תקרה חודשית (₪)</label>
-            <input type="number" id="edit-budget-limit" class="w-full p-4 border-2 rounded-2xl mb-6 text-xl font-bold text-center" placeholder="0">
-            <div class="flex gap-3"><button onclick="document.getElementById('edit-budget-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="saveBudgetLimit()" class="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold">שמור</button></div>
-        </div>
-    </div>
-
-    <!-- שאר המודלים (מוסתרים) -->
+    <div id="goal-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-yellow-600">יעד חדש</h3><input type="text" id="goal-title" class="w-full p-3 border rounded-xl mb-3" placeholder="למה חוסכים?"><input type="number" id="goal-target" class="w-full p-3 border rounded-xl mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitGoal()" class="flex-1 py-3 bg-yellow-500 text-white rounded-xl font-bold shadow-lg">צור יעד</button></div></div></div>
+    <div id="deposit-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-green-600">הפקדה לחיסכון</h3><p class="text-center text-gray-500 mb-6 text-sm">הכסף יעבור מהיתרה שלך לקופה זו</p><input type="hidden" id="deposit-goal-id"><input type="number" id="deposit-amount" class="w-full p-4 border-2 border-green-100 rounded-2xl mb-6 text-3xl text-center font-bold text-green-600" placeholder="₪0"><div class="flex gap-3"><button onclick="document.getElementById('deposit-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitDeposit()" class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg">הפקד</button></div></div></div>
+    
+    <!-- שאר המודלים (Invite, Edit Budget, Task, Shop, Transaction, Checkout, Loan, Approve Loan, Bank Settings) -->
     <div id="invite-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-blue-600">הזמנה</h3><div class="space-y-3 mb-6"><button onclick="generateInvite('parent','adult')" class="w-full text-right p-4 border rounded-2xl">בן/בת זוג</button><button onclick="generateInvite('child','child_6_10')" class="w-full text-right p-4 border rounded-2xl">ילד (6-10)</button><button onclick="generateInvite('child','child_10_15')" class="w-full text-right p-4 border rounded-2xl">נער (10-15)</button></div><div id="invite-link-area" class="hidden bg-blue-50 p-4 rounded-2xl mb-4 text-center"><button id="btn-send-whatsapp" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold">שלח בווצאפ</button></div><button onclick="document.getElementById('invite-modal').classList.add('hidden');" class="w-full py-3 bg-gray-100 font-bold rounded-xl">סגור</button></div></div>
-    <div id="loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-indigo-600">בקשת הלוואה</h3><input type="number" id="loan-amount" class="w-full p-3 border rounded-xl mb-3" placeholder="כמה צריך?"><input type="text" id="loan-reason" class="w-full p-3 border rounded-xl mb-6" placeholder="למה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitLoanRequest()" class="flex-1 bg-indigo-600 text-white rounded-xl font-bold">שלח בקשה</button></div></div></div>
-    <div id="approve-loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-indigo-600">אישור הלוואה</h3><p id="approve-loan-desc" class="text-center text-gray-600 text-sm mb-6"></p><input type="hidden" id="approve-loan-id"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית (%)</label><input type="number" id="approve-loan-interest" class="w-full p-3 border rounded-xl mb-6 text-lg font-bold" value="0"><div class="flex gap-3"><button onclick="handleLoan('rejected')" class="flex-1 py-3 bg-red-100 text-red-600 rounded-xl font-bold">דחה</button><button onclick="handleLoan('active')" class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold">אשר</button></div></div></div>
-    <div id="bank-settings-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-1 text-center">הגדרות בנק</h3><input type="hidden" id="bank-settings-id"><label class="block text-xs font-bold text-gray-500 mb-1">דמי כיס</label><input type="number" id="bank-allowance" class="w-full p-3 border rounded-xl mb-4"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית</label><input type="number" id="bank-interest" class="w-full p-3 border rounded-xl mb-6"><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="saveBankSettings()" class="flex-1 bg-purple-600 text-white rounded-xl">שמור</button></div></div></div>
-    <div id="goal-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-yellow-600">יעד חדש</h3><input type="text" id="goal-title" class="w-full p-3 border rounded-xl mb-3" placeholder="למה חוסכים?"><input type="number" id="goal-target" class="w-full p-3 border rounded-xl mb-6" placeholder="כמה צריך?"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-yellow-500 text-white rounded-xl">צור</button></div></div></div>
-    <div id="deposit-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-green-600">הפקדה</h3><input type="hidden" id="deposit-goal-id"><input type="number" id="deposit-amount" class="w-full p-4 border-2 rounded-2xl mb-6 text-3xl text-center" placeholder="₪0"><div class="flex gap-3"><button onclick="document.getElementById('deposit-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-green-600 text-white rounded-xl">הפקד</button></div></div></div>
-    <div id="task-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">משימה</h3><input type="text" id="task-title" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><input type="number" id="task-reward" class="w-full p-3 border rounded-xl mb-3" placeholder="תגמול"><select id="task-assignee" class="w-full p-3 border rounded-xl mb-6 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTask()" class="flex-1 bg-purple-600 text-white rounded-xl">צור</button></div></div></div>
-    <div id="shopping-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">סופר</h3><input type="text" id="shop-item-name" class="w-full p-3 border rounded-xl mb-6" placeholder="פריט"><div class="flex gap-3"><button onclick="document.getElementById('shopping-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-600 text-white rounded-xl">הוסף</button></div></div></div>
-    <div id="transaction-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 id="modal-title" class="text-xl font-bold mb-6 text-center">תנועה</h3><input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3 text-lg" placeholder="סכום"><input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><select id="t-category" class="w-full p-3 border rounded-xl mb-3 bg-white"><option value="general">כללי</option><option value="food">אוכל ומסעדות</option><option value="toys">צעצועים</option><option value="clothes">בגדים</option><option value="entertainment">בילויים</option><option value="transport">נסיעות</option><option value="groceries">סופר וקניות לבית</option><option value="savings">חיסכון והשקעות</option></select><div id="t-user-select-container" class="hidden mb-6"><select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select></div><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white rounded-xl">שמור</button></div></div></div>
+    <div id="edit-budget-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-teal-600">עריכת תקציב</h3><p id="edit-budget-cat-name" class="text-center text-gray-600 mb-4"></p><input type="hidden" id="edit-budget-cat"><label class="block text-xs font-bold text-gray-500 mb-1">תקרה (₪)</label><input type="number" id="edit-budget-limit" class="w-full p-4 border-2 rounded-2xl mb-6 text-xl font-bold text-center"><div class="flex gap-3"><button onclick="document.getElementById('edit-budget-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="saveBudgetLimit()" class="flex-1 bg-teal-600 text-white rounded-xl">שמור</button></div></div></div>
+    <div id="task-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">משימה חדשה</h3><input type="text" id="task-title" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><input type="number" id="task-reward" class="w-full p-3 border rounded-xl mb-3" placeholder="תגמול"><select id="task-assignee" class="w-full p-3 border rounded-xl mb-6 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTask()" class="flex-1 bg-purple-600 text-white rounded-xl">צור</button></div></div></div>
+    <div id="shopping-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">הוספה לסופר</h3><input type="text" id="shop-item-name" class="w-full p-3 border rounded-xl mb-6" placeholder="פריט"><div class="flex gap-3"><button onclick="document.getElementById('shopping-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-600 text-white rounded-xl">הוסף</button></div></div></div>
+    <div id="transaction-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 id="modal-title" class="text-xl font-bold mb-6 text-center">תנועה</h3><input type="number" id="t-amount" class="w-full p-3 border rounded-xl mb-3 text-lg" placeholder="סכום"><input type="text" id="t-desc" class="w-full p-3 border rounded-xl mb-3" placeholder="תיאור"><select id="t-category" class="w-full p-3 border rounded-xl mb-3 bg-white"><option value="general">כללי</option><option value="food">אוכל</option><option value="toys">משחקים</option></select><div id="t-user-select-container" class="hidden mb-6"><select id="t-user-select" class="w-full p-3 border rounded-xl bg-white"></select></div><div class="flex gap-3"><button onclick="closeModal()" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white rounded-xl">שמור</button></div></div></div>
     <div id="checkout-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center">סיום קנייה</h3><input type="number" id="checkout-amount" class="w-full p-4 border rounded-2xl mb-6 text-3xl text-center" placeholder="סה״כ"><div class="flex gap-3"><button onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitCheckout()" class="flex-1 bg-gray-900 text-white rounded-xl">אישור</button></div></div></div>
+    <div id="loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-indigo-600">בקשת הלוואה</h3><input type="number" id="loan-amount" class="w-full p-3 border rounded-xl mb-3" placeholder="כמה צריך?"><input type="text" id="loan-reason" class="w-full p-3 border rounded-xl mb-6" placeholder="למה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="submitLoanRequest()" class="flex-1 bg-indigo-600 text-white rounded-xl">שלח</button></div></div></div>
+    <div id="approve-loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-indigo-600">אישור הלוואה</h3><p id="approve-loan-desc" class="text-center text-gray-600 text-sm mb-6"></p><input type="hidden" id="approve-loan-id"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית (%)</label><input type="number" id="approve-loan-interest" class="w-full p-3 border rounded-xl mb-6 text-lg font-bold" value="0"><div class="flex gap-3"><button onclick="handleLoan('rejected')" class="flex-1 bg-red-100 text-red-600 rounded-xl">דחה</button><button onclick="handleLoan('active')" class="flex-1 bg-green-600 text-white rounded-xl">אשר</button></div></div></div>
+    <div id="bank-settings-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-1 text-center">הגדרות בנק</h3><input type="hidden" id="bank-settings-id"><label class="block text-xs font-bold text-gray-500 mb-1">דמי כיס</label><input type="number" id="bank-allowance" class="w-full p-3 border rounded-xl mb-4"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית</label><input type="number" id="bank-interest" class="w-full p-3 border rounded-xl mb-6"><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl">ביטול</button><button onclick="saveBankSettings()" class="flex-1 bg-purple-600 text-white rounded-xl">שמור</button></div></div></div>
 
     <script>
         const storedAppName = localStorage.getItem('custom_app_name');
         const defaultAppName = 'family-flow-app'; 
         const APP_NAME = storedAppName || defaultAppName;
         let API = window.location.hostname.includes('onrender.com') ? '/api' : `https://${APP_NAME}.onrender.com/api`;
-        console.log('Using API:', API);
-
         let currentUser = null;
         let selectedUserIdForLogin = null;
         let currentType = 'expense';
@@ -149,104 +115,158 @@
 
         window.onload = async () => { if (isJoinMode) initRegisterMode(); else loadUsersForLogin(); };
 
-        // --- Budget Logic (חדש!) ---
-        function renderBudget(budgets) {
-            const list = document.getElementById('budget-bars');
-            list.innerHTML = '';
+        // --- Core Fixes ---
+        async function submitGoal() {
+            const title = document.getElementById('goal-title').value;
+            const target = document.getElementById('goal-target').value;
+            if (!title || !target) return alert("חסרים פרטים ליעד");
             
-            const labels = { 'general': 'כללי', 'food': 'אוכל', 'toys': 'צעצועים', 'clothes': 'בגדים', 'entertainment': 'בילויים', 'transport': 'נסיעות', 'groceries': 'סופר ובית', 'savings': 'חיסכון' };
-            
-            budgets.forEach(b => {
-                const label = labels[b.category] || b.category;
-                const percent = b.limit > 0 ? Math.min(100, (b.spent / b.limit) * 100) : 0;
-                let color = 'bg-teal-500';
-                if(percent > 80) color = 'bg-yellow-500';
-                if(percent >= 100) color = 'bg-red-500';
+            // שליחה לשרת (כולל המרה למספר)
+            await fetch(`${API}/goals`, {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({userId: currentUser.id, title, targetAmount: target})
+            });
+            document.getElementById('goal-modal').classList.add('hidden');
+            loadDashboard(); // רענון
+        }
 
+        async function runPayday() {
+            if (currentUser.role !== 'parent') return alert("רק הורים יכולים לבצע יום תשלום");
+            if(!confirm('האם לחלק דמי כיס וריביות לכל הילדים?')) return;
+            
+            const res = await fetch(`${API}/bank/payday`, {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id }) // שליחת מזהה המבקש
+            });
+            const data = await res.json();
+            if(data.success) {
+                let msg = 'יום התשלום בוצע בהצלחה! 💸\n\n';
+                if(data.report && data.report.length > 0) msg += data.report.join('\n');
+                else msg += 'לא היו עדכונים (בדוק הגדרות דמי כיס)';
+                alert(msg);
+                loadDashboard();
+                triggerConfetti();
+            } else {
+                alert('שגיאה: ' + (data.message || 'לא ניתן לבצע'));
+            }
+        }
+
+        // --- View Logic ---
+        async function loadDashboard() {
+            document.getElementById('user-name').innerText = currentUser.name;
+            document.getElementById('user-role').innerText = currentUser.role === 'parent' ? 'מנהל/ת' : 'לקוח';
+            
+            // הסתרת אלמנטים של הורים לילדים
+            if (currentUser.role === 'child') {
+                document.getElementById('tab-bank').classList.add('hidden');
+                document.getElementById('tab-budget').classList.add('hidden');
+                document.getElementById('section-bank').classList.add('hidden'); // הגנה נוספת
+                // הצגת מידע בנקאי לילד
+                const balance = parseFloat(currentUser.balance);
+                let rank = "חוסך מתחיל 🌱"; if(balance > 100) rank = "חוסך מתקדם 🌿"; if(balance > 500) rank = "אלוף החיסכון 🌳"; if(balance > 1000) rank = "טייקון צעיר 🦁";
+                document.getElementById('user-rank').innerText = rank; document.getElementById('user-rank').classList.remove('hidden');
+                document.getElementById('bank-info-child').classList.remove('hidden'); 
+                document.getElementById('info-allowance').innerText = `₪${currentUser.weekly_allowance || 0}`; 
+                document.getElementById('info-interest').innerText = `${currentUser.interest_rate || 0}%`;
+            } else {
+                // הצגה להורים
+                document.getElementById('btn-invite').classList.remove('hidden');
+                document.getElementById('tab-bank').classList.remove('hidden');
+                document.getElementById('tab-budget').classList.remove('hidden');
+                document.getElementById('btn-add-task').classList.remove('hidden');
+                document.getElementById('btn-checkout').classList.remove('hidden');
+            }
+
+            const res = await fetch(`${API}/data/${currentUser.id}`);
+            const data = await res.json();
+            document.getElementById('balance').innerText = `₪${data.user.balance}`;
+
+            if (currentUser.role === 'parent' && data.family) {
+                document.getElementById('family-section').classList.remove('hidden');
+                renderFamily(data.family);
+            }
+
+            renderTasks(data.tasks);
+            renderShoppingList(data.shopping_list);
+            renderTransactions(data.transactions);
+            renderGoals(data.goals);
+            renderLoans(data.loans);
+            
+            // לא מחליפים טאב אם המשתמש כבר נמצא באחד
+            if (document.querySelector('.nav-tab.bg-teal-50')) return; // אם בתקציב, לא לעבור
+            switchTab('tasks');
+        }
+
+        // --- Render Goals with Deposit Button ---
+        function renderGoals(goals) {
+            const list = document.getElementById('goals-list');
+            list.innerHTML = '';
+            if (!goals || goals.length === 0) {
+                document.getElementById('no-goals-msg').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('no-goals-msg').classList.add('hidden');
+            
+            goals.forEach(g => {
+                const percent = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
+                const isCompleted = percent === 100;
+                
                 list.innerHTML += `
-                    <div onclick="openEditBudget('${b.category}', ${b.limit}, '${label}')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
-                        <div class="flex justify-between items-end mb-2">
-                            <span class="font-bold text-gray-700">${label}</span>
-                            <span class="text-xs font-bold ${percent>=100?'text-red-500':'text-gray-500'}">₪${b.spent} / ₪${b.limit}</span>
+                    <div class="card p-5 animate-item border border-gray-50 mb-3 shadow-md">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center text-yellow-500 text-xl shadow-inner">
+                                    <i class="fa-solid fa-star"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-lg">${g.title}</h4>
+                                    <p class="text-xs text-gray-500 font-bold">יעד: ₪${g.target_amount}</p>
+                                </div>
+                            </div>
+                            <!-- כפתור הפקדה בולט -->
+                            ${!isCompleted 
+                                ? `<button onclick="openDepositModal(${g.id})" class="bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-5 py-2 rounded-xl shadow-lg transition transform active:scale-95 flex items-center gap-2">
+                                     <i class="fa-solid fa-piggy-bank"></i> הפקד
+                                   </button>` 
+                                : '<span class="text-green-600 font-bold text-xs bg-green-50 px-3 py-1 rounded-full border border-green-200">הושלם! 🎉</span>'
+                            }
                         </div>
-                        <div class="w-full bg-gray-100 rounded-full h-3">
-                            <div class="${color} h-3 rounded-full progress-bar" style="width: ${percent}%"></div>
+                        <div class="w-full bg-gray-100 rounded-full h-4 mb-2 overflow-hidden shadow-inner">
+                            <div class="bg-gradient-to-r from-yellow-300 to-yellow-500 h-4 rounded-full progress-bar shadow-sm" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold text-gray-400 px-1">
+                            <span>₪${g.current_amount} נצברו</span>
+                            <span>${percent}%</span>
                         </div>
                     </div>
                 `;
             });
         }
 
-        async function loadBudget() {
-            const res = await fetch(`${API}/budget/status`);
-            const data = await res.json();
-            renderBudget(data);
+        function openDepositModal(id) {
+            document.getElementById('deposit-goal-id').value = id;
+            document.getElementById('deposit-modal').classList.remove('hidden');
         }
 
-        function openEditBudget(cat, limit, label) {
-            document.getElementById('edit-budget-cat').value = cat;
-            document.getElementById('edit-budget-cat-name').innerText = label;
-            document.getElementById('edit-budget-limit').value = limit;
-            document.getElementById('edit-budget-modal').classList.remove('hidden');
-        }
-
-        async function saveBudgetLimit() {
-            const cat = document.getElementById('edit-budget-cat').value;
-            const limit = document.getElementById('edit-budget-limit').value;
-            await fetch(`${API}/budget/set`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:cat, limit})});
-            document.getElementById('edit-budget-modal').classList.add('hidden');
-            loadBudget();
-        }
-
-        // --- Gamification ---
-        function triggerConfetti() {
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
-
-        // --- Core Functions ---
-        async function loadDashboard() {
-            document.getElementById('user-name').innerText = currentUser.name;
-            document.getElementById('user-role').innerText = currentUser.role === 'parent' ? 'מנהל/ת' : 'לקוח';
-            if(currentUser.role === 'child') {
-                const balance = parseFloat(currentUser.balance);
-                let rank = "חוסך מתחיל 🌱"; if(balance > 100) rank = "חוסך מתקדם 🌿"; if(balance > 500) rank = "אלוף החיסכון 🌳"; if(balance > 1000) rank = "טייקון צעיר 🦁";
-                document.getElementById('user-rank').innerText = rank; document.getElementById('user-rank').classList.remove('hidden');
-                document.getElementById('bank-info-child').classList.remove('hidden'); document.getElementById('info-allowance').innerText = `₪${currentUser.weekly_allowance || 0}`; document.getElementById('info-interest').innerText = `${currentUser.interest_rate || 0}%`;
-            }
-            if (currentUser.role === 'parent') {
-                document.getElementById('btn-invite').classList.remove('hidden');
-                document.getElementById('tab-bank').classList.remove('hidden');
-                document.getElementById('tab-budget').classList.remove('hidden'); // הצגת טאב תקציב
-                document.getElementById('btn-add-task').classList.remove('hidden');
-                document.getElementById('btn-checkout').classList.remove('hidden');
-            }
-            const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-            document.getElementById('balance').innerText = `₪${data.user.balance}`;
-            if (currentUser.role === 'parent' && data.family) { document.getElementById('family-section').classList.remove('hidden'); renderFamily(data.family); }
-            renderTasks(data.tasks); renderShoppingList(data.shopping_list); renderTransactions(data.transactions); renderGoals(data.goals); renderLoans(data.loans);
-            switchTab('tasks');
-        }
-
-        function switchTab(tab) {
-            ['tasks', 'shopping', 'goals', 'budget', 'bank', 'loans'].forEach(t => { // הסרתי 'reports' בינתיים לטובת תקציב
-                document.getElementById(`section-${t}`)?.classList.add('hidden');
-                const btn = document.getElementById(`tab-${t}`);
-                if(btn) btn.className = "nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500 hover:bg-gray-50";
-            });
-            document.getElementById(`section-${tab}`).classList.remove('hidden');
-            if (tab === 'budget') loadBudget(); // טעינת נתונים בטאב תקציב
+        async function submitDeposit() {
+            const id = document.getElementById('deposit-goal-id').value;
+            const amount = document.getElementById('deposit-amount').value;
+            if(!amount || amount <= 0) return alert("נא להכניס סכום תקין");
             
-            let color = 'bg-blue-100 text-blue-700'; 
-            if (tab === 'shopping') color = 'bg-pink-100 text-pink-700'; if (tab === 'goals') color = 'bg-yellow-100 text-yellow-700'; if (tab === 'bank') color = 'bg-purple-100 text-purple-700 border border-purple-200'; if (tab === 'loans') color = 'bg-indigo-100 text-indigo-700'; if (tab === 'budget') color = 'bg-teal-100 text-teal-700';
-            document.getElementById(`tab-${tab}`).className = `nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap ${color} shadow-sm`;
+            await fetch(`${API}/goals/deposit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({userId: currentUser.id, goalId: id, amount: amount})
+            });
+            document.getElementById('deposit-modal').classList.add('hidden');
+            triggerConfetti();
+            loadDashboard();
         }
-
-        // עדכון פונקציות קיימות להפעלת קונפטי
-        async function updateTask(id,s){await fetch(`${API}/tasks/update`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({taskId:id,status:s})}); if(s==='done') triggerConfetti(); loadDashboard();}
-        async function submitDeposit(){const id=document.getElementById('deposit-goal-id').value,am=document.getElementById('deposit-amount').value; await fetch(`${API}/goals/deposit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id,goalId:id,amount:am})}); document.getElementById('deposit-modal').classList.add('hidden'); triggerConfetti(); loadDashboard();}
-        async function repayLoan(id, amount) { if(!confirm(`האם להחזיר ₪${amount} מהיתרה שלך?`)) return; const res = await fetch(`${API}/loans/repay`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loanId:id, amount, userId:currentUser.id})}); const data = await res.json(); if(!data.success) alert(data.message); else { triggerConfetti(); loadDashboard(); } }
 
         // --- שאר הפונקציות (ללא שינוי, העתקה) ---
+        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
         function saveAppNameAndRetry() { const input = document.getElementById('custom-app-name').value; if (!input) return alert('נא להזין שם'); let cleanName = input.replace('https://', '').replace('.onrender.com', '').split('/')[0]; localStorage.setItem('custom_app_name', cleanName); location.reload(); }
         function initRegisterMode() { document.getElementById('user-select-screen').classList.add('hidden'); document.getElementById('register-screen').classList.remove('hidden'); let roleText = "משתמש חדש"; if (joinRole === 'parent') roleText = "הורה (מנהל)"; else if (joinAge === 'child_6_10') roleText = "ילד/ה (6-10)"; else if (joinAge === 'child_10_15') roleText = "נער/ה (10-15)"; document.getElementById('register-role-desc').innerText = `מצטרף בתור: ${roleText}`; }
         async function completeRegistration() { const name = document.getElementById('reg-name').value; const pin = document.getElementById('reg-pin').value; if(!name || !pin || pin.length < 4) return alert('נא למלא פרטים'); const btn = document.querySelector('#register-screen button'); btn.innerText = "יוצר..."; try { await fetch(`${API}/create-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, pin, role: joinRole||'child', ageGroup: joinAge||'adult', initialBalance: 0 }) }); alert('נוצר בהצלחה!'); window.location.href = window.location.pathname; } catch (e) { alert('שגיאה'); btn.innerText = "נסה שוב"; } }
@@ -256,20 +276,25 @@
         function promptPin(id, name, role) { selectedUserIdForLogin = id; document.getElementById('pin-user-name').innerText = `היי ${name}`; document.getElementById('pin-user-icon').innerHTML = role==='parent'?'<i class="fa-solid fa-user-tie"></i>':'<i class="fa-solid fa-child"></i>'; document.getElementById('pin-modal').classList.remove('hidden'); document.getElementById('pin-input').value = ''; document.getElementById('pin-input').focus(); }
         function closePinModal() { document.getElementById('pin-modal').classList.add('hidden'); selectedUserIdForLogin = null; }
         async function login() { const pin = document.getElementById('pin-input').value; if (!pin) return; try { const res = await fetch(`${API}/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: selectedUserIdForLogin, pin}) }); const data = await res.json(); if (data.success) { currentUser = data.user; document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('user-select-screen').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); loadDashboard(); } else { document.getElementById('error-msg').classList.remove('hidden'); } } catch (e) { alert('שגיאה'); } }
+        function switchTab(tab) { ['tasks', 'shopping', 'goals', 'budget', 'bank', 'loans'].forEach(t => { document.getElementById(`section-${t}`)?.classList.add('hidden'); const btn = document.getElementById(`tab-${t}`); if(btn) btn.className = "nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500 hover:bg-gray-50"; }); document.getElementById(`section-${tab}`).classList.remove('hidden'); if (tab === 'budget') loadBudget(); let color = 'bg-blue-100 text-blue-700'; if (tab === 'shopping') color = 'bg-pink-100 text-pink-700'; if (tab === 'goals') color = 'bg-yellow-100 text-yellow-700'; if (tab === 'reports') color = 'bg-gray-100 text-gray-700'; if (tab === 'bank') color = 'bg-purple-100 text-purple-700 border border-purple-200'; if (tab === 'loans') color = 'bg-indigo-100 text-indigo-700'; if (tab === 'budget') color = 'bg-teal-100 text-teal-700'; document.getElementById(`tab-${tab}`).className = `nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap ${color} shadow-sm`; }
         function renderFamily(members) { const famList = document.getElementById('family-list'); const bankList = document.getElementById('bank-accounts-list'); const tSel = document.getElementById('task-assignee'); const uSel = document.getElementById('t-user-select'); famList.innerHTML = ''; bankList.innerHTML = ''; tSel.innerHTML = ''; uSel.innerHTML = ''; members.forEach(m => { famList.innerHTML += `<div class="flex-shrink-0 text-center bg-white p-3 rounded-2xl border w-24 shadow-sm"><div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-2 text-blue-600 font-bold text-xl">${m.name[0]}</div><p class="font-bold text-sm truncate">${m.name}</p><p class="text-xs text-gray-500">₪${m.balance}</p></div>`; if(m.role==='child') { tSel.innerHTML += `<option value="${m.id}">${m.name}</option>`; uSel.innerHTML += `<option value="${m.id}">${m.name}</option>`; bankList.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center"><div><div class="font-bold text-gray-800">${m.name}</div><div class="text-xs text-gray-500">דמי כיס: ₪${m.weekly_allowance||0} | ריבית: ${m.interest_rate||0}%</div></div><button onclick="openBankSettings(${m.id}, '${m.name}', ${m.weekly_allowance||0}, ${m.interest_rate||0})" class="text-purple-600 bg-purple-50 p-2 rounded-lg text-sm font-bold">ערוך</button></div>`; } else { uSel.innerHTML += `<option value="${m.id}">${m.name}</option>`; } }); }
         function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-settings-id').value = id; document.getElementById('bank-settings-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
         async function saveBankSettings() { const id = document.getElementById('bank-settings-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/bank/settings`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: id, allowance, interest})}); document.getElementById('bank-settings-modal').classList.add('hidden'); loadDashboard(); }
-        async function runPayday() { if(!confirm('האם לחלק דמי כיס וריביות לכל הילדים?')) return; const res = await fetch(`${API}/bank/payday`, {method: 'POST'}); const data = await res.json(); if(data.success) { let msg = 'יום התשלום בוצע בהצלחה! 💸\n\n'; if(data.report.length > 0) msg += data.report.join('\n'); else msg += 'לא היו עדכונים (בדוק הגדרות דמי כיס)'; alert(msg); loadDashboard(); } }
         function renderLoans(loans) { const list = document.getElementById('loans-list'); list.innerHTML = ''; if (!loans || loans.length === 0) { document.getElementById('no-loans-msg').classList.remove('hidden'); return; } document.getElementById('no-loans-msg').classList.add('hidden'); loans.forEach(l => { let statusBadge = ''; let action = ''; if (l.status === 'pending') { statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">ממתין לאישור</span>'; if (currentUser.role === 'parent') { action = `<button onclick="openApproveLoan(${l.id}, '${l.user_name}', ${l.original_amount})" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm shadow">טפל</button>`; } } else if (l.status === 'active') { statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">פעיל</span>'; if (currentUser.id == l.user_id) { action = `<button onclick="repayLoan(${l.id}, ${l.remaining_amount})" class="bg-green-600 text-white px-3 py-1 rounded text-sm shadow">סגור חוב (₪${l.remaining_amount})</button>`; } else { action = `<span class="text-xs text-gray-400">נותר: ₪${l.remaining_amount}</span>`; } } else if (l.status === 'rejected') { statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">נדחה</span>'; } list.innerHTML += `<div class="card p-4 border border-indigo-50 animate-item"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-gray-800">${l.reason} <span class="text-xs font-normal text-gray-500">(${l.user_name})</span></h4><div class="text-xs text-gray-500">סכום מקורי: ₪${l.original_amount} ${l.interest_rate > 0 ? `(+${l.interest_rate}% ריבית)` : ''}</div></div>${statusBadge}</div><div class="flex justify-between items-center mt-2">${action}</div></div>`; }); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
         async function submitLoanRequest() { const amount = document.getElementById('loan-amount').value; const reason = document.getElementById('loan-reason').value; if(!amount || !reason) return alert('חסרים פרטים'); await fetch(`${API}/loans/request`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id, amount, reason})}); document.getElementById('loan-modal').classList.add('hidden'); loadDashboard(); }
         function openApproveLoan(id, name, amount) { document.getElementById('approve-loan-id').value = id; document.getElementById('approve-loan-desc').innerText = `${name} מבקש/ת ₪${amount}`; document.getElementById('approve-loan-interest').value = 0; document.getElementById('approve-loan-modal').classList.remove('hidden'); }
         async function handleLoan(status) { const id = document.getElementById('approve-loan-id').value; const interest = document.getElementById('approve-loan-interest').value; await fetch(`${API}/loans/handle`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loanId:id, status, interestRate:interest})}); document.getElementById('approve-loan-modal').classList.add('hidden'); loadDashboard(); }
+        async function repayLoan(id, amount) { if(!confirm(`האם להחזיר ₪${amount} מהיתרה שלך?`)) return; const res = await fetch(`${API}/loans/repay`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loanId:id, amount, userId:currentUser.id})}); const data = await res.json(); if(!data.success) alert(data.message); else { triggerConfetti(); loadDashboard(); } }
         function renderTasks(tasks) { const list=document.getElementById('tasks-list'); list.innerHTML=''; if(tasks.length===0)document.getElementById('no-tasks-msg').classList.remove('hidden'); else {document.getElementById('no-tasks-msg').classList.add('hidden'); tasks.forEach(task=>{let action=currentUser.role==='child'&&task.status==='pending'?`<button onclick="updateTask(${task.id},'done')" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-blue-700 transition">סיימתי</button>`:(currentUser.role==='parent'&&task.status==='done'?`<button onclick="updateTask(${task.id},'approved')" class="bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-green-600 transition">אשר</button>`:`<span class="text-xs text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded">${task.status==='done'?'ממתין':'בתהליך'}</span>`); list.innerHTML+=`<div class="card p-4 flex justify-between items-center animate-item border border-gray-50"><div><p class="font-bold text-gray-800">${task.title} <span class="text-yellow-600 text-xs bg-yellow-50 px-2 py-0.5 rounded-md border border-yellow-100 font-bold">₪${task.reward}</span></p><p class="text-xs text-gray-400 mt-1">${task.assignee_name}</p></div><div>${action}</div></div>`;});} }
         function renderShoppingList(items) { const pList=document.getElementById('shopping-pending-list'); const aList=document.getElementById('shopping-active-list'); pList.innerHTML=''; aList.innerHTML=''; let hasP=false; items.forEach(i=>{ if(i.status==='pending'){hasP=true; pList.innerHTML+=`<div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl text-sm border border-gray-100"><span>${i.item_name} <span class="text-xs text-gray-400">(${i.requester_name})</span></span>${currentUser.role==='parent'?`<button onclick="updShop(${i.id},'approved')" class="text-green-600 bg-green-50 p-1.5 rounded-lg hover:bg-green-100 transition"><i class="fa-solid fa-check"></i></button>`:''}</div>`;} else if(i.status!=='bought'){const chk=currentUser.role==='parent'?`<input type="checkbox" onchange="updShop(${i.id},this.checked?'in_cart':'approved')" class="shop-check w-5 h-5 accent-pink-500 rounded-md cursor-pointer" ${i.status==='in_cart'?'checked':''}>`:'<span class="text-pink-500 text-xs">●</span>'; aList.innerHTML+=`<div class="flex gap-3 p-3 border-b last:border-0 border-gray-50 animate-item items-center">${chk}<div class="${i.status==='in_cart'?'line-through text-gray-300':'font-medium text-gray-700'}">${i.item_name}</div></div>`;} }); document.getElementById('shopping-pending-area').classList.toggle('hidden', !hasP); }
         function renderTransactions(trans) { const l=document.getElementById('transactions-list'); l.innerHTML=''; trans.forEach(t=>{const inc=t.type==='income'; l.innerHTML+=`<div class="card p-4 flex justify-between items-center animate-item border-r-4 ${inc?'border-green-400':'border-red-400'} shadow-sm"><div><p class="font-bold text-gray-800">${t.description}</p><p class="text-xs text-gray-400 mt-0.5">${new Date(t.date).toLocaleDateString()}</p></div><span class="${inc?'text-green-600':'text-red-600'} font-bold text-lg tracking-tight">${inc?'+':'-'}₪${t.amount}</span></div>`;}); }
+        function renderBudget(budgets) { const list = document.getElementById('budget-bars'); list.innerHTML = ''; const labels = { 'general': 'כללי', 'food': 'אוכל', 'toys': 'צעצועים', 'clothes': 'בגדים', 'entertainment': 'בילויים', 'transport': 'נסיעות', 'groceries': 'סופר ובית', 'savings': 'חיסכון' }; budgets.forEach(b => { const label = labels[b.category] || b.category; const percent = b.limit > 0 ? Math.min(100, (b.spent / b.limit) * 100) : 0; let color = 'bg-teal-500'; if(percent > 80) color = 'bg-yellow-500'; if(percent >= 100) color = 'bg-red-500'; list.innerHTML += `<div onclick="openEditBudget('${b.category}', ${b.limit}, '${label}')" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition"><div class="flex justify-between items-end mb-2"><span class="font-bold text-gray-700">${label}</span><span class="text-xs font-bold ${percent>=100?'text-red-500':'text-gray-500'}">₪${b.spent} / ₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-3"><div class="${color} h-3 rounded-full progress-bar" style="width: ${percent}%"></div></div></div>`; }); }
+        async function loadBudget() { const res = await fetch(`${API}/budget/status`); const data = await res.json(); renderBudget(data); }
+        function openEditBudget(cat, limit, label) { document.getElementById('edit-budget-cat').value = cat; document.getElementById('edit-budget-cat-name').innerText = label; document.getElementById('edit-budget-limit').value = limit; document.getElementById('edit-budget-modal').classList.remove('hidden'); }
+        async function saveBudgetLimit() { const cat = document.getElementById('edit-budget-cat').value; const limit = document.getElementById('edit-budget-limit').value; await fetch(`${API}/budget/set`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:cat, limit})}); document.getElementById('edit-budget-modal').classList.add('hidden'); loadBudget(); }
         
-        async function submitTask(){const t=document.getElementById('task-title').value,r=document.getElementById('task-reward').value,a=document.getElementById('task-assignee').value; await fetch(`${API}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:t,reward:r,assignedTo:a})}); document.getElementById('task-modal').classList.add('hidden'); loadDashboard();}
+        async function updateTask(id,s){await fetch(`${API}/tasks/update`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({taskId:id,status:s})}); if(s==='done') triggerConfetti(); loadDashboard();}
         async function submitShopItem(){const n=document.getElementById('shop-item-name').value; if(!n)return; await fetch(`${API}/shopping/add`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemName:n,userId:currentUser.id})}); document.getElementById('shopping-modal').classList.add('hidden'); loadDashboard();}
         async function updShop(id,s){await fetch(`${API}/shopping/update`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemId:id,status:s})}); loadDashboard();}
         async function submitCheckout(){const a=document.getElementById('checkout-amount').value; if(!a)return; await fetch(`${API}/shopping/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({totalAmount:a,userId:currentUser.id})}); document.getElementById('checkout-modal').classList.add('hidden'); loadDashboard();}
@@ -277,8 +302,6 @@
         function openShoppingModal(){document.getElementById('shopping-modal').classList.remove('hidden');}
         function openCheckoutModal(){document.getElementById('checkout-modal').classList.remove('hidden');}
         function openGoalModal(){document.getElementById('goal-modal').classList.remove('hidden');}
-        function openDepositModal(id){document.getElementById('deposit-goal-id').value=id; document.getElementById('deposit-modal').classList.remove('hidden');}
-        async function submitGoal(){const t=document.getElementById('goal-title').value,ta=document.getElementById('goal-target').value; await fetch(`${API}/goals`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id,title:t,targetAmount:ta})}); document.getElementById('goal-modal').classList.add('hidden'); loadDashboard();}
         function closeModal(){document.getElementById('transaction-modal').classList.add('hidden');}
         function openModal(t){currentType=t; document.getElementById('transaction-modal').classList.remove('hidden'); document.getElementById('modal-title').innerText=t==='income'?'הכנסה':'הוצאה'; if(currentUser.role==='parent'){document.getElementById('t-user-select-container').classList.remove('hidden'); document.getElementById('t-user-select').value=currentUser.id;}}
         async function submitTransaction(){const a=document.getElementById('t-amount').value,d=document.getElementById('t-desc').value,cat=document.getElementById('t-category').value; const u=currentUser.role==='parent'?document.getElementById('t-user-select').value:currentUser.id; await fetch(`${API}/transaction`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:u,amount:a,description:d,category:cat,type:currentType})}); closeModal(); loadDashboard();}
