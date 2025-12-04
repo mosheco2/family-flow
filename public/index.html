@@ -129,7 +129,6 @@
     <div id="shopping-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl overflow-visible"><h3 class="text-xl font-bold mb-4 text-center text-pink-600">הוספה לסופר 🛒</h3><div class="relative"><input type="text" id="shop-item-name" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-2 text-lg focus:border-pink-500 outline-none" placeholder="חפש מוצר..." oninput="searchProducts(this.value)" onfocus="searchProducts(this.value)" autocomplete="off"><div id="product-suggestions" class="hidden absolute w-full bg-white border border-gray-100 rounded-xl shadow-lg z-50 top-full mt-1"></div></div><div class="flex gap-3 mt-4"><button onclick="document.getElementById('shopping-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitShopItem()" class="flex-1 py-3 bg-pink-600 text-white rounded-xl font-bold shadow-lg">הוסף</button></div></div></div>
     <div id="edit-budget-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-teal-600">עריכת תקציב</h3><p id="edit-budget-cat-name" class="text-center text-gray-600 mb-4"></p><input type="hidden" id="edit-budget-cat"><label class="block text-xs font-bold text-gray-500 mb-1">תקרה חודשית (₪)</label><input type="number" id="edit-budget-limit" class="w-full p-4 border-2 rounded-2xl mb-6 text-xl font-bold text-center" placeholder="0"><div class="flex gap-3"><button onclick="document.getElementById('edit-budget-modal').classList.add('hidden')" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="saveBudgetLimit()" class="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold">שמור</button></div></div></div>
     <div id="invite-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-blue-600">הזמנה</h3><div class="space-y-3 mb-6"><button onclick="generateInvite('parent','adult')" class="w-full text-right p-4 border rounded-2xl">בן/בת זוג</button><button onclick="generateInvite('child','child_6_10')" class="w-full text-right p-4 border rounded-2xl">ילד (6-10)</button><button onclick="generateInvite('child','child_10_15')" class="w-full text-right p-4 border rounded-2xl">נער (10-15)</button>
-    <!-- NEW: 18+ Button -->
     <button onclick="generateInvite('child','young_adult')" class="w-full text-right p-4 border rounded-2xl border-purple-100 bg-purple-50 text-purple-700 font-bold">צעיר/ה (18+)</button></div><div id="invite-link-area" class="hidden bg-blue-50 p-4 rounded-2xl mb-4 text-center"><button id="btn-send-whatsapp" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold">שלח בווצאפ</button></div><button onclick="document.getElementById('invite-modal').classList.add('hidden');" class="w-full py-3 bg-gray-100 font-bold rounded-xl">סגור</button></div></div>
     <div id="loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-4 text-center text-indigo-600">בקשת הלוואה</h3><input type="number" id="loan-amount" class="w-full p-3 border rounded-xl mb-3" placeholder="כמה צריך?"><input type="text" id="loan-reason" class="w-full p-3 border rounded-xl mb-6" placeholder="למה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-gray-100 rounded-xl font-bold">ביטול</button><button onclick="submitLoanRequest()" class="flex-1 bg-indigo-600 text-white rounded-xl font-bold">שלח בקשה</button></div></div></div>
     <div id="approve-loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-indigo-600">אישור הלוואה</h3><p id="approve-loan-desc" class="text-center text-gray-600 text-sm mb-6"></p><input type="hidden" id="approve-loan-id"><label class="block text-xs font-bold text-gray-500 mb-1">ריבית (%)</label><input type="number" id="approve-loan-interest" class="w-full p-3 border rounded-xl mb-6 text-lg font-bold" value="0"><div class="flex gap-3"><button onclick="handleLoan('rejected')" class="flex-1 py-3 bg-red-100 text-red-600 rounded-xl font-bold">דחה</button><button onclick="handleLoan('active')" class="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold">אשר</button></div></div></div>
@@ -171,7 +170,15 @@
         }
         document.addEventListener('click', (e) => { if (!document.getElementById('shopping-modal').contains(e.target)) document.getElementById('product-suggestions').classList.add('hidden'); });
 
-        window.onload = async () => { await loadUsersForLogin(); };
+        // Handle WhatsApp Invite Link on Load
+        window.onload = async () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('join') === 'true') {
+                initRegisterMode(params.get('role'), params.get('age'));
+            } else {
+                await loadUsersForLogin();
+            }
+        };
 
         async function loadDashboard() {
             if (!currentUser) return;
@@ -210,7 +217,8 @@
                 
                 if (currentUser.role === 'parent' && data.family) { 
                     renderFamilyManage(data.family);
-                    renderBankAccounts(data.family); // Added bank rendering
+                    renderBankAccounts(data.family); 
+                    populateAssigneeSelect(data.family); // NEW: Populate Task Assignee List
                 }
                 
                 renderTasks(data.tasks || []); 
@@ -231,7 +239,20 @@
             }
         }
         
-        // NEW: Render Bank Accounts for Parent
+        // NEW: Populate Task Assignee Dropdown
+        function populateAssigneeSelect(family) {
+            const sel = document.getElementById('task-assignee');
+            sel.innerHTML = '';
+            const children = family.filter(m => m.role === 'child');
+            if (children.length === 0) {
+                sel.innerHTML = '<option disabled>אין ילדים רשומים</option>';
+                return;
+            }
+            children.forEach(c => {
+                sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+
         function renderBankAccounts(family) {
             const list = document.getElementById('bank-accounts-list');
             list.innerHTML = '';
@@ -418,8 +439,67 @@
         function renderFamilyManage(family) { const container = document.getElementById('family-list-manage'); container.innerHTML = ''; family.filter(m => m.role === 'child').forEach(c => { const age = new Date().getFullYear() - (c.birth_year || 2015); container.innerHTML += `<div class="card p-4 flex justify-between items-center border border-gray-100"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">${c.name[0]}</div><div><h4 class="font-bold text-gray-800">${c.name}</h4><div class="text-xs text-gray-500">₪${c.balance} | גיל: ${age}</div></div></div><div class="flex gap-2"><button onclick="enterSpyMode(${c.id}, '${c.name}')" class="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold hover:bg-orange-200 transition">צפה כילד 👁️</button><button onclick="openEditProfileModal(${c.id}, '${c.name}', '${c.pin_code}', ${c.birth_year})" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold hover:bg-blue-200 transition">✏️</button></div></div>`; }); }
         async function enterSpyMode(childId, name) { if(!confirm(`לעבור לצפות בממשק של ${name}?`)) return; realParentUser = currentUser; shoppingCart = []; const res = await fetch(`${API}/data/${childId}`); const data = await res.json(); currentUser = data.user; document.getElementById('spy-mode-bar').classList.remove('hidden'); document.getElementById('spy-child-name').innerText = name; currentTab = 'tasks'; loadDashboard(); }
         function exitSpyMode() { currentUser = realParentUser; realParentUser = null; document.getElementById('spy-mode-bar').classList.add('hidden'); loadDashboard(); }
-        function openEditProfileModal(id, name, pin, birthYear) { if (currentUser.role === 'child' && realParentUser) return; const targetId = id || currentUser.id; const targetName = name || currentUser.name; const targetPin = pin || currentUser.pin_code; const targetYear = birthYear || currentUser.birth_year || ''; document.getElementById('edit-user-id').value = targetId; document.getElementById('edit-name').value = targetName; document.getElementById('edit-pin').value = targetPin; document.getElementById('edit-year').value = targetYear; document.getElementById('edit-profile-modal').classList.remove('hidden'); }
-        async function submitEditProfile() { const id = document.getElementById('edit-user-id').value; const name = document.getElementById('edit-name').value; const pin = document.getElementById('edit-pin').value; const year = document.getElementById('edit-year').value; if(!name || !pin || pin.length < 4) return alert('נא למלא פרטים תקינים'); await fetch(`${API}/users/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: id, name, pin, birthYear: year }) }); document.getElementById('edit-profile-modal').classList.add('hidden'); if (id == currentUser.id) { currentUser.name = name; currentUser.pin_code = pin; currentUser.birth_year = year; } loadDashboard(); }
+        
+        // UPDATED: Profile Edit Modal to handle editing specific users
+        function openEditProfileModal(id, name, pin, birthYear) {
+            if (currentUser.role === 'child' && realParentUser) return; // Cannot edit in spy mode
+            
+            // If arguments are provided (parent editing child), use them. Otherwise (user editing self), use currentUser.
+            const targetId = id || currentUser.id;
+            const targetName = name || currentUser.name;
+            const targetPin = pin || currentUser.pin_code;
+            const targetYear = birthYear || currentUser.birth_year || '';
+
+            document.getElementById('edit-user-id').value = targetId;
+            document.getElementById('edit-name').value = targetName;
+            document.getElementById('edit-pin').value = targetPin;
+            document.getElementById('edit-year').value = targetYear;
+            
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+        }
+
+        async function submitEditProfile() {
+            const id = document.getElementById('edit-user-id').value;
+            const name = document.getElementById('edit-name').value;
+            const pin = document.getElementById('edit-pin').value;
+            const year = document.getElementById('edit-year').value;
+            
+            if(!name || !pin || pin.length < 4) return alert('נא למלא פרטים תקינים');
+            
+            await fetch(`${API}/users/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: id, name, pin, birthYear: year }) });
+            document.getElementById('edit-profile-modal').classList.add('hidden');
+            
+            // If user edited themselves, update local state immediately
+            if (id == currentUser.id) {
+                currentUser.name = name;
+                currentUser.pin_code = pin;
+                currentUser.birth_year = year;
+            }
+            
+            loadDashboard();
+        }
+
+        // UPDATED: Register Mode with pre-filled data
+        function initRegisterMode(role, ageGroup) {
+            document.getElementById('user-select-screen').classList.add('hidden');
+            document.getElementById('register-screen').classList.remove('hidden');
+            
+            // Pre-fill if params exist
+            if (role) {
+                document.getElementById('reg-role').value = role;
+            }
+            if (ageGroup) {
+                // Try to guess year based on age group to be helpful
+                const currentYear = new Date().getFullYear();
+                let estimatedYear = '';
+                if (ageGroup === 'child_6_10') estimatedYear = currentYear - 8;
+                else if (ageGroup === 'child_10_15') estimatedYear = currentYear - 12;
+                else if (ageGroup === 'teen_15_18') estimatedYear = currentYear - 16;
+                else if (ageGroup === 'young_adult') estimatedYear = currentYear - 20;
+                
+                if (estimatedYear) document.getElementById('reg-year').value = estimatedYear;
+            }
+        }
 
         // Core Functions
         function updateItemPrice(id, price) { const item = shoppingCart.find(x => x.id === id); if (item) item.price = parseFloat(price) || 0; updateLiveTotal(); fetch(`${API}/shopping/update-price`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ itemId: id, price: price }) }); }
@@ -428,7 +508,6 @@
         async function checkout() { const storeName = document.getElementById('store-name-input').value; if (!storeName) return alert('נא להזין את שם החנות'); const cartItems = shoppingCart.filter(i => i.inCart); if (cartItems.length === 0) return alert('העגלה ריקה!'); const total = cartItems.reduce((sum, i) => sum + i.price, 0); if (total === 0 && !confirm('הסכום הוא 0. להמשיך?')) return; await fetch(`${API}/shopping/checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: storeName, items: cartItems }) }); confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } }); alert(`קנייה בסך ₪${total} נרשמה בהצלחה!`); document.getElementById('store-name-input').value = ''; loadDashboard(); }
         function switchTab(tab) { currentTab = tab; ['tasks', 'shopping', 'goals', 'budget', 'bank', 'loans', 'academy', 'family'].forEach(t => { document.getElementById(`section-${t}`)?.classList.add('hidden'); const btn = document.getElementById(`tab-${t}`); if(btn) btn.className = "nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap text-gray-500 hover:bg-gray-50"; }); document.getElementById(`section-${tab}`)?.classList.remove('hidden'); let color = 'bg-blue-100 text-blue-700'; if(tab==='shopping') { document.getElementById('floating-actions').classList.add('hidden'); color='bg-pink-100 text-pink-700'; } else { document.getElementById('floating-actions').classList.remove('hidden'); } document.getElementById(`tab-${tab}`).className = `nav-tab flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-center transition whitespace-nowrap ${color} shadow-sm`; }
         function saveAppNameAndRetry() { const input = document.getElementById('custom-app-name').value; if (!input) return alert('נא להזין שם'); let cleanName = input.replace('https://', '').replace('.onrender.com', '').split('/')[0]; localStorage.setItem('custom_app_name', cleanName); location.reload(); }
-        function initRegisterMode() { document.getElementById('user-select-screen').classList.add('hidden'); document.getElementById('register-screen').classList.remove('hidden'); }
         function toggleBirthYear() { /* nothing */ }
         async function completeRegistration() { const name = document.getElementById('reg-name').value; const pin = document.getElementById('reg-pin').value; const role = document.getElementById('reg-role').value; const year = document.getElementById('reg-year').value; if(!name || !pin || !year || pin.length < 4) return alert('נא למלא פרטים'); const btn = document.querySelector('#register-screen button'); btn.innerText = "יוצר..."; try { await fetch(`${API}/create-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, pin, role, birthYear: year, initialBalance: 0 }) }); alert('נוצר בהצלחה!'); window.location.href = window.location.pathname; } catch (e) { alert('שגיאה'); btn.innerText = "נסה שוב"; } }
         function openInviteModal() { document.getElementById('invite-modal').classList.remove('hidden'); }
