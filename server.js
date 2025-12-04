@@ -16,7 +16,7 @@ const client = new Client({
 
 client.connect();
 
-// --- Setup DB & Content Injection (V2.6 - Young Adults & Bank Fix) ---
+// --- Setup DB & Content Injection (V2.7 - Bank Fix & Full Content) ---
 app.get('/setup-db', async (req, res) => {
   try {
     const tables = [
@@ -56,28 +56,61 @@ app.get('/setup-db', async (req, res) => {
     ];
     for (const query of columns) try { await client.query(query); } catch(e) { console.log('Migration:', e.message); }
 
-    // Inject Content (Specific for 18+ and missing levels)
-    const quizCount = await client.query('SELECT COUNT(*) FROM quizzes WHERE target_min_age >= 18');
-    if (parseInt(quizCount.rows[0].count) < 2) {
-        console.log("Injecting Young Adult Content...");
+    // Force Content Injection if less than 15 sets exist (ensures full population)
+    const quizCount = await client.query('SELECT COUNT(*) FROM quizzes WHERE is_set = TRUE');
+    if (parseInt(quizCount.rows[0].count) < 15) {
+        console.log("Injecting Full Academy Content...");
         
+        const generateMathSet = (min, max, op, diff, count=10) => {
+            const qs = [];
+            for(let i=0; i<count; i++) {
+                let a = Math.floor(Math.random() * diff) + 1;
+                let b = Math.floor(Math.random() * diff) + 1;
+                let qStr = "", ans = 0;
+                if(op === '+') { qStr = `${a} + ${b} = ?`; ans = a+b; }
+                else if(op === '-') { if(a<b) [a,b]=[b,a]; qStr = `${a} - ${b} = ?`; ans = a-b; }
+                else if(op === '*') { a = Math.floor(Math.random()*12)+1; b = Math.floor(Math.random()*12)+1; qStr = `${a} x ${b} = ?`; ans = a*b; }
+                else if(op === '^') { a = Math.floor(Math.random()*6)+2; b = 2; qStr = `${a} בריבוע = ?`; ans = a*a; }
+                
+                let opts = [ans, ans+1, ans-1, ans+Math.floor(Math.random()*5)+2].filter(x=>x>=0);
+                opts = [...new Set(opts)].sort(()=>Math.random()-0.5);
+                while(opts.length < 4) opts.push(ans + opts.length + 1);
+                qs.push({q: qStr, opts: opts, correct: opts.indexOf(ans)});
+            }
+            return { title: `מתמטיקה: ${op==='+'?'חיבור':(op==='-'?'חיסור':(op==='*'?'כפל':'חזקות'))} (גיל ${min}-${max})`, questions: qs, min, max, cat: 'math', rew: (max>12?15:5) };
+        };
+
         const content = [
+            // 6-8
+            generateMathSet(6, 8, '+', 10), generateMathSet(6, 8, '-', 10),
+            // 8-12
+            generateMathSet(8, 12, '+', 100), generateMathSet(8, 12, '-', 100), generateMathSet(8, 12, '*', 0),
+            // 13-18
+            generateMathSet(13, 18, '*', 0), generateMathSet(13, 18, '^', 0),
+            // 18+ (Young Adults)
             {
-                title: "עצמאות פיננסית: צעדים ראשונים (18+)",
+                title: "ניהול תקציב לבוגרים (18+)",
                 min: 18, max: 99, cat: 'finance', rew: 50,
                 questions: [
-                    { q: "מהו מס הכנסה?", opts: ["תשלום למדינה על רווחים מעבודה", "כסף שמקבלים מהעבודה", "קנס על איחור", "ביטוח רפואי"], correct: 0 },
-                    { q: "מה ההבדל בין כרטיס דביט לכרטיס אשראי?", opts: ["דביט יורד מיד, אשראי יורד בסוף החודש", "אין הבדל", "אשראי זה בחינם", "דביט זה רק בחו''ל"], correct: 0 },
-                    { q: "מה זה 'פח''ק' (פיקדון)?", opts: ["סוג של הלוואה", "חיסכון בבנק לזמן קצר", "תשלום חשבון חשמל", "כרטיס מועדון"], correct: 1 },
-                    { q: "למה צריך ביטוח לאומי?", opts: ["כדי לקבל קצבה במקרה של אבטלה או נכות", "כדי לטוס לחו''ל", "כדי לקנות דירה", "זה לא חובה"], correct: 0 }
+                    { q: "מהו הכלל המומלץ לחלוקת הכנסה (כלל ה-50/30/20)?", opts: ["50% צרכים, 30% רצונות, 20% חיסכון", "50% חיסכון, 30% אוכל, 20% בילויים", "50% שכר דירה, 50% אוכל", "אין כלל כזה"], correct: 0 },
+                    { q: "מהי קרן חירום?", opts: ["סכום כסף בצד להוצאות לא צפויות", "קרן השתלמות", "ביטוח לאומי", "הלוואה מהירה"], correct: 0 },
+                    { q: "מתי משלמים ריבית דריבית?", opts: ["בהלוואות ובחיסכון לאורך זמן", "רק כשקונים דירה", "בסופר", "אף פעם"], correct: 0 }
                 ]
             },
             {
-                title: "ניהול תקציב לצעירים (18+)",
-                min: 18, max: 99, cat: 'finance', rew: 40,
+                title: "מיסים ומשכורת (18+)",
+                min: 18, max: 99, cat: 'finance', rew: 50,
                 questions: [
-                    { content: "דני מרוויח 6,000 ש\"ח בחודש. שכר הדירה שלו הוא 3,000 ש\"ח, והוצאות אחרות הן 2,000 ש\"ח.", q: "כמה כסף נשאר לדני לחיסכון?", opts: ["1,000", "2,000", "0", "500"], correct: 0 },
-                    { content: "כדי לחסוך לטיול שעולה 12,000 ש\"ח...", q: "כמה חודשים דני צריך לחסוך (אם יחסוך 1,000 בחודש)?", opts: ["12 חודשים", "6 חודשים", "שנתיים", "חודש אחד"], correct: 0 }
+                    { q: "מה זה ברוטו?", opts: ["השכר לפני ניכויים ומיסים", "השכר שנכנס לבנק", "הבונוס השנתי", "ההפרשה לפנסיה"], correct: 0 },
+                    { q: "מה זה נטו?", opts: ["השכר שנכנס לבנק (אחרי ניכויים)", "השכר לפני מיסים", "שווי הרכב", "ימי חופשה"], correct: 0 },
+                    { q: "האם חובה להפריש לפנסיה?", opts: ["כן, חובה על פי חוק", "לא, זו בחירה", "רק מגיל 40", "רק לעצמאיים"], correct: 0 }
+                ]
+            },
+            {
+                title: "הבנת הנקרא: המהפכה הדיגיטלית",
+                min: 12, max: 18, cat: 'reading', rew: 20,
+                questions: [
+                    { content: "המהפכה הדיגיטלית שינתה את הדרך בה אנו מתקשרים. במקום מכתבים, אנו שולחים הודעות מיידיות.", q: "מה החליף את המכתבים?", opts: ["יוני דואר", "הודעות מיידיות", "טלפון קווי", "פקס"], correct: 1 }
                 ]
             }
         ];
@@ -92,7 +125,7 @@ app.get('/setup-db', async (req, res) => {
     const uCheck = await client.query('SELECT * FROM users');
     if (uCheck.rows.length === 0) await client.query(`INSERT INTO users (name, role, balance, pin_code, birth_year) VALUES ('Admin Parent', 'parent', 0, '1234', 1980)`);
 
-    res.send(`<h2 style="color: green;">System Updated V2.6</h2><p>Young Adult (18+) content injected & Bank fixed.</p>`);
+    res.send(`<h2 style="color: green;">System Updated V2.7</h2><p>Bank functionality restored, 18+ content & options added.</p>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -101,16 +134,14 @@ app.get('/setup-db', async (req, res) => {
 app.get('/api/public-users', async (req, res) => { try { const r = await client.query('SELECT id, name, role, birth_year, age_group FROM users ORDER BY role DESC, id ASC'); res.json(r.rows); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const r = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (r.rows.length > 0) return res.json({ success: true, user: r.rows[0] }); return res.status(401).json({ success: false }); } const r = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (r.rows.length > 0) res.json({ success: true, user: r.rows[0] }); else res.status(401).json({ success: false }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// Enhanced Create User (18+ Logic)
 app.post('/api/create-user', async (req, res) => { 
     const { name, pin, role, birthYear } = req.body; 
     try { 
         const currentYear = new Date().getFullYear();
         const age = currentYear - parseInt(birthYear);
-        let ageGroup = 'adult'; // Default for parents
-        
+        let ageGroup = 'adult';
         if (role === 'child') {
-            if (age >= 18) ageGroup = 'young_adult';
+            if (age >= 18) ageGroup = 'young_adult'; // 18+ support
             else if (age >= 14) ageGroup = 'teen_15_18';
             else if (age >= 10) ageGroup = 'child_10_15';
             else ageGroup = 'child_6_10';
@@ -124,7 +155,6 @@ app.post('/api/create-user', async (req, res) => {
 
 app.post('/api/users/update', async (req, res) => { const { userId, name, pin, birthYear } = req.body; try { await client.query('UPDATE users SET name = $1, pin_code = $2, birth_year = $3 WHERE id = $4', [name, pin, birthYear, userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// Data Fetch (Fixing Bank & Academy)
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -137,14 +167,16 @@ app.get('/api/data/:userId', async (req, res) => {
     if (user.role === 'child') {
         const age = user.birth_year ? (new Date().getFullYear() - user.birth_year) : 10;
         const assigned = await client.query(`SELECT q.*, a.id as assignment_id, 'assigned' as origin FROM quizzes q JOIN assignments a ON q.id = a.quiz_id WHERE a.child_id = $1 AND a.status = 'assigned'`, [userId]);
-        // Smart Pool: Get quizzes for specific age OR general ones (0-99)
+        
+        // Smart Pool: Age specific OR All ages (0-99) OR Young Adults (18+)
         const general = await client.query(`
             SELECT q.*, NULL as assignment_id, 'pool' as origin 
             FROM quizzes q 
-            WHERE ($1 >= q.target_min_age AND $1 <= q.target_max_age)
+            WHERE (($1 >= q.target_min_age AND $1 <= q.target_max_age) OR (q.target_min_age = 0 AND q.target_max_age = 99))
             AND NOT EXISTS (SELECT 1 FROM user_quiz_history h WHERE h.quiz_id = q.id AND h.user_id = $2)
-            ORDER BY category DESC, RANDOM() LIMIT 12
+            ORDER BY category DESC, RANDOM() LIMIT 15
         `, [age, userId]);
+        
         quizzes = [...assigned.rows, ...general.rows];
     } else {
         quizzes = (await client.query('SELECT * FROM quizzes ORDER BY category, target_min_age')).rows;
@@ -166,6 +198,8 @@ app.get('/api/data/:userId', async (req, res) => {
 app.post('/api/academy/assign', async (req, res) => { const { parentId, childId, quizId } = req.body; try { await client.query(`INSERT INTO assignments (parent_id, child_id, quiz_id) VALUES ($1, $2, $3)`, [parentId, childId, quizId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/academy/request', async (req, res) => { const { userId, name } = req.body; try { await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES ($1, $2, 'hand-raised')`, [userId, `${name} ביקש/ה אתגר חדש!`]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/academy/complete', async (req, res) => { const { userId, quizId, score, assignmentId, reward } = req.body; try { await client.query('BEGIN'); if (score >= 60) { await client.query('UPDATE users SET balance = balance + $1, xp = xp + 50 WHERE id = $2', [reward, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'education', 'income')`, [userId, reward, `הצלחה באתגר (${score}%)`]); } await client.query('INSERT INTO user_quiz_history (user_id, quiz_id, score) VALUES ($1, $2, $3)', [userId, quizId, score]); if (assignmentId) await client.query("UPDATE assignments SET status = 'completed' WHERE id = $1", [assignmentId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
+
+// Shopping & Other modules unchanged (retaining logic from previous)
 app.post('/api/shopping/add', async (req, res) => { const { itemName, userId } = req.body; try { const r = await client.query('SELECT role FROM users WHERE id=$1', [userId]); const st = r.rows[0].role==='parent'?'approved':'pending'; const p = await client.query('SELECT last_price FROM product_prices WHERE item_name=$1 ORDER BY updated_at DESC LIMIT 1', [itemName]); const ep = p.rows.length>0?p.rows[0].last_price:0; await client.query(`INSERT INTO shopping_list (item_name, requested_by, status, estimated_price) VALUES ($1, $2, $3, $4)`, [itemName, userId, st, ep]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/update', async (req, res) => { const { itemId, status } = req.body; try { await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/update-price', async (req, res) => { const { itemId, price } = req.body; try { await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [price, itemId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
