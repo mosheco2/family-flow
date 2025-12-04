@@ -16,7 +16,7 @@ const client = new Client({
 
 client.connect();
 
-// --- Setup DB ---
+// --- Setup DB & Content Injection (V2.5) ---
 app.get('/setup-db', async (req, res) => {
   try {
     const tables = [
@@ -56,41 +56,125 @@ app.get('/setup-db', async (req, res) => {
     ];
     for (const query of columns) try { await client.query(query); } catch(e) { console.log('Migration:', e.message); }
 
+    // Inject Academy Content (Sets) - Expanded for Teens
     const quizCount = await client.query('SELECT COUNT(*) FROM quizzes WHERE is_set = TRUE');
-    if (parseInt(quizCount.rows[0].count) < 5) {
-        // ... (Content injection logic remains the same as previous version) ...
-        const generateMathSet = (min, max, op, diff) => {
+    if (parseInt(quizCount.rows[0].count) < 10) {
+        console.log("Injecting Massive Academy Content...");
+        
+        const generateMathSet = (min, max, op, diff, count=10) => {
             const qs = [];
-            for(let i=0; i<10; i++) {
+            for(let i=0; i<count; i++) {
                 let a = Math.floor(Math.random() * diff) + 1;
                 let b = Math.floor(Math.random() * diff) + 1;
                 let qStr = "", ans = 0;
+                
                 if(op === '+') { qStr = `${a} + ${b} = ?`; ans = a+b; }
-                if(op === '-') { if(a<b) [a,b]=[b,a]; qStr = `${a} - ${b} = ?`; ans = a-b; }
-                if(op === '*') { a = Math.floor(Math.random()*10)+1; b = Math.floor(Math.random()*10)+1; qStr = `${a} x ${b} = ?`; ans = a*b; }
-                const opts = [ans, ans+1, ans-1, ans+2].sort(()=>Math.random()-0.5);
+                else if(op === '-') { if(a<b) [a,b]=[b,a]; qStr = `${a} - ${b} = ?`; ans = a-b; }
+                else if(op === '*') { a = Math.floor(Math.random()*12)+1; b = Math.floor(Math.random()*12)+1; qStr = `${a} x ${b} = ?`; ans = a*b; }
+                else if(op === '^') { a = Math.floor(Math.random()*5)+2; b = 2; qStr = `${a} בריבוע = ?`; ans = a*a; } // חזקות
+                else if(op === 'sq') { ans = Math.floor(Math.random()*10)+1; a = ans*ans; qStr = `שורש של ${a} = ?`; } // שורשים
+                
+                let opts = [ans, ans+1, ans-1, ans+Math.floor(Math.random()*5)+2].filter(x=>x>=0);
+                opts = [...new Set(opts)].sort(()=>Math.random()-0.5);
+                while(opts.length < 4) opts.push(ans + opts.length + 1); // Fill if duplicates removed
+                
                 qs.push({q: qStr, opts: opts, correct: opts.indexOf(ans)});
             }
-            return { title: `תרגול ${op==='+'?'חיבור':(op==='-'?'חיסור':'כפל')} (גיל ${min}-${max})`, questions: qs, min, max, cat: 'math', rew: 5 };
+            return { title: `מתמטיקה: ${op==='+'?'חיבור':(op==='-'?'חיסור':(op==='*'?'כפל':(op==='^'?'חזקות':'שורשים')))} (גיל ${min}-${max})`, questions: qs, min, max, cat: 'math', rew: (max>12?10:5) };
         };
-        const content = [generateMathSet(6,8,'+',10), generateMathSet(6,8,'-',10), generateMathSet(8,12,'+',50), generateMathSet(8,12,'-',50), generateMathSet(10,15,'*',0)];
-        for (const c of content) await client.query(`INSERT INTO quizzes (title, type, questions_json, reward, target_min_age, target_max_age, category, is_set) VALUES ($1, 'set', $2, $3, $4, $5, $6, TRUE)`, [c.title, JSON.stringify(c.questions), c.rew, c.min, c.max, c.cat]);
+
+        const content = [
+            // גילאי 6-8
+            generateMathSet(6, 8, '+', 10), 
+            generateMathSet(6, 8, '-', 10),
+            {
+                title: "הבנת הנקרא: דני והכלב (צעירים)",
+                min: 6, max: 9, cat: 'reading', rew: 10,
+                questions: [
+                    { content: "לדני יש כלב חמוד בשם כתם. לכתם יש פרווה לבנה עם כתם שחור על הגב.", q: "מה השם של הכלב?", opts: ["דני", "כתם", "פארק", "שחור"], correct: 1 },
+                    { content: "המשך...", q: "איזה צבע הפרווה של כתם?", opts: ["שחור", "חום", "לבן", "אפור"], correct: 2 }
+                ]
+            },
+            
+            // גילאי 8-12
+            generateMathSet(8, 12, '+', 50),
+            generateMathSet(8, 12, '-', 50),
+            generateMathSet(8, 12, '*', 0),
+            {
+                title: "חינוך פיננסי: חיסכון (יסודי)",
+                min: 8, max: 13, cat: 'finance', rew: 15,
+                questions: [
+                    { q: "למה כדאי לשמור כסף בצד?", opts: ["כדי לקנות משהו יקר בעתיד", "כדי לאבד אותו", "כדי לתת לחברים", "לא כדאי"], correct: 0 },
+                    { q: "מה זה בנק?", opts: ["חנות ממתקים", "מקום לשמירת כסף", "בית ספר", "פארק"], correct: 1 }
+                ]
+            },
+
+            // נוער 13-18 (מתקדם)
+            generateMathSet(13, 18, '*', 0),
+            generateMathSet(13, 18, '^', 0), // חזקות
+            generateMathSet(13, 18, 'sq', 0), // שורשים
+            {
+                title: "שוק ההון ופיננסים (מתקדם)",
+                min: 14, max: 99, cat: 'finance', rew: 25,
+                questions: [
+                    { q: "מהי מניה?", opts: ["חלק בבעלות על חברה", "הלוואה לממשלה", "כסף מזומן", "סוג של מס"], correct: 0 },
+                    { q: "מהי ריבית דריבית?", opts: ["ריבית על הקרן ועל הריבית שנצברה", "ריבית רגילה", "ריבית שלילית", "עמלת בנק"], correct: 0 },
+                    { q: "מה זה מדד המחירים לצרכן?", opts: ["כמה עולה עגבניה", "מדד לשינוי במחירים במשק (אינפלציה)", "מדד של בורסה", "מחיר הדירות"], correct: 1 },
+                    { q: "מה ההבדל בין ברוטו לנטו?", opts: ["אין הבדל", "ברוטו זה לפני מיסים, נטו זה מה שנכנס לבנק", "נטו זה לפני מיסים", "ברוטו זה המשקל של הכסף"], correct: 1 }
+                ]
+            },
+            {
+                title: "הבנת הנקרא: המהפכה התעשייתית",
+                min: 13, max: 18, cat: 'reading', rew: 20,
+                questions: [
+                    { content: "המהפכה התעשייתית החלה במאה ה-18 בבריטניה. היא שינתה את העולם מחברה חקלאית לחברה תעשייתית ומודרנית.", q: "היכן החלה המהפכה?", opts: ["צרפת", "בריטניה", "ארה\"ב", "סין"], correct: 1 },
+                    { content: "המשך...", q: "באיזו מאה זה קרה?", opts: ["17", "18", "19", "20"], correct: 1 }
+                ]
+            }
+        ];
+
+        for (const c of content) {
+            await client.query(`INSERT INTO quizzes (title, type, questions_json, reward, target_min_age, target_max_age, category, is_set) VALUES ($1, 'set', $2, $3, $4, $5, $6, TRUE)`, 
+            [c.title, JSON.stringify(c.questions), c.rew, c.min, c.max, c.cat]);
+        }
     }
 
+    // Default Admin
     const uCheck = await client.query('SELECT * FROM users');
     if (uCheck.rows.length === 0) await client.query(`INSERT INTO users (name, role, balance, pin_code, birth_year) VALUES ('Admin Parent', 'parent', 0, '1234', 1980)`);
 
-    res.send(`<h2 style="color: green;">System Updated V2.4</h2><p>Child editing & Invite features enabled.</p>`);
+    res.send(`<h2 style="color: green;">System Updated V2.5 (Full Content)</h2><p>Teens, Math, Finance & Reading content injected.</p>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
 // --- API Endpoints ---
 
+// 1. Users & Logic
 app.get('/api/public-users', async (req, res) => { try { const r = await client.query('SELECT id, name, role, birth_year FROM users ORDER BY role DESC, id ASC'); res.json(r.rows); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const r = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (r.rows.length > 0) return res.json({ success: true, user: r.rows[0] }); return res.status(401).json({ success: false }); } const r = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (r.rows.length > 0) res.json({ success: true, user: r.rows[0] }); else res.status(401).json({ success: false }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/create-user', async (req, res) => { const { name, pin, role, birthYear } = req.body; try { await client.query(`INSERT INTO users (name, role, balance, pin_code, birth_year, weekly_allowance, interest_rate) VALUES ($1, $2, 0, $3, $4, 0, 0)`, [name, role, pin, parseInt(birthYear)]); await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES (NULL, $1, 'user-plus')`, [`משתמש חדש: ${name}`]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+
+app.post('/api/create-user', async (req, res) => { 
+    const { name, pin, role, birthYear } = req.body; 
+    try { 
+        // חישוב גיל וקטגוריה
+        const currentYear = new Date().getFullYear();
+        const age = currentYear - parseInt(birthYear);
+        let ageGroup = 'adult';
+        if (role === 'child') {
+            if (age <= 10) ageGroup = 'child_6_10';
+            else if (age <= 14) ageGroup = 'child_10_15';
+            else ageGroup = 'teen_15_18';
+        }
+
+        await client.query(`INSERT INTO users (name, role, balance, pin_code, birth_year, age_group, weekly_allowance, interest_rate) VALUES ($1, $2, 0, $3, $4, $5, 0, 0)`, [name, role, pin, parseInt(birthYear), ageGroup]); 
+        await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES (NULL, $1, 'user-plus')`, [`משתמש חדש: ${name}`]); 
+        res.json({ success: true }); 
+    } catch (e) { res.status(500).json({ error: e.message }); } 
+});
+
 app.post('/api/users/update', async (req, res) => { const { userId, name, pin, birthYear } = req.body; try { await client.query('UPDATE users SET name = $1, pin_code = $2, birth_year = $3 WHERE id = $4', [name, pin, birthYear, userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
+// 2. Data Fetch (Smart Content Filtering)
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -98,16 +182,27 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
 
     let family = [], quizzes = [];
-    // UPDATED: Added pin_code to selection so parents can edit children
     family = (await client.query('SELECT id, name, balance, role, birth_year, weekly_allowance, interest_rate, xp, pin_code FROM users ORDER BY id')).rows;
 
     if (user.role === 'child') {
         const age = user.birth_year ? (new Date().getFullYear() - user.birth_year) : 10;
+        
+        // שליפת משימות משויכות
         const assigned = await client.query(`SELECT q.*, a.id as assignment_id, 'assigned' as origin FROM quizzes q JOIN assignments a ON q.id = a.quiz_id WHERE a.child_id = $1 AND a.status = 'assigned'`, [userId]);
-        const general = await client.query(`SELECT q.*, NULL as assignment_id, 'pool' as origin FROM quizzes q WHERE ($1 >= q.target_min_age AND $1 <= q.target_max_age) OR (q.target_min_age = 0 AND q.target_max_age = 99) AND NOT EXISTS (SELECT 1 FROM user_quiz_history h WHERE h.quiz_id = q.id AND h.user_id = $2) ORDER BY RANDOM() LIMIT 10`, [age, userId]);
+        
+        // שליפת מאגר כללי לפי גיל (כולל 15+)
+        // אם הגיל מעל 15, נשלוף גם שאלות של 'teen_15_18' וגם 'general'
+        const general = await client.query(`
+            SELECT q.*, NULL as assignment_id, 'pool' as origin 
+            FROM quizzes q 
+            WHERE ($1 >= q.target_min_age AND $1 <= q.target_max_age) 
+            AND NOT EXISTS (SELECT 1 FROM user_quiz_history h WHERE h.quiz_id = q.id AND h.user_id = $2)
+            ORDER BY category, RANDOM() LIMIT 15
+        `, [age, userId]);
+        
         quizzes = [...assigned.rows, ...general.rows];
     } else {
-        quizzes = (await client.query('SELECT * FROM quizzes ORDER BY category, target_min_age')).rows;
+        quizzes = (await client.query('SELECT * FROM quizzes ORDER BY target_min_age, category')).rows;
     }
 
     const [trans, tasks, shop, goals, loans] = await Promise.all([
@@ -122,8 +217,12 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 3. Academy & Requests
 app.post('/api/academy/assign', async (req, res) => { const { parentId, childId, quizId } = req.body; try { await client.query(`INSERT INTO assignments (parent_id, child_id, quiz_id) VALUES ($1, $2, $3)`, [parentId, childId, quizId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.post('/api/academy/request', async (req, res) => { const { userId, name } = req.body; try { await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES ($1, $2, 'hand-raised')`, [userId, `${name} ביקש/ה אתגר חדש!`]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/academy/complete', async (req, res) => { const { userId, quizId, score, assignmentId, reward } = req.body; try { await client.query('BEGIN'); if (score >= 60) { await client.query('UPDATE users SET balance = balance + $1, xp = xp + 50 WHERE id = $2', [reward, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'education', 'income')`, [userId, reward, `הצלחה באתגר (${score}%)`]); } await client.query('INSERT INTO user_quiz_history (user_id, quiz_id, score) VALUES ($1, $2, $3)', [userId, quizId, score]); if (assignmentId) await client.query("UPDATE assignments SET status = 'completed' WHERE id = $1", [assignmentId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
+
+// Shopping & Others (Unchanged)
 app.post('/api/shopping/add', async (req, res) => { const { itemName, userId } = req.body; try { const r = await client.query('SELECT role FROM users WHERE id=$1', [userId]); const st = r.rows[0].role==='parent'?'approved':'pending'; const p = await client.query('SELECT last_price FROM product_prices WHERE item_name=$1 ORDER BY updated_at DESC LIMIT 1', [itemName]); const ep = p.rows.length>0?p.rows[0].last_price:0; await client.query(`INSERT INTO shopping_list (item_name, requested_by, status, estimated_price) VALUES ($1, $2, $3, $4)`, [itemName, userId, st, ep]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/update', async (req, res) => { const { itemId, status } = req.body; try { await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/update-price', async (req, res) => { const { itemId, price } = req.body; try { await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [price, itemId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
