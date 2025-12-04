@@ -32,12 +32,13 @@ app.get('/setup-db', async (req, res) => {
         `CREATE TABLE IF NOT EXISTS quizzes (id SERIAL PRIMARY KEY, type VARCHAR(20) NOT NULL, question VARCHAR(500) NOT NULL, content TEXT, options JSONB NOT NULL, correct_index INTEGER NOT NULL, reward DECIMAL(10, 2) DEFAULT 1, target_age_group VARCHAR(20) DEFAULT 'all')`,
         `CREATE TABLE IF NOT EXISTS user_quiz_history (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), quiz_id INTEGER REFERENCES quizzes(id), completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `CREATE TABLE IF NOT EXISTS product_prices (id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, last_price DECIMAL(10, 2) NOT NULL, store_name VARCHAR(100), updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-        `CREATE TABLE IF NOT EXISTS shopping_trips (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), item_count INTEGER, trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
+        `CREATE TABLE IF NOT EXISTS shopping_trips (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), item_count INTEGER, trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        // טבלה חדשה לשמירת פריטי היסטוריה
+        `CREATE TABLE IF NOT EXISTS shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INTEGER REFERENCES shopping_trips(id), item_name VARCHAR(255), price DECIMAL(10, 2))`
     ];
 
     for (const query of tables) await client.query(query);
 
-    // עדכון עמודות במידה וחסרות
     const columns = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS age_group VARCHAR(20) DEFAULT 'adult'",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0",
@@ -51,7 +52,7 @@ app.get('/setup-db', async (req, res) => {
         await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group) VALUES ('Admin Parent', 'parent', 0, '1234', 'adult')`);
     }
 
-    res.send(`<h2 style="color: green;">System Updated! Shopping Module Enhanced.</h2>`);
+    res.send(`<h2 style="color: green;">System Updated! Shopping History Fixed.</h2>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -94,13 +95,14 @@ app.get('/api/data/:userId', async (req, res) => {
     const tasksRes = await client.query(tasksQuery);
 
     // --- חכמת ההמונים בסופר ---
-    // לוגיקה: שולפים את הרשימה הפעילה. לכל מוצר, בודקים אם יש מחיר היסטורי נמוך יותר (Best Price) מ-3 החודשים האחרונים.
+    // שליפת מחיר אחרון + תאריך, והשוואה למחיר הכי זול היסטורית
     const shopRes = await client.query(`
         SELECT 
             s.*, 
             u.name as requester_name, 
             latest.last_price, 
             latest.store_name as last_store,
+            latest.updated_at as last_date,
             best.price as best_price,
             best.store_name as best_store,
             best.updated_at as best_date
@@ -108,7 +110,7 @@ app.get('/api/data/:userId', async (req, res) => {
         LEFT JOIN users u ON s.requested_by = u.id 
         -- שליפת מחיר אחרון (Latest)
         LEFT JOIN (
-            SELECT DISTINCT ON (item_name) item_name, last_price, store_name 
+            SELECT DISTINCT ON (item_name) item_name, last_price, store_name, updated_at
             FROM product_prices 
             ORDER BY item_name, updated_at DESC
         ) latest ON s.item_name = latest.item_name
@@ -140,7 +142,6 @@ app.post('/api/shopping/add', async (req, res) => {
         const userRes = await client.query('SELECT role FROM users WHERE id = $1', [userId]); 
         const status = userRes.rows[0].role === 'parent' ? 'approved' : 'pending'; 
         
-        // שליפת מחיר אחרון אוטומטית (כדי "לזכור לפעם הבאה")
         const priceRes = await client.query('SELECT last_price FROM product_prices WHERE item_name = $1 ORDER BY updated_at DESC LIMIT 1', [itemName]);
         const estimatedPrice = priceRes.rows.length > 0 ? priceRes.rows[0].last_price : 0;
 
@@ -163,40 +164,41 @@ app.post('/api/shopping/update-price', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// היסטוריה מתוקנת - כולל פריטים
 app.get('/api/shopping/history', async (req, res) => {
     try {
-        // שליפת היסטוריית טיולי קניות. בעתיד יהיה ניתן לשפר עם JOIN לפריטים
         const trips = await client.query('SELECT * FROM shopping_trips ORDER BY trip_date DESC LIMIT 20');
-        // לצורך פשטות כרגע, מחזירים מערך ריק של פריטים אם אין טבלת קישור. 
-        // בגרסאות הבאות נוסיף טבלת shopping_trip_items.
-        // כרגע הלקוח יודע להציג את הטיול עצמו.
-        const tripsWithItems = trips.rows.map(t => ({...t, items: []})); 
+        
+        // שליפת הפריטים לכל טיול
+        const tripsWithItems = [];
+        for (const trip of trips.rows) {
+            const itemsRes = await client.query('SELECT * FROM shopping_trip_items WHERE trip_id = $1', [trip.id]);
+            tripsWithItems.push({ ...trip, items: itemsRes.rows });
+        }
+        
         res.json(tripsWithItems); 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// סיום קנייה מתוקן - שמירת פריטים
 app.post('/api/shopping/checkout', async (req, res) => {
     const { totalAmount, userId, storeName, items } = req.body; 
     try {
         await client.query('BEGIN');
         
-        // העברת פריטים לסטטוס 'bought'
         await client.query("UPDATE shopping_list SET status = 'bought' WHERE status = 'in_cart'");
         
-        // רישום הוצאה כספית
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'groceries', 'expense')`, 
             [userId, parseFloat(totalAmount), `קניות ב-${storeName}`]);
             
-        // תיעוד הטיול
-        await client.query(`INSERT INTO shopping_trips (user_id, store_name, total_amount, item_count) VALUES ($1, $2, $3, $4)`, 
+        const tripRes = await client.query(`INSERT INTO shopping_trips (user_id, store_name, total_amount, item_count) VALUES ($1, $2, $3, $4) RETURNING id`, 
             [userId, storeName, parseFloat(totalAmount), items.length]);
+        const tripId = tripRes.rows[0].id;
 
-        // שמירת המחירים למאגר חכמת ההמונים
         for (const item of items) {
-            await client.query(`
-                INSERT INTO product_prices (item_name, last_price, store_name) 
-                VALUES ($1, $2, $3)
-            `, [item.name, item.price, storeName]);
+            await client.query(`INSERT INTO product_prices (item_name, last_price, store_name) VALUES ($1, $2, $3)`, [item.name, item.price, storeName]);
+            // שמירת הפריט בטבלת ההיסטוריה החדשה
+            await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, price) VALUES ($1, $2, $3)`, [tripId, item.name, item.price]);
         }
 
         await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES ($1, $2, $3)`, [userId, `סיים קנייה ב-${storeName} (₪${totalAmount})`, 'cart-shopping']); 
@@ -205,7 +207,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
     } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } 
 });
 
-// 4. שאר המודולים (אקדמיה, בנק, מטלות וכו')
+// 4. שאר המודולים
 app.post('/api/academy/create', async (req, res) => { const { type, question, content, options, correctIndex, reward, targetAge } = req.body; try { await client.query(`INSERT INTO quizzes (type, question, content, options, correct_index, reward, target_age_group) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [type, question, content, JSON.stringify(options), correctIndex, reward, targetAge]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/academy/answer', async (req, res) => { const { userId, quizId, answerIndex } = req.body; try { await client.query('BEGIN'); const quiz = (await client.query('SELECT * FROM quizzes WHERE id = $1', [quizId])).rows[0]; if (parseInt(answerIndex) === quiz.correct_index) { const reward = parseFloat(quiz.reward); await client.query('UPDATE users SET balance = balance + $1, xp = xp + 20 WHERE id = $2', [reward, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'education', 'income')`, [userId, reward, `הצלחה באקדמיה`]); await client.query('INSERT INTO user_quiz_history (user_id, quiz_id) VALUES ($1, $2)', [userId, quizId]); await client.query('COMMIT'); res.json({ success: true, correct: true, reward: reward }); } else { await client.query('ROLLBACK'); res.json({ success: true, correct: false }); } } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
 app.get('/api/budget/status', async (req, res) => { try { const budgets = (await client.query('SELECT * FROM budgets')).rows; const spending = (await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE) GROUP BY category`)).rows; const result = budgets.map(b => { const s = spending.find(x => x.category === b.category); return { category: b.category, limit: parseFloat(b.limit_amount), spent: s ? parseFloat(s.spent) : 0 }; }); res.json(result); } catch (err) { res.status(500).json({ error: err.message }); } });
