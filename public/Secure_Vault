@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Vault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(17, 24, 39, 0.9);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-300">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-opacity duration-500">
+        <div class="flex flex-col items-center">
+            <i data-lucide="shield-check" class="w-16 h-16 text-indigo-600 animate-pulse mb-4"></i>
+            <p class="text-lg font-medium text-gray-500 dark:text-gray-400">Securing Environment...</p>
+        </div>
+    </div>
+
+    <!-- PIN Modal (Always present in DOM to prevent null errors) -->
+    <div id="pin-modal" class="fixed inset-0 z-40 hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        
+        <!-- Content -->
+        <div class="relative flex items-center justify-center h-full p-4">
+            <div class="bg-white dark:bg-gray-800 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="p-8 flex flex-col items-center">
+                    <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-4">
+                        <i data-lucide="lock" class="w-6 h-6 text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    
+                    <h2 id="pin-title" class="text-xl font-bold mb-2 text-center">Security Check</h2>
+                    <p id="pin-message" class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">Enter your 4-digit PIN to access the vault.</p>
+
+                    <!-- PIN Dots Display -->
+                    <div id="pin-dots" class="flex gap-4 mb-8">
+                        <div class="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-200"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-200"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-200"></div>
+                        <div class="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-200"></div>
+                    </div>
+
+                    <!-- Keypad -->
+                    <div class="grid grid-cols-3 gap-4 w-full max-w-[240px]">
+                        <button onclick="handlePinInput(1)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">1</button>
+                        <button onclick="handlePinInput(2)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">2</button>
+                        <button onclick="handlePinInput(3)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">3</button>
+                        <button onclick="handlePinInput(4)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">4</button>
+                        <button onclick="handlePinInput(5)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">5</button>
+                        <button onclick="handlePinInput(6)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">6</button>
+                        <button onclick="handlePinInput(7)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">7</button>
+                        <button onclick="handlePinInput(8)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">8</button>
+                        <button onclick="handlePinInput(9)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">9</button>
+                        <div class="h-14 flex items-center justify-center"></div> <!-- Empty spacer -->
+                        <button onclick="handlePinInput(0)" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 text-xl font-medium transition-colors">0</button>
+                        <button onclick="handlePinBackspace()" class="h-14 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 flex items-center justify-center transition-colors">
+                            <i data-lucide="delete" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Content (Hidden until unlocked) -->
+    <div id="main-app" class="hidden min-h-screen pb-20">
+        <!-- Header -->
+        <header class="sticky top-0 z-30 glass-panel border-b border-gray-200 dark:border-gray-800">
+            <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-600 p-1.5 rounded-lg">
+                        <i data-lucide="shield" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight">SecureVault</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">
+                        <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="lockApp()" class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                        <span>Lock</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="max-w-3xl mx-auto px-4 py-8">
+            <!-- Add Note Input -->
+            <div class="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="p-4">
+                    <input type="text" id="note-title" placeholder="Title (optional)" class="w-full bg-transparent text-lg font-semibold placeholder-gray-400 dark:placeholder-gray-500 mb-2 focus:outline-none">
+                    <textarea id="note-content" placeholder="Write something secure..." class="w-full bg-transparent resize-none h-24 focus:outline-none text-gray-600 dark:text-gray-300"></textarea>
+                </div>
+                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <span class="text-xs text-gray-400 flex items-center gap-1">
+                        <i data-lucide="lock" class="w-3 h-3"></i>
+                        End-to-end encrypted
+                    </span>
+                    <button onclick="addNote()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Save Note
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notes List -->
+            <div id="notes-list" class="space-y-4">
+                <!-- Notes will be injected here -->
+            </div>
+            
+            <div id="empty-state" class="hidden flex flex-col items-center justify-center py-12 text-center">
+                <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <i data-lucide="file-key" class="w-8 h-8 text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Vault is empty</h3>
+                <p class="text-gray-500 dark:text-gray-400 max-w-xs">Your secure notes will appear here. Only you can access them with your PIN.</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Configuration & Global State ---
+        // Parse with error handling or defaults
+        let firebaseConfig;
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+            console.error("Firebase config missing", e);
+        }
+        
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        let currentUser = null;
+        let currentPin = '';
+        let userPinHash = null;
+        let isSettingUp = false;
+        let setupStep = 0;
+        let firstPinAttempt = '';
+        let iconRetryCount = 0;
+
+        // --- Safe Icon Rendering ---
+        function renderIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else if (iconRetryCount < 10) {
+                // Retry a few times if script is slow to load
+                iconRetryCount++;
+                setTimeout(renderIcons, 200);
+            }
+        }
+
+        // --- Theme Handling ---
+        function initTheme() {
+            if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                const themeIcon = document.getElementById('theme-icon');
+                if(themeIcon) themeIcon.setAttribute('data-lucide', 'sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+                const themeIcon = document.getElementById('theme-icon');
+                if(themeIcon) themeIcon.setAttribute('data-lucide', 'moon');
+            }
+            renderIcons();
+        }
+        
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-icon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            renderIcons();
+        }
+
+        // --- Auth & Init ---
+        async function initApp() {
+            initTheme();
+            
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    await checkPinStatus();
+                } else {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await auth.signInWithCustomToken(__initial_auth_token);
+                    } else {
+                        await auth.signInAnonymously();
+                    }
+                }
+            });
+        }
+
+        // --- PIN Logic ---
+        async function checkPinStatus() {
+            if (!currentUser) return;
+            
+            const settingsRef = db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('settings').doc('security');
+            
+            try {
+                const doc = await settingsRef.get();
+                if (doc.exists && doc.data().pin) {
+                    userPinHash = doc.data().pin;
+                    isSettingUp = false;
+                    promptPin('unlock', 'Enter PIN to unlock vault');
+                } else {
+                    isSettingUp = true;
+                    setupStep = 0;
+                    promptPin('setup', 'Create a 4-digit PIN');
+                }
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if(loadingOverlay) loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+            } catch (error) {
+                console.error("Error fetching PIN settings:", error);
+                alert("Failed to load security settings. Please refresh.");
+            }
+        }
+
+        function promptPin(mode, message) {
+            currentPin = '';
+            updatePinDots();
+            
+            const titleEl = document.getElementById('pin-title');
+            const msgEl = document.getElementById('pin-message');
+            const modal = document.getElementById('pin-modal');
+            const mainApp = document.getElementById('main-app');
+
+            if (titleEl) titleEl.innerText = mode === 'setup' ? 'Setup Security' : 'Unlock Vault';
+            if (msgEl) msgEl.innerText = message;
+            
+            if (modal) modal.classList.remove('hidden');
+            if (mainApp) mainApp.classList.add('hidden');
+        }
+
+        function handlePinInput(num) {
+            if (currentPin.length < 4) {
+                currentPin += num;
+                updatePinDots();
+                
+                if (currentPin.length === 4) {
+                    setTimeout(submitPin, 100);
+                }
+            }
+        }
+
+        function handlePinBackspace() {
+            if (currentPin.length > 0) {
+                currentPin = currentPin.slice(0, -1);
+                updatePinDots();
+            }
+        }
+
+        function updatePinDots() {
+            const dots = document.getElementById('pin-dots').children;
+            if (!dots) return;
+
+            for (let i = 0; i < 4; i++) {
+                if (i < currentPin.length) {
+                    dots[i].className = "w-4 h-4 rounded-full bg-indigo-600 dark:bg-indigo-500 border-2 border-indigo-600 dark:border-indigo-500 transition-all duration-200 scale-110";
+                } else {
+                    dots[i].className = "w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 transition-all duration-200";
+                }
+            }
+        }
+
+        function shakeModal() {
+            const modalContent = document.querySelector('#pin-modal > div > div');
+            if(modalContent) {
+                modalContent.classList.add('animate-[shake_0.5s_ease-in-out]');
+                setTimeout(() => modalContent.classList.remove('animate-[shake_0.5s_ease-in-out]'), 500);
+            }
+            
+            const dots = document.getElementById('pin-dots').children;
+            for(let dot of dots) dot.classList.add('border-red-500', 'bg-red-100');
+            
+            setTimeout(() => {
+                currentPin = '';
+                updatePinDots();
+                for(let dot of dots) dot.classList.remove('border-red-500', 'bg-red-100');
+            }, 400);
+        }
+
+        async function submitPin() {
+            if (isSettingUp) {
+                if (setupStep === 0) {
+                    firstPinAttempt = currentPin;
+                    currentPin = '';
+                    updatePinDots();
+                    setupStep = 1;
+                    document.getElementById('pin-message').innerText = "Confirm your PIN";
+                } else {
+                    if (currentPin === firstPinAttempt) {
+                        await savePin(currentPin);
+                    } else {
+                        shakeModal();
+                        document.getElementById('pin-message').innerText = "PINs didn't match. Try again.";
+                        setupStep = 0;
+                        firstPinAttempt = '';
+                    }
+                }
+            } else {
+                if (currentPin === userPinHash) {
+                    unlockApp();
+                } else {
+                    shakeModal();
+                    document.getElementById('pin-message').innerText = "Incorrect PIN";
+                }
+            }
+        }
+
+        async function savePin(pin) {
+            if (!currentUser) return;
+            try {
+                const settingsRef = db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('settings').doc('security');
+                await settingsRef.set({ pin: pin }, { merge: true });
+                userPinHash = pin;
+                unlockApp();
+            } catch (e) {
+                console.error("Error saving PIN:", e);
+                alert("Error saving PIN. Please try again.");
+            }
+        }
+
+        function unlockApp() {
+            document.getElementById('pin-modal').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            loadNotes();
+        }
+
+        function lockApp() {
+            promptPin('unlock', 'Enter PIN to unlock vault');
+        }
+
+        // --- Notes Logic ---
+        function loadNotes() {
+            if (!currentUser) return;
+            
+            const notesRef = db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('notes');
+            
+            notesRef.orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
+                const listEl = document.getElementById('notes-list');
+                const emptyState = document.getElementById('empty-state');
+                
+                if (snapshot.empty) {
+                    listEl.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                
+                emptyState.classList.add('hidden');
+                listEl.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const date = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
+                    
+                    const el = document.createElement('div');
+                    el.className = 'group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all';
+                    el.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-lg text-gray-800 dark:text-gray-100">${escapeHtml(data.title || 'Untitled Note')}</h3>
+                            <button onclick="deleteNote('${doc.id}')" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="text-gray-600 dark:text-gray-300 whitespace-pre-wrap font-mono text-sm">${escapeHtml(data.content)}</p>
+                        <div class="mt-3 text-xs text-gray-400 flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            ${date}
+                        </div>
+                    `;
+                    listEl.appendChild(el);
+                });
+                renderIcons();
+            }, (error) => {
+                console.error("Error listening to notes:", error);
+            });
+        }
+
+        async function addNote() {
+            const titleInput = document.getElementById('note-title');
+            const contentInput = document.getElementById('note-content');
+            
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+            
+            if (!content && !title) return;
+            if (!currentUser) return;
+            
+            try {
+                const notesRef = db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('notes');
+                await notesRef.add({
+                    title: title,
+                    content: content,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                titleInput.value = '';
+                contentInput.value = '';
+            } catch (e) {
+                console.error("Error adding note:", e);
+                alert("Failed to save note");
+            }
+        }
+
+        async function deleteNote(id) {
+            if (!currentUser) return;
+            if(!confirm("Delete this note permanently?")) return;
+            
+            try {
+                await db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('notes').doc(id).delete();
+            } catch (e) {
+                console.error("Error deleting note:", e);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    keyframes: {
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '25%': { transform: 'translateX(-5px)' },
+                            '75%': { transform: 'translateX(5px)' },
+                        }
+                    }
+                }
+            }
+        }
+
+        // Start initialization when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
