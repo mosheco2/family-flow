@@ -195,17 +195,22 @@
                 if (i.status === 'approved' || i.status === 'in_cart') {
                     const inCart = i.status === 'in_cart';
                     const priceVal = i.estimated_price || i.last_price || 0; 
-                    const storeHint = i.last_store ? `(נרכש ב-${i.last_store})` : '';
                     
+                    // תצוגת "נרכש לאחרונה" (פרטי)
+                    let lastBuyInfo = '';
+                    if (i.last_price && i.last_date) {
+                        const date = new Date(i.last_date).toLocaleDateString('he-IL');
+                        lastBuyInfo = `<div class="text-[10px] text-gray-400 mt-0.5">נרכש לאחרונה ב-₪${i.last_price} ב${i.last_store || 'חנות'} (${date})</div>`;
+                    }
+
+                    // תצוגת "מחיר הכי טוב" (חכמת המונים)
                     let dealBadge = '';
-                    // חכמת המונים עם תאריך
                     if (i.best_price && parseFloat(priceVal) > parseFloat(i.best_price)) {
-                        const date = i.best_date ? new Date(i.best_date).toLocaleDateString('he-IL') : '';
-                        const dateStr = date ? `(עודכן ב-${date})` : '';
+                        const bestDate = i.best_date ? new Date(i.best_date).toLocaleDateString('he-IL') : '';
                         dealBadge = `
                             <div class="mt-1 text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded-md border border-red-100 font-bold inline-flex items-center gap-1">
                                 <i class="fa-solid fa-arrow-trend-down"></i>
-                                זול יותר ב-${i.best_store}: ₪${i.best_price} ${dateStr}
+                                זול יותר ב-${i.best_store}: ₪${i.best_price} (${bestDate})
                             </div>
                         `;
                     }
@@ -223,8 +228,8 @@
                                     </div>
                                     <div class="text-xs text-gray-400">
                                         ביקש/ה: ${i.requester_name || '?'}
-                                        <span class="mr-1">${storeHint}</span>
                                     </div>
+                                    ${lastBuyInfo}
                                     ${dealBadge} 
                                 </div>
 
@@ -260,8 +265,11 @@
             }
 
             history.forEach(h => {
-                const date = new Date(h.trip_date).toLocaleDateString();
-                const itemsHtml = h.items.map(i => `<div class="flex justify-between text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0"><span>${i.item_name}</span><span>₪${i.estimated_price}</span></div>`).join('');
+                const date = new Date(h.trip_date).toLocaleDateString('he-IL');
+                // פירוט פריטים
+                const itemsHtml = h.items && h.items.length > 0 
+                    ? h.items.map(i => `<div class="flex justify-between text-sm text-gray-600 py-1 border-b border-gray-50 last:border-0"><span>${i.item_name}</span><span>₪${i.price}</span></div>`).join('')
+                    : '<div class="text-xs text-gray-400 p-2">אין פירוט זמין לקנייה זו</div>';
                 
                 list.innerHTML += `
                     <div class="border rounded-xl p-4 bg-gray-50">
@@ -273,8 +281,8 @@
                             <div class="text-lg font-black text-green-600">₪${h.total_amount}</div>
                         </div>
                         <details class="group">
-                            <summary class="text-xs text-blue-500 cursor-pointer list-none">הצג פירוט</summary>
-                            <div class="mt-2 pl-2 border-r-2 border-blue-100">
+                            <summary class="text-xs text-blue-500 cursor-pointer list-none font-bold">הצג פירוט ⬇️</summary>
+                            <div class="mt-2 pl-2 border-r-2 border-blue-100 bg-white p-2 rounded-lg">
                                 ${itemsHtml}
                             </div>
                         </details>
