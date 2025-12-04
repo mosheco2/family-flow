@@ -10,11 +10,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
+        .card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
         .animate-item { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .nav-tab.active { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .nav-tab.active { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 800; }
         #product-suggestions { max-height: 250px; overflow-y: auto; }
         .item-in-cart { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; }
         .item-in-cart .item-text { text-decoration: line-through; color: #86efac; }
@@ -25,7 +25,7 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4 bg-gray-50">
 
-    <!-- מסך טעינה -->
+    <!-- Loading -->
     <div id="user-select-screen" class="w-full max-w-2xl text-center">
         <h1 class="text-5xl font-black text-gray-800 mb-2 tracking-tight">FamilyFlow</h1>
         <div id="loading-spinner" class="mb-8"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600"></i><p class="mt-2 text-sm text-gray-400">טוען...</p></div>
@@ -35,7 +35,7 @@
         <button onclick="initRegisterMode()" class="mt-8 text-gray-400 font-bold hover:text-blue-600 underline hidden" id="btn-new-account">פתיחת חשבון חדש</button>
     </div>
 
-    <!-- מסך הרשמה -->
+    <!-- Register -->
     <div id="register-screen" class="hidden w-full max-w-md card p-8 text-center animate-item">
         <div class="mb-6 text-green-500 text-6xl"><i class="fa-solid fa-gift animate-bounce"></i></div>
         <h2 class="text-3xl font-black text-gray-800 mb-2">ברוכים הבאים!</h2>
@@ -48,24 +48,16 @@
         <button onclick="location.reload()" class="mt-4 text-gray-400 font-bold">ביטול</button>
     </div>
 
-    <!-- מודל PIN -->
+    <!-- PIN -->
     <div id="pin-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4"><div class="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl text-center"><div id="pin-user-icon" class="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"></div><h3 id="pin-user-name" class="text-2xl font-bold mb-6 text-gray-800"></h3><input type="password" id="pin-input" class="w-full p-4 text-center text-3xl border-2 border-gray-200 rounded-2xl mb-6 focus:border-blue-500 outline-none tracking-[0.5em]" placeholder="****" maxlength="4"><div class="flex gap-3"><button onclick="closePinModal()" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600">ביטול</button><button onclick="login()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg">כנס</button></div><p id="error-msg" class="text-red-500 mt-4 hidden text-sm font-bold">קוד שגוי</p></div></div>
 
-    <!-- דשבורד -->
+    <!-- Dashboard -->
     <div id="dashboard" class="hidden w-full max-w-md pb-32 relative">
-        <!-- סרגל Spy Mode -->
-        <div id="spy-mode-bar" class="hidden bg-orange-500 text-white text-center py-2 px-4 font-bold sticky top-0 z-30 flex justify-between items-center shadow-md rounded-b-xl mb-[-20px]">
-            <span>👁️ צופה כ-<span id="spy-child-name"></span></span>
-            <button onclick="exitSpyMode()" class="bg-white/20 px-2 py-1 rounded text-xs hover:bg-white/40">חזור להורה</button>
-        </div>
-
+        <div id="spy-mode-bar" class="hidden bg-orange-500 text-white text-center py-2 px-4 font-bold sticky top-0 z-30 flex justify-between items-center shadow-md rounded-b-xl mb-[-20px]"><span>👁️ צופה כ-<span id="spy-child-name"></span></span><button onclick="exitSpyMode()" class="bg-white/20 px-2 py-1 rounded text-xs hover:bg-white/40">חזור להורה</button></div>
         <header class="flex justify-between items-center mb-6 p-4 sticky top-0 bg-[#f8fafc]/90 backdrop-blur-sm z-10 pt-8">
             <div onclick="openEditProfileModal()" class="cursor-pointer group">
                 <h2 id="user-name" class="text-3xl font-black text-gray-800 tracking-tight group-hover:text-blue-600 transition"></h2>
-                <div class="flex items-center gap-2 mt-1">
-                    <span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span>
-                    <i class="fa-solid fa-pen text-[10px] text-gray-300 group-hover:text-gray-500"></i>
-                </div>
+                <div class="flex items-center gap-2 mt-1"><span id="user-role" class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full"></span><i class="fa-solid fa-pen text-[10px] text-gray-300 group-hover:text-gray-500"></i></div>
             </div>
             <div class="flex gap-3"><button onclick="openInviteModal()" id="btn-invite" class="hidden w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-blue-600 hover:bg-blue-50"><i class="fa-solid fa-user-plus"></i></button><button onclick="logout()" class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button></div>
         </header>
