@@ -10,7 +10,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
+        .card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
         .animate-item { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -204,10 +204,98 @@
                 renderLoans(data.loans || []); 
                 renderAcademy(data.quizzes || [], data.family || []);
                 
+                if (currentUser.role === 'parent') {
+                    loadBudget();
+                }
+
                 if (!currentTab) currentTab = 'tasks';
                 switchTab(currentTab);
             } catch (e) {
                 console.error("Error loading dashboard:", e);
+            }
+        }
+
+        function renderLoans(loans) {
+            const list = document.getElementById('loans-list');
+            list.innerHTML = '';
+            if (!loans || loans.length === 0) {
+                list.innerHTML = '<p class="text-center text-gray-400 py-10">אין הלוואות פעילות</p>';
+                return;
+            }
+            loans.forEach(l => {
+                let statusBadge = '';
+                let action = '';
+                
+                if (l.status === 'pending') {
+                    statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">ממתין לאישור</span>';
+                    if (currentUser.role === 'parent') {
+                        action = `<button onclick="openApproveLoan(${l.id}, '${l.user_name}', ${l.original_amount})" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm shadow">טפל</button>`;
+                    }
+                } else if (l.status === 'active') {
+                    statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">פעיל</span>';
+                    if (currentUser.id == l.user_id) {
+                         action = `<button onclick="repayLoan(${l.id}, ${l.remaining_amount})" class="bg-green-600 text-white px-3 py-1 rounded text-sm shadow">החזר (₪${l.remaining_amount})</button>`;
+                    } else {
+                         action = `<span class="text-xs text-gray-400">נותר: ₪${l.remaining_amount}</span>`;
+                    }
+                } else if (l.status === 'rejected') {
+                    statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">נדחה</span>';
+                } else if (l.status === 'paid') {
+                    statusBadge = '<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold">שולם</span>';
+                }
+
+                list.innerHTML += `
+                    <div class="card p-4 border border-indigo-50 animate-item">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-bold text-gray-800">${l.reason} <span class="text-xs font-normal text-gray-500">(${l.user_name})</span></h4>
+                                <div class="text-xs text-gray-500">סכום מקורי: ₪${l.original_amount} ${l.interest_rate > 0 ? `(+${l.interest_rate}% ריבית)` : ''}</div>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            ${action}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
+        
+        async function submitLoanRequest() { 
+            const amount = document.getElementById('loan-amount').value; 
+            const reason = document.getElementById('loan-reason').value; 
+            if(!amount || !reason) return alert('חסרים פרטים'); 
+            await fetch(`${API}/loans/request`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id, amount, reason})}); 
+            document.getElementById('loan-modal').classList.add('hidden'); 
+            loadDashboard(); 
+        }
+
+        function openApproveLoan(id, name, amount) { 
+            document.getElementById('approve-loan-id').value = id; 
+            document.getElementById('approve-loan-desc').innerText = `${name} מבקש/ת ₪${amount}`; 
+            document.getElementById('approve-loan-interest').value = 0; 
+            document.getElementById('approve-loan-modal').classList.remove('hidden'); 
+        }
+
+        async function handleLoan(status) { 
+            const id = document.getElementById('approve-loan-id').value; 
+            const interest = document.getElementById('approve-loan-interest').value; 
+            await fetch(`${API}/loans/handle`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loanId:id, status, interestRate:interest})}); 
+            document.getElementById('approve-loan-modal').classList.add('hidden'); 
+            loadDashboard(); 
+        }
+
+        async function repayLoan(id, amount) {
+            if(!confirm(`להחזיר הלוואה על סך ₪${amount}?`)) return;
+            const res = await fetch(`${API}/loans/repay`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loanId:id, amount, userId:currentUser.id})});
+            const data = await res.json();
+            if(data.success) {
+                confetti();
+                loadDashboard();
+            } else {
+                alert(data.message || 'שגיאה');
             }
         }
 
@@ -239,6 +327,11 @@
             const list = document.getElementById('academy-list'); list.innerHTML = '';
             const assignedList = document.getElementById('assigned-list'); assignedList.innerHTML = '';
             const assignedContainer = document.getElementById('assigned-quizzes-container');
+            const btnReq = document.getElementById('btn-req-challenge');
+            
+            if(currentUser.role === 'child') btnReq.classList.remove('hidden');
+            else btnReq.classList.add('hidden');
+
             if(!quizzes || quizzes.length === 0) { list.innerHTML = `<div class="text-center text-gray-400 py-10">אין אתגרים זמינים 🎓</div>`; return; }
             let hasAssigned = false;
             quizzes.forEach((q) => {
@@ -250,6 +343,12 @@
                 if (q.origin === 'assigned') { assignedList.innerHTML += cardHtml; hasAssigned = true; } else { list.innerHTML += cardHtml; }
             });
             if (hasAssigned) assignedContainer.classList.remove('hidden'); else assignedContainer.classList.add('hidden');
+        }
+        
+        async function requestChallenge() {
+            if(!confirm('לשלוח בקשה לאתגר חדש מההורים?')) return;
+            await fetch(`${API}/academy/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, name:currentUser.name})});
+            alert('הבקשה נשלחה! 🚀');
         }
 
         function startQuizRunner(quiz) { currentQuiz = { ...quiz, currentIdx: 0, correctCount: 0 }; document.getElementById('quiz-runner-modal').classList.remove('hidden'); renderRunnerStep(); }
@@ -270,72 +369,11 @@
         function closeQuizRunner() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
         function openAssignModal(qid, title, family) { document.getElementById('assign-quiz-id').value = qid; document.getElementById('assign-quiz-title').innerText = title; const container = document.getElementById('assign-children-list'); container.innerHTML = ''; const children = family.filter(m => m.role === 'child'); if(children.length === 0) container.innerHTML = '<p class="text-red-500 text-xs">אין ילדים רשומים</p>'; children.forEach(c => { container.innerHTML += `<button onclick="submitAssign(${c.id})" class="w-full text-right p-3 border rounded-xl hover:bg-gray-50 flex justify-between"><span class="font-bold text-gray-700">${c.name}</span><span class="text-xs text-gray-400 bg-gray-100 px-2 rounded-full py-1">שייך</span></button>`; }); document.getElementById('assign-modal').classList.remove('hidden'); }
         async function submitAssign(childId) { const quizId = document.getElementById('assign-quiz-id').value; await fetch(`${API}/academy/assign`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({parentId:currentUser.id, childId, quizId}) }); document.getElementById('assign-modal').classList.add('hidden'); alert('המשימה שויכה בהצלחה!'); }
-        
-        // UPDATED: Render Family Manage with Edit Button
-        function renderFamilyManage(family) {
-            const container = document.getElementById('family-list-manage');
-            container.innerHTML = '';
-            family.filter(m => m.role === 'child').forEach(c => {
-                const age = new Date().getFullYear() - (c.birth_year || 2015);
-                container.innerHTML += `
-                    <div class="card p-4 flex justify-between items-center border border-gray-100">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">${c.name[0]}</div>
-                            <div>
-                                <h4 class="font-bold text-gray-800">${c.name}</h4>
-                                <div class="text-xs text-gray-500">₪${c.balance} | גיל: ${age}</div>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="enterSpyMode(${c.id}, '${c.name}')" class="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold hover:bg-orange-200 transition">צפה כילד 👁️</button>
-                            <button onclick="openEditProfileModal(${c.id}, '${c.name}', '${c.pin_code}', ${c.birth_year})" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold hover:bg-blue-200 transition">✏️</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        async function enterSpyMode(childId, name) { if(!confirm(`לעבור לצפות בממשק של ${name}?`)) return; realParentUser = currentUser; const res = await fetch(`${API}/data/${childId}`); const data = await res.json(); currentUser = data.user; document.getElementById('spy-mode-bar').classList.remove('hidden'); document.getElementById('spy-child-name').innerText = name; loadDashboard(); }
+        function renderFamilyManage(family) { const container = document.getElementById('family-list-manage'); container.innerHTML = ''; family.filter(m => m.role === 'child').forEach(c => { const age = new Date().getFullYear() - (c.birth_year || 2015); container.innerHTML += `<div class="card p-4 flex justify-between items-center border border-gray-100"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">${c.name[0]}</div><div><h4 class="font-bold text-gray-800">${c.name}</h4><div class="text-xs text-gray-500">₪${c.balance} | גיל: ${age}</div></div></div><div class="flex gap-2"><button onclick="enterSpyMode(${c.id}, '${c.name}')" class="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold hover:bg-orange-200 transition">צפה כילד 👁️</button><button onclick="openEditProfileModal(${c.id}, '${c.name}', '${c.pin_code}', ${c.birth_year})" class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold hover:bg-blue-200 transition">✏️</button></div></div>`; }); }
+        async function enterSpyMode(childId, name) { if(!confirm(`לעבור לצפות בממשק של ${name}?`)) return; realParentUser = currentUser; shoppingCart = []; const res = await fetch(`${API}/data/${childId}`); const data = await res.json(); currentUser = data.user; document.getElementById('spy-mode-bar').classList.remove('hidden'); document.getElementById('spy-child-name').innerText = name; currentTab = 'tasks'; loadDashboard(); }
         function exitSpyMode() { currentUser = realParentUser; realParentUser = null; document.getElementById('spy-mode-bar').classList.add('hidden'); loadDashboard(); }
-        
-        // UPDATED: Profile Edit Modal to handle editing specific users
-        function openEditProfileModal(id, name, pin, birthYear) {
-            if (currentUser.role === 'child' && realParentUser) return; // Cannot edit in spy mode
-            
-            // If arguments are provided (parent editing child), use them. Otherwise (user editing self), use currentUser.
-            const targetId = id || currentUser.id;
-            const targetName = name || currentUser.name;
-            const targetPin = pin || currentUser.pin_code;
-            const targetYear = birthYear || currentUser.birth_year || '';
-
-            document.getElementById('edit-user-id').value = targetId;
-            document.getElementById('edit-name').value = targetName;
-            document.getElementById('edit-pin').value = targetPin;
-            document.getElementById('edit-year').value = targetYear;
-            
-            document.getElementById('edit-profile-modal').classList.remove('hidden');
-        }
-
-        async function submitEditProfile() {
-            const id = document.getElementById('edit-user-id').value;
-            const name = document.getElementById('edit-name').value;
-            const pin = document.getElementById('edit-pin').value;
-            const year = document.getElementById('edit-year').value;
-            
-            if(!name || !pin || pin.length < 4) return alert('נא למלא פרטים תקינים');
-            
-            await fetch(`${API}/users/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: id, name, pin, birthYear: year }) });
-            document.getElementById('edit-profile-modal').classList.add('hidden');
-            
-            // If user edited themselves, update local state immediately
-            if (id == currentUser.id) {
-                currentUser.name = name;
-                currentUser.pin_code = pin;
-                currentUser.birth_year = year;
-            }
-            
-            loadDashboard();
-        }
+        function openEditProfileModal(id, name, pin, birthYear) { if (currentUser.role === 'child' && realParentUser) return; const targetId = id || currentUser.id; const targetName = name || currentUser.name; const targetPin = pin || currentUser.pin_code; const targetYear = birthYear || currentUser.birth_year || ''; document.getElementById('edit-user-id').value = targetId; document.getElementById('edit-name').value = targetName; document.getElementById('edit-pin').value = targetPin; document.getElementById('edit-year').value = targetYear; document.getElementById('edit-profile-modal').classList.remove('hidden'); }
+        async function submitEditProfile() { const id = document.getElementById('edit-user-id').value; const name = document.getElementById('edit-name').value; const pin = document.getElementById('edit-pin').value; const year = document.getElementById('edit-year').value; if(!name || !pin || pin.length < 4) return alert('נא למלא פרטים תקינים'); await fetch(`${API}/users/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: id, name, pin, birthYear: year }) }); document.getElementById('edit-profile-modal').classList.add('hidden'); if (id == currentUser.id) { currentUser.name = name; currentUser.pin_code = pin; currentUser.birth_year = year; } loadDashboard(); }
 
         // Core Functions
         function updateItemPrice(id, price) { const item = shoppingCart.find(x => x.id === id); if (item) item.price = parseFloat(price) || 0; updateLiveTotal(); fetch(`${API}/shopping/update-price`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ itemId: id, price: price }) }); }
@@ -348,19 +386,7 @@
         function toggleBirthYear() { /* nothing */ }
         async function completeRegistration() { const name = document.getElementById('reg-name').value; const pin = document.getElementById('reg-pin').value; const role = document.getElementById('reg-role').value; const year = document.getElementById('reg-year').value; if(!name || !pin || !year || pin.length < 4) return alert('נא למלא פרטים'); const btn = document.querySelector('#register-screen button'); btn.innerText = "יוצר..."; try { await fetch(`${API}/create-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, pin, role, birthYear: year, initialBalance: 0 }) }); alert('נוצר בהצלחה!'); window.location.href = window.location.pathname; } catch (e) { alert('שגיאה'); btn.innerText = "נסה שוב"; } }
         function openInviteModal() { document.getElementById('invite-modal').classList.remove('hidden'); }
-        
-        // UPDATED: WhatsApp Invite Logic
-        function generateInvite(role, ageGroup) { 
-            const link = window.location.origin + window.location.pathname + '?join=true&role=' + role + '&age=' + ageGroup;
-            let msg = `היי! מזמין אותך להצטרף ל-FamilyFlow 🏠\nלהצטרפות: ${link}`; 
-            if(role==='child') msg = `היי! הנה האפליקציה לדמי הכיס שלך 💰\nלהצטרפות: ${link}`; 
-            
-            const url = `https://wa.me/?text=${encodeURIComponent(msg)}`; 
-            document.getElementById('invite-link-area').classList.remove('hidden'); 
-            const btn = document.getElementById('btn-send-whatsapp'); 
-            btn.onclick = () => window.open(url, '_blank'); 
-        }
-        
+        function generateInvite(role, ageGroup) { const link = `${window.location.href.split('?')[0]}?join=true&role=${role}&age=${ageGroup}`; let msg = `היי! מזמין אותך להצטרף ל-FamilyFlow 🏠\nלהצטרפות: ${link}`; if(role==='child') msg = `היי! הנה האפליקציה לדמי הכיס שלך 💰\nלהצטרפות: ${link}`; const url = `https://wa.me/?text=${encodeURIComponent(msg)}`; document.getElementById('invite-link-area').classList.remove('hidden'); const btn = document.getElementById('btn-send-whatsapp'); btn.onclick = () => window.open(url, '_blank'); }
         async function loadUsersForLogin() { try { const res = await fetch(`${API}/public-users`); const users = await res.json(); document.getElementById('loading-spinner').classList.add('hidden'); document.getElementById('users-grid').classList.remove('hidden'); if(users.length===0) document.getElementById('btn-new-account').classList.remove('hidden'); const grid = document.getElementById('users-grid'); grid.innerHTML = ''; users.forEach(u => { const color = u.role === 'parent' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'; const icon = u.role === 'parent' ? '<i class="fa-solid fa-user-tie"></i>' : '<i class="fa-solid fa-child"></i>'; grid.innerHTML += `<div onclick="promptPin(${u.id}, '${u.name}', '${u.role}')" class="flex flex-col items-center cursor-pointer group hover:scale-105 transition"><div class="w-24 h-24 ${color} rounded-full flex items-center justify-center mb-3 shadow-sm text-3xl group-hover:shadow-md transition">${icon}</div><span class="font-bold text-gray-700 text-lg">${u.name}</span></div>`; }); } catch (error) { document.getElementById('loading-spinner').classList.add('hidden'); document.getElementById('connection-error').classList.remove('hidden'); } }
         function promptPin(id, name, role) { selectedUserIdForLogin = id; document.getElementById('pin-user-name').innerText = `היי ${name}`; document.getElementById('pin-user-icon').innerHTML = role==='parent'?'<i class="fa-solid fa-user-tie"></i>':'<i class="fa-solid fa-child"></i>'; document.getElementById('pin-modal').classList.remove('hidden'); document.getElementById('pin-input').value = ''; document.getElementById('pin-input').focus(); }
         function closePinModal() { document.getElementById('pin-modal').classList.add('hidden'); selectedUserIdForLogin = null; }
