@@ -16,83 +16,110 @@ const client = new Client({
 
 client.connect();
 
-// --- מנוע יצירת תוכן אקדמי (Seeding Engine) ---
+// --- מנוע יצירת תוכן אקדמי מסיבי (Seeding Engine) ---
 async function seedAcademy() {
-    // בדיקה אם כבר יש תוכן כדי לא להעמיס סתם
+    // בדיקה אם כבר יש מספיק תוכן
     const count = (await client.query('SELECT COUNT(*) FROM quizzes')).rows[0].count;
-    if (parseInt(count) > 50) return; 
+    if (parseInt(count) > 100) return; 
 
-    console.log("Generating Massive Academy Content...");
+    console.log("Generating Massive Academy Content (20 Sets per age)...");
 
     const ageGroups = [
-        { min: 6, max: 7, code: 'child_6_7' },
-        { min: 7, max: 8, code: 'child_7_8' },
-        { min: 8, max: 9, code: 'child_8_9' },
-        { min: 9, max: 10, code: 'child_9_10' },
-        { min: 10, max: 12, code: 'child_10_12' },
-        { min: 12, max: 14, code: 'child_12_14' },
-        { min: 14, max: 16, code: 'teen_14_16' },
-        { min: 16, max: 18, code: 'teen_16_18' }
+        { min: 6, max: 7, code: 'child_6_7', type: 'add_sub' },
+        { min: 7, max: 8, code: 'child_7_8', type: 'add_sub_hard' },
+        { min: 8, max: 9, code: 'child_8_9', type: 'mul_simple' },
+        { min: 9, max: 10, code: 'child_9_10', type: 'mul_div' },
+        { min: 10, max: 12, code: 'child_10_12', type: 'mixed_basic' },
+        { min: 12, max: 14, code: 'child_12_14', type: 'pre_algebra' },
+        { min: 14, max: 16, code: 'teen_14_16', type: 'percentages' },
+        { min: 16, max: 18, code: 'teen_16_18', type: 'finance_math' }
     ];
 
-    // 1. מחולל תרגילי חשבון (Math Generator)
+    // 1. מחולל חשבון (Math) - 20 סטים לכל גיל
     for (const age of ageGroups) {
-        for (let set = 1; set <= 5; set++) { // מייצרים 5 סטים לכל גיל (לדוגמה, במקום 20 כדי לחסוך זמן אתחול)
+        for (let set = 1; set <= 20; set++) { 
             const groupId = `math_${age.code}_set_${set}`;
-            const difficulty = Math.ceil((age.min - 5) * 1.5); 
             
-            // יצירת 15 תרגילים לכל סט
+            // 15 תרגילים לכל סט
             for (let i = 1; i <= 15; i++) {
                 let q, a, opts;
                 
-                if (age.min < 8) { // חיבור חיסור פשוט
-                    const n1 = Math.floor(Math.random() * 20);
-                    const n2 = Math.floor(Math.random() * 20);
+                // לוגיקת יצירת תרגילים לפי גיל
+                if (age.type === 'add_sub') {
+                    const n1 = Math.floor(Math.random() * 10) + 1;
+                    const n2 = Math.floor(Math.random() * 10) + 1;
+                    q = `${n1} + ${n2}`; a = n1 + n2;
+                } else if (age.type === 'add_sub_hard') {
+                    const n1 = Math.floor(Math.random() * 20) + 10;
+                    const n2 = Math.floor(Math.random() * 20) + 1;
                     const op = Math.random() > 0.5 ? '+' : '-';
-                    q = `${n1} ${op} ${n2}`;
-                    a = eval(q);
-                    if (a < 0) { q = `${n2} ${op} ${n1}`; a = eval(q); } // להימנע משליליים לקטנים
-                } else if (age.min < 10) { // כפל וחילוק
-                    const n1 = Math.floor(Math.random() * 10);
-                    const n2 = Math.floor(Math.random() * 10);
-                    q = `${n1} x ${n2}`;
-                    a = n1 * n2;
-                } else { // אחוזים וריביות לגדולים
-                    const n1 = Math.floor(Math.random() * 500);
-                    const pct = Math.floor(Math.random() * 20) * 5;
-                    q = `כמה הם ${pct}% מתוך ${n1}?`;
-                    a = (n1 * pct) / 100;
+                    q = `${n1} ${op} ${n2}`; a = eval(q);
+                } else if (age.type === 'mul_simple') {
+                    const n1 = Math.floor(Math.random() * 5) + 1;
+                    const n2 = Math.floor(Math.random() * 10) + 1;
+                    q = `${n1} x ${n2}`; a = n1 * n2;
+                } else if (age.type === 'percentages') {
+                    const n1 = Math.floor(Math.random() * 200);
+                    const pct = [10, 20, 25, 50][Math.floor(Math.random() * 4)];
+                    q = `${pct}% מתוך ${n1}`; a = (n1 * pct) / 100;
+                } else {
+                    // ברירת מחדל גנרית
+                    const n1 = Math.floor(Math.random() * 50) + 1;
+                    const n2 = Math.floor(Math.random() * 10) + 1;
+                    q = `${n1} + ${n2}`; a = n1 + n2;
                 }
 
-                // יצירת מסיחים
-                opts = [a, a + 2, a - 3, a + 5].sort(() => Math.random() - 0.5);
+                // מסיחים
+                opts = [a, a + 1, a - 1, a + 2].sort(() => Math.random() - 0.5);
                 const correctIdx = opts.indexOf(a);
 
                 await client.query(
                     `INSERT INTO quizzes (type, category, question, options, correct_index, reward, target_age_group, group_id, sequence_order) 
-                     VALUES ('math', 'math', $1, $2, $3, $4, $5, $6, $7)`,
-                    [q, JSON.stringify(opts), correctIdx, 1, age.code, groupId, i]
+                     VALUES ('math', 'חשבון', $1, $2, $3, $4, $5, $6, $7)`,
+                    [q, JSON.stringify(opts), correctIdx, 0.5, age.code, groupId, i]
                 );
             }
         }
     }
 
-    // 2. מחולל שאלות פיננסיות (Financial Trivia)
-    const financeQuestions = [
-        { q: "מאיפה מגיע הכסף של ההורים?", a: "מעבודה", opts: ["מהקיר", "מהבנק", "מעבודה", "מהעצים"], ages: ['child_6_7', 'child_7_8'] },
-        { q: "מה זה 'עודף'?", a: "כסף שמקבלים חזרה כשמשלמים יותר מדי", opts: ["כסף שמקבלים במתנה", "כסף שמקבלים חזרה כשמשלמים יותר מדי", "כסף שהולך לפח", "כסף של מונופול"], ages: ['child_6_7', 'child_7_8'] },
-        { q: "למה שמים כסף בבנק?", a: "כדי לשמור עליו ולקבל ריבית", opts: ["כי אין מקום בכיס", "כדי לשמור עליו ולקבל ריבית", "כדי שהפקידים ישחקו איתו", "לא שמים כסף בבנק"], ages: ['child_8_9', 'child_9_10'] },
-        { q: "מה זו ריבית?", a: "תשלום על השימוש בכסף", opts: ["קנס", "תשלום על השימוש בכסף", "סוג של מס", "מתנה לחג"], ages: ['child_10_12', 'child_12_14'] },
-        { q: "מה ההבדל בין כרטיס אשראי לכרטיס דביט?", a: "באשראי החיוב יורד פעם בחודש, בדביט מיד", opts: ["אין הבדל", "באשראי החיוב יורד פעם בחודש, בדביט מיד", "דביט זה רק לחו''ל", "אשראי זה כסף חינם"], ages: ['teen_14_16', 'teen_16_18'] },
-        { q: "מהי אינפלציה?", a: "עליית מחירים וירידת ערך הכסף", opts: ["ירידת מחירים", "עליית מחירים וירידת ערך הכסף", "שם של מניה", "סוג של הלוואה"], ages: ['teen_14_16', 'teen_16_18'] }
+    // 2. מחולל הבנת הנקרא (Reading) - 5 סטים לכל גיל (דוגמה)
+    const stories = [
+        { title: "האריה והעכבר", content: "אריה ישן ביער. עכבר קטן טיפס עליו והעיר אותו. האריה כעס ורצה לאכול את העכבר, אך העכבר ביקש רחמים והבטיח לעזור לו בעתיד. האריה צחק ושחרר אותו. לאחר ימים, האריה נתפס ברשת ציידים. העכבר בא, כרסם את הרשת ושחרר את האריה.", q: ["מי העיר את האריה?", "מה הבטיח העכבר?", "איך העכבר עזר לאריה?"], a: ["עכבר", "לעזור בעתיד", "כרסם את הרשת"], opts: [["פיל", "עכבר", "זבוב"], ["לתת לו גבינה", "לעזור בעתיד", "לשיר שיר"], ["הביא סכין", "כרסם את הרשת", "קרא לחברים"]] },
+        // אפשר להוסיף עוד סיפורים כאן...
     ];
 
-    for (const item of financeQuestions) {
-        for (const age of item.ages) {
+    for (const age of ageGroups) {
+        if (age.min < 10) { // רק לקטנים
+            for (let set = 1; set <= 5; set++) {
+                const story = stories[0]; // לוקח דוגמה אחת לשם הפשטות, במציאות יהיו הרבה
+                const groupId = `read_${age.code}_set_${set}`;
+                
+                for (let i = 0; i < story.q.length; i++) {
+                     await client.query(
+                        `INSERT INTO quizzes (type, category, question, content, options, correct_index, reward, target_age_group, group_id, sequence_order) 
+                         VALUES ('reading', 'קריאה', $1, $2, $3, $4, $5, $6, $7, $8)`,
+                        [story.q[i], story.content, JSON.stringify(story.opts[i]), story.opts[i].indexOf(story.a[i]), 2, age.code, groupId, i+1]
+                    );
+                }
+            }
+        }
+    }
+
+    // 3. שאלות פיננסיות (Finance) - 20 שאלות לכל קבוצה
+    const financeQ = [
+        { q: "מה עושים עם כסף עודף?", a: "חוסכים", opts: ["זורקים", "חוסכים", "קורעים", "מחביאים בנעל"] },
+        { q: "למה צריך לעבוד?", a: "כדי להרוויח כסף", opts: ["כדי להתעייף", "כדי להרוויח כסף", "כי משעמם", "לא צריך"] },
+        // ... עוד שאלות ...
+    ];
+    
+    for (const age of ageGroups) {
+        // משכפל שאלות כדי להגיע ל-20 (בדמו זה שכפול, במציאות תוכן שונה)
+        for(let i=0; i<20; i++) {
+             const item = financeQ[i % financeQ.length];
              await client.query(
                 `INSERT INTO quizzes (type, category, question, options, correct_index, reward, target_age_group, group_id) 
-                 VALUES ('trivia', 'finance', $1, $2, $3, $4, $5, 'finance_basics')`,
-                [item.q, JSON.stringify(item.opts.sort(() => Math.random() - 0.5)), item.opts.indexOf(item.a), 5, age]
+                 VALUES ('trivia', 'finance', $1, $2, $3, $4, $5, 'finance_general')`,
+                [`${item.q} (${i+1})`, JSON.stringify(item.opts), item.opts.indexOf(item.a), 3, age.code]
             );
         }
     }
@@ -123,7 +150,6 @@ app.get('/setup-db', async (req, res) => {
 
     // Migrations
     try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_year INTEGER"); } catch(e) {}
-    try { await client.query("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general'"); } catch(e) {}
     try { await client.query("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS group_id VARCHAR(100)"); } catch(e) {}
     try { await client.query("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS sequence_order INTEGER DEFAULT 0"); } catch(e) {}
 
@@ -132,9 +158,10 @@ app.get('/setup-db', async (req, res) => {
         await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group, birth_year) VALUES ('Admin Parent', 'parent', 0, '1234', 'adult', 1980)`);
     }
 
+    // הפעלת הזרקת תוכן רק אם צריך
     await seedAcademy();
 
-    res.send(`<h2 style="color: green;">System Updated, DB Migrated, Content Seeded!</h2>`);
+    res.send(`<h2 style="color: green;">System Updated & Content Generated (20 sets)!</h2>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -143,11 +170,9 @@ app.get('/setup-db', async (req, res) => {
 app.get('/api/public-users', async (req, res) => { try { const result = await client.query('SELECT id, name, role, age_group FROM users ORDER BY role DESC, id ASC'); res.json(result.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const result = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (result.rows.length > 0) return res.json({ success: true, user: result.rows[0] }); return res.status(401).json({ success: false, message: 'קוד שגוי' }); } const result = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (result.rows.length > 0) res.json({ success: true, user: result.rows[0] }); else res.status(401).json({ success: false, message: 'קוד שגוי' }); } catch (err) { res.status(500).json({ error: err.message }); } });
 
-// יצירת משתמש עם שנת לידה
 app.post('/api/create-user', async (req, res) => { 
     const { name, pin, role, initialBalance, birthYear } = req.body; 
     try { 
-        // חישוב קבוצת גיל אוטומטי
         const currentYear = new Date().getFullYear();
         const age = currentYear - parseInt(birthYear);
         let ageGroup = 'adult';
@@ -169,16 +194,34 @@ app.post('/api/create-user', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); } 
 });
 
-// עדכון פרופיל
+// עדכון משתמש (עריכה)
 app.post('/api/update-user', async (req, res) => {
     const { userId, name, pin, birthYear } = req.body;
     try {
-        await client.query('UPDATE users SET name=$1, pin_code=$2, birth_year=$3 WHERE id=$4', [name, pin, birthYear, userId]);
+        // חישוב מחדש של קבוצת גיל אם השתנתה שנת לידה
+        let ageGroupUpdate = "";
+        if (birthYear) {
+             const currentYear = new Date().getFullYear();
+             const age = currentYear - parseInt(birthYear);
+             let ageGroup = 'adult';
+             if (age <= 7) ageGroup = 'child_6_7';
+             else if (age <= 8) ageGroup = 'child_7_8';
+             else if (age <= 9) ageGroup = 'child_8_9';
+             else if (age <= 10) ageGroup = 'child_9_10';
+             else if (age <= 12) ageGroup = 'child_10_12';
+             else if (age <= 14) ageGroup = 'child_12_14';
+             else if (age <= 16) ageGroup = 'teen_14_16';
+             else ageGroup = 'teen_16_18';
+             
+             await client.query('UPDATE users SET name=$1, pin_code=$2, birth_year=$3, age_group=$4 WHERE id=$5', [name, pin, birthYear, ageGroup, userId]);
+        } else {
+             await client.query('UPDATE users SET name=$1, pin_code=$2 WHERE id=$3', [name, pin, userId]);
+        }
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// שליפת נתונים
+// נתונים מלאים
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -187,14 +230,12 @@ app.get('/api/data/:userId', async (req, res) => {
 
     let familyMembers = [];
     if (user.role === 'parent' || user.role === 'child') {
-        familyMembers = (await client.query('SELECT id, name, balance, role, age_group, birth_year, weekly_allowance, interest_rate, xp FROM users ORDER BY id')).rows;
+        familyMembers = (await client.query('SELECT id, name, balance, role, age_group, birth_year, weekly_allowance, interest_rate, xp, pin_code FROM users ORDER BY id')).rows;
     }
     
-    // שליפת חידונים (לפי הקצאה או גיל)
+    // שליפת חידונים
     let quizzes = [];
     if (user.role === 'child') {
-        // שליפת משימות ששוייכו ע"י הורה + משימות לפי גיל שטרם בוצעו
-        // נותן עדיפות למה ששויך
         quizzes = (await client.query(`
             SELECT q.*, 
             CASE WHEN aq.id IS NOT NULL THEN 1 ELSE 0 END as is_assigned 
@@ -206,11 +247,9 @@ app.get('/api/data/:userId', async (req, res) => {
             LIMIT 20
         `, [user.age_group, userId])).rows;
     } else if (user.role === 'parent') {
-        // הורים רואים רשימה של קבוצות שאלות לשיוך
         quizzes = (await client.query(`
             SELECT DISTINCT group_id, category, target_age_group, COUNT(*) as q_count 
-            FROM quizzes 
-            WHERE group_id IS NOT NULL 
+            FROM quizzes WHERE group_id IS NOT NULL 
             GROUP BY group_id, category, target_age_group
             ORDER BY category, target_age_group
         `)).rows;
@@ -225,29 +264,14 @@ app.get('/api/data/:userId', async (req, res) => {
     if (user.role === 'child') tasksQuery += ` WHERE t.assigned_to = ${userId} AND t.status != 'approved'`; else tasksQuery += ` WHERE t.status != 'approved'`; tasksQuery += ` ORDER BY t.id DESC`;
     const tasksRes = await client.query(tasksQuery);
 
-    // רשימת קניות - עם תאריך עדכון מחיר
     const shopRes = await client.query(`
-        SELECT 
-            s.*, 
-            u.name as requester_name, 
-            latest.last_price, 
-            latest.store_name as last_store,
-            best.price as best_price,
-            best.store_name as best_store,
-            best.updated_at as best_date
+        SELECT s.*, u.name as requester_name, latest.last_price, latest.store_name as last_store,
+            best.price as best_price, best.store_name as best_store, best.updated_at as best_date
         FROM shopping_list s 
         LEFT JOIN users u ON s.requested_by = u.id 
-        LEFT JOIN (
-            SELECT DISTINCT ON (item_name) item_name, last_price, store_name 
-            FROM product_prices ORDER BY item_name, updated_at DESC
-        ) latest ON s.item_name = latest.item_name
-        LEFT JOIN (
-            SELECT DISTINCT ON (item_name) item_name, last_price as price, store_name, updated_at
-            FROM product_prices WHERE updated_at > NOW() - INTERVAL '3 months'
-            ORDER BY item_name, last_price ASC
-        ) best ON s.item_name = best.item_name
-        WHERE s.status != 'bought' 
-        ORDER BY s.id DESC
+        LEFT JOIN (SELECT DISTINCT ON (item_name) item_name, last_price, store_name FROM product_prices ORDER BY item_name, updated_at DESC) latest ON s.item_name = latest.item_name
+        LEFT JOIN (SELECT DISTINCT ON (item_name) item_name, last_price as price, store_name, updated_at FROM product_prices WHERE updated_at > NOW() - INTERVAL '3 months' ORDER BY item_name, last_price ASC) best ON s.item_name = best.item_name
+        WHERE s.status != 'bought' ORDER BY s.id DESC
     `);
 
     const goalsRes = await client.query(`SELECT * FROM goals WHERE user_id = $1 AND status = 'active'`, [userId]);
@@ -259,13 +283,10 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// שיוך משימות (אקדמיה)
 app.post('/api/academy/assign', async (req, res) => {
     const { userId, groupId, assignerId } = req.body;
-    try {
-        await client.query(`INSERT INTO assigned_quizzes (user_id, group_id, assigned_by) VALUES ($1, $2, $3)`, [userId, groupId, assignerId]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    try { await client.query(`INSERT INTO assigned_quizzes (user_id, group_id, assigned_by) VALUES ($1, $2, $3)`, [userId, groupId, assignerId]); res.json({ success: true }); } 
+    catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // שאר ה-API (קניות, משימות, בנק - ללא שינוי)
