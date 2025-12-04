@@ -16,6 +16,47 @@ const client = new Client({
 
 client.connect();
 
+// --- פונקציות עזר להזרקת תוכן ---
+async function seedAcademy() {
+    const count = (await client.query('SELECT COUNT(*) FROM quizzes')).rows[0].count;
+    if (parseInt(count) > 10) return; // לא להזריק אם כבר יש תוכן
+
+    console.log("Seeding Academy Content...");
+
+    // 15 תרגילי חשבון לגילאי 6-10
+    for (let i = 1; i <= 15; i++) {
+        const num1 = Math.floor(Math.random() * 10) + 1;
+        const num2 = Math.floor(Math.random() * 10) + 1;
+        const ans = num1 + num2;
+        // יצירת תשובות מסיחות
+        const options = [ans, ans + 1, ans - 1, ans + 2].sort(() => Math.random() - 0.5);
+        const correctIdx = options.indexOf(ans);
+        
+        await client.query(
+            `INSERT INTO quizzes (type, question, options, correct_index, reward, target_age_group) 
+             VALUES ('math', $1, $2, $3, 2, 'child_6_10')`,
+            [`כמה זה ${num1} + ${num2}?`, JSON.stringify(options), correctIdx]
+        );
+    }
+
+    // קטע קריאה עם 3 שאלות
+    const story = `הצב והארנב החליטו לערוך תחרות ריצה. הארנב, שהיה בטוח בניצחונו, עצר לנוח בצד הדרך ונרדם. הצב, שהלך לאט אך בהתמדה, לא עצר לרגע. כשהארנב התעורר, הוא ראה שהצב כבר הגיע לקו הסיום וניצח.`;
+    
+    const readingQuestions = [
+        { q: "מי ניצח בתחרות?", opts: ["הארנב", "הצב", "השועל", "אף אחד"], c: 1 },
+        { q: "מדוע הארנב הפסיד?", opts: ["הוא רץ לאט", "הוא נרדם", "הוא הלך לאיבוד", "הוא וויתר"], c: 1 },
+        { q: "מהו מוסר ההשכל?", opts: ["המהירות חשובה מהכל", "צריך לישון הרבה", "התמדה מביאה להצלחה", "לא כדאי להתחרות"], c: 2 }
+    ];
+
+    for (const item of readingQuestions) {
+        await client.query(
+            `INSERT INTO quizzes (type, question, content, options, correct_index, reward, target_age_group) 
+             VALUES ('reading', $1, $2, $3, $4, 5, 'child_6_10')`,
+            [item.q, story, JSON.stringify(item.opts), item.c]
+        );
+    }
+}
+
 // --- שדרוג והזרקת תוכן ---
 app.get('/setup-db', async (req, res) => {
   try {
@@ -23,7 +64,7 @@ app.get('/setup-db', async (req, res) => {
         `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, role VARCHAR(20) NOT NULL, balance DECIMAL(10, 2) DEFAULT 0, pin_code VARCHAR(10), age_group VARCHAR(20) DEFAULT 'adult', weekly_allowance DECIMAL(10, 2) DEFAULT 0, interest_rate DECIMAL(5, 2) DEFAULT 0, xp INTEGER DEFAULT 0)`,
         `CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), amount DECIMAL(10, 2) NOT NULL, description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `CREATE TABLE IF NOT EXISTS tasks (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, reward DECIMAL(10, 2) NOT NULL, status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id))`,
-        `CREATE TABLE IF NOT EXISTS shopping_list (id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', estimated_price DECIMAL(10, 2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        `CREATE TABLE IF NOT EXISTS shopping_list (id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', estimated_price DECIMAL(10, 2) DEFAULT 0, trip_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), title VARCHAR(100) NOT NULL, target_amount DECIMAL(10, 2) NOT NULL, current_amount DECIMAL(10, 2) DEFAULT 0, icon VARCHAR(50) DEFAULT 'star', status VARCHAR(20) DEFAULT 'active', target_date TIMESTAMP)`,
         `CREATE TABLE IF NOT EXISTS loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), original_amount DECIMAL(10, 2) NOT NULL, remaining_amount DECIMAL(10, 2) NOT NULL, reason VARCHAR(255), interest_rate DECIMAL(5, 2) DEFAULT 0, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `CREATE TABLE IF NOT EXISTS budgets (id SERIAL PRIMARY KEY, category VARCHAR(50) NOT NULL UNIQUE, limit_amount DECIMAL(10, 2) NOT NULL)`,
@@ -36,19 +77,20 @@ app.get('/setup-db', async (req, res) => {
 
     for (const query of tables) await client.query(query);
 
-    const columns = [
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS age_group VARCHAR(20) DEFAULT 'adult'",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0",
-        "ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS estimated_price DECIMAL(10, 2) DEFAULT 0"
-    ];
-    for (const query of columns) try { await client.query(query); } catch(e) {}
+    // Migration: הוספת trip_id לרשימת הקניות אם חסר
+    try { await client.query("ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS trip_id INTEGER"); } catch(e) {}
+    try { await client.query("ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS estimated_price DECIMAL(10, 2) DEFAULT 0"); } catch(e) {}
 
+    // יצירת הורה ברירת מחדל
     const userCheck = await client.query('SELECT * FROM users');
     if (userCheck.rows.length === 0) {
         await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group) VALUES ('Admin Parent', 'parent', 0, '1234', 'adult')`);
     }
 
-    res.send(`<h2 style="color: green;">System Updated! Crowd Wisdom features enabled.</h2>`);
+    // הזרקת תוכן לאקדמיה
+    await seedAcademy();
+
+    res.send(`<h2 style="color: green;">System Updated & Academy Seeded!</h2>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -59,7 +101,7 @@ app.get('/api/public-users', async (req, res) => { try { const result = await cl
 app.post('/api/login', async (req, res) => { const { userId, pin } = req.body; try { if (!userId && pin) { const result = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); if (result.rows.length > 0) return res.json({ success: true, user: result.rows[0] }); return res.status(401).json({ success: false, message: 'קוד שגוי' }); } const result = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); if (result.rows.length > 0) res.json({ success: true, user: result.rows[0] }); else res.status(401).json({ success: false, message: 'קוד שגוי' }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/create-user', async (req, res) => { const { name, pin, role, initialBalance, ageGroup } = req.body; try { const age = ageGroup || (role === 'parent' ? 'adult' : 'child_6_10'); await client.query(`INSERT INTO users (name, role, balance, pin_code, age_group, weekly_allowance, interest_rate) VALUES ($1, $2, $3, $4, $5, 0, 0)`, [name, role, parseFloat(initialBalance)||0, pin, age]); await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES (NULL, $1, 'user-plus')`, [`משתמש חדש: ${name}`]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 
-// נתונים מלאים - כולל חכמת המונים
+// נתונים מלאים
 app.get('/api/data/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -71,29 +113,29 @@ app.get('/api/data/:userId', async (req, res) => {
         familyMembers = (await client.query('SELECT id, name, balance, role, age_group, weekly_allowance, interest_rate, xp FROM users ORDER BY id')).rows;
     }
     
-    // שליפת חידונים
+    // שליפת חידונים (ללא מה שכבר נעשה)
     let quizzes = [];
     if (user.role === 'child') {
-        quizzes = (await client.query(`SELECT q.* FROM quizzes q WHERE (q.target_age_group = $1 OR q.target_age_group = 'all') AND NOT EXISTS (SELECT 1 FROM user_quiz_history h WHERE h.quiz_id = q.id AND h.user_id = $2) ORDER BY id ASC`, [user.age_group || 'child_6_10', userId])).rows;
+        quizzes = (await client.query(`
+            SELECT q.* FROM quizzes q 
+            WHERE (q.target_age_group = $1 OR q.target_age_group = 'all') 
+            AND NOT EXISTS (SELECT 1 FROM user_quiz_history h WHERE h.quiz_id = q.id AND h.user_id = $2) 
+            ORDER BY q.type DESC, q.id ASC
+        `, [user.age_group || 'child_6_10', userId])).rows;
     } else if (user.role === 'parent') {
-        quizzes = (await client.query('SELECT * FROM quizzes ORDER BY id DESC')).rows;
+        quizzes = (await client.query('SELECT * FROM quizzes ORDER BY id DESC LIMIT 50')).rows;
     }
 
-    // תנועות
     let transQuery = `SELECT t.*, u.name as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id`;
     if (user.role === 'child') transQuery += ` WHERE t.user_id = ${userId}`;
     transQuery += ` ORDER BY t.date DESC LIMIT 50`;
     const transRes = await client.query(transQuery);
     
-    // משימות
     let tasksQuery = `SELECT t.*, u.name as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id `;
     if (user.role === 'child') tasksQuery += ` WHERE t.assigned_to = ${userId} AND t.status != 'approved'`; else tasksQuery += ` WHERE t.status != 'approved'`; tasksQuery += ` ORDER BY t.id DESC`;
     const tasksRes = await client.query(tasksQuery);
 
-    // רשימת קניות - חכמת המונים!
-    // השאילתה הזו מורכבת:
-    // 1. latest: המחיר האחרון שמישהו שילם (לצפי נוכחי)
-    // 2. best: המחיר הכי נמוך ב-3 חודשים האחרונים (להשוואה)
+    // רשימת קניות פעילה (לא נקנתה) עם חכמת המונים
     const shopRes = await client.query(`
         SELECT 
             s.*, 
@@ -101,21 +143,16 @@ app.get('/api/data/:userId', async (req, res) => {
             latest.last_price, 
             latest.store_name as last_store,
             best.price as best_price,
-            best.store_name as best_store,
-            best.updated_at as best_date
+            best.store_name as best_store
         FROM shopping_list s 
         LEFT JOIN users u ON s.requested_by = u.id 
-        -- שליפת מחיר אחרון
         LEFT JOIN (
             SELECT DISTINCT ON (item_name) item_name, last_price, store_name 
-            FROM product_prices 
-            ORDER BY item_name, updated_at DESC
+            FROM product_prices ORDER BY item_name, updated_at DESC
         ) latest ON s.item_name = latest.item_name
-        -- שליפת המחיר הכי זול ב-3 חודשים האחרונים
         LEFT JOIN (
-            SELECT DISTINCT ON (item_name) item_name, last_price as price, store_name, updated_at
-            FROM product_prices
-            WHERE updated_at > NOW() - INTERVAL '3 months'
+            SELECT DISTINCT ON (item_name) item_name, last_price as price, store_name
+            FROM product_prices WHERE updated_at > NOW() - INTERVAL '3 months'
             ORDER BY item_name, last_price ASC
         ) best ON s.item_name = best.item_name
         WHERE s.status != 'bought' 
@@ -132,16 +169,32 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// היסטוריית קניות
+app.get('/api/shopping/history', async (req, res) => {
+    try {
+        const trips = await client.query(`
+            SELECT * FROM shopping_trips ORDER BY trip_date DESC LIMIT 10
+        `);
+        // לכל טיול, נביא את הפריטים
+        const history = [];
+        for (const trip of trips.rows) {
+            const items = await client.query(`
+                SELECT item_name, estimated_price FROM shopping_list WHERE trip_id = $1
+            `, [trip.id]);
+            history.push({ ...trip, items: items.rows });
+        }
+        res.json(history);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // קניות חכמות
 app.post('/api/shopping/add', async (req, res) => { 
     const { itemName, userId } = req.body; 
     try { 
         const userRes = await client.query('SELECT role FROM users WHERE id = $1', [userId]); 
         const status = userRes.rows[0].role === 'parent' ? 'approved' : 'pending'; 
-        // שימוש במחיר אחרון כברירת מחדל
         const priceRes = await client.query('SELECT last_price FROM product_prices WHERE item_name = $1 ORDER BY updated_at DESC LIMIT 1', [itemName]);
         const estimatedPrice = priceRes.rows.length > 0 ? priceRes.rows[0].last_price : 0;
-
         await client.query(`INSERT INTO shopping_list (item_name, requested_by, status, estimated_price) VALUES ($1, $2, $3, $4)`, [itemName, userId, status, estimatedPrice]); 
         res.json({ success: true }); 
     } catch (err) { res.status(500).json({ error: err.message }); } 
@@ -153,43 +206,45 @@ app.post('/api/shopping/update', async (req, res) => {
     catch (err) { res.status(500).json({ error: err.message }); } 
 });
 
-// עדכון מחיר בזמן אמת
 app.post('/api/shopping/update-price', async (req, res) => {
     const { itemId, price } = req.body;
-    try {
-        await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [price, itemId]);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    try { await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [price, itemId]); res.json({ success: true }); } 
+    catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// סיום קנייה
+// סיום קנייה משודרג
 app.post('/api/shopping/checkout', async (req, res) => {
     const { totalAmount, userId, storeName, items } = req.body; 
     try {
         await client.query('BEGIN');
-        await client.query("UPDATE shopping_list SET status = 'bought' WHERE status = 'in_cart'");
+        
+        // יצירת טיול קניות
+        const tripRes = await client.query(`INSERT INTO shopping_trips (user_id, store_name, total_amount, item_count) VALUES ($1, $2, $3, $4) RETURNING id`, 
+            [userId, storeName, parseFloat(totalAmount), items.length]);
+        const tripId = tripRes.rows[0].id;
+
+        // עדכון פריטים: סגירתם וקישור לטיול
+        await client.query("UPDATE shopping_list SET status = 'bought', trip_id = $1 WHERE status = 'in_cart'", [tripId]);
+        
+        // תיעוד כספי ולמידת מחירים
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'groceries', 'expense')`, 
             [userId, parseFloat(totalAmount), `קניות ב-${storeName}`]);
-        await client.query(`INSERT INTO shopping_trips (user_id, store_name, total_amount, item_count) VALUES ($1, $2, $3, $4)`, 
-            [userId, storeName, parseFloat(totalAmount), items.length]);
 
         for (const item of items) {
-            // שמירת מחיר היסטורי לטובת חכמת ההמונים
-            await client.query(`
-                INSERT INTO product_prices (item_name, last_price, store_name) 
-                VALUES ($1, $2, $3)
-            `, [item.name, item.price, storeName]);
+            await client.query(`INSERT INTO product_prices (item_name, last_price, store_name) VALUES ($1, $2, $3)`, [item.name, item.price, storeName]);
         }
 
-        await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES ($1, $2, $3)`, [userId, `סיים קנייה ב-${storeName} (₪${totalAmount})`, 'cart-shopping']); 
+        await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES ($1, $2, $3)`, [userId, `סיים קנייה ב-${storeName}`, 'cart-shopping']); 
         await client.query('COMMIT'); 
         res.json({ success: true }); 
     } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } 
 });
 
-// שאר הפונקציות (ללא שינוי)
+// אקדמיה
 app.post('/api/academy/create', async (req, res) => { const { type, question, content, options, correctIndex, reward, targetAge } = req.body; try { await client.query(`INSERT INTO quizzes (type, question, content, options, correct_index, reward, target_age_group) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [type, question, content, JSON.stringify(options), correctIndex, reward, targetAge]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/academy/answer', async (req, res) => { const { userId, quizId, answerIndex } = req.body; try { await client.query('BEGIN'); const quiz = (await client.query('SELECT * FROM quizzes WHERE id = $1', [quizId])).rows[0]; if (parseInt(answerIndex) === quiz.correct_index) { const reward = parseFloat(quiz.reward); await client.query('UPDATE users SET balance = balance + $1, xp = xp + 20 WHERE id = $2', [reward, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'education', 'income')`, [userId, reward, `הצלחה באקדמיה`]); await client.query('INSERT INTO user_quiz_history (user_id, quiz_id) VALUES ($1, $2)', [userId, quizId]); await client.query('COMMIT'); res.json({ success: true, correct: true, reward: reward }); } else { await client.query('ROLLBACK'); res.json({ success: true, correct: false }); } } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
+
+// שאר ה-API (ללא שינוי מהותי)
 app.get('/api/budget/status', async (req, res) => { try { const budgets = (await client.query('SELECT * FROM budgets')).rows; const spending = (await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE) GROUP BY category`)).rows; const result = budgets.map(b => { const s = spending.find(x => x.category === b.category); return { category: b.category, limit: parseFloat(b.limit_amount), spent: s ? parseFloat(s.spent) : 0 }; }); res.json(result); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/budget/set', async (req, res) => { const { category, limit } = req.body; try { await client.query(`INSERT INTO budgets (category, limit_amount) VALUES ($1, $2) ON CONFLICT (category) DO UPDATE SET limit_amount = $2`, [category, limit]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/bank/settings', async (req, res) => { const { userId, allowance, interest } = req.body; try { await client.query(`UPDATE users SET weekly_allowance = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
