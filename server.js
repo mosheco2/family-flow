@@ -18,19 +18,12 @@ client.connect()
   .then(() => console.log('Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- 1. SETUP DB (הקמת כל הטבלאות כולל משימות וקניות) ---
+// --- 1. SETUP DB ---
 app.get('/setup-db', async (req, res) => {
   try {
-    const tables = [
-      'shopping_trip_items', 'shopping_trips', 'product_prices', // טבלאות קניות מתקדמות
-      'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 
-      'users', 'groups'
-    ];
-    // מחיקה נקייה
+    const tables = ['shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
     for (const t of tables) await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
 
-    // --- יצירת הטבלאות ---
-    
     await client.query(`
       CREATE TABLE groups (
         id SERIAL PRIMARY KEY,
@@ -51,7 +44,6 @@ app.get('/setup-db', async (req, res) => {
         status VARCHAR(20) DEFAULT 'PENDING',
         birth_year INTEGER,
         balance DECIMAL(10, 2) DEFAULT 0,
-        weekly_allowance DECIMAL(10, 2) DEFAULT 0,
         xp INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(group_id, nickname)
@@ -86,7 +78,7 @@ app.get('/setup-db', async (req, res) => {
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
         title VARCHAR(255) NOT NULL,
         reward DECIMAL(10, 2) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending', -- pending, done, approved
+        status VARCHAR(20) DEFAULT 'pending', 
         assigned_to INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -98,13 +90,12 @@ app.get('/setup-db', async (req, res) => {
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
         item_name VARCHAR(255) NOT NULL,
         requested_by INTEGER REFERENCES users(id),
-        status VARCHAR(20) DEFAULT 'pending', -- pending, in_cart, bought
+        status VARCHAR(20) DEFAULT 'pending',
         estimated_price DECIMAL(10, 2) DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // טבלאות להיסטוריית קניות
     await client.query(`
       CREATE TABLE shopping_trips (
         id SERIAL PRIMARY KEY,
@@ -112,28 +103,7 @@ app.get('/setup-db', async (req, res) => {
         user_id INTEGER REFERENCES users(id),
         store_name VARCHAR(100),
         total_amount DECIMAL(10, 2),
-        item_count INTEGER,
         trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE shopping_trip_items (
-        id SERIAL PRIMARY KEY,
-        trip_id INTEGER REFERENCES shopping_trips(id) ON DELETE CASCADE,
-        item_name VARCHAR(255),
-        price DECIMAL(10, 2)
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE goals (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        title VARCHAR(100) NOT NULL,
-        target_amount DECIMAL(10, 2) NOT NULL,
-        current_amount DECIMAL(10, 2) DEFAULT 0,
-        status VARCHAR(20) DEFAULT 'active'
       )
     `);
 
@@ -150,11 +120,11 @@ app.get('/setup-db', async (req, res) => {
       )
     `);
 
-    res.send(`<h1 style="color:green; font-family:sans-serif;">System Ready V3 (All Modules Active) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Reset & Upgrade V3 Complete ✅</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
-// --- 2. AUTH & USERS API ---
+// --- 2. AUTH ---
 
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
@@ -163,13 +133,13 @@ app.post('/api/groups', async (req, res) => {
   try {
     await client.query('BEGIN');
     const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail]);
-    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'מייל זה כבר קיים' }); }
+    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'מייל קיים' }); }
 
     const gRes = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
     const groupId = gRes.rows[0].id;
     const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [groupId, adminNickname, password, parseInt(birthYear)||0]);
     
-    // יצירת קטגוריות ברירת מחדל
+    // יצירת תקציבים (תיקון באג)
     const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'other'];
     for (const c of cats) await client.query(`INSERT INTO budgets (group_id, category, limit_amount) VALUES ($1, $2, 0)`, [groupId, c]);
 
@@ -214,7 +184,7 @@ app.get('/api/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ניהול משתמשים (Admin)
+// Admin
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
@@ -225,32 +195,26 @@ app.get('/api/group/members', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// --- 3. CORE MODULES (Budget, Transactions, Tasks) ---
+// --- 3. DATA API ---
 
-// שליפת כל המידע הרלוונטי למשתמש (Dashboard)
 app.get('/api/data/:userId', async (req, res) => {
   try {
     const user = (await client.query('SELECT * FROM users WHERE id = $1', [req.params.userId])).rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // שליפת משימות רלוונטיות
-    let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
-    // מנהל רואה הכל, משתמש רואה רק את שלו או משימות פתוחות
-    if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
-    tasksSql += ` AND t.status != 'approved' ORDER BY t.created_at DESC`;
+    // Tasks Logic: Admin sees all, User sees theirs
+    let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
+    if(user.role !== 'ADMIN') tasksSql += ` AND (t.assigned_to = ${user.id} OR t.status = 'pending')`;
+    tasksSql += ` ORDER BY t.created_at DESC`;
 
-    const [trans, tasks, shop, goals, loans, budgets] = await Promise.all([
-      // תנועות (סינון כבר מתבצע בנפרד ב-API אחר, אבל לדשבורד נביא 5 אחרונות)
-      client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id = $1 ORDER BY t.date DESC LIMIT 5`, [user.id]),
+    const [tasks, shop, loans, budgets] = await Promise.all([
       client.query(tasksSql, [gid]),
-      client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]),
-      client.query(`SELECT * FROM goals WHERE user_id = $1 AND status = 'active'`, [user.id]),
-      client.query(`SELECT l.*, u.nickname as user_name FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id = $1 AND l.status != 'paid'`, [gid]),
+      client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]),
+      client.query(`SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`, [gid]),
       client.query(`SELECT * FROM budgets WHERE group_id = $1`, [gid])
     ]);
 
-    // חישוב תקציב (רק למנהל רלוונטי לראות הכל, אבל נחזיר לכולם לבינתיים)
     const budgetStatus = [];
     for (const b of budgets.rows) {
       const spent = await client.query(`
@@ -261,22 +225,18 @@ app.get('/api/data/:userId', async (req, res) => {
       budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) });
     }
 
-    res.json({ user, transactions: trans.rows, tasks: tasks.rows, shopping_list: shop.rows, goals: goals.rows, loans: loans.rows, budget_status: budgetStatus });
+    res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, budget_status: budgetStatus });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// תנועות + תקציב
 app.get('/api/transactions', async (req, res) => {
   try {
     const { groupId, userId, limit = 20 } = req.query;
     const userRole = (await client.query('SELECT role FROM users WHERE id = $1', [userId])).rows[0].role;
-    
     let sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1`;
     const params = [groupId, limit];
-    
     if (userRole !== 'ADMIN') { sql += ` AND t.user_id = $3`; params.push(userId); }
     sql += ` ORDER BY t.date DESC LIMIT $2`;
-    
     const r = await client.query(sql, params);
     res.json(r.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -295,7 +255,7 @@ app.post('/api/transaction', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// משימות (Create & Update)
+// Tasks
 app.post('/api/tasks', async (req, res) => {
   const { title, reward, assignedTo } = req.body;
   try {
@@ -306,26 +266,23 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.post('/api/tasks/update', async (req, res) => {
-  const { taskId, status } = req.body; // status: 'done' or 'approved'
+  const { taskId, status } = req.body; 
   try {
     await client.query('BEGIN');
-    
     if(status === 'approved') {
       const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
       if(t && t.status !== 'approved') {
-        // העברת תגמול למשתמש
-        await client.query(`UPDATE users SET balance = balance + $1, xp = xp + 10 WHERE id = $2`, [t.reward, t.assigned_to]);
+        await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]);
       }
     }
-    
     await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [status, taskId]);
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// קניות (Shopping)
+// Shopping
 app.post('/api/shopping/add', async (req, res) => {
   const { itemName, userId } = req.body;
   try {
@@ -336,7 +293,7 @@ app.post('/api/shopping/add', async (req, res) => {
 });
 
 app.post('/api/shopping/update', async (req, res) => {
-  const { itemId, status } = req.body; // status: 'in_cart', 'approved'
+  const { itemId, status } = req.body;
   try {
     await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]);
     res.json({ success: true });
@@ -344,42 +301,21 @@ app.post('/api/shopping/update', async (req, res) => {
 });
 
 app.post('/api/shopping/checkout', async (req, res) => {
-  const { totalAmount, userId, storeName, items } = req.body; // items = [{id, name, price}]
+  const { totalAmount, userId, storeName } = req.body; 
   try {
     await client.query('BEGIN');
     const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
     const gid = u.rows[0].group_id;
-
-    // 1. סימון פריטים כנקנו
     await client.query("UPDATE shopping_list SET status = 'bought' WHERE status = 'in_cart' AND group_id = $1", [gid]);
-
-    // 2. יצירת טרנזקציה (הוצאה למשתמש המשלם)
     await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'groceries', 'expense')`, [userId, totalAmount, `קניות ב-${storeName}`]);
     await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
-
-    // 3. תיעוד היסטוריית קנייה
-    const tripRes = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, total_amount, item_count) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [gid, userId, storeName, totalAmount, items.length]);
-    const tripId = tripRes.rows[0].id;
-
-    for (const item of items) {
-      await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, price) VALUES ($1, $2, $3)`, [tripId, item.name, item.price]);
-    }
-
+    await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, total_amount) VALUES ($1, $2, $3, $4)`, [gid, userId, storeName, totalAmount]);
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/shopping/history', async (req, res) => {
-  try {
-    const { groupId } = req.query;
-    const trips = await client.query('SELECT * FROM shopping_trips WHERE group_id = $1 ORDER BY trip_date DESC LIMIT 10', [groupId]);
-    // לא נחזיר פריטים לכל קנייה כרגע כדי לא להכביד, אפשר להוסיף אם צריך
-    res.json(trips.rows);
-  } catch(e) { res.status(500).json({error:e.message}); }
-});
-
-// הלוואות
+// Loans
 app.post('/api/loans/request', async (req, res) => {
   const { userId, amount, reason } = req.body;
   try {
@@ -390,17 +326,14 @@ app.post('/api/loans/request', async (req, res) => {
 });
 
 app.post('/api/loans/handle', async (req, res) => {
-  const { loanId, status } = req.body; // active / rejected
+  const { loanId, status } = req.body; 
   try {
     await client.query('BEGIN');
     const l = (await client.query('SELECT * FROM loans WHERE id=$1', [loanId])).rows[0];
-    
     if(status === 'active') {
-      // העברת כסף למשתמש
       await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]);
       await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'loans', 'income')`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]);
     }
-    
     await client.query('UPDATE loans SET status = $1 WHERE id = $2', [status, loanId]);
     await client.query('COMMIT');
     res.json({ success: true });
