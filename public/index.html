@@ -191,7 +191,6 @@
         let currentGroup = null;
         let pollInterval = null;
 
-        // Categories Configuration
         const CATEGORIES = {
             income: [
                 { value: 'salary', label: 'משכורת 💼' },
@@ -220,7 +219,6 @@
             }
         };
 
-        // ... [AUTH FUNCTIONS REMAIN UNCHANGED] ...
         function switchView(viewName) {
             ['login', 'create', 'join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${viewName}`).classList.remove('hidden');
@@ -324,15 +322,11 @@
             }
         }
 
-        // --- Module 2 Logic ---
-
         function openTransactionModal(type) {
             document.getElementById('trans-type').value = type;
             document.getElementById('trans-modal-title').innerText = type === 'income' ? 'הכנסה חדשה' : 'הוצאה חדשה';
             document.getElementById('trans-amount').value = '';
             document.getElementById('trans-desc').value = '';
-            
-            // Populate Dynamic Categories
             const catSelect = document.getElementById('trans-cat');
             catSelect.innerHTML = '';
             CATEGORIES[type].forEach(c => {
@@ -341,7 +335,6 @@
                 opt.innerText = c.label;
                 catSelect.appendChild(opt);
             });
-
             document.getElementById('transaction-modal').classList.remove('hidden');
             document.getElementById('trans-amount').focus();
         }
@@ -356,13 +349,7 @@
             const cat = document.getElementById('trans-cat').value;
             const type = document.getElementById('trans-type').value;
 
-            // Validation
-            if(!amount || parseFloat(amount) <= 0) {
-                showToast('error', 'נא להזין סכום תקין');
-                return;
-            }
-
-            // Show Loader
+            if(!amount || parseFloat(amount) <= 0) { showToast('error', 'נא להזין סכום תקין'); return; }
             toggleLoader('save', true);
 
             try {
@@ -374,6 +361,7 @@
                 const data = await res.json();
                 
                 if(data.success) {
+                    // Update frontend balance instantly
                     currentUser.balance = data.newBalance;
                     document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                     localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
@@ -383,15 +371,9 @@
                     closeTransModal();
                     fetchTransactions();
                     fetchBudget();
-                } else {
-                    showToast('error', data.error || 'שגיאה בשמירה');
-                }
-            } catch(e) { 
-                showToast('error', 'שגיאת תקשורת'); 
-                console.error(e);
-            } finally {
-                toggleLoader('save', false);
-            }
+                } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+            } catch(e) { showToast('error', 'שגיאת תקשורת'); } 
+            finally { toggleLoader('save', false); }
         }
 
         async function fetchTransactions() {
@@ -400,11 +382,7 @@
                 const list = await res.json();
                 const container = document.getElementById('transactions-list');
                 container.innerHTML = '';
-                
-                if(list.length === 0) {
-                    container.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>';
-                    return;
-                }
+                if(list.length === 0) { container.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>'; return; }
 
                 list.forEach(t => {
                     const isIncome = t.type === 'income';
@@ -412,7 +390,7 @@
                         <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex justify-between items-center">
                             <div>
                                 <p class="font-bold text-gray-800">${t.description} <span class="text-xs text-gray-400 font-normal">(${t.user_name})</span></p>
-                                <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()} • ${getCategoryLabel(t.category, t.type)}</p>
+                                <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()}</p>
                             </div>
                             <span class="font-bold text-lg ${isIncome ? 'text-green-500' : 'text-red-500'}">
                                 ${isIncome ? '+' : '-'}₪${t.amount}
@@ -420,13 +398,7 @@
                         </div>
                     `;
                 });
-            } catch(e) { console.error(e); }
-        }
-
-        function getCategoryLabel(val, type) {
-            const list = CATEGORIES[type] || [];
-            const found = list.find(c => c.value === val);
-            return found ? found.label : val;
+            } catch(e) {}
         }
 
         async function fetchBudget() {
@@ -435,30 +407,16 @@
                 const data = await res.json();
                 const container = document.getElementById('budget-list');
                 container.innerHTML = '';
-
                 data.forEach(b => {
                     const pct = Math.min(100, Math.round((b.spent / b.limit) * 100));
                     let color = 'bg-blue-500';
                     if(pct > 75) color = 'bg-yellow-500';
                     if(pct >= 100) color = 'bg-red-500';
-
-                    container.innerHTML += `
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="font-bold text-gray-700">${getCategoryLabel(b.category, 'expense')}</span>
-                                <span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span>
-                            </div>
-                            <div class="w-full bg-gray-100 rounded-full h-2.5">
-                                <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-                            </div>
-                        </div>
-                    `;
+                    container.innerHTML += `<div><div class="flex justify-between text-sm mb-1"><span class="font-bold text-gray-700">${b.category}</span><span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div></div></div>`;
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) {}
         }
 
-        // ... [MODULE 1 FUNCS: fetchMembers, fetchPendingUsers, approveUser, logout, showToast] ...
-        
         async function fetchMembers() {
             try {
                 const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}`);
