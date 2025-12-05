@@ -16,10 +16,9 @@ const client = new Client({
 
 client.connect();
 
-// --- 1. System Setup & Migration ---
+// --- 1. System Setup ---
 app.get('/setup-db', async (req, res) => {
   try {
-    // יצירת טבלאות
     const tables = [
         `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, role VARCHAR(20) NOT NULL, balance DECIMAL(10, 2) DEFAULT 0, pin_code VARCHAR(10), birth_year INTEGER, age_group VARCHAR(20) DEFAULT 'adult', weekly_allowance DECIMAL(10, 2) DEFAULT 0, interest_rate DECIMAL(5, 2) DEFAULT 0, xp INTEGER DEFAULT 0)`,
         `CREATE TABLE IF NOT EXISTS transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), amount DECIMAL(10, 2) NOT NULL, description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -38,29 +37,10 @@ app.get('/setup-db', async (req, res) => {
     ];
 
     for (const query of tables) await client.query(query);
-
-    // עדכוני עמודות (Migrations) ליתר ביטחון
-    const columns = [
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_year INTEGER",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS age_group VARCHAR(20) DEFAULT 'adult'",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0",
-        "ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS estimated_price DECIMAL(10, 2) DEFAULT 0",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS title VARCHAR(255)",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS questions_json JSONB",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS is_set BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'general'",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS target_min_age INTEGER DEFAULT 0",
-        "ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS target_max_age INTEGER DEFAULT 99",
-        "ALTER TABLE quizzes ALTER COLUMN question DROP NOT NULL",
-        "ALTER TABLE quizzes ALTER COLUMN options DROP NOT NULL",
-        "ALTER TABLE quizzes ALTER COLUMN correct_index DROP NOT NULL"
-    ];
-    for (const query of columns) try { await client.query(query); } catch(e) { console.log('Migration:', e.message); }
-
-    // הזרקת תוכן לאקדמיה (רק אם חסר)
+    
+    // Inject Content (Academia)
     const quizCount = await client.query('SELECT COUNT(*) FROM quizzes WHERE is_set = TRUE');
     if (parseInt(quizCount.rows[0].count) < 5) {
-        console.log("Injecting Content...");
         const generateMathSet = (min, max, op, diff, count=10) => {
             const qs = [];
             for(let i=0; i<count; i++) {
@@ -70,7 +50,6 @@ app.get('/setup-db', async (req, res) => {
                 if(op === '+') { qStr = `${a} + ${b} = ?`; ans = a+b; }
                 else if(op === '-') { if(a<b) [a,b]=[b,a]; qStr = `${a} - ${b} = ?`; ans = a-b; }
                 else if(op === '*') { a = Math.floor(Math.random()*12)+1; b = Math.floor(Math.random()*12)+1; qStr = `${a} x ${b} = ?`; ans = a*b; }
-                else if(op === '^') { a = Math.floor(Math.random()*6)+2; b = 2; qStr = `${a} בריבוע = ?`; ans = a*a; }
                 let opts = [ans, ans+1, ans-1, ans+Math.floor(Math.random()*5)+2].filter(x=>x>=0);
                 opts = [...new Set(opts)].sort(()=>Math.random()-0.5);
                 while(opts.length < 4) opts.push(ans + opts.length + 1);
@@ -78,33 +57,20 @@ app.get('/setup-db', async (req, res) => {
             }
             return { title: `מתמטיקה: ${op==='+'?'חיבור':(op==='-'?'חיסור':(op==='*'?'כפל':'חזקות'))} (גיל ${min}-${max})`, questions: qs, min, max, cat: 'math', rew: (max>12?15:5) };
         };
-
         const content = [
             generateMathSet(6, 8, '+', 10), 
             generateMathSet(8, 12, '*', 0),
-            {
-                title: "ניהול תקציב לבוגרים (18+)",
-                min: 18, max: 99, cat: 'finance', rew: 50,
-                questions: [
-                    { q: "מהו הכלל המומלץ לחלוקת הכנסה?", opts: ["50/30/20", "100% חיסכון", "לבזבז הכל", "אין כלל"], correct: 0 },
-                    { q: "מהי קרן חירום?", opts: ["כסף להוצאות לא צפויות", "קרן השתלמות", "ביטוח", "הלוואה"], correct: 0 }
-                ]
-            }
+            { title: "ניהול תקציב (18+)", min: 18, max: 99, cat: 'finance', rew: 50, questions: [{ q: "מהו הכלל המומלץ לחלוקת הכנסה?", opts: ["50/30/20", "100% חיסכון", "לבזבז הכל", "אין כלל"], correct: 0 }] }
         ];
-
         for (const c of content) {
-            await client.query(`INSERT INTO quizzes (title, type, questions_json, reward, target_min_age, target_max_age, category, is_set) VALUES ($1, 'set', $2, $3, $4, $5, $6, TRUE)`, 
-            [c.title, JSON.stringify(c.questions), c.rew, c.min, c.max, c.cat]);
+            await client.query(`INSERT INTO quizzes (title, type, questions_json, reward, target_min_age, target_max_age, category, is_set) VALUES ($1, 'set', $2, $3, $4, $5, $6, TRUE)`, [c.title, JSON.stringify(c.questions), c.rew, c.min, c.max, c.cat]);
         }
     }
-
-    // שים לב: הסרתי את יצירת המשתמש האוטומטית כדי לאפשר בדיקת הרשמה נקייה
-    
     res.json({ success: true, message: "System Setup Complete" });
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
-// --- 2. Admin: Factory Reset (Wipe Data) ---
+// --- 2. Admin: Wipe Data ---
 app.post('/api/admin/reset-data', async (req, res) => {
     try {
         await client.query(`
@@ -114,38 +80,31 @@ app.post('/api/admin/reset-data', async (req, res) => {
             budgets, loans, goals, shopping_list, tasks, transactions, users 
             RESTART IDENTITY CASCADE
         `);
-        res.json({ success: true, message: "All data wiped successfully" });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- 3. User Management APIs ---
+// --- 3. User Auth (Secure) ---
 
-app.get('/api/public-users', async (req, res) => { 
-    try { 
-        const r = await client.query('SELECT id, name, role, birth_year, age_group FROM users ORDER BY role DESC, id ASC'); 
-        res.json(r.rows); 
-    } catch (e) { res.status(500).json({ error: e.message }); } 
-});
-
+// Login by Name + PIN
 app.post('/api/login', async (req, res) => { 
-    const { userId, pin } = req.body; 
+    const { name, pin } = req.body; 
     try { 
-        if (!userId && pin) { // Login by PIN only (if unique)
-            const r = await client.query('SELECT * FROM users WHERE pin_code = $1', [pin]); 
-            if (r.rows.length > 0) return res.json({ success: true, user: r.rows[0] }); 
-            return res.status(401).json({ success: false }); 
-        } 
-        const r = await client.query('SELECT * FROM users WHERE id = $1 AND pin_code = $2', [userId, pin]); 
+        // Case insensitive search for name
+        const r = await client.query('SELECT * FROM users WHERE LOWER(name) = LOWER($1) AND pin_code = $2', [name, pin]); 
         if (r.rows.length > 0) res.json({ success: true, user: r.rows[0] }); 
-        else res.status(401).json({ success: false }); 
+        else res.status(401).json({ success: false, message: "פרטים שגויים" }); 
     } catch (e) { res.status(500).json({ error: e.message }); } 
 });
 
+// Create User
 app.post('/api/create-user', async (req, res) => { 
     const { name, pin, role, birthYear } = req.body; 
     try { 
+        // Check if name exists
+        const check = await client.query('SELECT * FROM users WHERE LOWER(name) = LOWER($1)', [name]);
+        if(check.rows.length > 0) return res.status(400).json({error: "שם משתמש תפוס"});
+
         const currentYear = new Date().getFullYear();
         const age = currentYear - parseInt(birthYear);
         let ageGroup = 'adult';
@@ -157,25 +116,10 @@ app.post('/api/create-user', async (req, res) => {
         }
 
         await client.query(`INSERT INTO users (name, role, balance, pin_code, birth_year, age_group, weekly_allowance, interest_rate) VALUES ($1, $2, 0, $3, $4, $5, 0, 0)`, [name, role, pin, parseInt(birthYear), ageGroup]); 
-        await client.query(`INSERT INTO activity_log (user_id, action, icon) VALUES (NULL, $1, 'user-plus')`, [`משתמש חדש: ${name} (${age})`]); 
         res.json({ success: true }); 
     } catch (e) { res.status(500).json({ error: e.message }); } 
 });
 
-app.get('/api/data/:userId', async (req, res) => {
-  // נשאר זהה לקוד המקורי, נטפל בזה במודולים הבאים אם צריך
-  // כרגע נדרש רק כדי שהדשבורד יעלה אחרי לוגין
-  const userId = req.params.userId;
-  try {
-    const user = (await client.query('SELECT * FROM users WHERE id = $1', [userId])).rows[0];
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    let family = (await client.query('SELECT id, name, balance, role, birth_year, age_group, weekly_allowance, interest_rate, xp, pin_code FROM users ORDER BY id')).rows;
-    // החזרת נתונים ריקים בינתיים כדי לא לשבור את ה-Client
-    res.json({ user, transactions: [], family, tasks: [], shopping_list: [], goals: [], loans: [], quizzes: [] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- Fallback for HTML ---
+// Fallback
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.listen(port, () => { console.log(`Server running on port ${port}`); });
