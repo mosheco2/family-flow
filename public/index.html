@@ -209,13 +209,28 @@
             ]
         };
 
-        window.onload = () => {
+        // --- Init: Verify Session with Server (NEW FIX) ---
+        window.onload = async () => {
             const savedSession = localStorage.getItem('ofl_session');
             if(savedSession) {
-                const data = JSON.parse(savedSession);
-                currentUser = data.user;
-                currentGroup = data.group;
-                loadDashboard();
+                try {
+                    const session = JSON.parse(savedSession);
+                    // Verify if user actually exists on server
+                    const res = await fetch(`${API}/users/${session.user.id}`);
+                    if(res.ok) {
+                        const updatedUser = await res.json();
+                        currentUser = updatedUser;
+                        currentGroup = session.group;
+                        // Update session with fresh data
+                        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                        loadDashboard();
+                    } else {
+                        // User not found on server (DB was reset)
+                        logout(); 
+                    }
+                } catch(e) {
+                    logout();
+                }
             }
         };
 
