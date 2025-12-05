@@ -18,7 +18,7 @@ client.connect()
   .then(() => console.log('Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- 1. SETUP DB ---
+// --- SETUP DB ---
 app.get('/setup-db', async (req, res) => {
   try {
     const tables = ['shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
@@ -120,29 +120,23 @@ app.get('/setup-db', async (req, res) => {
       )
     `);
 
-    res.send(`<h1 style="color:green">System Reset & Upgrade V3 Complete ✅</h1>`);
+    res.send(`<h1 style="color:green">System Ready V3.1 (Fixes Applied) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
-// --- 2. AUTH ---
-
+// --- AUTH ---
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
-  
   try {
     await client.query('BEGIN');
     const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail]);
     if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'מייל קיים' }); }
-
     const gRes = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
     const groupId = gRes.rows[0].id;
     const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [groupId, adminNickname, password, parseInt(birthYear)||0]);
-    
-    // יצירת תקציבים (תיקון באג)
     const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'other'];
     for (const c of cats) await client.query(`INSERT INTO budgets (group_id, category, limit_amount) VALUES ($1, $2, 0)`, [groupId, c]);
-
     await client.query('COMMIT');
     res.json({ success: true, user: uRes.rows[0], group: { id: groupId, name: groupName, type, adminEmail } });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
@@ -184,7 +178,6 @@ app.get('/api/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Admin
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
@@ -195,17 +188,20 @@ app.get('/api/group/members', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// --- 3. DATA API ---
-
+// --- DATA ---
 app.get('/api/data/:userId', async (req, res) => {
   try {
     const user = (await client.query('SELECT * FROM users WHERE id = $1', [req.params.userId])).rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // Tasks Logic: Admin sees all, User sees theirs
+    // FIX 12-14: Task Visibility
+    // Admin sees all tasks. Users see tasks assigned to them.
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
-    if(user.role !== 'ADMIN') tasksSql += ` AND (t.assigned_to = ${user.id} OR t.status = 'pending')`;
+    if(user.role !== 'ADMIN') {
+      // Child sees only their tasks
+      tasksSql += ` AND t.assigned_to = ${user.id}`;
+    }
     tasksSql += ` ORDER BY t.created_at DESC`;
 
     const [tasks, shop, loans, budgets] = await Promise.all([
