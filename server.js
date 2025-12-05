@@ -173,11 +173,15 @@ app.get('/api/budget/filter', async (req, res) => {
 
     const budgets = await client.query(budgetQuery, queryParams);
     
+    // FIX 28: Allocations Logic
+    // Only specific income types from non-admin users count as "Allocations" from the main budget
+    // Categories: allowance, salary (chores), loans (when approved and money transferred)
     if(targetUserId === 'all') {
        const allowanceTotal = await client.query(`
         SELECT SUM(amount) as total FROM transactions t 
         JOIN users u ON t.user_id = u.id 
-        WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' AND (t.category = 'allowance' OR t.category = 'salary')
+        WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' 
+        AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'loans')
         AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
       `, [groupId]);
       budgetStatus.push({ category: 'allocations', label: 'הפרשות לילדים 👶', limit: 0, spent: parseFloat(allowanceTotal.rows[0].total || 0) });
