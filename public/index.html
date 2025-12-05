@@ -28,6 +28,10 @@
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
         @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+        /* Floating Menu Animation */
+        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .fab-open #fab-icon { transform: rotate(45deg); }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -51,6 +55,7 @@
                 </div>
             </div>
 
+            <!-- Login -->
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="email" id="login-email" required class="modern-input" placeholder="מייל קבוצה">
@@ -66,6 +71,7 @@
                 </div>
             </div>
 
+            <!-- Create -->
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
@@ -86,6 +92,7 @@
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
             </div>
 
+            <!-- Join -->
             <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
@@ -102,9 +109,12 @@
         <!-- DASHBOARD -->
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
             
+            <!-- Header -->
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div>
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
                     <div>
                         <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2>
                         <p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
@@ -113,6 +123,7 @@
                 <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
+            <!-- Slider Tabs -->
             <div class="relative px-2 mb-6 group">
                 <button onclick="scrollSlider(-100)" class="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm ml-1"><i class="fa-solid fa-chevron-left text-xs"></i></button>
                 <button onclick="scrollSlider(100)" class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm mr-1"><i class="fa-solid fa-chevron-right text-xs"></i></button>
@@ -195,9 +206,15 @@
                 </div>
             </div>
 
-            <div id="floating-actions" class="fixed bottom-8 left-0 w-full px-4 flex justify-center gap-6 pointer-events-none z-40">
-                <button onclick="openTransactionModal('expense')" class="pointer-events-auto bg-white text-red-500 w-16 h-16 rounded-2xl shadow-xl flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95 border-4 border-red-50"><i class="fa-solid fa-minus"></i></button>
-                <button onclick="openTransactionModal('income')" class="pointer-events-auto bg-blue-600 text-white w-16 h-16 rounded-2xl shadow-xl shadow-blue-300 flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95 border-4 border-blue-500"><i class="fa-solid fa-plus"></i></button>
+            <!-- FAB (Updated - Collapsible) -->
+            <div id="fab-container" class="fixed bottom-6 left-4 z-40 flex flex-col gap-3 items-center transition-all duration-300">
+                <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
+                    <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
+                    <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
+                </div>
+                <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex items-center justify-center text-2xl transition transform hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-plus transition-transform duration-300" id="fab-icon"></i>
+                </button>
             </div>
         </div>
 
@@ -233,6 +250,7 @@
             </div>
         </div>
 
+        <!-- Generic Modals -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3>
@@ -330,7 +348,6 @@
             document.getElementById('dash-nickname').innerText = currentUser.nickname;
             document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
             
-            // Fix 22 & 23: Child Button
             if(currentUser.role === 'ADMIN') {
                 document.getElementById('admin-panel').classList.remove('hidden');
                 document.getElementById('btn-add-task').classList.remove('hidden');
@@ -344,7 +361,7 @@
             if(!pollInterval) pollInterval = setInterval(() => { 
                 fetchData(); 
                 if(currentUser.role==='ADMIN') fetchPendingUsers();
-            }, 5000);
+            }, 3000); // Faster polling for immediate updates
 
             fetchMembers();
             fetchData();
@@ -366,7 +383,7 @@
                     tList.innerHTML+=`<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
                 });
 
-                // Budget (Updated to use dedicated fetch)
+                // Budget
                 fetchBudget();
 
                 // Tasks
@@ -412,9 +429,7 @@
         }
 
         async function fetchBudget() {
-            // Child sees personal budget
             const targetUserId = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
-            
             const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${targetUserId}`);
             const data = await res.json();
             const bList = document.getElementById('budget-list'); bList.innerHTML='';
@@ -425,7 +440,6 @@
                 const pct = Math.min(100, Math.round((b.spent/b.limit)*100)) || 0;
                 let color = 'bg-blue-500'; if(pct>75) color='bg-yellow-500'; if(pct>=100) color='bg-red-500';
                 
-                // Allocations Bar styling
                 if (b.category === 'allocations') {
                     bList.innerHTML+=`<div class="mb-5 p-3 bg-purple-50 rounded-xl border border-purple-100"><div class="flex justify-between text-sm mb-1 font-bold text-purple-700"><div>${b.label}</div><span>₪${b.spent}</span></div><div class="w-full bg-purple-200 rounded-full h-3"><div class="bg-purple-600 h-3 rounded-full" style="width:100%"></div></div></div>`;
                     return;
@@ -446,10 +460,12 @@
             // Populate Budget Filter
             if(currentUser.role === 'ADMIN') {
                 const filter = document.getElementById('budget-filter');
-                const currentVal = filter.value;
-                filter.innerHTML = '<option value="all">כל הבית</option>';
-                list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
-                if(currentVal) filter.value = currentVal;
+                if (filter.options.length <= 1) { // Avoid re-populating constantly
+                    const currentVal = filter.value;
+                    filter.innerHTML = '<option value="all">כל הבית</option>';
+                    list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
+                    if(currentVal) filter.value = currentVal;
+                }
             }
 
             const container = document.getElementById('members-list'); container.innerHTML = '';
@@ -545,7 +561,6 @@
         }
         
         async function updateTask(id, s) { 
-            // Fix 23: Auto-approve check logic happens on server, but we trigger confetti here
             if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti();
             await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); 
         }
@@ -567,6 +582,14 @@
         function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
+        
+        // FAB Toggle Function
+        function toggleFab() {
+            const container = document.getElementById('fab-container');
+            const icon = document.getElementById('fab-icon');
+            container.classList.toggle('fab-open');
+        }
+
         function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
         function val(id) { return document.getElementById(id).value; }
         
