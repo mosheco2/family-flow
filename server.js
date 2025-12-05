@@ -33,7 +33,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:green">System Ready V7.0 (Privacy & Automation) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Ready V8.0 (Final Polish) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -102,30 +102,25 @@ app.get('/api/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Admin
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
+
 app.post('/api/admin/approve-user', async (req, res) => {
   try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// Members API (Updated for Privacy - Fix 9)
 app.get('/api/group/members', async (req, res) => {
   const { groupId, requesterId } = req.query;
   try {
-    // Check if requester is Admin
     const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]);
     const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN';
-
     const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]);
     
-    // Filter sensitive data
     const members = r.rows.map(m => ({
       ...m,
-      balance: (isAdmin || m.id == requesterId) ? m.balance : null // Hide balance for others if not admin
+      balance: (isAdmin || m.id == requesterId) ? m.balance : null
     }));
-
     res.json(members);
   } catch (e) { res.status(500).json({error:e.message}); }
 });
@@ -137,17 +132,14 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // Tasks
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
     if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
     tasksSql += ` ORDER BY t.created_at DESC`;
 
-    // Loans
     let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
 
-    // Budget
     let budgetStatus = [];
     if (user.role !== 'ADMIN') {
         const budgets = await client.query(`SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`, [gid, user.id]);
@@ -167,7 +159,6 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Budget Filter (Admin)
 app.get('/api/budget/filter', async (req, res) => {
   const { groupId, targetUserId } = req.query;
   try {
@@ -212,8 +203,7 @@ app.get('/api/budget/filter', async (req, res) => {
 app.post('/api/budget/update', async (req, res) => {
   const { groupId, category, limit, targetUserId } = req.body;
   try {
-    let query = '';
-    let params = [];
+    let query = '', params = [];
     if (targetUserId && targetUserId !== 'all') {
         query = `UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND user_id = $3 AND category = $4`;
         params = [limit, groupId, targetUserId, category];
@@ -226,7 +216,6 @@ app.post('/api/budget/update', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Transactions (Admin sees all, User sees theirs)
 app.get('/api/transactions', async (req, res) => {
   try {
     const { groupId, userId, limit = 20 } = req.query;
@@ -253,7 +242,6 @@ app.post('/api/transaction', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Tasks
 app.post('/api/tasks', async (req, res) => {
   const { title, reward, assignedTo } = req.body;
   try {
@@ -269,13 +257,8 @@ app.post('/api/tasks/update', async (req, res) => {
     await client.query('BEGIN');
     let finalStatus = status;
     const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
-
-    // FIX 23: Auto-approve self/zero-reward tasks
-    if (status === 'done' && (t.reward == 0 || t.reward == null)) {
-        finalStatus = 'approved'; // Auto approve
-    } else if (status === 'completed_self') {
-        finalStatus = 'approved';
-    }
+    if (status === 'done' && (t.reward == 0 || t.reward == null)) finalStatus = 'approved';
+    else if (status === 'completed_self') finalStatus = 'approved';
 
     if (finalStatus === 'approved') {
       if (t && t.status !== 'approved') {
@@ -291,7 +274,6 @@ app.post('/api/tasks/update', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Shopping
 app.post('/api/shopping/add', async (req, res) => {
   const { itemName, userId } = req.body;
   try {
@@ -324,7 +306,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Loans
 app.post('/api/loans/request', async (req, res) => {
   const { userId, amount, reason } = req.body;
   try {
