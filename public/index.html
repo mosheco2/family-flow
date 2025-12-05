@@ -8,16 +8,15 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .tab-active { color: #2563eb; border-bottom: 2px solid #2563eb; background-color: #eff6ff; }
-        /* סרגל גלילה נסתר לטאבים */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* עיצוב טאבים משופר */
+        .tab-btn { color: #64748b; background: white; border: 1px solid #e2e8f0; }
+        .tab-active { color: #2563eb; border-color: #2563eb; background-color: #eff6ff; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body class="text-slate-800">
@@ -30,7 +29,7 @@
     <div class="min-h-screen flex items-center justify-center p-4">
         
         <!-- Auth Screens -->
-        <div id="auth-container" class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden fade-in">
+        <div id="auth-container" class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden fade-in border border-slate-100">
             <div class="p-8 text-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
                 <h1 class="text-3xl font-black tracking-tight mb-1">OneFlow <span class="text-blue-200">Life</span></h1>
                 <p class="text-blue-100 text-sm opacity-90">ניהול פיננסי חכם</p>
@@ -91,7 +90,7 @@
 
         <!-- Dashboard -->
         <div id="dashboard-container" class="w-full max-w-4xl hidden fade-in pb-32">
-            <header class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex justify-between items-center sticky top-4 z-10">
+            <header class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex justify-between items-center sticky top-4 z-10 border border-slate-100">
                 <div class="flex items-center gap-3">
                     <div id="group-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md"></div>
                     <div>
@@ -99,16 +98,17 @@
                         <p class="text-xs text-gray-500">שלום, <span id="dash-nickname" class="font-bold text-blue-600"></span></p>
                     </div>
                 </div>
-                <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <button onclick="logout()" class="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
-            <!-- Navigation Tabs -->
-            <div class="flex overflow-x-auto gap-2 bg-white rounded-2xl p-2 shadow-sm mb-6 no-scrollbar">
-                <button onclick="switchTab('feed')" id="tab-feed" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold transition tab-active whitespace-nowrap">פיד 📊</button>
-                <button onclick="switchTab('tasks')" id="tab-tasks" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition whitespace-nowrap">משימות ✅</button>
-                <button onclick="switchTab('shop')" id="tab-shop" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition whitespace-nowrap">קניות 🛒</button>
-                <button onclick="switchTab('loans')" id="tab-loans" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition whitespace-nowrap">הלוואות 💸</button>
-                <button onclick="switchTab('members')" id="tab-members" class="flex-1 py-2 px-4 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition whitespace-nowrap">ניהול 👥</button>
+            <!-- Navigation Tabs (Fix 10) -->
+            <div class="flex overflow-x-auto gap-2 mb-6 pb-2 no-scrollbar">
+                <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap tab-active">פיד 📊</button>
+                <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap">תקציב 💰</button>
+                <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap">משימות ✅</button>
+                <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap">קניות 🛒</button>
+                <button onclick="switchTab('loans')" id="tab-loans" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap">הלוואות 💸</button>
+                <button onclick="switchTab('members')" id="tab-members" class="tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap">ניהול 👥</button>
             </div>
 
             <!-- 1. FEED -->
@@ -121,23 +121,28 @@
                     <i class="fa-solid fa-wallet absolute -bottom-4 -right-4 text-9xl opacity-10"></i>
                 </div>
                 
-                <h3 class="font-bold text-gray-700 mb-3 px-1">תקציב חודשי</h3>
-                <div id="budget-list" class="space-y-3 mb-6 bg-white p-4 rounded-2xl shadow-sm"></div>
-
                 <h3 class="font-bold text-gray-700 mb-3 px-1">פעילות אחרונה</h3>
                 <div id="transactions-list" class="space-y-3"></div>
             </div>
 
-            <!-- 2. TASKS -->
+            <!-- 2. BUDGET (Fix 9) -->
+            <div id="content-budget" class="hidden">
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-teal-500"></i> סטטוס תקציב</h3>
+                    <div id="budget-list" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- 3. TASKS -->
             <div id="content-tasks" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-gray-700">משימות פתוחות</h3>
+                    <h3 class="font-bold text-gray-700">משימות</h3>
                     <button onclick="openTaskModal()" id="btn-add-task" class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold hidden">+ משימה</button>
                 </div>
                 <div id="tasks-list" class="space-y-3"></div>
             </div>
 
-            <!-- 3. SHOPPING -->
+            <!-- 4. SHOPPING -->
             <div id="content-shop" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="font-bold text-gray-700">רשימת קניות</h3>
@@ -150,7 +155,7 @@
                 </div>
             </div>
 
-            <!-- 4. LOANS -->
+            <!-- 5. LOANS -->
             <div id="content-loans" class="hidden space-y-4">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="font-bold text-gray-700">הלוואות</h3>
@@ -159,7 +164,7 @@
                 <div id="loans-list" class="space-y-3"></div>
             </div>
 
-            <!-- 5. MEMBERS -->
+            <!-- 6. MEMBERS -->
             <div id="content-members" class="hidden space-y-6">
                 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="p-4 border-b border-gray-50 bg-gray-50/50">
@@ -243,9 +248,17 @@
         let pollInterval = null;
         let membersCache = [];
 
+        // Fix 11: Expanded Categories
         const CATEGORIES = {
-            income: [ {value:'salary',label:'משכורת'}, {value:'allowance',label:'דמי כיס'}, {value:'other',label:'אחר'} ],
-            expense: [ {value:'food',label:'אוכל'}, {value:'groceries',label:'סופר'}, {value:'transport',label:'נסיעות'}, {value:'bills',label:'חשבונות'}, {value:'fun',label:'בילויים'}, {value:'other',label:'אחר'} ]
+            income: [ 
+                {value:'salary',label:'משכורת 💼'}, {value:'allowance',label:'דמי כיס 💰'}, {value:'gift',label:'מתנה 🎁'}, 
+                {value:'bonus',label:'בונוס 🌟'}, {value:'business',label:'עסק 🚀'}, {value:'other',label:'אחר ✨'} 
+            ],
+            expense: [ 
+                {value:'food',label:'אוכל 🍔'}, {value:'groceries',label:'סופר 🛒'}, {value:'transport',label:'נסיעות 🚌'}, 
+                {value:'bills',label:'חשבונות 📄'}, {value:'fun',label:'בילויים 🎉'}, {value:'clothes',label:'בגדים 👕'},
+                {value:'health',label:'בריאות 💊'}, {value:'education',label:'חינוך 📚'}, {value:'other',label:'אחר 💸'} 
+            ]
         };
 
         window.onload = async () => {
@@ -310,40 +323,48 @@
                 currentUser.balance = data.user.balance;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Render Transactions
+                // Transactions
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 recentT.forEach(t => tList.innerHTML+=`<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-50 flex justify-between items-center"><div><p class="font-bold text-gray-800">${t.description} <span class="text-xs text-gray-400">(${t.user_name})</span></p><p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`);
 
-                // Render Budget
+                // Budget (Fix 9)
                 const bList = document.getElementById('budget-list'); bList.innerHTML='';
+                if(data.budget_status.length === 0) bList.innerHTML = '<p class="text-gray-400 text-center text-sm py-4">אין תקציב מוגדר</p>';
                 data.budget_status.forEach(b => {
-                    const pct = Math.min(100, Math.round((b.spent/b.limit)*100));
-                    bList.innerHTML+=`<div class="mb-2"><div class="flex justify-between text-xs mb-1"><span class="font-bold text-gray-600">${b.category}</span><span>₪${b.spent}/₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width:${pct}%"></div></div></div>`;
+                    const pct = Math.min(100, Math.round((b.spent/b.limit)*100)) || 0;
+                    bList.innerHTML+=`<div class="mb-3"><div class="flex justify-between text-sm mb-1"><span class="font-bold text-gray-700">${b.category}</span><span class="text-gray-500 text-xs">₪${b.spent}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full transition-all duration-500" style="width:${pct}%"></div></div></div>`;
                 });
 
-                // Render Tasks
+                // Tasks (Fix 12, 13, 14)
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
                 data.tasks.forEach(t => {
                     let action = '';
-                    if(currentUser.role==='ADMIN' && t.status==='done') action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold">אשר</button>`;
-                    else if(currentUser.role!=='ADMIN' && t.status==='pending') action = `<button onclick="updateTask(${t.id}, 'done')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold">סיימתי</button>`;
-                    else action = `<span class="text-xs bg-gray-100 px-2 py-1 rounded">${t.status}</span>`;
-                    taskList.innerHTML+=`<div class="bg-white p-4 rounded-xl border border-gray-50 flex justify-between items-center"><div><p class="font-bold text-gray-800">${t.title}</p><p class="text-xs text-gray-400">עבור: ${t.assignee_name} | ₪${t.reward}</p></div>${action}</div>`;
+                    const isMyTask = t.assigned_to == currentUser.id;
+                    const isAdmin = currentUser.role === 'ADMIN';
+                    
+                    if(t.status === 'pending') {
+                        if(isAdmin && !isMyTask) action = `<span class="text-xs bg-gray-100 px-2 py-1 rounded">ממתין לביצוע</span>`;
+                        else action = `<button onclick="updateTask(${t.id}, 'done')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold">סיימתי</button>`;
+                    } else if (t.status === 'done') {
+                        if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold">אשר</button>`;
+                        else action = `<span class="text-xs text-orange-500 font-bold">ממתין לאישור</span>`;
+                    }
+                    taskList.innerHTML+=`<div class="bg-white p-4 rounded-xl border border-gray-50 flex justify-between items-center"><div><p class="font-bold text-gray-800">${t.title}</p><p class="text-xs text-gray-400">אחראי: ${t.assignee_name} | ₪${t.reward}</p></div>${action}</div>`;
                 });
 
-                // Render Shop
-                const sList = document.getElementById('shop-list'); sList.innerHTML='';
-                data.shopping_list.forEach(i => {
-                    sList.innerHTML+=`<div class="bg-white p-3 rounded-xl border border-gray-50 flex items-center gap-3"><input type="checkbox" ${i.status==='in_cart'?'checked':''} onchange="updateShop(${i.id}, this.checked ? 'in_cart' : 'pending')" class="w-5 h-5"><span class="${i.status==='in_cart'?'line-through text-gray-400':''} font-bold">${i.item_name}</span></div>`;
-                });
-
-                // Render Loans
+                // Loans (Fix 15)
                 const lList = document.getElementById('loans-list'); lList.innerHTML='';
                 data.loans.forEach(l => {
                     let action = '';
-                    if(currentUser.role==='ADMIN' && l.status==='pending') action = `<div class="flex gap-2"><button onclick="handleLoan(${l.id}, 'active')" class="bg-green-500 text-white px-2 py-1 rounded text-xs">אשר</button><button onclick="handleLoan(${l.id}, 'rejected')" class="bg-red-500 text-white px-2 py-1 rounded text-xs">דחה</button></div>`;
-                    lList.innerHTML+=`<div class="bg-white p-4 rounded-xl border border-gray-50 flex justify-between items-center"><div><p class="font-bold">${l.reason} (₪${l.original_amount})</p><p class="text-xs text-gray-400">${l.user_name} | ${l.status}</p></div>${action}</div>`;
+                    let badge = '';
+                    if(l.status==='active') badge = '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-bold">אושר ✅</span>';
+                    else if(l.status==='rejected') badge = '<span class="bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded-full font-bold">נדחה ❌</span>';
+                    else if(l.status==='pending') badge = '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded-full font-bold">ממתין ⏳</span>';
+
+                    if(currentUser.role==='ADMIN' && l.status==='pending') action = `<div class="flex gap-2 mt-2"><button onclick="handleLoan(${l.id}, 'active')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs">אשר</button><button onclick="handleLoan(${l.id}, 'rejected')" class="bg-red-500 text-white px-3 py-1 rounded-lg text-xs">דחה</button></div>`;
+                    
+                    lList.innerHTML+=`<div class="bg-white p-4 rounded-xl border border-gray-50 mb-2"> <div class="flex justify-between items-start"> <div><p class="font-bold text-gray-800">${l.reason}</p><p class="text-xs text-gray-500">${l.user_name} • ₪${l.original_amount}</p></div> ${badge} </div> ${action} </div>`;
                 });
 
             } catch(e) {}
@@ -352,7 +373,7 @@
         async function fetchMembers() {
             const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}`);
             const list = await res.json();
-            membersCache = list;
+            membersCache = list; // Update cache for dropdowns
             const container = document.getElementById('members-list'); container.innerHTML = '';
             list.forEach(m => container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-gray-50 last:border-0"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">${m.nickname[0]}</div><span class="font-bold text-sm">${m.nickname}</span></div><span class="text-xs font-bold text-gray-400">₪${m.balance}</span></div>`);
         }
@@ -368,12 +389,14 @@
         }
 
         function switchTab(t) {
-            ['feed','tasks','shop','loans','members'].forEach(x => {
+            ['feed','tasks','shop','loans','members','budget'].forEach(x => {
                 document.getElementById(`content-${x}`).classList.add('hidden');
-                document.getElementById(`tab-${x}`).className = 'flex-1 py-2 px-4 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition whitespace-nowrap';
+                document.getElementById(`tab-${x}`).className = 'tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap';
             });
             document.getElementById(`content-${t}`).classList.remove('hidden');
-            document.getElementById(`tab-${t}`).className = 'flex-1 py-2 px-4 rounded-xl text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition whitespace-nowrap';
+            document.getElementById(`tab-${t}`).className = 'tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap tab-active';
+            
+            // Fix 13: Refresh dropdown when opening tasks tab
             if(t==='tasks') {
                 const s = document.getElementById('task-assignee'); s.innerHTML='';
                 membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`);
