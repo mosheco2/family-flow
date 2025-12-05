@@ -18,7 +18,7 @@ client.connect()
   .then(() => console.log('Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- SETUP DB ---
+// --- 1. SETUP DB ---
 app.get('/setup-db', async (req, res) => {
   try {
     const tables = ['shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
@@ -120,7 +120,7 @@ app.get('/setup-db', async (req, res) => {
       )
     `);
 
-    res.send(`<h1 style="color:green">System Ready V3.1 (Fixes Applied) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Upgrade V4 (UI/UX Ready) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -178,6 +178,7 @@ app.get('/api/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Admin
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
@@ -185,7 +186,7 @@ app.post('/api/admin/approve-user', async (req, res) => {
   try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
 });
 app.get('/api/group/members', async (req, res) => {
-  try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
+  try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
 
 // --- DATA ---
@@ -195,11 +196,10 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // FIX 12-14: Task Visibility
-    // Admin sees all tasks. Users see tasks assigned to them.
+    // Fix 13 & 14: Task Visibility
+    // Admin sees all. Regular user sees ONLY their tasks.
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
     if(user.role !== 'ADMIN') {
-      // Child sees only their tasks
       tasksSql += ` AND t.assigned_to = ${user.id}`;
     }
     tasksSql += ` ORDER BY t.created_at DESC`;
@@ -251,7 +251,6 @@ app.post('/api/transaction', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Tasks
 app.post('/api/tasks', async (req, res) => {
   const { title, reward, assignedTo } = req.body;
   try {
@@ -262,23 +261,24 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.post('/api/tasks/update', async (req, res) => {
-  const { taskId, status } = req.body; 
+  const { taskId, status } = req.body; // 'done', 'approved', 'completed_self'
   try {
     await client.query('BEGIN');
-    if(status === 'approved') {
+    if(status === 'approved' || status === 'completed_self') {
       const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
-      if(t && t.status !== 'approved') {
+      if(t && t.status !== 'approved' && t.status !== 'completed_self') {
         await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]);
       }
     }
-    await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [status, taskId]);
+    // אם המנהל סוגר לעצמו, נסמן כ-approved כדי שיהיה אחיד
+    const finalStatus = status === 'completed_self' ? 'approved' : status;
+    await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [finalStatus, taskId]);
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Shopping
 app.post('/api/shopping/add', async (req, res) => {
   const { itemName, userId } = req.body;
   try {
@@ -311,7 +311,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// Loans
 app.post('/api/loans/request', async (req, res) => {
   const { userId, amount, reason } = req.body;
   try {
