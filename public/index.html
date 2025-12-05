@@ -214,20 +214,22 @@
                 </div>
             </div>
 
-            <!-- FAB (Actions) -->
-            <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300">
-                <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
-                    <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
-                    <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
-                </div>
-                <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95">
-                    <i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i>
-                    <span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span>
-                </button>
+            <!-- FAB (Moved Outside for Sticky Fix) -->
+        </div>
+        
+        <!-- FAB Container (Now direct child of Body) -->
+        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300">
+            <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
+                <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
+                <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
             </div>
+            <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95">
+                <i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i>
+                <span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span>
+            </button>
         </div>
 
-        <!-- Modals -->
+        <!-- Modals (Moved Outside) -->
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
                 <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
@@ -259,7 +261,6 @@
             </div>
         </div>
 
-        <!-- Generic Modals -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3>
@@ -307,7 +308,6 @@
         let currentGroup = null;
         let pollInterval = null;
         let membersCache = [];
-        // Color palette for users (Fix 26)
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 
         const CATEGORIES = {
@@ -369,7 +369,6 @@
                 document.getElementById('btn-self-task').classList.remove('hidden');
             }
             
-            // Fix 27: Slower polling (10s) to reduce flickering
             if(!pollInterval) pollInterval = setInterval(() => { 
                 fetchData(); 
                 if(currentUser.role==='ADMIN') fetchPendingUsers();
@@ -386,21 +385,17 @@
                 currentUser.balance = data.user.balance;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions (Fix 26: Colors)
-                const tList = document.getElementById('transactions-list'); 
-                // Don't clear innerHTML if we want smoother updates, but for now simplicity is key.
-                tList.innerHTML='';
+                // Transactions
+                const tList = document.getElementById('transactions-list'); tList.innerHTML='';
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => {
                     const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
-                    // Assign color based on user ID hash
                     const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
-                    
                     tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
                 });
 
-                // Budget (Updated to use dedicated fetch)
+                // Budget
                 fetchBudget();
 
                 // Tasks
@@ -477,7 +472,7 @@
             // Populate Budget Filter
             if(currentUser.role === 'ADMIN') {
                 const filter = document.getElementById('budget-filter');
-                if (filter.options.length <= 1) { // Avoid re-populating constantly
+                if (filter.options.length <= 1) { 
                     const currentVal = filter.value;
                     filter.innerHTML = '<option value="all">כל הבית</option>';
                     list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
@@ -503,7 +498,6 @@
             list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
         }
 
-        // Budget Update Functions
         function openBudgetModal(catId, catName, currentLimit) {
             document.getElementById('budget-cat-name').innerText = catName;
             document.getElementById('budget-cat-id').value = catId;
@@ -539,7 +533,6 @@
 
         async function submitTransaction() {
             const amount = val('trans-amount'); if(!amount) return;
-            // Shake Effect
             if(val('trans-type') === 'expense') triggerShake();
             else triggerConfetti();
 
@@ -550,11 +543,9 @@
             showToast('success', 'נשמר!'); fetchData();
         }
 
-        // Fix 22: Self Task Creation
         function openTaskModal(isSelf = false) {
             document.getElementById('task-modal').classList.remove('hidden');
             document.getElementById('task-is-self').value = isSelf;
-            
             if(isSelf) {
                 document.getElementById('task-modal-title').innerText = 'משימה אישית';
                 document.getElementById('task-reward-group').classList.add('hidden');
@@ -568,11 +559,9 @@
             const isSelf = document.getElementById('task-is-self').value === 'true';
             const assignee = isSelf ? currentUser.id : val('task-assignee');
             const reward = isSelf ? 0 : val('task-reward');
-            
             await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ 
                 title: val('task-title'), reward: reward, assignedTo: assignee 
             })});
-            
             if(isSelf) triggerConfetti();
             document.getElementById('task-modal').classList.add('hidden'); fetchData();
         }
@@ -584,8 +573,8 @@
         async function submitShopItem() { await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: val('shop-item'), userId: currentUser.id})}); document.getElementById('shop-modal').classList.add('hidden'); fetchData(); }
         async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
         async function checkout() { 
-            const total = prompt('סכום القנייה הכולל:'); if(!total) return;
-            triggerShake(); // Expense
+            const total = prompt('סכום הקנייה הכולל:'); if(!total) return;
+            triggerShake(); 
             await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({totalAmount:total, userId:currentUser.id, storeName:'סופר', items:[]})});
             fetchData();
         }
@@ -600,7 +589,6 @@
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
         
-        // FAB Toggle Function
         function toggleFab() {
             const container = document.getElementById('fab-container');
             const icon = document.getElementById('fab-icon');
@@ -635,3 +623,6 @@
     </script>
 </body>
 </html>
+
+
+
