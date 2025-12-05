@@ -33,7 +33,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:green">System Ready V5 (Loans Fixed) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Upgrade V5.1 (Budget Edit Added) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -48,7 +48,7 @@ app.post('/api/groups', async (req, res) => {
     const gRes = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
     const groupId = gRes.rows[0].id;
     const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [groupId, adminNickname, password, parseInt(birthYear)||0]);
-    const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'other'];
+    const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
     for (const c of cats) await client.query(`INSERT INTO budgets (group_id, category, limit_amount) VALUES ($1, $2, 0)`, [groupId, c]);
     await client.query('COMMIT');
     res.json({ success: true, user: uRes.rows[0], group: { id: groupId, name: groupName, type, adminEmail } });
@@ -109,12 +109,10 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // Tasks Visibility
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
     if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
     tasksSql += ` ORDER BY t.created_at DESC`;
 
-    // Loans Visibility (FIX FOR ISSUE 14/8)
     let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
@@ -123,7 +121,7 @@ app.get('/api/data/:userId', async (req, res) => {
       client.query(tasksSql, [gid]),
       client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]),
       client.query(loansSql, [gid]),
-      client.query(`SELECT * FROM budgets WHERE group_id = $1`, [gid])
+      client.query(`SELECT * FROM budgets WHERE group_id = $1 ORDER BY category`, [gid])
     ]);
 
     const budgetStatus = [];
@@ -160,6 +158,15 @@ app.post('/api/transaction', async (req, res) => {
     await client.query('COMMIT');
     res.json({ success: true, newBalance: uRes.rows[0].balance });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+});
+
+// Update Budget Limit (New)
+app.post('/api/budget/update', async (req, res) => {
+  const { groupId, category, limit } = req.body;
+  try {
+    await client.query(`UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND category = $3`, [limit, groupId, category]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/tasks', async (req, res) => {
