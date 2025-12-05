@@ -387,7 +387,6 @@
             finally { toggleLoader('save', false); }
         }
 
-        // Fetch with userId so server can filter
         async function fetchTransactions() {
             try {
                 const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=20`);
@@ -424,7 +423,17 @@
                     let color = 'bg-blue-500';
                     if(pct > 75) color = 'bg-yellow-500';
                     if(pct >= 100) color = 'bg-red-500';
-                    container.innerHTML += `<div><div class="flex justify-between text-sm mb-1"><span class="font-bold text-gray-700">${b.category}</span><span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div></div></div>`;
+                    const categoryMap = {
+                        'food': 'אוכל 🍔',
+                        'groceries': 'סופר ובית 🛒',
+                        'transport': 'נסיעות 🚌',
+                        'bills': 'חשבונות 📄',
+                        'fun': 'בילויים 🎉',
+                        'other': 'אחר 💸'
+                    };
+                    const label = categoryMap[b.category] || b.category;
+                    
+                    container.innerHTML += `<div><div class="flex justify-between text-sm mb-1"><span class="font-bold text-gray-700">${label}</span><span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div></div></div>`;
                 });
             } catch(e) {}
         }
