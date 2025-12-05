@@ -24,103 +24,16 @@ app.get('/setup-db', async (req, res) => {
     const tables = ['shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
     for (const t of tables) await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
 
-    await client.query(`
-      CREATE TABLE groups (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        admin_email VARCHAR(255) UNIQUE NOT NULL,
-        type VARCHAR(20) CHECK (type IN ('FAMILY', 'GROUP')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    await client.query(`CREATE TABLE groups (id SERIAL PRIMARY KEY, name VARCHAR(100), admin_email VARCHAR(255) UNIQUE, type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(255), role VARCHAR(20), status VARCHAR(20) DEFAULT 'PENDING', birth_year INTEGER, balance DECIMAL(10, 2) DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(group_id, nickname))`);
+    await client.query(`CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, amount DECIMAL(10, 2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2), UNIQUE(group_id, category))`);
+    await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', estimated_price DECIMAL(10, 2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    await client.query(`
-      CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        nickname VARCHAR(50) NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(20) CHECK (role IN ('ADMIN', 'MEMBER', 'CHILD')),
-        status VARCHAR(20) DEFAULT 'PENDING',
-        birth_year INTEGER,
-        balance DECIMAL(10, 2) DEFAULT 0,
-        xp INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(group_id, nickname)
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE transactions (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        amount DECIMAL(10, 2) NOT NULL,
-        description VARCHAR(255),
-        category VARCHAR(50),
-        type VARCHAR(20),
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE budgets (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        category VARCHAR(50) NOT NULL,
-        limit_amount DECIMAL(10, 2) NOT NULL,
-        UNIQUE(group_id, category)
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE tasks (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        title VARCHAR(255) NOT NULL,
-        reward DECIMAL(10, 2) NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending', 
-        assigned_to INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE shopping_list (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        item_name VARCHAR(255) NOT NULL,
-        requested_by INTEGER REFERENCES users(id),
-        status VARCHAR(20) DEFAULT 'pending',
-        estimated_price DECIMAL(10, 2) DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE shopping_trips (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id),
-        store_name VARCHAR(100),
-        total_amount DECIMAL(10, 2),
-        trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE loans (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-        original_amount DECIMAL(10, 2) NOT NULL,
-        remaining_amount DECIMAL(10, 2) NOT NULL,
-        reason VARCHAR(255),
-        status VARCHAR(20) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    res.send(`<h1 style="color:green">System Upgrade V4 (UI/UX Ready) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Ready V5 (Loans Fixed) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -196,28 +109,26 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // Fix 13 & 14: Task Visibility
-    // Admin sees all. Regular user sees ONLY their tasks.
+    // Tasks Visibility
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
-    if(user.role !== 'ADMIN') {
-      tasksSql += ` AND t.assigned_to = ${user.id}`;
-    }
+    if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
     tasksSql += ` ORDER BY t.created_at DESC`;
+
+    // Loans Visibility (FIX FOR ISSUE 14/8)
+    let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
+    if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
+    loansSql += ` ORDER BY l.created_at DESC`;
 
     const [tasks, shop, loans, budgets] = await Promise.all([
       client.query(tasksSql, [gid]),
       client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]),
-      client.query(`SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`, [gid]),
+      client.query(loansSql, [gid]),
       client.query(`SELECT * FROM budgets WHERE group_id = $1`, [gid])
     ]);
 
     const budgetStatus = [];
     for (const b of budgets.rows) {
-      const spent = await client.query(`
-        SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id 
-        WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' 
-        AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
-      `, [gid, b.category]);
+      const spent = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`, [gid, b.category]);
       budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) });
     }
 
@@ -261,7 +172,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.post('/api/tasks/update', async (req, res) => {
-  const { taskId, status } = req.body; // 'done', 'approved', 'completed_self'
+  const { taskId, status } = req.body; 
   try {
     await client.query('BEGIN');
     if(status === 'approved' || status === 'completed_self') {
@@ -271,7 +182,6 @@ app.post('/api/tasks/update', async (req, res) => {
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]);
       }
     }
-    // אם המנהל סוגר לעצמו, נסמן כ-approved כדי שיהיה אחיד
     const finalStatus = status === 'completed_self' ? 'approved' : status;
     await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [finalStatus, taskId]);
     await client.query('COMMIT');
