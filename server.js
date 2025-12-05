@@ -33,7 +33,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:green">System Ready V8.0 (Final Polish) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Ready V8.1 (UI Polish) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -105,11 +105,9 @@ app.get('/api/users/:id', async (req, res) => {
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
-
 app.post('/api/admin/approve-user', async (req, res) => {
   try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
 });
-
 app.get('/api/group/members', async (req, res) => {
   const { groupId, requesterId } = req.query;
   try {
@@ -173,9 +171,6 @@ app.get('/api/budget/filter', async (req, res) => {
 
     const budgets = await client.query(budgetQuery, queryParams);
     
-    // FIX 28: Allocations Logic
-    // Only specific income types from non-admin users count as "Allocations" from the main budget
-    // Categories: allowance, salary (chores), loans (when approved and money transferred)
     if(targetUserId === 'all') {
        const allowanceTotal = await client.query(`
         SELECT SUM(amount) as total FROM transactions t 
