@@ -14,6 +14,7 @@
         .hidden { display: none !important; }
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-active { color: #2563eb; border-bottom: 2px solid #2563eb; background-color: #eff6ff; }
     </style>
 </head>
 <body class="text-slate-800">
@@ -25,14 +26,14 @@
 
     <div class="min-h-screen flex items-center justify-center p-4">
         
-        <!-- Auth Container -->
+        <!-- Auth Screens (Same as before) -->
         <div id="auth-container" class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden fade-in">
             <div class="p-8 text-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
                 <h1 class="text-3xl font-black tracking-tight mb-1">OneFlow <span class="text-blue-200">Life</span></h1>
                 <p class="text-blue-100 text-sm opacity-90">ניהול פיננסי חכם</p>
             </div>
 
-            <!-- Login View -->
+            <!-- Login -->
             <div id="view-login" class="p-8">
                 <h2 class="text-xl font-bold mb-6 text-gray-800">כניסה</h2>
                 <form onsubmit="handleLogin(event)" class="space-y-4">
@@ -50,7 +51,7 @@
                 </div>
             </div>
 
-            <!-- Create View -->
+            <!-- Create -->
             <div id="view-create" class="p-8 hidden">
                 <h2 class="text-xl font-bold mb-2 text-gray-800">הקמת קבוצה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
@@ -71,7 +72,7 @@
                 <button onclick="switchView('login')" class="w-full mt-4 text-gray-400 text-sm">ביטול</button>
             </div>
 
-            <!-- Join View -->
+            <!-- Join -->
             <div id="view-join" class="p-8 hidden">
                 <h2 class="text-xl font-bold mb-2 text-gray-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
@@ -85,8 +86,8 @@
             </div>
         </div>
 
-        <!-- Dashboard Module 1 -->
-        <div id="dashboard-container" class="w-full max-w-4xl hidden fade-in pb-20">
+        <!-- Dashboard Module 2 -->
+        <div id="dashboard-container" class="w-full max-w-4xl hidden fade-in pb-24">
             <header class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex justify-between items-center sticky top-4 z-10">
                 <div class="flex items-center gap-3">
                     <div id="group-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md"></div>
@@ -98,38 +99,91 @@
                 <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Status Card -->
-                <div class="md:col-span-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-3xl shadow-lg flex justify-between items-center">
-                    <div>
-                        <h2 class="text-2xl font-bold mb-1">OneFlow Life</h2>
-                        <p class="opacity-80 text-sm" id="welcome-msg"></p>
+            <!-- Navigation Tabs -->
+            <div class="flex bg-white rounded-2xl p-1 shadow-sm mb-6">
+                <button onclick="switchTab('feed')" id="tab-feed" class="flex-1 py-2 rounded-xl text-sm font-bold transition tab-active">פיד תנועות</button>
+                <button onclick="switchTab('budget')" id="tab-budget" class="flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition">תקציב</button>
+                <button onclick="switchTab('members')" id="tab-members" class="flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition">משתמשים</button>
+            </div>
+
+            <!-- Tab Content -->
+            
+            <!-- 1. FEED & BALANCE -->
+            <div id="content-feed">
+                <!-- Balance Card -->
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-8 rounded-3xl shadow-lg text-center mb-6 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-indigo-200 text-sm font-medium mb-1">היתרה שלך</p>
+                        <h1 class="text-5xl font-black tracking-tight" id="user-balance">₪0.00</h1>
                     </div>
-                    <div class="text-4xl opacity-20"><i class="fa-solid fa-users"></i></div>
+                    <i class="fa-solid fa-wallet absolute -bottom-4 -right-4 text-9xl opacity-10"></i>
                 </div>
 
-                <!-- Active Members List (FIX FOR ISSUE 6) -->
-                <div class="md:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <!-- Recent Transactions -->
+                <h3 class="font-bold text-gray-700 mb-3 px-1">פעילות אחרונה</h3>
+                <div id="transactions-list" class="space-y-3">
+                    <p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>
+                </div>
+            </div>
+
+            <!-- 2. BUDGET -->
+            <div id="content-budget" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-teal-500"></i> מצב התקציב (חודשי)</h3>
+                    <div id="budget-list" class="space-y-4">
+                        <!-- Bars injected here -->
+                        <p class="text-center text-gray-400 text-sm">טוען נתונים...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. MEMBERS (Existing Module 1) -->
+            <div id="content-members" class="hidden space-y-6">
+                <!-- Active Members -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="p-4 border-b border-gray-50 bg-gray-50/50">
                         <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> חברי הקבוצה</h3>
                     </div>
-                    <div id="members-list" class="divide-y divide-gray-50 p-2">
-                        <p class="text-center text-gray-400 py-4 text-sm">טוען...</p>
-                    </div>
+                    <div id="members-list" class="divide-y divide-gray-50 p-2"></div>
                 </div>
-
-                <!-- Admin: Pending Requests -->
-                <div id="admin-panel" class="md:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hidden">
+                <!-- Admin Pending -->
+                <div id="admin-panel" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hidden">
                     <div class="p-4 border-b border-gray-50 bg-yellow-50/50 flex justify-between items-center">
                         <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-user-clock text-yellow-500"></i> ממתינים לאישור</h3>
                         <span id="pending-count" class="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full hidden">0</span>
                     </div>
-                    <div id="pending-list" class="divide-y divide-gray-50 p-2">
-                        <p class="text-center text-gray-400 py-4 text-sm">אין בקשות חדשות.</p>
-                    </div>
+                    <div id="pending-list" class="divide-y divide-gray-50 p-2"></div>
+                </div>
+            </div>
+
+            <!-- Floating Action Buttons -->
+            <div class="fixed bottom-6 left-0 w-full px-4 flex justify-center gap-4 pointer-events-none z-20">
+                <button onclick="openTransactionModal('expense')" class="pointer-events-auto bg-red-500 hover:bg-red-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95"><i class="fa-solid fa-minus"></i></button>
+                <button onclick="openTransactionModal('income')" class="pointer-events-auto bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95"><i class="fa-solid fa-plus"></i></button>
+            </div>
+        </div>
+
+        <!-- Transaction Modal -->
+        <div id="transaction-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-[fadeIn_0.2s_ease-out]">
+                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-gray-800">תנועה חדשה</h3>
+                <input type="hidden" id="trans-type">
+                <input type="number" id="trans-amount" class="w-full p-4 border-2 rounded-2xl mb-3 text-3xl text-center font-bold outline-none focus:border-blue-500" placeholder="0.00">
+                <input type="text" id="trans-desc" class="w-full p-3 border rounded-xl mb-3 outline-none" placeholder="תיאור (למשל: פיצה)">
+                <select id="trans-cat" class="w-full p-3 border rounded-xl mb-6 bg-white outline-none">
+                    <option value="food">אוכל 🍔</option>
+                    <option value="transport">נסיעות 🚌</option>
+                    <option value="general">כללי 🛒</option>
+                    <option value="bills">חשבונות 📄</option>
+                    <option value="fun">בילויים 🎉</option>
+                </select>
+                <div class="flex gap-3">
+                    <button onclick="closeTransModal()" class="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600">ביטול</button>
+                    <button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">שמור</button>
                 </div>
             </div>
         </div>
+
     </div>
 
     <script>
@@ -138,7 +192,6 @@
         let currentGroup = null;
         let pollInterval = null;
 
-        // --- Init: Check Session (FIX FOR ISSUE 8) ---
         window.onload = () => {
             const savedSession = localStorage.getItem('ofl_session');
             if(savedSession) {
@@ -154,79 +207,78 @@
             document.getElementById(`view-${viewName}`).classList.remove('hidden');
         }
 
+        function switchTab(tabName) {
+            ['feed', 'budget', 'members'].forEach(t => {
+                document.getElementById(`content-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).className = 'flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition';
+            });
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-2 rounded-xl text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition';
+        }
+
         function selectType(type) {
             document.getElementById('create-type').value = type;
-            const activeClass = 'border-blue-500 bg-blue-50 text-blue-700';
-            const inactiveClass = 'border-gray-100 text-gray-400 hover:border-blue-200';
-            document.getElementById('type-family').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type === 'FAMILY' ? activeClass : inactiveClass}`;
-            document.getElementById('type-group').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type === 'GROUP' ? activeClass : inactiveClass}`;
+            const active = 'border-blue-500 bg-blue-50 text-blue-700';
+            const inactive = 'border-gray-100 text-gray-400 hover:border-blue-200';
+            document.getElementById('type-family').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type==='FAMILY'?active:inactive}`;
+            document.getElementById('type-group').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type==='GROUP'?active:inactive}`;
         }
 
         async function handleLogin(e) {
             e.preventDefault();
             toggleLoader('login', true);
-            const payload = {
-                groupEmail: document.getElementById('login-email').value,
-                nickname: document.getElementById('login-nickname').value,
-                password: document.getElementById('login-password').value
-            };
             try {
-                const res = await fetch(`${API}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                    groupEmail: document.getElementById('login-email').value,
+                    nickname: document.getElementById('login-nickname').value,
+                    password: document.getElementById('login-password').value
+                })});
                 const data = await res.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    currentGroup = data.group;
-                    // Save Session
-                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-                    showToast('success', 'התחברת בהצלחה!');
+                if(data.success) {
+                    currentUser = data.user; currentGroup = data.group;
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
                     loadDashboard();
-                } else { showToast('error', data.error); }
-            } catch (err) { showToast('error', 'שגיאת תקשורת'); }
+                } else showToast('error', data.error);
+            } catch(e) { showToast('error', 'שגיאת תקשורת'); }
             finally { toggleLoader('login', false); }
         }
 
         async function handleCreate(e) {
             e.preventDefault();
             toggleLoader('create', true);
-            const payload = {
-                type: document.getElementById('create-type').value,
-                groupName: document.getElementById('create-group-name').value,
-                adminEmail: document.getElementById('create-email').value,
-                adminNickname: document.getElementById('create-nickname').value,
-                birthYear: document.getElementById('create-year').value,
-                password: document.getElementById('create-password').value
-            };
             try {
-                const res = await fetch(`${API}/groups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                    type: document.getElementById('create-type').value,
+                    groupName: document.getElementById('create-group-name').value,
+                    adminEmail: document.getElementById('create-email').value,
+                    adminNickname: document.getElementById('create-nickname').value,
+                    birthYear: document.getElementById('create-year').value,
+                    password: document.getElementById('create-password').value
+                })});
                 const data = await res.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    currentGroup = data.group;
-                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-                    showToast('success', 'הקבוצה נוצרה!');
+                if(data.success) {
+                    currentUser = data.user; currentGroup = data.group;
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
                     loadDashboard();
-                } else { showToast('error', data.error); }
-            } catch (err) { showToast('error', 'שגיאה ביצירה'); }
+                } else showToast('error', data.error);
+            } catch(e) { showToast('error', 'שגיאה ביצירה'); }
             finally { toggleLoader('create', false); }
         }
 
         async function handleJoin(e) {
             e.preventDefault();
             toggleLoader('join', true);
-            const payload = {
-                groupEmail: document.getElementById('join-email').value,
-                nickname: document.getElementById('join-nickname').value,
-                birthYear: document.getElementById('join-year').value,
-                password: document.getElementById('join-password').value
-            };
             try {
-                const res = await fetch(`${API}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                    groupEmail: document.getElementById('join-email').value,
+                    nickname: document.getElementById('join-nickname').value,
+                    birthYear: document.getElementById('join-year').value,
+                    password: document.getElementById('join-password').value
+                })});
                 const data = await res.json();
-                if (data.success) {
-                    showToast('success', 'בקשה נשלחה בהצלחה!');
-                    switchView('login');
-                } else { showToast('error', data.error); }
-            } catch (err) { showToast('error', 'שגיאת תקשורת'); }
+                if(data.success) { showToast('success', 'נשלח!'); switchView('login'); }
+                else showToast('error', data.error);
+            } catch(e) { showToast('error', 'שגיאה'); }
             finally { toggleLoader('join', false); }
         }
 
@@ -236,95 +288,167 @@
             
             document.getElementById('dash-group-name').innerText = currentGroup.name;
             document.getElementById('dash-nickname').innerText = currentUser.nickname;
-            document.getElementById('welcome-msg').innerText = `ברוכים הבאים ל${currentGroup.name}`;
+            document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
 
             const iconDiv = document.getElementById('group-icon');
             iconDiv.className = `w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md ${currentGroup.type==='FAMILY'?'bg-pink-500':'bg-blue-500'}`;
             iconDiv.innerHTML = currentGroup.type==='FAMILY'?'<i class="fa-solid fa-heart"></i>':'<i class="fa-solid fa-briefcase"></i>';
 
-            fetchMembers(); // Show active members
+            fetchMembers();
+            fetchTransactions();
+            fetchBudget();
 
             if (currentUser.role === 'ADMIN') {
                 document.getElementById('admin-panel').classList.remove('hidden');
                 fetchPendingUsers();
-                // Polling for updates every 5 seconds (FIX FOR ISSUE 7)
                 if(!pollInterval) pollInterval = setInterval(() => { fetchPendingUsers(); fetchMembers(); }, 5000);
             }
         }
 
+        // --- Module 2 Logic ---
+
+        function openTransactionModal(type) {
+            document.getElementById('trans-type').value = type;
+            document.getElementById('trans-modal-title').innerText = type === 'income' ? 'הכנסה חדשה' : 'הוצאה חדשה';
+            document.getElementById('trans-amount').value = '';
+            document.getElementById('transaction-modal').classList.remove('hidden');
+            document.getElementById('trans-amount').focus();
+        }
+
+        function closeTransModal() {
+            document.getElementById('transaction-modal').classList.add('hidden');
+        }
+
+        async function submitTransaction() {
+            const amount = document.getElementById('trans-amount').value;
+            const desc = document.getElementById('trans-desc').value;
+            const cat = document.getElementById('trans-cat').value;
+            const type = document.getElementById('trans-type').value;
+
+            if(!amount) return;
+
+            try {
+                const res = await fetch(`${API}/transaction`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
+                    userId: currentUser.id,
+                    groupId: currentGroup.id,
+                    amount, type, category: cat, description: desc || (type==='income'?'הכנסה':'קנייה')
+                })});
+                const data = await res.json();
+                if(data.success) {
+                    currentUser.balance = data.newBalance;
+                    document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+                    
+                    showToast('success', 'נשמר!');
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+                    closeTransModal();
+                    fetchTransactions();
+                    fetchBudget();
+                }
+            } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+        }
+
+        async function fetchTransactions() {
+            try {
+                const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&limit=20`);
+                const list = await res.json();
+                const container = document.getElementById('transactions-list');
+                container.innerHTML = '';
+                
+                if(list.length === 0) {
+                    container.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>';
+                    return;
+                }
+
+                list.forEach(t => {
+                    const isIncome = t.type === 'income';
+                    container.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-gray-800">${t.description} <span class="text-xs text-gray-400 font-normal">(${t.user_name})</span></p>
+                                <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()} • ${t.category}</p>
+                            </div>
+                            <span class="font-bold text-lg ${isIncome ? 'text-green-500' : 'text-red-500'}">
+                                ${isIncome ? '+' : '-'}₪${t.amount}
+                            </span>
+                        </div>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function fetchBudget() {
+            try {
+                const res = await fetch(`${API}/budget?groupId=${currentGroup.id}`);
+                const data = await res.json();
+                const container = document.getElementById('budget-list');
+                container.innerHTML = '';
+
+                const cats = { 'food': 'אוכל', 'transport': 'נסיעות', 'general': 'כללי', 'bills': 'חשבונות', 'fun': 'בילויים' };
+
+                data.forEach(b => {
+                    const pct = Math.min(100, Math.round((b.spent / b.limit) * 100));
+                    let color = 'bg-blue-500';
+                    if(pct > 75) color = 'bg-yellow-500';
+                    if(pct >= 100) color = 'bg-red-500';
+
+                    container.innerHTML += `
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-bold text-gray-700">${cats[b.category] || b.category}</span>
+                                <span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2.5">
+                                <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        // --- Module 1 Logic (Preserved) ---
         async function fetchMembers() {
             try {
                 const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}`);
-                const members = await res.json();
-                const list = document.getElementById('members-list');
-                list.innerHTML = '';
-                members.forEach(m => {
-                    const roleBadge = m.role === 'ADMIN' ? '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">מנהל</span>' : '';
-                    list.innerHTML += `<div class="p-3 flex items-center justify-between"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-sm">${m.nickname[0]}</div><div><p class="font-bold text-gray-800 text-sm">${m.nickname} ${roleBadge}</p></div></div><span class="text-xs font-bold text-gray-400">₪${m.balance}</span></div>`;
+                const list = await res.json();
+                const container = document.getElementById('members-list');
+                container.innerHTML = '';
+                list.forEach(m => {
+                    const badge = m.role==='ADMIN' ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] mr-1">מנהל</span>' : '';
+                    container.innerHTML += `<div class="p-3 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">${m.nickname[0]}</div><div><span class="font-bold text-gray-800 text-sm">${m.nickname}</span>${badge}</div></div><span class="text-xs font-bold text-gray-400">₪${m.balance}</span></div>`;
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) {}
         }
 
         async function fetchPendingUsers() {
             try {
                 const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const users = await res.json();
-                const list = document.getElementById('pending-list');
+                const list = await res.json();
+                const container = document.getElementById('pending-list');
                 const badge = document.getElementById('pending-count');
-                
-                if (users.length === 0) {
-                    list.innerHTML = '<p class="text-center text-gray-400 py-4 text-xs">אין בקשות חדשות.</p>';
-                    badge.classList.add('hidden');
-                    return;
-                }
-                
-                // Show notification only if count increased
-                if(badge.classList.contains('hidden') || parseInt(badge.innerText) < users.length) {
-                    // Optional: Play sound or visual cue
-                }
-
-                badge.innerText = users.length;
-                badge.classList.remove('hidden');
-                list.innerHTML = '';
-
-                users.forEach(u => {
-                    list.innerHTML += `<div class="p-3 flex items-center justify-between bg-yellow-50/50 rounded-lg mb-2"><div><p class="font-bold text-gray-800 text-sm">${u.nickname}</p><p class="text-[10px] text-gray-500">נולד/ה ב-${u.birth_year}</p></div><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-green-600 transition">אשר</button></div>`;
-                });
-            } catch (err) { console.error(err); }
+                if(list.length===0) { container.innerHTML='<p class="text-center text-gray-400 text-xs py-2">אין בקשות</p>'; badge.classList.add('hidden'); return; }
+                badge.innerText = list.length; badge.classList.remove('hidden');
+                container.innerHTML = '';
+                list.forEach(u => container.innerHTML += `<div class="p-2 flex justify-between bg-yellow-50 rounded mb-1"><span class="font-bold text-sm">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-2 py-1 rounded">אשר</button></div>`);
+            } catch(e) {}
         }
 
-        async function approveUser(userId) {
-            try {
-                await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
-                showToast('success', 'אושר בהצלחה!');
-                confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-                fetchPendingUsers();
-                fetchMembers();
-            } catch (err) { showToast('error', 'שגיאה באישור'); }
+        async function approveUser(id) {
+            await fetch(`${API}/admin/approve-user`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id}) });
+            showToast('success', 'אושר!'); fetchPendingUsers(); fetchMembers();
         }
 
-        function logout() {
-            localStorage.removeItem('ofl_session');
-            if(pollInterval) clearInterval(pollInterval);
-            location.reload();
+        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
+        function toggleLoader(act, show) {
+            document.getElementById(`btn-${act}-text`).classList.toggle('hidden', show);
+            document.getElementById(`btn-${act}-loader`).classList.toggle('hidden', !show);
         }
-
-        function toggleLoader(action, isLoading) {
-            const btnText = document.getElementById(`btn-${action}-text`);
-            const loader = document.getElementById(`btn-${action}-loader`);
-            if (isLoading) { btnText.classList.add('hidden'); loader.classList.remove('hidden'); }
-            else { btnText.classList.remove('hidden'); loader.classList.add('hidden'); }
-        }
-
-        function showToast(type, message) {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const text = document.getElementById('toast-message');
-            toast.classList.remove('hidden');
-            text.innerText = message;
-            toast.className = `fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-lg border z-50 flex items-center gap-2 animate-bounce ${type==='success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`;
-            icon.className = type==='success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation';
-            setTimeout(() => toast.classList.add('hidden'), 4000);
+        function showToast(type, msg) {
+            const t = document.getElementById('toast');
+            t.classList.remove('hidden');
+            document.getElementById('toast-message').innerText = msg;
+            setTimeout(() => t.classList.add('hidden'), 3000);
         }
     </script>
 </body>
