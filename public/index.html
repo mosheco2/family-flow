@@ -29,7 +29,7 @@
         .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
         @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
 
-        /* Floating Menu Animation */
+        /* FAB Animation */
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
     </style>
@@ -127,6 +127,7 @@
             <div class="relative px-2 mb-6 group">
                 <button onclick="scrollSlider(-100)" class="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm ml-1"><i class="fa-solid fa-chevron-left text-xs"></i></button>
                 <button onclick="scrollSlider(100)" class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm mr-1"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+
                 <div class="slider-scroll" id="slider-scroll">
                     <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                     <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
@@ -137,7 +138,9 @@
                 </div>
             </div>
 
+            <!-- Content -->
             <div class="px-2">
+                <!-- 1. FEED -->
                 <div id="content-feed">
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
@@ -148,6 +151,7 @@
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
 
+                <!-- 2. BUDGET -->
                 <div id="content-budget" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                         <div class="flex justify-between items-center mb-6">
@@ -158,6 +162,7 @@
                     </div>
                 </div>
 
+                <!-- 3. TASKS -->
                 <div id="content-tasks" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
@@ -169,6 +174,7 @@
                     <div id="tasks-list" class="space-y-3 pb-20"></div>
                 </div>
 
+                <!-- 4. SHOPPING -->
                 <div id="content-shop" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">רשימת קניות</h3>
@@ -181,6 +187,7 @@
                     </div>
                 </div>
 
+                <!-- 5. LOANS -->
                 <div id="content-loans" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">הלוואות</h3>
@@ -189,6 +196,7 @@
                     <div id="loans-list" class="space-y-3 pb-20"></div>
                 </div>
 
+                <!-- 6. MEMBERS -->
                 <div id="content-members" class="hidden space-y-6">
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50">
@@ -206,14 +214,15 @@
                 </div>
             </div>
 
-            <!-- FAB (Updated - Collapsible) -->
-            <div id="fab-container" class="fixed bottom-6 left-4 z-40 flex flex-col gap-3 items-center transition-all duration-300">
+            <!-- FAB (Actions) -->
+            <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300">
                 <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                     <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
                     <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
                 </div>
-                <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex items-center justify-center text-2xl transition transform hover:scale-105 active:scale-95">
-                    <i class="fa-solid fa-plus transition-transform duration-300" id="fab-icon"></i>
+                <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i>
+                    <span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span>
                 </button>
             </div>
         </div>
@@ -298,6 +307,8 @@
         let currentGroup = null;
         let pollInterval = null;
         let membersCache = [];
+        // Color palette for users (Fix 26)
+        const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 
         const CATEGORIES = {
             income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'gift',label:'🎁 מתנה'}, {value:'bonus',label:'🌟 בונוס'}, {value:'business',label:'🚀 עסק'}, {value:'other',label:'✨ אחר'} ],
@@ -358,10 +369,11 @@
                 document.getElementById('btn-self-task').classList.remove('hidden');
             }
             
+            // Fix 27: Slower polling (10s) to reduce flickering
             if(!pollInterval) pollInterval = setInterval(() => { 
                 fetchData(); 
                 if(currentUser.role==='ADMIN') fetchPendingUsers();
-            }, 3000); // Faster polling for immediate updates
+            }, 10000);
 
             fetchMembers();
             fetchData();
@@ -374,16 +386,21 @@
                 currentUser.balance = data.user.balance;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions (Admin sees all w/ names, Child sees theirs)
-                const tList = document.getElementById('transactions-list'); tList.innerHTML='';
+                // Transactions (Fix 26: Colors)
+                const tList = document.getElementById('transactions-list'); 
+                // Don't clear innerHTML if we want smoother updates, but for now simplicity is key.
+                tList.innerHTML='';
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => {
                     const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
-                    tList.innerHTML+=`<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
+                    // Assign color based on user ID hash
+                    const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
+                    
+                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
                 });
 
-                // Budget
+                // Budget (Updated to use dedicated fetch)
                 fetchBudget();
 
                 // Tasks
@@ -567,7 +584,7 @@
         async function submitShopItem() { await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: val('shop-item'), userId: currentUser.id})}); document.getElementById('shop-modal').classList.add('hidden'); fetchData(); }
         async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
         async function checkout() { 
-            const total = prompt('סכום הקנייה הכולל:'); if(!total) return;
+            const total = prompt('סכום القנייה הכולל:'); if(!total) return;
             triggerShake(); // Expense
             await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({totalAmount:total, userId:currentUser.id, storeName:'סופר', items:[]})});
             fetchData();
