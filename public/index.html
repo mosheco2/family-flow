@@ -1,176 +1,504 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FamilyFlow - Auth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-        .animate-item { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
-</head>
-<body class="flex items-center justify-center min-h-screen p-4 bg-gray-100">
+import React, { useState, useEffect } from 'react';
+import { 
+  Users, UserPlus, LogIn, Home, Shield, AlertCircle, CheckCircle, Loader2, Heart, Briefcase, LogOut 
+} from 'lucide-react';
 
-    <div class="w-full max-w-md">
-        
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-black text-gray-800 tracking-tight">FamilyFlow</h1>
-            <p class="text-gray-400">הבנק והאקדמיה המשפחתית</p>
+// --- MOCK API SERVICE (Simulates Node.js Backend + PostgreSQL) ---
+// This service uses localStorage to persist data in your browser for testing purposes.
+const mockApiService = {
+  delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+
+  // Load DB from local storage
+  getDB: () => {
+    const groups = JSON.parse(localStorage.getItem('ofl_groups') || '[]');
+    const users = JSON.parse(localStorage.getItem('ofl_users') || '[]');
+    return { groups, users };
+  },
+
+  saveDB: (groups, users) => {
+    localStorage.setItem('ofl_groups', JSON.stringify(groups));
+    localStorage.setItem('ofl_users', JSON.stringify(users));
+  },
+
+  // 1. Create Group (Register Admin)
+  async createGroup({ groupName, adminEmail, type, adminNickname, password, birthYear }) {
+    await this.delay(800);
+    const { groups, users } = this.getDB();
+
+    // Check if admin email exists
+    if (groups.find(g => g.adminEmail === adminEmail.toLowerCase())) {
+      throw new Error('כתובת המייל הזו כבר משמשת כמנהל קבוצה.');
+    }
+
+    // Create Group
+    const newGroup = {
+      id: groups.length + 1,
+      name: groupName,
+      adminEmail: adminEmail.toLowerCase(),
+      type,
+      createdAt: new Date().toISOString()
+    };
+    groups.push(newGroup);
+
+    // Create Admin User
+    const newUser = {
+      id: users.length + 1,
+      groupId: newGroup.id,
+      nickname: adminNickname,
+      password: password, // In real app: Hash this!
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      birthYear,
+      createdAt: new Date().toISOString()
+    };
+    users.push(newUser);
+
+    this.saveDB(groups, users);
+    return { user: newUser, group: newGroup };
+  },
+
+  // 2. Join Group (Request)
+  async joinGroup({ groupEmail, nickname, password, birthYear }) {
+    await this.delay(800);
+    const { groups, users } = this.getDB();
+
+    // Find Group
+    const group = groups.find(g => g.adminEmail === groupEmail.toLowerCase());
+    if (!group) throw new Error('לא נמצאה קבוצה עם המייל הזה.');
+
+    // Check Nickname Uniqueness in Group
+    if (users.find(u => u.groupId === group.id && u.nickname === nickname)) {
+      throw new Error('הכינוי הזה כבר תפוס בקבוצה.');
+    }
+
+    // Create Request
+    const newUser = {
+      id: users.length + 1,
+      groupId: group.id,
+      nickname,
+      password,
+      role: 'MEMBER',
+      status: 'PENDING',
+      birthYear,
+      createdAt: new Date().toISOString()
+    };
+    users.push(newUser);
+    this.saveDB(groups, users);
+    return true;
+  },
+
+  // 3. Login
+  async login({ groupEmail, nickname, password }) {
+    await this.delay(600);
+    const { groups, users } = this.getDB();
+
+    const group = groups.find(g => g.adminEmail === groupEmail.toLowerCase());
+    if (!group) throw new Error('קבוצה לא נמצאה.');
+
+    const user = users.find(u => u.groupId === group.id && u.nickname === nickname);
+    if (!user) throw new Error('משתמש לא נמצא.');
+
+    if (user.password !== password) throw new Error('סיסמה שגויה.');
+
+    if (user.status === 'PENDING') throw new Error('החשבון ממתין לאישור מנהל.');
+    if (user.status === 'BLOCKED') throw new Error('החשבון חסום.');
+
+    return { user, group };
+  },
+
+  // 4. Get Pending Requests (Admin Only)
+  async getPendingUsers(groupId) {
+    await this.delay(400);
+    const { users } = this.getDB();
+    return users.filter(u => u.groupId === groupId && u.status === 'PENDING');
+  },
+
+  // 5. Approve User (Admin Only)
+  async approveUser(userId) {
+    await this.delay(400);
+    const { groups, users } = this.getDB();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex === -1) throw new Error('משתמש לא נמצא');
+    
+    users[userIndex].status = 'ACTIVE';
+    this.saveDB(groups, users);
+    return users[userIndex];
+  }
+};
+
+
+// --- MAIN APP COMPONENT ---
+export default function App() {
+  const [user, setUser] = useState(null); // The logged-in user
+  const [group, setGroup] = useState(null); // The user's group
+  const [currentView, setCurrentView] = useState('LOGIN'); // 'LOGIN', 'CREATE', 'JOIN', 'DASHBOARD'
+  const [notification, setNotification] = useState(null);
+
+  // Load session from local storage on mount (Optional persistence)
+  useEffect(() => {
+    const savedSession = localStorage.getItem('ofl_session');
+    if (savedSession) {
+      const { user, group } = JSON.parse(savedSession);
+      setUser(user);
+      setGroup(group);
+      setCurrentView('DASHBOARD');
+    }
+  }, []);
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleLoginSuccess = (userData, groupData) => {
+    setUser(userData);
+    setGroup(groupData);
+    localStorage.setItem('ofl_session', JSON.stringify({ user: userData, group: groupData }));
+    setCurrentView('DASHBOARD');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setGroup(null);
+    localStorage.removeItem('ofl_session');
+    setCurrentView('LOGIN');
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 dir-rtl" dir="rtl">
+      {/* Notifications */}
+      {notification && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-bounce-in
+          ${notification.type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'}`}>
+          {notification.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+          <span className="font-medium text-sm">{notification.message}</span>
         </div>
+      )}
 
-        <div id="login-form" class="card p-8 animate-item">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">כניסה למערכת</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-1">שם משתמש</label>
-                    <input type="text" id="login-name" class="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none" placeholder="למשל: אבא">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-1">קוד סודי (4 ספרות)</label>
-                    <input type="password" id="login-pin" class="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none tracking-widest text-center text-lg" placeholder="****" maxlength="4">
-                </div>
-                
-                <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">כניסה</button>
-            </div>
+      {/* View Routing */}
+      {currentView === 'LOGIN' && (
+        <LoginView 
+          onNavigate={setCurrentView} 
+          onLogin={handleLoginSuccess}
+          showNotification={showNotification}
+        />
+      )}
+      
+      {currentView === 'CREATE' && (
+        <CreateGroupView 
+          onNavigate={setCurrentView} 
+          onSuccess={handleLoginSuccess}
+          showNotification={showNotification}
+        />
+      )}
 
-            <div class="mt-6 text-center text-sm">
-                <p class="text-gray-500">עדיין אין חשבון?</p>
-                <button onclick="toggleForms('register')" class="text-blue-600 font-bold hover:underline">להרשמה לחץ כאן</button>
-            </div>
-        </div>
+      {currentView === 'JOIN' && (
+        <JoinGroupView 
+          onNavigate={setCurrentView} 
+          showNotification={showNotification}
+        />
+      )}
 
-        <div id="register-form" class="card p-8 animate-item hidden">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">יצירת חשבון חדש</h2>
-            
-            <div class="space-y-3">
-                <input type="text" id="reg-name" class="w-full p-3 border rounded-xl" placeholder="שם פרטי">
-                <select id="reg-role" class="w-full p-3 border rounded-xl bg-white">
-                    <option value="parent">הורה (מנהל)</option>
-                    <option value="child">ילד/ה</option>
-                </select>
-                <input type="number" id="reg-year" class="w-full p-3 border rounded-xl" placeholder="שנת לידה (לדוגמה: 2015)">
-                <input type="password" id="reg-pin" class="w-full p-3 border rounded-xl tracking-widest text-center" placeholder="קוד סודי (4 ספרות)" maxlength="4">
-                
-                <button onclick="register()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-green-700 transition">צור חשבון</button>
-            </div>
-
-            <div class="mt-4 text-center">
-                <button onclick="toggleForms('login')" class="text-gray-400 font-bold hover:text-gray-600">ביטול וחזרה</button>
-            </div>
-        </div>
-
-        <div id="dashboard" class="hidden card p-8 text-center animate-item">
-            <div class="text-5xl text-green-500 mb-4"><i class="fa-solid fa-circle-check"></i></div>
-            <h2 class="text-2xl font-bold text-gray-800">שלום, <span id="user-display-name"></span>!</h2>
-            <div class="mt-2 inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-bold" id="user-role-badge"></div>
-            
-            <p class="mt-6 text-gray-600">מודול כניסה והרשמה תקין.</p>
-            
-            <button onclick="location.reload()" class="mt-8 w-full bg-gray-800 text-white py-3 rounded-xl font-bold">התנתק</button>
-        </div>
-
-        <div class="mt-12 pt-6 border-t border-gray-200 text-center">
-            <p class="text-xs text-gray-400 mb-2 font-bold tracking-widest">כלי פיתוח</p>
-            <div class="flex justify-center gap-3">
-                <button onclick="factoryReset()" class="text-xs text-red-500 bg-white border border-red-100 px-3 py-2 rounded shadow-sm hover:bg-red-50">
-                    🗑️ מחק את כל המשתמשים
-                </button>
-                <button onclick="runSetup()" class="text-xs text-green-600 bg-white border border-green-100 px-3 py-2 rounded shadow-sm hover:bg-green-50">
-                    🛠️ התקן מסד נתונים
-                </button>
-            </div>
-        </div>
-
+      {currentView === 'DASHBOARD' && user && group && (
+        <DashboardView 
+          user={user} 
+          group={group} 
+          onLogout={handleLogout}
+          showNotification={showNotification}
+        />
+      )}
     </div>
+  );
+}
 
-    <script>
-        const API = window.location.hostname.includes('onrender.com') ? '/api' : `https://${window.location.hostname}/api`;
 
-        // Switch between Login and Register
-        function toggleForms(view) {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('register-form').classList.add('hidden');
-            document.getElementById(`${view}-form`).classList.remove('hidden');
-        }
+// --- SUB-COMPONENTS ---
 
-        // --- AUTH FUNCTIONS ---
+// 1. LOGIN SCREEN
+const LoginView = ({ onNavigate, onLogin, showNotification }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ groupEmail: '', nickname: '', password: '' });
 
-        async function register() {
-            const name = document.getElementById('reg-name').value;
-            const role = document.getElementById('reg-role').value;
-            const year = document.getElementById('reg-year').value;
-            const pin = document.getElementById('reg-pin').value;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { user, group } = await mockApiService.login(formData);
+      onLogin(user, group);
+    } catch (error) {
+      showNotification('error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            if(!name || !year || pin.length < 4) return alert('חסרים פרטים');
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-bold text-blue-900 mb-2 tracking-tight">OneFlow <span className="text-blue-500">Life</span></h1>
+        <p className="text-slate-500">ניהול פיננסי חכם למשפחות וקבוצות</p>
+      </div>
 
-            try {
-                const res = await fetch(`${API}/create-user`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, role, birthYear: year, pin })
-                });
-                
-                if (res.ok) {
-                    alert('חשבון נוצר בהצלחה! כעת ניתן להיכנס.');
-                    toggleForms('login');
-                } else {
-                    const d = await res.json();
-                    alert(d.error || 'שגיאה ביצירה');
-                }
-            } catch (e) { alert('שגיאת תקשורת'); }
-        }
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 p-8">
+        <h2 className="text-2xl font-bold mb-6 text-center text-slate-800">כניסה למערכת</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">מייל משפחה/קבוצה</label>
+            <input 
+              type="email" required placeholder="admin@example.com"
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.groupEmail} onChange={e => setFormData({...formData, groupEmail: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">הכינוי שלך</label>
+            <input 
+              type="text" required placeholder="למשל: אבא"
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.nickname} onChange={e => setFormData({...formData, nickname: e.target.value})}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">סיסמה</label>
+            <input 
+              type="password" required placeholder="******"
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})}
+            />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg flex justify-center items-center">
+            {loading ? <Loader2 className="animate-spin" /> : 'התחבר'}
+          </button>
+        </form>
 
-        async function login() {
-            const name = document.getElementById('login-name').value;
-            const pin = document.getElementById('login-pin').value;
+        <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-3 text-center">
+          <button onClick={() => onNavigate('CREATE')} className="text-blue-600 font-medium hover:underline text-sm">אין לך חשבון? הקם קבוצה חדשה</button>
+          <button onClick={() => onNavigate('JOIN')} className="text-slate-500 font-medium hover:underline text-sm">רוצה להצטרף לקבוצה קיימת?</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-            if(!name || pin.length < 4) return alert('נא להזין שם וקוד');
+// 2. CREATE GROUP SCREEN
+const CreateGroupView = ({ onNavigate, onSuccess, showNotification }) => {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    adminEmail: '', groupName: '', type: 'FAMILY', adminNickname: '', password: '', birthYear: ''
+  });
 
-            try {
-                const res = await fetch(`${API}/login`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, pin })
-                });
-                const data = await res.json();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { user, group } = await mockApiService.createGroup(formData);
+      showNotification('success', 'הקבוצה נוצרה בהצלחה!');
+      onSuccess(user, group);
+    } catch (error) {
+      showNotification('error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                if (data.success) {
-                    showDashboard(data.user);
-                } else {
-                    alert('פרטים שגויים, נסה שוב');
-                }
-            } catch (e) { alert('שגיאת התחברות'); }
-        }
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
+        <h2 className="text-2xl font-bold mb-2 text-center text-slate-800">הקמת קבוצה חדשה</h2>
+        <p className="text-center text-slate-500 mb-6 text-sm">שלב {step} מתוך 2</p>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {step === 1 && (
+            <div className="animate-fade-in space-y-4">
+               <div className="grid grid-cols-2 gap-4 mb-4">
+                <button type="button" onClick={() => setFormData({...formData, type: 'FAMILY'})}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${formData.type === 'FAMILY' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-blue-200'}`}>
+                  <Heart size={24} /> <span className="font-bold">משפחה</span>
+                </button>
+                <button type="button" onClick={() => setFormData({...formData, type: 'GROUP'})}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${formData.type === 'GROUP' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-blue-200'}`}>
+                  <Briefcase size={24} /> <span className="font-bold">קבוצה</span>
+                </button>
+              </div>
+              <input type="text" placeholder="שם הקבוצה" className="w-full input-field border p-2 rounded"
+                value={formData.groupName} onChange={e => setFormData({...formData, groupName: e.target.value})} />
+              <input type="email" placeholder="המייל שלך (מנהל)" className="w-full input-field border p-2 rounded"
+                value={formData.adminEmail} onChange={e => setFormData({...formData, adminEmail: e.target.value})} />
+              <button type="button" onClick={() => { if(formData.groupName && formData.adminEmail) setStep(2); else showNotification('error', 'חסרים פרטים'); }}
+                className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">המשך</button>
+            </div>
+          )}
+          
+          {step === 2 && (
+            <div className="animate-fade-in space-y-4">
+              <input type="text" placeholder="הכינוי שלך" className="w-full input-field border p-2 rounded"
+                value={formData.adminNickname} onChange={e => setFormData({...formData, adminNickname: e.target.value})} />
+              <input type="number" placeholder="שנת לידה" className="w-full input-field border p-2 rounded"
+                value={formData.birthYear} onChange={e => setFormData({...formData, birthYear: e.target.value})} />
+              <input type="password" placeholder="סיסמה" className="w-full input-field border p-2 rounded"
+                value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+              
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setStep(1)} className="flex-1 bg-slate-100 py-3 rounded-lg font-bold text-slate-600">חזור</button>
+                <button type="submit" disabled={loading} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold flex justify-center">
+                  {loading ? <Loader2 className="animate-spin" /> : 'סיים והירשם'}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+        <button onClick={() => onNavigate('LOGIN')} className="mt-4 w-full text-center text-slate-400 text-sm hover:text-slate-600">ביטול</button>
+      </div>
+    </div>
+  );
+};
 
-        function showDashboard(user) {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-            document.getElementById('user-display-name').innerText = user.name;
-            document.getElementById('user-role-badge').innerText = user.role === 'parent' ? 'מנהל הבית' : 'ילד/ה';
-        }
+// 3. JOIN GROUP SCREEN
+const JoinGroupView = ({ onNavigate, showNotification }) => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [formData, setFormData] = useState({ groupEmail: '', nickname: '', password: '', birthYear: '' });
 
-        // --- DEV TOOLS ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await mockApiService.joinGroup(formData);
+      setSuccess(true);
+      showNotification('success', 'בקשת ההצטרפות נשלחה!');
+    } catch (error) {
+      showNotification('error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        async function factoryReset() {
-            if(!confirm('בטוח? זה ימחק את כל המשתמשים מהמערכת!')) return;
-            try {
-                await fetch(`${API}/admin/reset-data`, {method:'POST'});
-                alert('המערכת אופסה.');
-                runSetup(); // Re-inject tables/content
-            } catch(e) { alert('שגיאה'); }
-        }
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 text-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle size={32} />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">הבקשה נשלחה!</h2>
+          <p className="text-slate-500 mb-6">מנהל הקבוצה יצטרך לאשר אותך לפני שתוכל להיכנס.</p>
+          <button onClick={() => onNavigate('LOGIN')} className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold">חזור למסך כניסה</button>
+        </div>
+      </div>
+    );
+  }
 
-        async function runSetup() {
-            try {
-                await fetch('/setup-db');
-                alert('DB הותקן מחדש. המערכת מוכנה.');
-            } catch(e) { alert('שגיאה'); }
-        }
-    </script>
-</body>
-</html>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
+        <h2 className="text-2xl font-bold mb-6 text-center text-slate-800">הצטרפות לקבוצה</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="email" placeholder="מייל מנהל הקבוצה" required className="w-full border p-2 rounded"
+             value={formData.groupEmail} onChange={e => setFormData({...formData, groupEmail: e.target.value})} />
+          <input type="text" placeholder="כינוי רצוי" required className="w-full border p-2 rounded"
+             value={formData.nickname} onChange={e => setFormData({...formData, nickname: e.target.value})} />
+          <input type="number" placeholder="שנת לידה" required className="w-full border p-2 rounded"
+             value={formData.birthYear} onChange={e => setFormData({...formData, birthYear: e.target.value})} />
+          <input type="password" placeholder="סיסמה אישית" required className="w-full border p-2 rounded"
+             value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg flex justify-center mt-4">
+             {loading ? <Loader2 className="animate-spin" /> : 'שלח בקשה'}
+          </button>
+        </form>
+        <button onClick={() => onNavigate('LOGIN')} className="mt-4 w-full text-center text-slate-400 text-sm hover:text-slate-600">ביטול</button>
+      </div>
+    </div>
+  );
+};
+
+// 4. DASHBOARD
+const DashboardView = ({ user, group, onLogout, showNotification }) => {
+  const [pendingUsers, setPendingUsers] = useState([]);
+
+  useEffect(() => {
+    if (user.role === 'ADMIN') {
+      mockApiService.getPendingUsers(group.id).then(setPendingUsers);
+    }
+  }, [user, group]);
+
+  const handleApprove = async (userId) => {
+    try {
+      await mockApiService.approveUser(userId);
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      showNotification('success', 'משתמש אושר!');
+    } catch (error) {
+      showNotification('error', 'שגיאה באישור משתמש');
+    }
+  };
+
+  return (
+    <div>
+      <header className="bg-white shadow-sm border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${group.type === 'FAMILY' ? 'bg-pink-100 text-pink-600' : 'bg-blue-100 text-blue-600'}`}>
+              {group.type === 'FAMILY' ? <Heart size={20} /> : <Briefcase size={20} />}
+            </div>
+            <div>
+              <h1 className="font-bold text-lg text-slate-800">{group.name}</h1>
+              <p className="text-xs text-slate-500">שלום, {user.nickname} ({user.role === 'ADMIN' ? 'מנהל' : 'חבר'})</p>
+            </div>
+          </div>
+          <button onClick={onLogout} className="text-slate-400 hover:text-red-500 transition-colors">
+            <LogOut size={20} className="transform rotate-180" />
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg mb-8">
+          <h2 className="text-xl font-bold mb-2">ברוכים הבאים ל-OneFlow Life!</h2>
+          <p className="opacity-90 mb-4">מודול ניהול המשתמשים פעיל.</p>
+          <div className="flex gap-2">
+            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
+              SQL Mode (Simulated)
+            </span>
+            <span className="bg-green-500/20 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm border border-green-400/30">
+              Database Connected
+            </span>
+          </div>
+        </div>
+
+        {user.role === 'ADMIN' && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                <UserPlus size={18} /> בקשות הצטרפות
+              </h3>
+              {pendingUsers.length > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full">{pendingUsers.length}</span>}
+            </div>
+            
+            {pendingUsers.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-sm">אין בקשות ממתינות כרגע.</div>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {pendingUsers.map(req => (
+                  <li key={req.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold">
+                        {req.nickname[0]}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800">{req.nickname}</p>
+                        <p className="text-xs text-slate-500">נולד/ה ב-{req.birthYear}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleApprove(req.id)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-all">
+                      אשר
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
