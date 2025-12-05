@@ -77,6 +77,7 @@ app.get('/setup-db', async (req, res) => {
 
 // --- 2. AUTH API ---
 
+// יצירת קבוצה + אתחול תקציבים (התיקון כאן)
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
@@ -86,11 +87,21 @@ app.post('/api/groups', async (req, res) => {
     const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail]);
     if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'מייל זה כבר קיים' }); }
 
+    // 1. Create Group
     const gRes = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
-    const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [gRes.rows[0].id, adminNickname, password, parseInt(birthYear)||0]);
+    const groupId = gRes.rows[0].id;
+
+    // 2. Create Admin
+    const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [groupId, adminNickname, password, parseInt(birthYear)||0]);
     
+    // 3. Initialize Default Budgets (THE FIX)
+    const defaultCats = ['food', 'groceries', 'transport', 'bills', 'fun', 'other'];
+    for (const cat of defaultCats) {
+      await client.query(`INSERT INTO budgets (group_id, category, limit_amount) VALUES ($1, $2, 0)`, [groupId, cat]);
+    }
+
     await client.query('COMMIT');
-    res.json({ success: true, user: uRes.rows[0], group: { id: gRes.rows[0].id, name: groupName, type, adminEmail } });
+    res.json({ success: true, user: uRes.rows[0], group: { id: groupId, name: groupName, type, adminEmail } });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
@@ -155,18 +166,14 @@ app.get('/api/group/members', async (req, res) => {
 
 // --- 3. DATA & TRANSACTIONS API ---
 
-// תיקון סעיף 8: סינון לפי הרשאות
 app.get('/api/transactions', async (req, res) => {
   try {
     const { groupId, userId, limit = 20 } = req.query;
     
-    // 1. בדיקת תפקיד המשתמש המבקש
     const userCheck = await client.query('SELECT role FROM users WHERE id = $1', [userId]);
     if(userCheck.rows.length === 0) return res.status(404).json({error: 'User not found'});
-    
     const role = userCheck.rows[0].role;
     
-    // 2. בניית השאילתה הבסיסית
     let sql = `
       SELECT t.*, u.nickname as user_name 
       FROM transactions t 
@@ -175,7 +182,6 @@ app.get('/api/transactions', async (req, res) => {
     `;
     const params = [groupId, limit];
 
-    // 3. אם המשתמש הוא לא ADMIN, סנן רק לתנועות שלו
     if (role !== 'ADMIN') {
       sql += ` AND t.user_id = $3`;
       params.push(userId);
