@@ -13,7 +13,7 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
-        .loader { width: 20px; height: 20px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
         /* Modern Scrollbar */
@@ -27,6 +27,10 @@
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+
+        /* Effects */
+        .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -35,7 +39,7 @@
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
-    <div class="min-h-screen flex items-center justify-center p-0 sm:p-4">
+    <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
         <!-- AUTH -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
@@ -118,21 +122,18 @@
                 <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
-            <!-- Tabs Slider (Fix 10 + 11) -->
+            <!-- Slider Tabs -->
             <div class="relative px-2 mb-6 group">
-                <!-- Arrows -->
-                <div class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#f1f5f9] to-transparent z-10 pointer-events-none"></div>
-                <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#f1f5f9] to-transparent z-10 pointer-events-none"></div>
-                <div class="absolute left-0 top-1/2 -translate-y-1/2 z-20 text-slate-400 opacity-50"><i class="fa-solid fa-chevron-left text-xs"></i></div>
-                <div class="absolute right-0 top-1/2 -translate-y-1/2 z-20 text-slate-400 opacity-50"><i class="fa-solid fa-chevron-right text-xs"></i></div>
+                <button onclick="scrollSlider(-100)" class="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm ml-1"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                <button onclick="scrollSlider(100)" class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm mr-1"><i class="fa-solid fa-chevron-right text-xs"></i></button>
 
-                <div class="slider-scroll">
-                    <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active"><i class="fa-solid fa-house mr-1"></i> ראשי</button>
-                    <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i> תקציב</button>
-                    <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn"><i class="fa-solid fa-check-circle mr-1"></i> משימות</button>
-                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn"><i class="fa-solid fa-cart-shopping mr-1"></i> קניות</button>
-                    <button onclick="switchTab('loans')" id="tab-loans" class="tab-btn"><i class="fa-solid fa-hand-holding-dollar mr-1"></i> הלוואות</button>
-                    <button onclick="switchTab('members')" id="tab-members" class="tab-btn"><i class="fa-solid fa-users mr-1"></i> ניהול</button>
+                <div class="slider-scroll" id="slider-scroll">
+                    <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
+                    <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
+                    <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
+                    <button onclick="switchTab('loans')" id="tab-loans" class="tab-btn">הלוואות 💸</button>
+                    <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
                 </div>
             </div>
 
@@ -149,12 +150,13 @@
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
 
-                <!-- 2. BUDGET (Fix 9) -->
+                <!-- 2. BUDGET (Filtered) -->
                 <div id="content-budget" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3>
-                            <span class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg">חודשי</span>
+                            <!-- Admin Filter -->
+                            <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select>
                         </div>
                         <div id="budget-list" class="space-y-6"></div>
                     </div>
@@ -164,7 +166,7 @@
                 <div id="content-tasks" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
-                        <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hidden hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> חדשה</button>
+                        <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hidden"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <div id="tasks-list" class="space-y-3 pb-20"></div>
                 </div>
@@ -173,12 +175,12 @@
                 <div id="content-shop" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">רשימת קניות</h3>
-                        <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
+                        <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
                     </div>
-                    <div id="shop-list" class="space-y-2 pb-24"></div>
+                    <div id="shop-list" class="space-y-2 mb-24"></div>
                     <div id="checkout-bar" class="fixed bottom-24 left-4 right-4 bg-white/90 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl flex justify-between items-center hidden z-30 animate-bounce-in">
                         <span class="font-bold text-slate-700">סיימתם בסופר?</span>
-                        <button onclick="checkout()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-green-700 transition">סיום</button>
+                        <button onclick="checkout()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-green-700 transition">סיום וחיוב</button>
                     </div>
                 </div>
 
@@ -193,9 +195,11 @@
 
                 <!-- 6. MEMBERS -->
                 <div id="content-members" class="hidden space-y-6">
-                    <div class="bg-white rounded-[2rem] p-1 shadow-sm border border-slate-100">
-                        <h3 class="font-bold text-slate-700 p-4 pb-2 text-sm">חברי הקבוצה</h3>
-                        <div id="members-list" class="divide-y divide-slate-50"></div>
+                    <div class="card-modern overflow-hidden">
+                        <div class="p-4 border-b border-slate-50 bg-slate-50/50">
+                            <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> חברי הקבוצה</h3>
+                        </div>
+                        <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                     </div>
                     <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-1 border border-yellow-100 hidden">
                         <div class="flex justify-between items-center p-4 pb-2">
@@ -209,22 +213,22 @@
 
             <!-- FAB -->
             <div id="floating-actions" class="fixed bottom-8 left-0 w-full px-4 flex justify-center gap-6 pointer-events-none z-40">
-                <button onclick="openTransactionModal('expense')" class="pointer-events-auto bg-white text-red-500 w-16 h-16 rounded-2xl shadow-xl flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95 border border-red-50"><i class="fa-solid fa-minus"></i></button>
-                <button onclick="openTransactionModal('income')" class="pointer-events-auto bg-blue-600 text-white w-16 h-16 rounded-2xl shadow-xl shadow-blue-300 flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95"><i class="fa-solid fa-plus"></i></button>
+                <button onclick="openTransactionModal('expense')" class="pointer-events-auto bg-white text-red-500 w-16 h-16 rounded-2xl shadow-xl flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95 border-4 border-red-50"><i class="fa-solid fa-minus"></i></button>
+                <button onclick="openTransactionModal('income')" class="pointer-events-auto bg-blue-600 text-white w-16 h-16 rounded-2xl shadow-xl shadow-blue-300 flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95 border-4 border-blue-500"><i class="fa-solid fa-plus"></i></button>
             </div>
         </div>
 
         <!-- Modals -->
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
                 <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
                 <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
                 <input type="hidden" id="trans-type">
                 <div class="relative mb-4">
                     <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span>
-                    <input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0">
+                    <input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00">
                 </div>
-                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור (למשל: פיצה)">
+                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
                 <select id="trans-cat" class="modern-input mb-8 bg-white"></select>
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button>
@@ -233,7 +237,6 @@
             </div>
         </div>
 
-        <!-- Budget Edit Modal (New) -->
         <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3>
@@ -247,7 +250,7 @@
             </div>
         </div>
 
-        <!-- Other Modals (Generic structure) -->
+        <!-- Generic Modals -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">משימה חדשה</h3>
@@ -346,10 +349,10 @@
                 document.getElementById('admin-panel').classList.remove('hidden');
                 document.getElementById('btn-add-task').classList.remove('hidden');
                 document.getElementById('checkout-bar').classList.remove('hidden');
+                document.getElementById('budget-filter').classList.remove('hidden');
                 fetchPendingUsers();
             }
             
-            // Polling for EVERYONE (Fix)
             if(!pollInterval) pollInterval = setInterval(() => { 
                 fetchData(); 
                 if(currentUser.role==='ADMIN') fetchPendingUsers();
@@ -372,20 +375,8 @@
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => tList.innerHTML+=`<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} <span class="text-xs text-slate-400 font-normal">(${t.user_name})</span></p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`);
 
-                // Budget (Fix 9 - Logic Improved + Edit)
-                const bList = document.getElementById('budget-list'); bList.innerHTML='';
-                data.budget_status.forEach(b => {
-                    let pct = 0;
-                    if (b.limit > 0) pct = Math.min(100, Math.round((b.spent/b.limit)*100));
-                    else if (b.spent > 0) pct = 100; // If limit 0 and spent > 0 -> 100%
-
-                    let color = 'bg-blue-500'; if(pct>75) color='bg-yellow-500'; if(pct>=100) color='bg-red-500';
-                    const label = {'food':'🍔 אוכל','groceries':'🛒 סופר','transport':'🚌 נסיעות','bills':'📄 חשבונות','fun':'🎉 בילויים','clothes':'👕 בגדים','health':'💊 בריאות','education':'📚 חינוך','other':'💸 אחר'}[b.category] || b.category;
-                    
-                    const editBtn = currentUser.role==='ADMIN' ? `<button onclick="openBudgetModal('${b.category}', '${label}', ${b.limit})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pencil text-xs"></i></button>` : '';
-
-                    bList.innerHTML+=`<div class="mb-5"><div class="flex justify-between text-sm mb-1 font-medium"><div class="flex items-center">${label}${editBtn}</div><span class="text-slate-500 text-xs">₪${b.spent} / ${b.limit}</span></div><div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden"><div class="${color} h-3 rounded-full transition-all duration-1000 ease-out shadow-sm" style="width:${pct}%"></div></div></div>`;
-                });
+                // Budget (Updated to use dedicated fetch)
+                fetchBudget();
 
                 // Tasks
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
@@ -429,10 +420,51 @@
             } catch(e) {}
         }
 
+        async function fetchBudget() {
+            // Child sees nothing
+            if(currentUser.role !== 'ADMIN') {
+                document.getElementById('budget-list').innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-lock text-4xl text-slate-200 mb-2"></i><p class="text-slate-400 text-sm">אין לך הרשאה לצפות בתקציב הבית</p></div>';
+                return;
+            }
+
+            const targetUserId = document.getElementById('budget-filter').value || 'all';
+            const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${targetUserId}`);
+            const data = await res.json();
+            const bList = document.getElementById('budget-list'); bList.innerHTML='';
+            
+            if(data.length === 0) bList.innerHTML = '<p class="text-slate-400 text-center text-sm py-4">אין נתונים</p>';
+            
+            data.forEach(b => {
+                const pct = Math.min(100, Math.round((b.spent/b.limit)*100)) || 0;
+                let color = 'bg-blue-500'; if(pct>75) color='bg-yellow-500'; if(pct>=100) color='bg-red-500';
+                
+                // Allowances Bar styling
+                if (b.category === 'allocations') {
+                    bList.innerHTML+=`<div class="mb-5 p-3 bg-purple-50 rounded-xl border border-purple-100"><div class="flex justify-between text-sm mb-1 font-bold text-purple-700"><div>${b.label}</div><span>₪${b.spent}</span></div><div class="w-full bg-purple-200 rounded-full h-3"><div class="bg-purple-600 h-3 rounded-full" style="width:100%"></div></div></div>`;
+                    return;
+                }
+
+                const label = {'food':'🍔 אוכל','groceries':'🛒 סופר','transport':'🚌 נסיעות','bills':'📄 חשבונות','fun':'🎉 בילויים','clothes':'👕 בגדים','health':'💊 בריאות','education':'📚 חינוך','other':'💸 אחר'}[b.category] || b.category;
+                const editBtn = `<button onclick="openBudgetModal('${b.category}', '${label}', ${b.limit})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pencil text-xs"></i></button>`;
+
+                bList.innerHTML+=`<div class="mb-5"><div class="flex justify-between text-sm mb-1 font-medium"><div class="flex items-center">${label}${editBtn}</div><span class="text-slate-500 text-xs">₪${b.spent} / ${b.limit}</span></div><div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden"><div class="${color} h-3 rounded-full transition-all duration-1000 ease-out shadow-sm" style="width:${pct}%"></div></div></div>`;
+            });
+        }
+
         async function fetchMembers() {
             const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}`);
             const list = await res.json();
             membersCache = list; 
+            
+            // Populate Budget Filter
+            if(currentUser.role === 'ADMIN') {
+                const filter = document.getElementById('budget-filter');
+                const currentVal = filter.value;
+                filter.innerHTML = '<option value="all">כל הבית</option>';
+                list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
+                if(currentVal) filter.value = currentVal;
+            }
+
             const container = document.getElementById('members-list'); container.innerHTML = '';
             list.forEach(m => container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">₪${m.balance}</span></div>`);
         }
@@ -460,24 +492,32 @@
             const cat = document.getElementById('budget-cat-id').value;
             const limit = document.getElementById('budget-limit').value;
             await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit})});
-            document.getElementById('budget-modal').classList.add('hidden'); fetchData();
+            document.getElementById('budget-modal').classList.add('hidden'); fetchBudget();
         }
 
         function switchTab(t) {
             ['feed','tasks','shop','loans','members','budget'].forEach(x => {
                 document.getElementById(`content-${x}`).classList.add('hidden');
-                document.getElementById(`tab-${x}`).className = 'tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap';
+                document.getElementById(`tab-${x}`).classList.remove('tab-active');
             });
             document.getElementById(`content-${t}`).classList.remove('hidden');
-            document.getElementById(`tab-${t}`).className = 'tab-btn flex-1 py-2 px-4 rounded-xl text-sm font-medium transition whitespace-nowrap tab-active';
+            document.getElementById(`tab-${t}`).classList.add('tab-active');
             if(t==='tasks') {
                 const s = document.getElementById('task-assignee'); s.innerHTML='';
                 membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`);
             }
         }
 
+        function scrollSlider(amount) {
+            document.getElementById('slider-scroll').scrollBy({ left: amount, behavior: 'smooth' });
+        }
+
         async function submitTransaction() {
             const amount = val('trans-amount'); if(!amount) return;
+            // Shake Effect
+            if(val('trans-type') === 'expense') triggerShake();
+            else triggerConfetti();
+
             await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
                 userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type')
             })});
@@ -489,16 +529,23 @@
             await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: val('task-reward'), assignedTo: val('task-assignee') })});
             document.getElementById('task-modal').classList.add('hidden'); fetchData();
         }
-        async function updateTask(id, s) { await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+        async function updateTask(id, s) { 
+            if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti();
+            await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); 
+        }
         async function submitShopItem() { await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: val('shop-item'), userId: currentUser.id})}); document.getElementById('shop-modal').classList.add('hidden'); fetchData(); }
         async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
         async function checkout() { 
-            const total = prompt('סכום הקנייה הכולל:'); if(!total) return;
+            const total = prompt('סכום القנייה הכולל:'); if(!total) return;
+            triggerShake(); // Expense
             await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({totalAmount:total, userId:currentUser.id, storeName:'סופר', items:[]})});
             fetchData();
         }
         async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        async function handleLoan(id, s) { await fetch(`${API}/loans/handle`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({loanId:id, status:s})}); fetchData(); }
+        async function handleLoan(id, s) { 
+            if(s==='active') triggerConfetti();
+            await fetch(`${API}/loans/handle`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({loanId:id, status:s})}); fetchData(); 
+        }
         async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); }
 
         function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
@@ -520,6 +567,15 @@
             const txt = document.getElementById(`btn-${a}-text`);
             const ldr = document.getElementById(`btn-${a}-loader`);
             if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); }
+        }
+
+        function triggerConfetti() {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }
+        function triggerShake() {
+            const app = document.getElementById('main-wrapper');
+            app.classList.add('shake-effect');
+            setTimeout(() => app.classList.remove('shake-effect'), 500);
         }
     </script>
 </body>
