@@ -3,204 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FamilyFlow - Setup</title>
+    <title>FamilyFlow - Auth</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .modal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
-        .animate-item { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: white; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .animate-item { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 bg-gray-50">
+<body class="flex items-center justify-center min-h-screen p-4 bg-gray-100">
 
-    <div id="user-select-screen" class="w-full max-w-2xl text-center">
-        <h1 class="text-5xl font-black text-gray-800 mb-2 tracking-tight">FamilyFlow</h1>
-        <p class="text-gray-400 mb-8">מודול 1: ניהול משתמשים</p>
+    <div class="w-full max-w-md">
         
-        <div id="loading-spinner" class="mb-8"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600"></i><p class="mt-2 text-sm text-gray-400">טוען משתמשים...</p></div>
-        
-        <div id="users-grid" class="grid grid-cols-2 md:grid-cols-3 gap-8 justify-center hidden mb-10"></div>
-        
-        <button onclick="initRegisterMode()" id="btn-new-account" class="hidden mt-4 bg-blue-600 text-white px-6 py-3 rounded-full font-bold shadow hover:bg-blue-700 transition">
-            <i class="fa-solid fa-plus ml-2"></i> פתיחת חשבון חדש
-        </button>
-
-        <div class="mt-16 border-t pt-6 flex justify-center gap-4">
-            <button onclick="factoryReset()" class="text-xs text-red-500 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-50 transition flex items-center gap-2">
-                <i class="fa-solid fa-trash"></i> איפוס נתונים (מחיקת הכל)
-            </button>
-            <button onclick="runSetupDB()" class="text-xs text-green-600 border border-green-200 px-4 py-2 rounded-lg hover:bg-green-50 transition flex items-center gap-2">
-                <i class="fa-solid fa-database"></i> התקנת DB (Setup)
-            </button>
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black text-gray-800 tracking-tight">FamilyFlow</h1>
+            <p class="text-gray-400">הבנק והאקדמיה המשפחתית</p>
         </div>
-    </div>
 
-    <div id="register-screen" class="hidden w-full max-w-md card p-8 text-center animate-item">
-        <div class="mb-6 text-green-500 text-6xl"><i class="fa-solid fa-gift animate-bounce"></i></div>
-        <h2 class="text-3xl font-black text-gray-800 mb-2">ברוכים הבאים!</h2>
-        <p class="text-gray-500 mb-6 text-lg">יצירת משתמש חדש</p>
-        
-        <input type="text" id="reg-name" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-3 text-lg" placeholder="שם פרטי">
-        <select id="reg-role" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-3 text-lg bg-white">
-            <option value="parent">הורה (מנהל)</option>
-            <option value="child">ילד/ה</option>
-        </select>
-        <input type="number" id="reg-year" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-3 text-lg" placeholder="שנת לידה (למשל: 2015)">
-        <input type="password" id="reg-pin" class="w-full p-4 border-2 border-gray-100 rounded-2xl mb-6 text-center text-xl tracking-[0.5em]" placeholder="קוד סודי (4 ספרות)" maxlength="4">
-        
-        <button onclick="completeRegistration()" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-bold shadow-lg text-lg">צור חשבון</button>
-        <button onclick="location.reload()" class="mt-4 text-gray-400 font-bold">ביטול</button>
-    </div>
-
-    <div id="pin-modal" class="modal fixed inset-0 hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white w-full max-w-xs rounded-3xl p-8 shadow-2xl text-center">
-            <div id="pin-user-icon" class="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"></div>
-            <h3 id="pin-user-name" class="text-2xl font-bold mb-6 text-gray-800"></h3>
-            <input type="password" id="pin-input" class="w-full p-4 text-center text-3xl border-2 border-gray-200 rounded-2xl mb-6 focus:border-blue-500 outline-none tracking-[0.5em]" placeholder="****" maxlength="4">
-            <div class="flex gap-3">
-                <button onclick="closePinModal()" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600">ביטול</button>
-                <button onclick="login()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg">כנס</button>
+        <div id="login-form" class="card p-8 animate-item">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">כניסה למערכת</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">שם משתמש</label>
+                    <input type="text" id="login-name" class="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none" placeholder="למשל: אבא">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">קוד סודי (4 ספרות)</label>
+                    <input type="password" id="login-pin" class="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 outline-none tracking-widest text-center text-lg" placeholder="****" maxlength="4">
+                </div>
+                
+                <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">כניסה</button>
             </div>
-            <p id="error-msg" class="text-red-500 mt-4 hidden text-sm font-bold">קוד שגוי</p>
-        </div>
-    </div>
 
-    <div id="dashboard" class="hidden w-full max-w-md text-center pt-20">
-        <div class="text-6xl text-green-500 mb-4"><i class="fa-solid fa-check-circle"></i></div>
-        <h2 class="text-3xl font-bold text-gray-800">התחברת בהצלחה!</h2>
-        <p class="text-xl mt-2 text-gray-600">שלום, <span id="user-name-display" class="font-bold"></span></p>
-        <div class="mt-8 bg-blue-50 p-4 rounded-xl text-blue-800">
-            <p>מודול ניהול משתמשים עובד.</p>
-            <p class="text-sm mt-2">ניתן להתנתק ולבדוק משתמשים נוספים.</p>
+            <div class="mt-6 text-center text-sm">
+                <p class="text-gray-500">עדיין אין חשבון?</p>
+                <button onclick="toggleForms('register')" class="text-blue-600 font-bold hover:underline">להרשמה לחץ כאן</button>
+            </div>
         </div>
-        <button onclick="location.reload()" class="mt-8 bg-gray-800 text-white px-6 py-3 rounded-xl font-bold">התנתק</button>
+
+        <div id="register-form" class="card p-8 animate-item hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">יצירת חשבון חדש</h2>
+            
+            <div class="space-y-3">
+                <input type="text" id="reg-name" class="w-full p-3 border rounded-xl" placeholder="שם פרטי">
+                <select id="reg-role" class="w-full p-3 border rounded-xl bg-white">
+                    <option value="parent">הורה (מנהל)</option>
+                    <option value="child">ילד/ה</option>
+                </select>
+                <input type="number" id="reg-year" class="w-full p-3 border rounded-xl" placeholder="שנת לידה (לדוגמה: 2015)">
+                <input type="password" id="reg-pin" class="w-full p-3 border rounded-xl tracking-widest text-center" placeholder="קוד סודי (4 ספרות)" maxlength="4">
+                
+                <button onclick="register()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-green-700 transition">צור חשבון</button>
+            </div>
+
+            <div class="mt-4 text-center">
+                <button onclick="toggleForms('login')" class="text-gray-400 font-bold hover:text-gray-600">ביטול וחזרה</button>
+            </div>
+        </div>
+
+        <div id="dashboard" class="hidden card p-8 text-center animate-item">
+            <div class="text-5xl text-green-500 mb-4"><i class="fa-solid fa-circle-check"></i></div>
+            <h2 class="text-2xl font-bold text-gray-800">שלום, <span id="user-display-name"></span>!</h2>
+            <div class="mt-2 inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-bold" id="user-role-badge"></div>
+            
+            <p class="mt-6 text-gray-600">מודול כניסה והרשמה תקין.</p>
+            
+            <button onclick="location.reload()" class="mt-8 w-full bg-gray-800 text-white py-3 rounded-xl font-bold">התנתק</button>
+        </div>
+
+        <div class="mt-12 pt-6 border-t border-gray-200 text-center">
+            <p class="text-xs text-gray-400 mb-2 font-bold tracking-widest">כלי פיתוח</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="factoryReset()" class="text-xs text-red-500 bg-white border border-red-100 px-3 py-2 rounded shadow-sm hover:bg-red-50">
+                    🗑️ מחק את כל המשתמשים
+                </button>
+                <button onclick="runSetup()" class="text-xs text-green-600 bg-white border border-green-100 px-3 py-2 rounded shadow-sm hover:bg-green-50">
+                    🛠️ התקן מסד נתונים
+                </button>
+            </div>
+        </div>
+
     </div>
 
     <script>
         const API = window.location.hostname.includes('onrender.com') ? '/api' : `https://${window.location.hostname}/api`;
-        let selectedUserIdForLogin = null;
 
-        // --- Init ---
-        window.onload = loadUsers;
-
-        async function loadUsers() {
-            try {
-                const res = await fetch(`${API}/public-users`);
-                const users = await res.json();
-                
-                document.getElementById('loading-spinner').classList.add('hidden');
-                
-                if (users.length === 0) {
-                    // No users - Show Register Button Prominently
-                    document.getElementById('users-grid').innerHTML = '<p class="col-span-3 text-gray-400">אין משתמשים רשומים.<br>לחץ למטה לפתיחת חשבון ראשון.</p>';
-                    document.getElementById('users-grid').classList.remove('hidden');
-                    document.getElementById('btn-new-account').classList.remove('hidden');
-                } else {
-                    // Show Users
-                    const grid = document.getElementById('users-grid');
-                    grid.innerHTML = '';
-                    users.forEach(u => {
-                        const color = u.role === 'parent' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600';
-                        const icon = u.role === 'parent' ? '<i class="fa-solid fa-user-tie"></i>' : '<i class="fa-solid fa-child"></i>';
-                        grid.innerHTML += `
-                            <div onclick="promptPin(${u.id}, '${u.name}', '${u.role}')" class="flex flex-col items-center cursor-pointer group hover:scale-105 transition">
-                                <div class="w-24 h-24 ${color} rounded-full flex items-center justify-center mb-3 shadow-sm text-3xl group-hover:shadow-md transition">${icon}</div>
-                                <span class="font-bold text-gray-700 text-lg">${u.name}</span>
-                            </div>`;
-                    });
-                    document.getElementById('users-grid').classList.remove('hidden');
-                    document.getElementById('btn-new-account').classList.remove('hidden'); // Allow adding more
-                }
-            } catch (e) {
-                alert('שגיאת תקשורת עם השרת');
-            }
+        // Switch between Login and Register
+        function toggleForms(view) {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById(`${view}-form`).classList.remove('hidden');
         }
 
-        // --- Module 1 Functions: System ---
-        async function factoryReset() {
-            if (!confirm('זהירות! ⚠️\nפעולה זו תמחק את כל המשתמשים והנתונים.\nהאם להמשיך?')) return;
-            try {
-                const res = await fetch(`${API}/admin/reset-data`, { method: 'POST' });
-                if (res.ok) {
-                    alert('המערכת אופסה. כעת נתקין מחדש את הטבלאות.');
-                    runSetupDB();
-                }
-            } catch (e) { alert('שגיאה באיפוס'); }
-        }
+        // --- AUTH FUNCTIONS ---
 
-        async function runSetupDB() {
-            try {
-                const res = await fetch('/setup-db');
-                const data = await res.json();
-                if (data.success) {
-                    alert('המערכת מוכנה לשימוש! 🚀\nכעת ניתן ליצור משתמש ראשון.');
-                    location.reload();
-                }
-            } catch (e) { alert('שגיאה בהתקנה'); }
-        }
-
-        // --- Module 1 Functions: Auth ---
-        function initRegisterMode() {
-            document.getElementById('user-select-screen').classList.add('hidden');
-            document.getElementById('register-screen').classList.remove('hidden');
-        }
-
-        async function completeRegistration() {
+        async function register() {
             const name = document.getElementById('reg-name').value;
             const role = document.getElementById('reg-role').value;
             const year = document.getElementById('reg-year').value;
             const pin = document.getElementById('reg-pin').value;
 
-            if(!name || !year || pin.length < 4) return alert('נא למלא את כל הפרטים');
+            if(!name || !year || pin.length < 4) return alert('חסרים פרטים');
 
             try {
-                await fetch(`${API}/create-user`, {
+                const res = await fetch(`${API}/create-user`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ name, role, birthYear: year, pin })
                 });
-                alert('משתמש נוצר בהצלחה!');
-                location.reload();
-            } catch (e) { alert('שגיאה ביצירת משתמש'); }
-        }
-
-        function promptPin(id, name, role) {
-            selectedUserIdForLogin = id;
-            document.getElementById('pin-user-name').innerText = name;
-            document.getElementById('pin-user-icon').innerHTML = role==='parent'?'<i class="fa-solid fa-user-tie"></i>':'<i class="fa-solid fa-child"></i>';
-            document.getElementById('pin-modal').classList.remove('hidden');
-            document.getElementById('pin-input').value = '';
-            document.getElementById('pin-input').focus();
-        }
-
-        function closePinModal() {
-            document.getElementById('pin-modal').classList.add('hidden');
+                
+                if (res.ok) {
+                    alert('חשבון נוצר בהצלחה! כעת ניתן להיכנס.');
+                    toggleForms('login');
+                } else {
+                    const d = await res.json();
+                    alert(d.error || 'שגיאה ביצירה');
+                }
+            } catch (e) { alert('שגיאת תקשורת'); }
         }
 
         async function login() {
-            const pin = document.getElementById('pin-input').value;
-            if (pin.length < 4) return;
-            
+            const name = document.getElementById('login-name').value;
+            const pin = document.getElementById('login-pin').value;
+
+            if(!name || pin.length < 4) return alert('נא להזין שם וקוד');
+
             try {
                 const res = await fetch(`${API}/login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: selectedUserIdForLogin, pin })
+                    body: JSON.stringify({ name, pin })
                 });
                 const data = await res.json();
-                
+
                 if (data.success) {
-                    document.getElementById('pin-modal').classList.add('hidden');
-                    document.getElementById('user-select-screen').classList.add('hidden');
-                    document.getElementById('dashboard').classList.remove('hidden');
-                    document.getElementById('user-name-display').innerText = data.user.name;
+                    showDashboard(data.user);
                 } else {
-                    document.getElementById('error-msg').classList.remove('hidden');
+                    alert('פרטים שגויים, נסה שוב');
                 }
             } catch (e) { alert('שגיאת התחברות'); }
+        }
+
+        function showDashboard(user) {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('user-display-name').innerText = user.name;
+            document.getElementById('user-role-badge').innerText = user.role === 'parent' ? 'מנהל הבית' : 'ילד/ה';
+        }
+
+        // --- DEV TOOLS ---
+
+        async function factoryReset() {
+            if(!confirm('בטוח? זה ימחק את כל המשתמשים מהמערכת!')) return;
+            try {
+                await fetch(`${API}/admin/reset-data`, {method:'POST'});
+                alert('המערכת אופסה.');
+                runSetup(); // Re-inject tables/content
+            } catch(e) { alert('שגיאה'); }
+        }
+
+        async function runSetup() {
+            try {
+                await fetch('/setup-db');
+                alert('DB הותקן מחדש. המערכת מוכנה.');
+            } catch(e) { alert('שגיאה'); }
         }
     </script>
 </body>
