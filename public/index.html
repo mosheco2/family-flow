@@ -1,482 +1,234 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OneFlow Life</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f4f8; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .hidden { display: none !important; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .tab-active { color: #2563eb; border-bottom: 2px solid #2563eb; background-color: #eff6ff; }
-    </style>
-</head>
-<body class="text-slate-800">
+const express = require('express');
+const { Client } = require('pg');
+const cors = require('cors');
+const path = require('path');
+const app = express();
+const port = process.env.PORT || 3000;
 
-    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-white px-6 py-3 rounded-full shadow-lg border hidden z-50 flex items-center gap-2 transition-all duration-300">
-        <i id="toast-icon" class="fa-solid"></i>
-        <span id="toast-message" class="font-bold text-sm"></span>
-    </div>
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
-    <div class="min-h-screen flex items-center justify-center p-4">
-        
-        <!-- Auth Screens -->
-        <div id="auth-container" class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden fade-in">
-            <div class="p-8 text-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-                <h1 class="text-3xl font-black tracking-tight mb-1">OneFlow <span class="text-blue-200">Life</span></h1>
-                <p class="text-blue-100 text-sm opacity-90">ניהול פיננסי חכם</p>
-            </div>
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-            <!-- Login -->
-            <div id="view-login" class="p-8">
-                <h2 class="text-xl font-bold mb-6 text-gray-800">כניסה</h2>
-                <form onsubmit="handleLogin(event)" class="space-y-4">
-                    <input type="email" id="login-email" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="מייל קבוצה (אדמין)">
-                    <input type="text" id="login-nickname" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="הכינוי שלך">
-                    <input type="password" id="login-password" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-md flex justify-center items-center">
-                        <span id="btn-login-text">התחבר</span>
-                        <div id="btn-login-loader" class="loader ml-2 hidden border-white border-t-transparent"></div>
-                    </button>
-                </form>
-                <div class="mt-6 flex flex-col gap-3 text-center text-sm">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold hover:underline">אין לך חשבון? הקם קבוצה חדשה</button>
-                    <button onclick="switchView('join')" class="text-gray-400 font-bold hover:text-gray-600">רוצה להצטרף לקבוצה קיימת?</button>
-                </div>
-            </div>
+client.connect()
+  .then(() => console.log('Connected to DB'))
+  .catch(err => console.error('Connection Error', err.stack));
 
-            <!-- Create -->
-            <div id="view-create" class="p-8 hidden">
-                <h2 class="text-xl font-bold mb-2 text-gray-800">הקמת קבוצה</h2>
-                <form onsubmit="handleCreate(event)" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div onclick="selectType('FAMILY')" id="type-family" class="cursor-pointer border-2 border-blue-500 bg-blue-50 text-blue-700 p-3 rounded-xl text-center transition"><i class="fa-solid fa-heart mb-1"></i><div class="font-bold text-xs">משפחה</div></div>
-                        <div onclick="selectType('GROUP')" id="type-group" class="cursor-pointer border-2 border-gray-100 text-gray-400 p-3 rounded-xl text-center hover:border-blue-200 transition"><i class="fa-solid fa-briefcase mb-1"></i><div class="font-bold text-xs">שותפים</div></div>
-                    </div>
-                    <input type="hidden" id="create-type" value="FAMILY">
-                    <input type="text" id="create-group-name" required placeholder="שם הקבוצה" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm">
-                    <input type="email" id="create-email" required placeholder="מייל שלך (מנהל)" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="text" id="create-nickname" required placeholder="כינוי" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm">
-                        <input type="number" id="create-year" required placeholder="שנת לידה" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm">
-                    </div>
-                    <input type="password" id="create-password" required placeholder="סיסמה" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none text-sm">
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 flex justify-center items-center"><span id="btn-create-text">הרשמה</span><div id="btn-create-loader" class="loader ml-2 hidden border-white border-t-transparent"></div></button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-4 text-gray-400 text-sm">ביטול</button>
-            </div>
+// --- 1. SETUP DB ---
+app.get('/setup-db', async (req, res) => {
+  try {
+    const tables = ['transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
+    for (const t of tables) await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
 
-            <!-- Join -->
-            <div id="view-join" class="p-8 hidden">
-                <h2 class="text-xl font-bold mb-2 text-gray-800">הצטרפות</h2>
-                <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="email" id="join-email" required placeholder="מייל מנהל הקבוצה" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">
-                    <input type="text" id="join-nickname" required placeholder="כינוי רצוי" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">
-                    <input type="number" id="join-year" required placeholder="שנת לידה" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">
-                    <input type="password" id="join-password" required placeholder="סיסמה אישית" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl mt-2 flex justify-center items-center"><span id="btn-join-text">שלח בקשה</span><div id="btn-join-loader" class="loader ml-2 hidden border-white border-t-transparent"></div></button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-4 text-gray-400 text-sm">ביטול</button>
-            </div>
-        </div>
+    await client.query(`
+      CREATE TABLE groups (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        admin_email VARCHAR(255) UNIQUE NOT NULL,
+        type VARCHAR(20) CHECK (type IN ('FAMILY', 'GROUP')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-        <!-- Dashboard Module 2 -->
-        <div id="dashboard-container" class="w-full max-w-4xl hidden fade-in pb-24">
-            <header class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex justify-between items-center sticky top-4 z-10">
-                <div class="flex items-center gap-3">
-                    <div id="group-icon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md"></div>
-                    <div>
-                        <h1 id="dash-group-name" class="font-black text-gray-800 text-lg"></h1>
-                        <p class="text-xs text-gray-500">שלום, <span id="dash-nickname" class="font-bold text-blue-600"></span></p>
-                    </div>
-                </div>
-                <button onclick="logout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
-            </header>
+    await client.query(`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+        nickname VARCHAR(50) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) CHECK (role IN ('ADMIN', 'MEMBER', 'CHILD')),
+        status VARCHAR(20) DEFAULT 'PENDING',
+        birth_year INTEGER,
+        balance DECIMAL(10, 2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, nickname)
+      )
+    `);
 
-            <!-- Navigation Tabs -->
-            <div class="flex bg-white rounded-2xl p-1 shadow-sm mb-6">
-                <button onclick="switchTab('feed')" id="tab-feed" class="flex-1 py-2 rounded-xl text-sm font-bold transition tab-active">פיד תנועות</button>
-                <button onclick="switchTab('budget')" id="tab-budget" class="flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition">תקציב</button>
-                <button onclick="switchTab('members')" id="tab-members" class="flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition">משתמשים</button>
-            </div>
+    await client.query(`
+      CREATE TABLE transactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        amount DECIMAL(10, 2) NOT NULL,
+        description VARCHAR(255),
+        category VARCHAR(50),
+        type VARCHAR(20),
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-            <!-- Tab Content -->
-            
-            <!-- 1. FEED & BALANCE -->
-            <div id="content-feed">
-                <!-- Balance Card -->
-                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-8 rounded-3xl shadow-lg text-center mb-6 relative overflow-hidden">
-                    <div class="relative z-10">
-                        <p class="text-indigo-200 text-sm font-medium mb-1">היתרה שלך</p>
-                        <h1 class="text-5xl font-black tracking-tight" id="user-balance">₪0.00</h1>
-                    </div>
-                    <i class="fa-solid fa-wallet absolute -bottom-4 -right-4 text-9xl opacity-10"></i>
-                </div>
+    await client.query(`
+      CREATE TABLE budgets (
+        id SERIAL PRIMARY KEY,
+        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+        category VARCHAR(50) NOT NULL,
+        limit_amount DECIMAL(10, 2) NOT NULL,
+        UNIQUE(group_id, category)
+      )
+    `);
 
-                <!-- Recent Transactions -->
-                <h3 class="font-bold text-gray-700 mb-3 px-1">פעילות אחרונה</h3>
-                <div id="transactions-list" class="space-y-3">
-                    <p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>
-                </div>
-            </div>
+    res.send(`<h1 style="color:green">System Reset Complete ✅</h1>`);
+  } catch (err) { res.status(500).send(`Error: ${err.message}`); }
+});
 
-            <!-- 2. BUDGET -->
-            <div id="content-budget" class="hidden space-y-4">
-                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-teal-500"></i> מצב התקציב (חודשי)</h3>
-                    <div id="budget-list" class="space-y-4">
-                        <!-- Bars injected here -->
-                        <p class="text-center text-gray-400 text-sm">טוען נתונים...</p>
-                    </div>
-                </div>
-            </div>
+// --- 2. AUTH API ---
 
-            <!-- 3. MEMBERS -->
-            <div id="content-members" class="hidden space-y-6">
-                <!-- Active Members -->
-                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="p-4 border-b border-gray-50 bg-gray-50/50">
-                        <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> חברי הקבוצה</h3>
-                    </div>
-                    <div id="members-list" class="divide-y divide-gray-50 p-2"></div>
-                </div>
-                <!-- Admin Pending -->
-                <div id="admin-panel" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hidden">
-                    <div class="p-4 border-b border-gray-50 bg-yellow-50/50 flex justify-between items-center">
-                        <h3 class="font-bold text-gray-700 flex items-center gap-2"><i class="fa-solid fa-user-clock text-yellow-500"></i> ממתינים לאישור</h3>
-                        <span id="pending-count" class="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full hidden">0</span>
-                    </div>
-                    <div id="pending-list" class="divide-y divide-gray-50 p-2"></div>
-                </div>
-            </div>
+app.post('/api/groups', async (req, res) => {
+  let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
+  if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
+  
+  try {
+    await client.query('BEGIN');
+    const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail]);
+    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'מייל זה כבר קיים' }); }
 
-            <!-- Floating Action Buttons -->
-            <div class="fixed bottom-6 left-0 w-full px-4 flex justify-center gap-4 pointer-events-none z-20">
-                <button onclick="openTransactionModal('expense')" class="pointer-events-auto bg-red-500 hover:bg-red-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95"><i class="fa-solid fa-minus"></i></button>
-                <button onclick="openTransactionModal('income')" class="pointer-events-auto bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition transform hover:scale-110 active:scale-95"><i class="fa-solid fa-plus"></i></button>
-            </div>
-        </div>
+    const gRes = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
+    const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [gRes.rows[0].id, adminNickname, password, parseInt(birthYear)||0]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, user: uRes.rows[0], group: { id: gRes.rows[0].id, name: groupName, type, adminEmail } });
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+});
 
-        <!-- Transaction Modal -->
-        <div id="transaction-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-[fadeIn_0.2s_ease-out]">
-                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-gray-800">תנועה חדשה</h3>
-                <input type="hidden" id="trans-type">
-                <input type="number" id="trans-amount" class="w-full p-4 border-2 rounded-2xl mb-3 text-3xl text-center font-bold outline-none focus:border-blue-500" placeholder="0.00">
-                <input type="text" id="trans-desc" class="w-full p-3 border rounded-xl mb-3 outline-none" placeholder="תיאור (למשל: פיצה)">
-                <select id="trans-cat" class="w-full p-3 border rounded-xl mb-6 bg-white outline-none">
-                    <!-- Populated dynamically -->
-                </select>
-                <div class="flex gap-3">
-                    <button onclick="closeTransModal()" class="flex-1 bg-gray-100 py-3 rounded-xl font-bold text-gray-600">ביטול</button>
-                    <button onclick="submitTransaction()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex justify-center items-center transition">
-                        <span id="btn-save-text">שמור</span>
-                        <div id="btn-save-loader" class="loader ml-2 hidden border-white border-t-transparent"></div>
-                    </button>
-                </div>
-            </div>
-        </div>
+app.post('/api/join', async (req, res) => {
+  let { groupEmail, nickname, password, birthYear } = req.body;
+  if(groupEmail) groupEmail = groupEmail.trim().toLowerCase();
+  if(nickname) nickname = nickname.trim();
 
-    </div>
+  try {
+    const gRes = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail]);
+    if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+    
+    const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [gRes.rows[0].id, nickname]);
+    if (check.rows.length > 0) return res.status(400).json({ error: 'כינוי תפוס' });
 
-    <script>
-        const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        let currentUser = null;
-        let currentGroup = null;
-        let pollInterval = null;
+    await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [gRes.rows[0].id, nickname, password, parseInt(birthYear)||0]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        const CATEGORIES = {
-            income: [
-                { value: 'salary', label: 'משכורת 💼' },
-                { value: 'allowance', label: 'דמי כיס 💰' },
-                { value: 'gift', label: 'מתנה 🎁' },
-                { value: 'business', label: 'עסק/צדדי 🚀' },
-                { value: 'other', label: 'אחר ✨' }
-            ],
-            expense: [
-                { value: 'food', label: 'אוכל 🍔' },
-                { value: 'groceries', label: 'סופר ובית 🛒' },
-                { value: 'transport', label: 'נסיעות 🚌' },
-                { value: 'bills', label: 'חשבונות 📄' },
-                { value: 'fun', label: 'בילויים 🎉' },
-                { value: 'other', label: 'אחר 💸' }
-            ]
-        };
+app.post('/api/login', async (req, res) => {
+  let { groupEmail, nickname, password } = req.body;
+  if(groupEmail) groupEmail = groupEmail.trim().toLowerCase();
+  if(nickname) nickname = nickname.trim();
 
-        // --- Init: Verify Session with Server (NEW FIX) ---
-        window.onload = async () => {
-            const savedSession = localStorage.getItem('ofl_session');
-            if(savedSession) {
-                try {
-                    const session = JSON.parse(savedSession);
-                    // Verify if user actually exists on server
-                    const res = await fetch(`${API}/users/${session.user.id}`);
-                    if(res.ok) {
-                        const updatedUser = await res.json();
-                        currentUser = updatedUser;
-                        currentGroup = session.group;
-                        // Update session with fresh data
-                        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-                        loadDashboard();
-                    } else {
-                        // User not found on server (DB was reset)
-                        logout(); 
-                    }
-                } catch(e) {
-                    logout();
-                }
-            }
-        };
+  try {
+    const gRes = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail]);
+    if (gRes.rows.length === 0) return res.status(401).json({ error: 'קבוצה לא נמצאה' });
+    const group = gRes.rows[0];
 
-        function switchView(viewName) {
-            ['login', 'create', 'join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${viewName}`).classList.remove('hidden');
-        }
+    const uRes = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [group.id, nickname]);
+    if (uRes.rows.length === 0) return res.status(401).json({ error: 'משתמש לא נמצא' });
+    const user = uRes.rows[0];
 
-        function switchTab(tabName) {
-            ['feed', 'budget', 'members'].forEach(t => {
-                document.getElementById(`content-${t}`).classList.add('hidden');
-                document.getElementById(`tab-${t}`).className = 'flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition';
-            });
-            document.getElementById(`content-${tabName}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabName}`).className = 'flex-1 py-2 rounded-xl text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition';
-        }
+    if (user.password !== password) return res.status(401).json({ error: 'סיסמה שגויה' });
+    if (user.status === 'PENDING') return res.status(403).json({ error: 'ממתין לאישור מנהל' });
+    if (user.status === 'BLOCKED') return res.status(403).json({ error: 'חשבון חסום' });
 
-        function selectType(type) {
-            document.getElementById('create-type').value = type;
-            const active = 'border-blue-500 bg-blue-50 text-blue-700';
-            const inactive = 'border-gray-100 text-gray-400 hover:border-blue-200';
-            document.getElementById('type-family').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type==='FAMILY'?active:inactive}`;
-            document.getElementById('type-group').className = `cursor-pointer border-2 p-3 rounded-xl text-center transition ${type==='GROUP'?active:inactive}`;
-        }
+    res.json({ success: true, user, group });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            toggleLoader('login', true);
-            try {
-                const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-                    groupEmail: document.getElementById('login-email').value,
-                    nickname: document.getElementById('login-nickname').value,
-                    password: document.getElementById('login-password').value
-                })});
-                const data = await res.json();
-                if(data.success) {
-                    currentUser = data.user; currentGroup = data.group;
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
-                    loadDashboard();
-                } else showToast('error', data.error);
-            } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-            finally { toggleLoader('login', false); }
-        }
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const r = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-        async function handleCreate(e) {
-            e.preventDefault();
-            toggleLoader('create', true);
-            try {
-                const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-                    type: document.getElementById('create-type').value,
-                    groupName: document.getElementById('create-group-name').value,
-                    adminEmail: document.getElementById('create-email').value,
-                    adminNickname: document.getElementById('create-nickname').value,
-                    birthYear: document.getElementById('create-year').value,
-                    password: document.getElementById('create-password').value
-                })});
-                const data = await res.json();
-                if(data.success) {
-                    currentUser = data.user; currentGroup = data.group;
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
-                    loadDashboard();
-                } else showToast('error', data.error);
-            } catch(e) { showToast('error', 'שגיאה ביצירה'); }
-            finally { toggleLoader('create', false); }
-        }
+app.get('/api/admin/pending-users', async (req, res) => {
+  try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
+});
 
-        async function handleJoin(e) {
-            e.preventDefault();
-            toggleLoader('join', true);
-            try {
-                const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-                    groupEmail: document.getElementById('join-email').value,
-                    nickname: document.getElementById('join-nickname').value,
-                    birthYear: document.getElementById('join-year').value,
-                    password: document.getElementById('join-password').value
-                })});
-                const data = await res.json();
-                if(data.success) { showToast('success', 'נשלח!'); switchView('login'); }
-                else showToast('error', data.error);
-            } catch(e) { showToast('error', 'שגיאה'); }
-            finally { toggleLoader('join', false); }
-        }
+app.post('/api/admin/approve-user', async (req, res) => {
+  try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
+});
 
-        function loadDashboard() {
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('dashboard-container').classList.remove('hidden');
-            
-            document.getElementById('dash-group-name').innerText = currentGroup.name;
-            document.getElementById('dash-nickname').innerText = currentUser.nickname;
-            document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+app.get('/api/group/members', async (req, res) => {
+  try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
+});
 
-            const iconDiv = document.getElementById('group-icon');
-            iconDiv.className = `w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md ${currentGroup.type==='FAMILY'?'bg-pink-500':'bg-blue-500'}`;
-            iconDiv.innerHTML = currentGroup.type==='FAMILY'?'<i class="fa-solid fa-heart"></i>':'<i class="fa-solid fa-briefcase"></i>';
+// --- 3. DATA & TRANSACTIONS API ---
 
-            fetchMembers();
-            fetchTransactions();
-            fetchBudget();
+// תיקון סעיף 8: סינון לפי הרשאות
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const { groupId, userId, limit = 20 } = req.query;
+    
+    // 1. בדיקת תפקיד המשתמש המבקש
+    const userCheck = await client.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if(userCheck.rows.length === 0) return res.status(404).json({error: 'User not found'});
+    
+    const role = userCheck.rows[0].role;
+    
+    // 2. בניית השאילתה הבסיסית
+    let sql = `
+      SELECT t.*, u.nickname as user_name 
+      FROM transactions t 
+      JOIN users u ON t.user_id = u.id 
+      WHERE u.group_id = $1 
+    `;
+    const params = [groupId, limit];
 
-            if (currentUser.role === 'ADMIN') {
-                document.getElementById('admin-panel').classList.remove('hidden');
-                fetchPendingUsers();
-                if(!pollInterval) pollInterval = setInterval(() => { fetchPendingUsers(); fetchMembers(); }, 5000);
-            }
-        }
+    // 3. אם המשתמש הוא לא ADMIN, סנן רק לתנועות שלו
+    if (role !== 'ADMIN') {
+      sql += ` AND t.user_id = $3`;
+      params.push(userId);
+    }
 
-        function openTransactionModal(type) {
-            document.getElementById('trans-type').value = type;
-            document.getElementById('trans-modal-title').innerText = type === 'income' ? 'הכנסה חדשה' : 'הוצאה חדשה';
-            document.getElementById('trans-amount').value = '';
-            document.getElementById('trans-desc').value = '';
-            const catSelect = document.getElementById('trans-cat');
-            catSelect.innerHTML = '';
-            CATEGORIES[type].forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.value;
-                opt.innerText = c.label;
-                catSelect.appendChild(opt);
-            });
-            document.getElementById('transaction-modal').classList.remove('hidden');
-            document.getElementById('trans-amount').focus();
-        }
+    sql += ` ORDER BY t.date DESC LIMIT $2`;
 
-        function closeTransModal() {
-            document.getElementById('transaction-modal').classList.add('hidden');
-        }
+    const r = await client.query(sql, params);
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        async function submitTransaction() {
-            const amount = document.getElementById('trans-amount').value;
-            const desc = document.getElementById('trans-desc').value;
-            const cat = document.getElementById('trans-cat').value;
-            const type = document.getElementById('trans-type').value;
+app.get('/api/budget', async (req, res) => {
+  try {
+    const groupId = req.query.groupId;
+    const budgets = await client.query(`SELECT * FROM budgets WHERE group_id = $1`, [groupId]);
+    
+    const status = [];
+    for (const b of budgets.rows) {
+      const spent = await client.query(`
+        SELECT SUM(amount) as total FROM transactions t 
+        JOIN users u ON t.user_id = u.id 
+        WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' 
+        AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
+      `, [groupId, b.category]);
+      status.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) });
+    }
+    res.json(status);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-            if(!amount || parseFloat(amount) <= 0) { showToast('error', 'נא להזין סכום תקין'); return; }
-            toggleLoader('save', true);
+app.post('/api/transaction', async (req, res) => {
+  const { userId, amount, description, category, type } = req.body;
+  try {
+    await client.query('BEGIN');
+    
+    await client.query(
+      `INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`,
+      [userId, amount, description, category, type]
+    );
+    
+    const factor = type === 'income' ? 1 : -1;
+    await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amount * factor, userId]);
+    
+    const uRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, newBalance: uRes.rows[0].balance });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  }
+});
 
-            try {
-                const res = await fetch(`${API}/transaction`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
-                    userId: currentUser.id,
-                    groupId: currentGroup.id,
-                    amount, type, category: cat, description: desc || (type==='income'?'הכנסה':'קנייה')
-                })});
-                const data = await res.json();
-                
-                if(data.success) {
-                    // Update frontend balance instantly
-                    currentUser.balance = data.newBalance;
-                    document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
-                    
-                    showToast('success', 'נשמר בהצלחה!');
-                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-                    closeTransModal();
-                    fetchTransactions();
-                    fetchBudget();
-                } else { showToast('error', data.error || 'שגיאה בשמירה'); }
-            } catch(e) { showToast('error', 'שגיאת תקשורת'); } 
-            finally { toggleLoader('save', false); }
-        }
-
-        async function fetchTransactions() {
-            try {
-                const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&limit=20`);
-                const list = await res.json();
-                const container = document.getElementById('transactions-list');
-                container.innerHTML = '';
-                if(list.length === 0) { container.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">אין תנועות עדיין.</p>'; return; }
-
-                list.forEach(t => {
-                    const isIncome = t.type === 'income';
-                    container.innerHTML += `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-50 flex justify-between items-center">
-                            <div>
-                                <p class="font-bold text-gray-800">${t.description} <span class="text-xs text-gray-400 font-normal">(${t.user_name})</span></p>
-                                <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()}</p>
-                            </div>
-                            <span class="font-bold text-lg ${isIncome ? 'text-green-500' : 'text-red-500'}">
-                                ${isIncome ? '+' : '-'}₪${t.amount}
-                            </span>
-                        </div>
-                    `;
-                });
-            } catch(e) {}
-        }
-
-        async function fetchBudget() {
-            try {
-                const res = await fetch(`${API}/budget?groupId=${currentGroup.id}`);
-                const data = await res.json();
-                const container = document.getElementById('budget-list');
-                container.innerHTML = '';
-                data.forEach(b => {
-                    const pct = Math.min(100, Math.round((b.spent / b.limit) * 100));
-                    let color = 'bg-blue-500';
-                    if(pct > 75) color = 'bg-yellow-500';
-                    if(pct >= 100) color = 'bg-red-500';
-                    container.innerHTML += `<div><div class="flex justify-between text-sm mb-1"><span class="font-bold text-gray-700">${b.category}</span><span class="text-gray-500">₪${b.spent} / ₪${b.limit}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div></div></div>`;
-                });
-            } catch(e) {}
-        }
-
-        async function fetchMembers() {
-            try {
-                const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}`);
-                const list = await res.json();
-                const container = document.getElementById('members-list');
-                container.innerHTML = '';
-                list.forEach(m => {
-                    const badge = m.role==='ADMIN' ? '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] mr-1">מנהל</span>' : '';
-                    container.innerHTML += `<div class="p-3 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500">${m.nickname[0]}</div><div><span class="font-bold text-gray-800 text-sm">${m.nickname}</span>${badge}</div></div><span class="text-xs font-bold text-gray-400">₪${m.balance}</span></div>`;
-                });
-            } catch(e) {}
-        }
-
-        async function fetchPendingUsers() {
-            try {
-                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const list = await res.json();
-                const container = document.getElementById('pending-list');
-                const badge = document.getElementById('pending-count');
-                if(list.length===0) { container.innerHTML='<p class="text-center text-gray-400 text-xs py-2">אין בקשות</p>'; badge.classList.add('hidden'); return; }
-                badge.innerText = list.length; badge.classList.remove('hidden');
-                container.innerHTML = '';
-                list.forEach(u => container.innerHTML += `<div class="p-2 flex justify-between bg-yellow-50 rounded mb-1"><span class="font-bold text-sm">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-2 py-1 rounded">אשר</button></div>`);
-            } catch(e) {}
-        }
-
-        async function approveUser(id) {
-            await fetch(`${API}/admin/approve-user`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id}) });
-            showToast('success', 'אושר!'); fetchPendingUsers(); fetchMembers();
-        }
-
-        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
-        function toggleLoader(act, show) {
-            document.getElementById(`btn-${act}-text`).classList.toggle('hidden', show);
-            document.getElementById(`btn-${act}-loader`).classList.toggle('hidden', !show);
-        }
-        function showToast(type, msg) {
-            const t = document.getElementById('toast');
-            t.classList.remove('hidden');
-            document.getElementById('toast-message').innerText = msg;
-            t.className = `fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-lg border z-50 flex items-center gap-2 animate-bounce ${type==='success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`;
-            icon = document.getElementById('toast-icon');
-            icon.className = type==='success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-exclamation';
-            setTimeout(() => t.classList.add('hidden'), 3000);
-        }
-    </script>
-</body>
-</html>
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.listen(port, () => console.log(`Server running on port ${port}`));
