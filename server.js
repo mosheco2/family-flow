@@ -135,6 +135,15 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// בדיקת קיום משתמש (חדש! לפתרון הבאג של הרענון)
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const r = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json(r.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
@@ -147,9 +156,8 @@ app.get('/api/group/members', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// --- 3. DATA & TRANSACTIONS API (תוקן והושלם) ---
+// --- 3. DATA & TRANSACTIONS API ---
 
-// נתיב חדש לקבלת תנועות (מה שהיה חסר!)
 app.get('/api/transactions', async (req, res) => {
   try {
     const groupId = req.query.groupId;
@@ -167,7 +175,6 @@ app.get('/api/transactions', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// נתיב חדש לקבלת סטטוס תקציב
 app.get('/api/budget', async (req, res) => {
   try {
     const groupId = req.query.groupId;
@@ -187,23 +194,19 @@ app.get('/api/budget', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// הוספת תנועה - תיקון החזרת יתרה מעודכנת
 app.post('/api/transaction', async (req, res) => {
   const { userId, amount, description, category, type } = req.body;
   try {
     await client.query('BEGIN');
     
-    // 1. הוספת תנועה
     await client.query(
       `INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`,
       [userId, amount, description, category, type]
     );
     
-    // 2. עדכון יתרה
     const factor = type === 'income' ? 1 : -1;
     await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amount * factor, userId]);
     
-    // 3. שליפת היתרה החדשה כדי להחזיר אותה לדפדפן
     const uRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
     
     await client.query('COMMIT');
