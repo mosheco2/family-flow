@@ -103,7 +103,6 @@ app.post('/api/join', async (req, res) => {
     const gRes = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail]);
     if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
     
-    // בדיקת כפילות (Case Insensitive)
     const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [gRes.rows[0].id, nickname]);
     if (check.rows.length > 0) return res.status(400).json({ error: 'כינוי תפוס' });
 
@@ -122,7 +121,6 @@ app.post('/api/login', async (req, res) => {
     if (gRes.rows.length === 0) return res.status(401).json({ error: 'קבוצה לא נמצאה' });
     const group = gRes.rows[0];
 
-    // תיקון: חיפוש משתמש לפי כינוי (ללא רגישות לאותיות גדולות/קטנות)
     const uRes = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [group.id, nickname]);
     if (uRes.rows.length === 0) return res.status(401).json({ error: 'משתמש לא נמצא' });
     const user = uRes.rows[0];
@@ -135,7 +133,6 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// בדיקת קיום משתמש (חדש! לפתרון הבאג של הרענון)
 app.get('/api/users/:id', async (req, res) => {
   try {
     const r = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
@@ -158,19 +155,35 @@ app.get('/api/group/members', async (req, res) => {
 
 // --- 3. DATA & TRANSACTIONS API ---
 
+// תיקון סעיף 8: סינון לפי הרשאות
 app.get('/api/transactions', async (req, res) => {
   try {
-    const groupId = req.query.groupId;
-    const limit = req.query.limit || 20;
-    const r = await client.query(`
+    const { groupId, userId, limit = 20 } = req.query;
+    
+    // 1. בדיקת תפקיד המשתמש המבקש
+    const userCheck = await client.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if(userCheck.rows.length === 0) return res.status(404).json({error: 'User not found'});
+    
+    const role = userCheck.rows[0].role;
+    
+    // 2. בניית השאילתה הבסיסית
+    let sql = `
       SELECT t.*, u.nickname as user_name 
       FROM transactions t 
       JOIN users u ON t.user_id = u.id 
       WHERE u.group_id = $1 
-      ORDER BY t.date DESC 
-      LIMIT $2`, 
-      [groupId, limit]
-    );
+    `;
+    const params = [groupId, limit];
+
+    // 3. אם המשתמש הוא לא ADMIN, סנן רק לתנועות שלו
+    if (role !== 'ADMIN') {
+      sql += ` AND t.user_id = $3`;
+      params.push(userId);
+    }
+
+    sql += ` ORDER BY t.date DESC LIMIT $2`;
+
+    const r = await client.query(sql, params);
     res.json(r.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
