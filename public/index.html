@@ -7,659 +7,294 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
         .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; padding: 0.5rem; }
+        .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; padding: 0.5rem; scrollbar-width: none; }
         .slider-scroll::-webkit-scrollbar { display: none; }
-        .tab-btn { flex: 0 0 auto; padding: 0.6rem 1.2rem; border-radius: 1rem; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
-        .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
-        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
-        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .fab-open #fab-icon { transform: rotate(45deg); }
-        .btn-payday { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
-        .btn-payday:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4); }
-        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
-        .credit-card::before { content: ''; position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; }
-        .credit-card::after { content: ''; position: absolute; bottom: -50px; left: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.05); border-radius: 50%; }
-        .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
-        .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
-        .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
-        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
-        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
-        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
+        .tab-btn { flex: 0 0 auto; padding: 0.6rem 1.2rem; border-radius: 1rem; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; transition: all 0.2s; }
+        .tab-active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; }
+        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3">
+        <i id="toast-icon"></i><span id="toast-message" class="text-sm"></span>
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
-        <!-- AUTH -->
-        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-            <div class="p-10 text-center relative overflow-hidden">
-                <div class="absolute inset-0 bg-blue-600 rounded-b-[3rem] shadow-xl"></div>
-                <div class="relative z-10 pt-8 pb-4">
-                    <div class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20">
-                        <i class="fa-solid fa-wallet"></i>
-                    </div>
-                    <h1 class="text-3xl font-bold tracking-tight text-white">FamilyFlow</h1>
-                    <p class="text-blue-100 text-sm font-light">הבנק המשפחתי החכם</p>
-                </div>
+        <!-- Auth Container -->
+        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl flex flex-col">
+            <div class="p-10 text-center relative">
+                 <h1 class="text-3xl font-bold text-blue-600 mb-2">FamilyFlow</h1>
+                 <p class="text-gray-500">הבנק המשפחתי החכם</p>
             </div>
-
-            <!-- Login -->
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי">
+            
+            <div id="view-login" class="px-8 py-4 flex-1 flex flex-col justify-center">
+                <form onsubmit="handleLogin(event)" class="space-y-4">
+                    <input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי">
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg">
-                        <span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center gap-2">
+                        <span>כניסה</span><div id="btn-login-loader" class="loader hidden"></div>
                     </button>
                 </form>
-                <div class="mt-8 text-center text-sm space-y-3">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button>
+                <div class="mt-6 text-center space-y-3">
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold block w-full bg-blue-50 py-3 rounded-xl">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-gray-500 font-medium">הצטרפות למשפחה קיימת</button>
                 </div>
             </div>
 
-            <!-- Create -->
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
+            <div id="view-create" class="px-8 py-6 hidden flex-1">
+                <h2 class="text-2xl font-bold mb-6">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
-                    <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
-                    </div>
-                    <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input">
-                    <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input">
-                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל מנהל" class="modern-input">
+                    <div class="flex gap-2">
+                        <input type="text" id="create-nickname" required placeholder="שם הורה" class="modern-input w-2/3">
+                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input w-1/3">
                     </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg flex justify-center gap-2 items-center">
-                        <span id="btn-create-text">סיום והרשמה</span><div id="btn-create-loader" class="loader hidden border-white border-t-transparent"></div>
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold mt-4 flex justify-center gap-2">
+                        <span>סיום והרשמה</span><div id="btn-create-loader" class="loader hidden"></div>
                     </button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-4 text-gray-400 font-bold">ביטול</button>
             </div>
 
-            <!-- Join -->
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
+            <div id="view-join" class="px-8 py-6 hidden flex-1">
+                <h2 class="text-2xl font-bold mb-6">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input">
+                    <input type="email" id="join-email" required placeholder="מייל מנהל המשפחה" class="modern-input">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="join-password" required placeholder="סיסמה" class="modern-input">
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg flex justify-center gap-2 items-center">
-                        <span id="btn-join-text">שלח בקשה</span><div id="btn-join-loader" class="loader hidden border-white border-t-transparent"></div>
+                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold mt-4 flex justify-center gap-2">
+                        <span>שלח בקשה</span><div id="btn-join-loader" class="loader hidden"></div>
                     </button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-4 text-gray-400 font-bold">ביטול</button>
             </div>
         </div>
 
-        <!-- DASHBOARD -->
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
-            
-            <!-- Header -->
-            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                    <div>
-                        <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2>
-                        <p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
-                    </div>
+        <!-- Dashboard -->
+        <div id="dashboard-container" class="w-full max-w-lg hidden h-screen flex flex-col relative">
+            <header class="glass-header px-5 py-4 flex justify-between items-center sticky top-0 z-30">
+                <div>
+                    <h2 id="dash-group-name" class="font-bold text-lg leading-none"></h2>
+                    <p class="text-xs text-gray-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
                 </div>
-                <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <button onclick="logout()" class="text-red-500 bg-red-50 p-2 rounded-full"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
-            <!-- Slider Tabs -->
-            <div class="relative px-2 mb-6 group">
-                <button onclick="scrollSlider(-100)" class="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm ml-1"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                <button onclick="scrollSlider(100)" class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm mr-1"><i class="fa-solid fa-chevron-right text-xs"></i></button>
-
+            <!-- Tabs -->
+            <div class="relative px-2 py-2 bg-white shadow-sm z-20">
                 <div class="slider-scroll" id="slider-scroll">
                     <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                     <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
-                    <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                     <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
-                    <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
-                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
-                    <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
-                    <button onclick="switchTab('loans')" id="tab-loans" class="tab-btn">הלוואות 💸</button>
                 </div>
             </div>
 
-            <!-- Content -->
-            <div class="px-2">
-                <!-- 1. FEED -->
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-4 pb-24 bg-slate-50" id="main-content">
+                
+                <!-- Feed -->
                 <div id="content-feed">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
-                        <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
-                        <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
-                        <div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div>
+                    <div class="bg-blue-600 rounded-3xl p-8 text-white shadow-xl mb-6 text-center">
+                        <p class="text-blue-100 text-sm mb-1">יתרה נוכחית</p>
+                        <h1 class="text-5xl font-bold dir-ltr" id="user-balance">₪0.00</h1>
                     </div>
-                    <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3>
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
 
-                <!-- 2. BANK -->
+                <!-- Bank -->
                 <div id="content-bank" class="hidden">
-                    <div id="bank-admin-view" class="hidden space-y-6">
-                        <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                            <div class="relative z-10">
-                                <h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3>
-                                <p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p>
-                                <button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition">
-                                    <i class="fa-solid fa-money-bill-wave"></i> בצע PayDay
-                                </button>
-                            </div>
-                            <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
+                    <div id="bank-admin-view" class="hidden">
+                        <div class="bg-emerald-100 p-6 rounded-2xl mb-4 text-center">
+                            <h3 class="font-bold text-emerald-800 text-lg">יום תשלום 🤑</h3>
+                            <button onclick="alert('PayDay Coming Soon')" class="bg-emerald-600 text-white px-6 py-2 rounded-full mt-2 font-bold shadow">בצע PayDay</button>
                         </div>
-                        <div>
-                            <div class="flex justify-between items-center px-2 mb-3">
-                                <h3 class="font-bold text-slate-700 text-lg">יעדים משפחתיים 🎯</h3>
-                                <button onclick="openAdminGoalModal()" class="text-xs bg-cyan-100 text-cyan-700 px-3 py-1.5 rounded-full font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-plus"></i> יעד חדש</button>
-                            </div>
-                            <div id="admin-goals-list" class="space-y-3"></div>
-                        </div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">בקשות להלוואה</h3><div id="bank-loans-list" class="space-y-3"></div></div>
                     </div>
-                    <div id="bank-child-view" class="hidden space-y-6">
-                        <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                            <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                            <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
-                            <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
+                    <div id="bank-child-view" class="hidden">
+                        <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg mb-6">
+                            <div class="flex justify-between mb-8"><i class="fa-solid fa-wifi"></i><span>FAMILY CARD</span></div>
+                            <div class="text-2xl font-mono tracking-widest mb-2">**** **** **** 1234</div>
+                            <div class="flex justify-between text-xs opacity-70"><span>VALID THRU 12/28</span><span id="card-name">NAME</span></div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
-                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
                     </div>
                 </div>
 
-                <!-- 3. ACADEMY -->
-                <div id="content-academy" class="hidden">
-                    <div id="academy-admin-view" class="hidden">
-                        <div class="flex justify-between items-center mb-6 px-2"><h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3><button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת אתגר</button></div>
-                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50"><h4 class="font-bold text-slate-700 mb-3 text-sm">היסטוריית אתגרים</h4><div id="admin-assignments-list" class="space-y-3 divide-y divide-slate-50"></div></div>
-                    </div>
-                    <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div>
-                    </div>
+                <!-- Budget -->
+                <div id="content-budget" class="hidden">
+                    <div id="budget-list" class="space-y-4"></div>
                 </div>
 
-                <!-- 4. BUDGET -->
-                <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
-                <!-- 5. TASKS -->
-                <div id="content-tasks" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3><div class="flex gap-2"><button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button><button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button></div></div><div id="tasks-list" class="space-y-3 pb-20"></div></div>
-                <!-- 6. SHOPPING -->
-                <div id="content-shop" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">רשימת קניות</h3><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div><div id="shop-list" class="space-y-2 mb-24"></div><div id="checkout-bar" class="fixed bottom-24 left-4 right-4 bg-white/90 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl flex justify-between items-center hidden z-30 animate-bounce-in"><span class="font-bold text-slate-700">סיימתם בסופר?</span><button onclick="checkout()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-green-700 transition">סיום וחיוב</button></div></div>
-                <!-- 7. LOANS -->
-                <div id="content-loans" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">הלוואות</h3><button onclick="openLoanModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> בקשה</button></div><div id="loans-list" class="space-y-3 pb-20"></div></div>
-                <!-- 8. MEMBERS -->
-                <div id="content-members" class="hidden space-y-6"><div class="card-modern overflow-hidden"><div class="p-4 border-b border-slate-50 bg-slate-50/50"><h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3></div><div id="members-list" class="divide-y divide-slate-50 p-2"></div></div><div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-1 border border-yellow-100 hidden"><div class="flex justify-between items-center p-4 pb-2"><h3 class="font-bold text-yellow-700 text-sm">ממתינים לאישור</h3><span id="pending-count" class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span></div><div id="pending-list" class="divide-y divide-yellow-100/50 p-2"></div></div></div>
             </div>
         </div>
-        
-        <!-- FAB & Modals (Same as before) -->
-        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
-        
-        <!-- Modals -->
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
-        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת אתגר חדש</h3><div class="flex gap-2 mb-4"><select id="assign-filter-type" class="modern-input text-xs" onchange="fetchBundles()"><option value="">סוג...</option><option value="math">חשבון</option><option value="reading">עיוני</option><option value="financial">פיננסי</option></select><select id="assign-filter-age" class="modern-input text-xs" onchange="fetchBundles()"><option value="">גיל...</option><option value="6-8">6-8</option><option value="8-10">8-10</option><option value="10-13">10-13</option><option value="13-15">13-15</option><option value="15-18">15-18</option></select></div><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white"><option>בחר קודם סינון...</option></select><div class="flex gap-3 mb-4"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center" placeholder="2.00"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">זמן (שעות):</label><input type="number" id="assign-deadline" class="modern-input text-center" placeholder="24"></div></div><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצה</button></div></div></div>
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-4 text-slate-800"></h2><div id="quiz-text-container" class="mb-6 hidden"><div class="bg-blue-50 p-4 rounded-xl text-right text-sm text-slate-700 leading-relaxed max-h-40 overflow-y-auto border border-blue-100 shadow-inner"><p id="quiz-text-content"></p></div></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>Question</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-lg font-bold mb-6 min-h-[60px] flex items-center justify-center" dir="auto"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
-        <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><label class="text-xs font-bold text-slate-400 block mb-1">עבור מי היעד?</label><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים? (למשל: אופניים)"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div></div>
-        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div></div>
-        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><label class="text-xs font-bold text-slate-400 mr-1">דמי כיס (שבועי)</label><div class="relative mb-4"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">₪</span></div><label class="text-xs font-bold text-slate-400 mr-1">ריבית על יתרה (שבועי)</label><div class="relative mb-6"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">%</span></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div></div>
-        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3><p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id"><input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי"><div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div></div></div>
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><input type="text" id="shop-item" class="modern-input mb-6" placeholder="מה חסר?"><div class="flex gap-3"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
-        <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
 
     </div>
 
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        let currentUser = null; let currentGroup = null; let pollInterval = null; let membersCache = []; let bundlesCache = [];
-        const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
-        const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
-        let currentQuizData = null; let currentQuestionIndex = 0; let quizScore = 0; let currentAssignmentId = null;
+        let currentUser = null;
+        let currentGroup = null;
 
+        // Init Check
         window.onload = async () => {
             const saved = localStorage.getItem('ofl_session');
             if(saved) {
                 try {
                     const session = JSON.parse(saved);
-                    // Safe Check: verify user still exists
-                    const res = await fetch(`${API}/users/${session.user.id}`);
-                    if(res.ok) { 
-                        currentUser = await res.json(); 
-                        currentGroup = session.group; 
-                        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
-                        loadDashboard(); 
-                    } else { logout(); }
+                    // Fast check
+                    currentUser = session.user;
+                    currentGroup = session.group;
+                    loadDashboard(); // Load UI immediately
+                    
+                    // Verify in background
+                    const res = await fetch(`${API}/users/${currentUser.id}`);
+                    if(!res.ok) logout();
                 } catch(e) { logout(); }
             }
         };
 
-        // --- SAFE NAVIGATION & AUTH ---
-        function switchTab(t) { 
-            try {
-                ['feed','tasks','shop','bank','academy','members','budget','loans'].forEach(x => { 
-                    const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); 
-                    const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-                }); 
-                const target = document.getElementById(`content-${t}`);
-                if(target) target.classList.remove('hidden'); 
-                const btn = document.getElementById(`tab-${t}`);
-                if(btn) btn.classList.add('tab-active'); 
-                if(t==='tasks' && membersCache.length > 0) { const s = document.getElementById('task-assignee'); if(s) { s.innerHTML=''; membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`); }}
-            } catch(e) { console.error('Tab switch error:', e); }
-        }
-
-        // Expose to window to ensure HTML onclick works
-        window.switchTab = switchTab;
-
-        function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
-        async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }, 'login'); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }, 'create'); }
-        async function handleJoin(e) { 
-            e.preventDefault(); 
-            // Manual loader handling for simple UI
-            const btn = document.querySelector('#view-join button');
-            if(btn) btn.innerText = '...';
-            try {
-                const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
-                const d=await res.json(); 
-                if(d.success) { showToast('success', 'בקשה נשלחה!'); switchView('login'); } 
-                else { showToast('error', d.error); }
-            } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-            finally { if(btn) btn.innerText = 'שלח בקשה'; }
-        }
-        
-        async function authAction(endpoint, body, btnId) { 
-            // Simple manual loader
-            const btn = document.querySelector(`#view-${btnId} button[type=submit]`);
-            const originalText = btn ? btn.innerText : '';
-            if(btn) btn.innerText = '...';
+        // --- Navigation ---
+        window.switchTab = function(t) {
+            // Hide all contents
+            ['feed', 'bank', 'budget'].forEach(id => {
+                const el = document.getElementById(`content-${id}`);
+                if(el) el.classList.add('hidden');
+                const btn = document.getElementById(`tab-${id}`);
+                if(btn) btn.classList.remove('tab-active');
+            });
             
-            try { 
-                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
-                const data = await res.json(); 
-                if(data.success) { 
-                    currentUser = data.user; 
-                    currentGroup = data.group; 
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
-                    loadDashboard(); 
-                } else { showToast('error', data.error); } 
-            } catch(e) { showToast('error', 'שגיאת תקשורת'); } 
-            finally { if(btn) btn.innerText = originalText; } 
+            // Show selected
+            const target = document.getElementById(`content-${t}`);
+            if(target) target.classList.remove('hidden');
+            const btn = document.getElementById(`tab-${t}`);
+            if(btn) btn.classList.add('tab-active');
+            
+            // Trigger fetch if needed
+            if(t === 'budget') fetchBudget();
+        };
+
+        function switchView(view) {
+            ['login', 'create', 'join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
         }
 
-        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); fetchMembers(); fetchData(); }
+        // --- Auth Logic ---
+        function val(id) { return document.getElementById(id).value; }
+        
+        async function handleLogin(e) { e.preventDefault(); doAuth('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
+        async function handleCreate(e) { e.preventDefault(); doAuth('groups', { groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }, 'create'); }
+        async function handleJoin(e) { e.preventDefault(); doAuth('join', { groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }, 'join'); }
+
+        async function doAuth(endpoint, body, btnId = 'login') {
+            const btn = document.querySelector(`#view-${btnId} button[type=submit]`);
+            const loader = document.getElementById(`btn-${btnId}-loader`);
+            if(btn) btn.disabled = true;
+            if(loader) loader.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API}/${endpoint}`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    if(endpoint === 'join') {
+                        alert('בקשה נשלחה בהצלחה! המתן לאישור מנהל.');
+                        switchView('login');
+                    } else {
+                        currentUser = data.user;
+                        currentGroup = data.group;
+                        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                        loadDashboard();
+                    }
+                } else {
+                    alert(data.error || 'שגיאה בביצוע הפעולה');
+                }
+            } catch (e) {
+                alert('שגיאת תקשורת. בדוק את החיבור לאינטרנט.');
+                console.error(e);
+            } finally {
+                if(btn) btn.disabled = false;
+                if(loader) loader.classList.add('hidden');
+            }
+        }
 
         function loadDashboard() {
             document.getElementById('auth-container').classList.add('hidden');
             document.getElementById('dashboard-container').classList.remove('hidden');
-            document.getElementById('fab-container').classList.remove('hidden'); 
+            
             document.getElementById('dash-group-name').innerText = currentGroup.name;
             document.getElementById('dash-nickname').innerText = currentUser.nickname;
             document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-            
-            if(currentUser.role === 'ADMIN') {
-                document.getElementById('admin-panel').classList.remove('hidden');
-                document.getElementById('btn-add-task').classList.remove('hidden');
-                document.getElementById('checkout-bar').classList.remove('hidden');
-                document.getElementById('budget-filter').classList.remove('hidden');
-                document.getElementById('bank-admin-view').classList.remove('hidden'); 
-                document.getElementById('academy-admin-view').classList.remove('hidden');
-                fetchPendingUsers();
-                fetchBundles();
+
+            // Setup Role Views
+            if (currentUser.role === 'ADMIN') {
+                document.getElementById('bank-admin-view').classList.remove('hidden');
             } else {
-                document.getElementById('btn-self-task').classList.remove('hidden');
-                document.getElementById('bank-child-view').classList.remove('hidden'); 
-                document.getElementById('academy-user-view').classList.remove('hidden');
-                if(document.getElementById('card-name')) {
-                    document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase();
-                    document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`;
-                    document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
-                }
+                document.getElementById('bank-child-view').classList.remove('hidden');
+                if(document.getElementById('card-name')) document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase();
             }
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(currentUser.role==='ADMIN') fetchPendingUsers(); }, 10000);
-            fetchMembers(); fetchData();
+
+            // Initial Data Fetch
+            fetchData();
         }
 
-        async function fetchPendingUsers() {
-            try {
-                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const list = await res.json();
-                if (!Array.isArray(list)) return;
-                const container = document.getElementById('pending-list'); 
-                if (container) {
-                    document.getElementById('pending-count').innerText = list.length;
-                    document.getElementById('pending-count').classList.toggle('hidden', list.length===0);
-                    document.getElementById('admin-panel').classList.toggle('hidden', list.length===0);
-                    container.innerHTML = '';
-                    list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
-                }
-            } catch(e) { console.error('Pending Users Error', e); }
+        function logout() {
+            localStorage.removeItem('ofl_session');
+            location.reload();
         }
 
+        // --- Data Fetching (Safe Mode) ---
         async function fetchData() {
             try {
                 const res = await fetch(`${API}/data/${currentUser.id}`);
-                if (!res.ok) return; 
                 const data = await res.json();
-                if (!data.user) return;
                 
-                currentUser.balance = data.user.balance;
-                document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-                
-                const tList = document.getElementById('transactions-list');
-                if (tList) {
-                    tList.innerHTML = '';
-                    const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
-                    if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
-                    else {
-                        recentT.forEach(t => {
-                            const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50';
-                            const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : '';
-                            tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
-                        });
-                    }
+                if (data.user) {
+                    currentUser.balance = data.user.balance;
+                    document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 }
-
-                renderGoals(data.goals);
-                renderTasks(data.tasks);
-                renderLoans(data.loans);
-                renderAcademy(data.assignments, data.academyHistory);
-                renderWeeklyStats(data.weekly_stats);
-                
-                fetchBudget();
-                
-            } catch(e) { console.error('Fetch Data Error', e); }
+            } catch (e) { console.log('Background fetch failed'); }
         }
 
-        function renderGoals(goals) {
-            const list = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list');
-            if(!list) return;
-            list.innerHTML = '';
-            const container = document.getElementById('my-goals-container');
-            
-            if (goals && goals.length > 0) {
-                if(container) container.classList.remove('hidden');
-                goals.forEach(g => {
-                    const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
-                    const badge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : '';
-                    list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${badge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`;
-                });
-            } else {
-                 if(container) container.classList.add('hidden');
-                 list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>';
-            }
-        }
-
-        function renderTasks(tasks) {
-            const list = document.getElementById('tasks-list');
-            if(!list) return;
-            list.innerHTML = '';
-            if(!tasks || tasks.length === 0) { list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; return; }
-            tasks.forEach(t => {
-                let action = '';
-                const isMyTask = t.assigned_to == currentUser.id;
-                const isAdmin = currentUser.role === 'ADMIN';
-                if(t.status === 'pending') {
-                    if(isMyTask) action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`;
-                    else if(isAdmin) action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
-                } else if (t.status === 'done') {
-                    if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר</button>`;
-                    else action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
-                }
-                if (isMyTask || isAdmin) list.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : ''}</div></div>${action}</div>`;
-            });
-        }
-        
-        function renderLoans(loans) {
-             const list = document.getElementById(currentUser.role === 'ADMIN' ? 'bank-loans-list' : 'my-loans-list');
-             if(!list) return;
-             list.innerHTML = '';
-             if(!loans || loans.length === 0) { list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין הלוואות פעילות</div>'; return; }
-             loans.forEach(l => {
-                let action = '', badge = '';
-                if(l.status==='active') badge = '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full">אושר</span>';
-                else if(l.status==='pending') badge = '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded-full">ממתין</span>';
-                
-                if(currentUser.role==='ADMIN' && l.status==='pending') 
-                    action = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-50"><button onclick="handleLoan(${l.id}, 'active')" class="flex-1 bg-green-500 text-white py-1.5 rounded-lg text-xs font-bold">אשר</button><button onclick="handleLoan(${l.id}, 'rejected')" class="flex-1 bg-red-500 text-white py-1.5 rounded-lg text-xs font-bold">דחה</button></div>`;
-                
-                list.innerHTML+=`<div class="bg-white p-4 rounded-2xl border border-slate-50 shadow-sm mb-3"><div class="flex justify-between items-start"><div><p class="font-bold text-slate-800">${l.reason}</p><p class="text-xs text-slate-500 mt-1">${l.user_name} • <span class="font-bold text-slate-700">₪${l.original_amount}</span></p></div>${badge}</div>${action}</div>`;
-             });
-        }
-        
-        function renderAcademy(assignments, history) {
-            if (currentUser.role === 'ADMIN' && history) {
-                const list = document.getElementById('admin-assignments-list');
-                if(list) {
-                    list.innerHTML = '';
-                    if(history.length === 0) list.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין היסטוריה</p>';
-                    history.forEach(h => {
-                         let st = 'הוקצה', cl = 'bg-slate-100 text-slate-500';
-                         if(h.status === 'completed') { st = `הושלם (${h.score}%)`; cl = 'bg-green-50 text-green-600'; }
-                         if(h.status === 'failed') { statusColor = 'text-red-600 bg-red-50'; statusText = `נכשל (${h.score}%)`; }
-                         if(h.status === 'late') { statusColor = 'text-orange-600 bg-orange-50'; statusText = 'איחור'; }
-                         list.innerHTML += `<div class="py-2 flex justify-between items-center"><div><span class="font-bold text-xs block text-slate-800">${h.nickname}</span><span class="text-[10px] text-slate-400">${h.title}</span></div><span class="text-[10px] px-2 py-1 rounded-full font-bold ${cl}">${st}</span></div>`;
-                    });
-                }
-            }
-            if (currentUser.role !== 'ADMIN' && assignments) {
-                const list = document.getElementById('my-assignments-list');
-                if(list) {
-                    list.innerHTML = '';
-                    if(assignments.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פתוחות</p>';
-                    assignments.forEach(a => {
-                        const rewardDisplay = a.custom_reward ? a.custom_reward : a.reward;
-                        list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center"><div><span class="text-[10px] uppercase font-bold text-blue-500 tracking-wider">${a.type}</span><h4 class="font-bold text-slate-800">${a.title}</h4><span class="text-xs text-slate-400">תגמול: ₪${rewardDisplay}</span></div><button onclick="startQuiz(${a.bundle_id}, ${a.id})" class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition">התחל</button></div>`;
-                    });
-                }
-            }
-        }
-        
-        function renderWeeklyStats(stats) {
-            if (currentUser.role !== 'ADMIN' && stats) {
-                const bar = document.getElementById('card-spend-bar');
-                if (bar) {
-                    const spent = parseFloat(stats.spent).toFixed(1);
-                    const limit = parseFloat(stats.limit).toFixed(1);
-                    const pct = limit > 0 ? (spent / limit) * 100 : 0;
-                    document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`;
-                    bar.style.width = `${Math.min(100, pct)}%`;
-                    const msg = document.getElementById('card-spend-msg');
-                    if (parseFloat(spent) > parseFloat(limit)) { bar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'חרגת מהיעד'; msg.className = 'text-[9px] mt-1 opacity-80 text-right text-red-300 font-bold'; } 
-                    else { bar.className = 'bg-green-400 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'שמור על ירוק!'; msg.className = 'text-[9px] mt-1 opacity-60 text-right'; }
-                }
-            }
-        }
-
-        async function fetchBundles() {
+        async function fetchBudget() {
             try {
-                const type = document.getElementById('assign-filter-type').value;
-                const age = document.getElementById('assign-filter-age').value;
-                const res = await fetch(`${API}/academy/bundles?type=${type}&age=${age}`);
-                const bundles = await res.json();
-                if (!Array.isArray(bundles)) return; 
-                bundlesCache = bundles;
-                const select = document.getElementById('assign-bundle-select');
-                select.innerHTML = '<option value="">בחר מבחן...</option>';
-                if(bundles.length === 0) select.innerHTML = '<option value="">לא נמצאו מבחנים</option>';
-                bundles.forEach(b => { select.innerHTML += `<option value="${b.id}">${b.title} (סף: ${b.threshold}%)</option>`; });
-            } catch(e) { console.error(e); }
-        }
-
-        function openAssignModal() {
-            const select = document.getElementById('assign-child-select');
-            select.innerHTML = '<option value="">בחר ילד...</option>';
-            if(membersCache) { membersCache.filter(m => m.id !== currentUser.id).forEach(m => { select.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; }); }
-            document.getElementById('assign-quiz-modal').classList.remove('hidden');
-        }
-
-        async function submitAssignQuiz() {
-            const uid = val('assign-child-select');
-            const bid = val('assign-bundle-select');
-            const reward = val('assign-reward');
-            const deadline = val('assign-deadline');
-            if(!uid || !bid) return;
-            await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, bundleId: bid, customReward: reward, deadlineHours: deadline }) });
-            document.getElementById('assign-quiz-modal').classList.add('hidden');
-            showToast('success', 'המשימה הוקצתה בהצלחה!');
-            fetchData();
-        }
-
-        async function startQuiz(bundleId, assignmentId) {
-            currentAssignmentId = assignmentId;
-            const res = await fetch(`${API}/academy/quiz/${bundleId}`);
-            currentQuizData = await res.json();
-            document.getElementById('quiz-runner-modal').classList.remove('hidden');
-            document.getElementById('quiz-title').innerText = currentQuizData.title;
-            const textEl = document.getElementById('quiz-text-content');
-            const container = document.getElementById('quiz-text-container');
-            if (currentQuizData.text_content) { 
-                textEl.innerText = currentQuizData.text_content; 
-                container.classList.remove('hidden'); 
-            } else { 
-                container.classList.add('hidden'); 
-            }
-            currentQuestionIndex = 0; quizScore = 0;
-            document.getElementById('quiz-content').classList.remove('hidden');
-            document.getElementById('quiz-result').classList.add('hidden');
-            renderQuestion();
-        }
-
-        function renderQuestion() {
-            const qData = currentQuizData.questions[currentQuestionIndex];
-            document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`;
-            
-            const qTextEl = document.getElementById('q-text');
-            qTextEl.innerText = qData.q;
-            
-            // Set direction based on content (Math vs Text)
-            if (currentQuizData.type === 'math') {
-                qTextEl.setAttribute('dir', 'ltr');
-            } else {
-                qTextEl.setAttribute('dir', 'rtl');
-            }
-            
-            const optsContainer = document.getElementById('q-options');
-            optsContainer.innerHTML = '';
-            qData.options.forEach((opt, idx) => {
-                const btn = document.createElement('button');
-                btn.className = 'quiz-option w-full bg-slate-50 py-3 px-4 rounded-xl text-right font-medium text-slate-700 shadow-sm hover:bg-white';
-                btn.innerText = opt;
-                btn.onclick = () => checkAnswer(idx, btn);
-                optsContainer.appendChild(btn);
-            });
-        }
-
-        function checkAnswer(selectedIdx, btn) {
-            const qData = currentQuizData.questions[currentQuestionIndex];
-            const correctIdx = qData.correct;
-            const buttons = document.querySelectorAll('.quiz-option');
-            buttons.forEach(b => b.disabled = true);
-            if (selectedIdx === correctIdx) { btn.classList.add('correct'); quizScore++; triggerConfetti(); } else { btn.classList.add('wrong'); buttons[correctIdx].classList.add('correct'); }
-            setTimeout(() => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1500);
-        }
-
-        async function finishQuiz() {
-            document.getElementById('question-container').innerHTML = '';
-            document.getElementById('quiz-text-container').classList.add('hidden');
-            document.getElementById('quiz-result').classList.remove('hidden');
-            const totalQ = currentQuizData.questions.length;
-            const pct = Math.round((quizScore / totalQ) * 100);
-            const passed = pct >= currentQuizData.threshold;
-            document.getElementById('quiz-score-display').innerText = `ציון: ${pct}%`;
-            if (passed) { document.getElementById('quiz-icon').innerHTML = '🏆'; document.getElementById('quiz-msg-title').innerText = 'כל הכבוד!'; document.getElementById('quiz-msg-desc').innerText = `עברת את המבחן וזכית!`; triggerConfetti(); } else { document.getElementById('quiz-icon').innerHTML = '📚'; document.getElementById('quiz-msg-title').innerText = 'לא נורא...'; document.getElementById('quiz-msg-desc').innerText = `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; }
-            await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ assignmentId: currentAssignmentId, score: pct, passed, reward: currentQuizData.reward, userId: currentUser.id, title: currentQuizData.title }) });
-            fetchData();
-        }
-
-        function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
-        async function requestChallenge() { await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id }) }); showToast('success', 'בקשה נשלחה להורה! 🤞'); }
-        async function fetchMembers() {
-            try {
-                const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
-                const list = await res.json();
-                if (!Array.isArray(list)) return;
-                membersCache = list; 
-                if(currentUser.role === 'ADMIN') {
-                    const filter = document.getElementById('budget-filter');
-                    if (filter.options.length <= 1) { const currentVal = filter.value; filter.innerHTML = '<option value="all">כל הבית</option>'; list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(currentVal) filter.value = currentVal; }
-                }
-                const container = document.getElementById('members-list'); container.innerHTML = '';
-                list.forEach(m => {
-                    const balanceDisplay = m.balance !== null ? `₪${m.balance}` : '🔒';
-                    container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${balanceDisplay}</span></div></div>`
-                });
-                const accountsList = document.getElementById('bank-accounts-list');
-                if (accountsList) {
-                    accountsList.innerHTML = '';
-                    list.filter(m => m.role !== 'ADMIN').forEach(m => {
-                        accountsList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`;
+                const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}`);
+                const data = await res.json();
+                const list = document.getElementById('budget-list');
+                list.innerHTML = '';
+                
+                if(data.length === 0) {
+                    list.innerHTML = '<p class="text-center text-gray-400">טוען תקציב...</p>';
+                } else {
+                    data.forEach(b => {
+                        list.innerHTML += `
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                            <div class="flex justify-between font-bold text-gray-700 mb-1">
+                                <span>${b.category}</span>
+                                <span>₪${b.limit}</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>`;
                     });
                 }
-            } catch(e) { console.error(e); }
+            } catch (e) { console.error(e); }
         }
-        function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-        async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-        async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-        function openGoalModal() { document.getElementById('goal-modal').classList.remove('hidden'); }
-        function openAdminGoalModal() { const select = document.getElementById('goal-target-user'); select.innerHTML = `<option value="${currentUser.id}">עבורי (${currentUser.nickname})</option>`; if(membersCache) { membersCache.filter(m => m.id !== currentUser.id).forEach(m => { select.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`; }); } document.getElementById('goal-user-select-container').classList.remove('hidden'); document.getElementById('goal-modal').classList.remove('hidden'); }
-        async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && !document.getElementById('goal-user-select-container').classList.contains('hidden')) ? select.value : null; if(!title || !target) return; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); document.getElementById('goal-user-select-container').classList.add('hidden'); fetchData(); }
-        function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-        async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בהפקדה'); } }
-        function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
-        async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
-        function scrollSlider(amount) { document.getElementById('slider-scroll').scrollBy({ left: amount, behavior: 'smooth' }); }
-        async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
-        async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
-        async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        async function submitShopItem() { await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: val('shop-item'), userId: currentUser.id})}); document.getElementById('shop-modal').classList.add('hidden'); fetchData(); }
-        async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
-        async function checkout() { const total = prompt('סכום הקנייה הכולל:'); if(!total) return; triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({totalAmount:total, userId:currentUser.id, storeName:'סופר', items:[]})}); fetchData(); }
-        async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        async function handleLoan(id, s) { if(s==='active') triggerConfetti(); await fetch(`${API}/loans/handle`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({loanId:id, status:s})}); fetchData(); }
-        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-        function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
-        function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-        function toggleFab() { const container = document.getElementById('fab-container'); const icon = document.getElementById('fab-icon'); container.classList.toggle('fab-open'); }
-        function logout() { localStorage.removeItem('ofl_session'); document.getElementById('fab-container').classList.add('hidden'); location.reload(); }
-        function val(id) { return document.getElementById(id).value; }
-        function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; if(t==='success') { icon.className='fa-solid fa-check text-green-400'; } else { icon.className='fa-solid fa-xmark text-red-400'; } setTimeout(()=>el.classList.add('hidden'),3000); }
-        function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
-        function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
+
     </script>
 </body>
 </html>
