@@ -44,7 +44,6 @@
     <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
-
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
             <div class="p-10 text-center relative overflow-hidden">
@@ -136,41 +135,7 @@
 
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת אתגר חדש</h3><div class="flex gap-2 mb-4"><select id="assign-filter-type" class="modern-input text-xs" onchange="fetchBundles()"><option value="">סוג...</option><option value="math">חשבון</option><option value="reading">עיוני</option><option value="financial">פיננסי</option></select><select id="assign-filter-age" class="modern-input text-xs" onchange="fetchBundles()"><option value="">גיל...</option><option value="6-8">6-8</option><option value="8-10">8-10</option><option value="10-13">10-13</option><option value="13-15">13-15</option><option value="15-18">15-18</option></select></div><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white"><option>בחר קודם סינון...</option></select><div class="flex gap-3 mb-4"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center" placeholder="2.00"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">זמן (שעות):</label><input type="number" id="assign-deadline" class="modern-input text-center" placeholder="24"></div></div><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצה</button></div></div></div>
-        
-        <!-- Updated Quiz Modal -->
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-                <div id="quiz-content" class="text-center">
-                    <h2 id="quiz-title" class="text-xl font-bold mb-4 text-slate-800"></h2>
-                    
-                    <!-- Scrollable Text Container -->
-                    <div id="quiz-text-container" class="mb-6 hidden">
-                        <div class="bg-blue-50 p-4 rounded-xl text-right text-sm text-slate-700 leading-relaxed max-h-40 overflow-y-auto border border-blue-100 shadow-inner">
-                            <p id="quiz-text-content"></p>
-                        </div>
-                    </div>
-
-                    <div id="question-container">
-                        <div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest">
-                            <span>Question</span>
-                            <span id="q-progress">1 / 5</span>
-                        </div>
-                        <!-- LTR support for math -->
-                        <h3 id="q-text" class="text-lg font-bold mb-6 min-h-[60px] flex items-center justify-center" dir="auto"></h3>
-                        <div id="q-options" class="space-y-3"></div>
-                    </div>
-                    <div id="quiz-result" class="hidden">
-                        <div id="quiz-icon" class="text-6xl mb-4"></div>
-                        <h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3>
-                        <p id="quiz-msg-desc" class="text-slate-500 mb-6"></p>
-                        <p id="quiz-score-display" class="font-bold text-xl mb-6"></p>
-                        <button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><p id="quiz-text-content" class="text-sm text-slate-600 bg-blue-50 p-4 rounded-xl mb-6 text-right hidden leading-relaxed"></p><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>Question</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-lg font-bold mb-6 min-h-[60px] flex items-center justify-center"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
         <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><label class="text-xs font-bold text-slate-400 block mb-1">עבור מי היעד?</label><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים? (למשל: אופניים)"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div></div>
         <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div></div>
         <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><label class="text-xs font-bold text-slate-400 mr-1">דמי כיס (שבועי)</label><div class="relative mb-4"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">₪</span></div><label class="text-xs font-bold text-slate-400 mr-1">ריבית על יתרה (שבועי)</label><div class="relative mb-6"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">%</span></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div></div>
@@ -204,9 +169,29 @@
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
         async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
         async function handleJoin(e) { e.preventDefault(); const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); d.success ? (showToast('success', 'נשלח!'), switchView('login')) : showToast('error', d.error); }
-        async function authAction(endpoint, body) { toggleLoader('login', true); try { const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const data = await res.json(); if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); loadDashboard(); } else showToast('error', data.error); } catch(e) { showToast('error', 'שגיאה'); } finally { toggleLoader('login', false); } }
-        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); fetchMembers(); fetchData(); }
+        
+        async function authAction(endpoint, body) { 
+            toggleLoader('login', true); 
+            try { 
+                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
+                const data = await res.json(); 
+                if(data.success) { 
+                    currentUser = data.user; 
+                    currentGroup = data.group; 
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+                    loadDashboard(); 
+                } else { 
+                    showToast('error', data.error || 'שגיאת שרת'); 
+                } 
+            } catch(e) { 
+                console.error(e); // Log error for debugging
+                showToast('error', e.message || 'שגיאת תקשורת'); 
+            } finally { 
+                toggleLoader('login', false); 
+            } 
+        }
 
+        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); fetchMembers(); fetchData(); }
         function loadDashboard() {
             document.getElementById('auth-container').classList.add('hidden');
             document.getElementById('dashboard-container').classList.remove('hidden');
@@ -236,71 +221,47 @@
             fetchMembers(); fetchData();
         }
 
-        async function fetchPendingUsers() {
-            try {
-                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const list = await res.json();
-                if (!Array.isArray(list)) return;
-                const container = document.getElementById('pending-list'); 
-                document.getElementById('pending-count').innerText = list.length;
-                document.getElementById('pending-count').classList.toggle('hidden', list.length===0);
-                document.getElementById('admin-panel').classList.toggle('hidden', list.length===0);
-                container.innerHTML = '';
-                list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
-            } catch(e) { console.error(e); }
-        }
-
         async function fetchData() {
             try {
                 const res = await fetch(`${API}/data/${currentUser.id}`);
-                if (!res.ok) return; 
                 const data = await res.json();
-                if (data.error || !data.user) return;
-                
                 currentUser.balance = data.user.balance;
                 currentUser.allowance_amount = data.user.allowance_amount;
                 currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
-                
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
-                else if (Array.isArray(recentT)) {
-                    recentT.forEach(t => {
-                        const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50';
-                        const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : '';
-                        tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
-                    });
-                }
+                recentT.forEach(t => {
+                    const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50';
+                    const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : '';
+                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
+                });
 
                 if (currentUser.role === 'ADMIN' && data.academyHistory) {
                     const histList = document.getElementById('admin-assignments-list');
-                    if (histList) {
-                        histList.innerHTML = '';
-                        if(data.academyHistory.length === 0) histList.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין היסטוריה</p>';
-                        data.academyHistory.forEach(h => {
-                            let statusColor = 'text-slate-500 bg-slate-100'; let statusText = 'הוקצה';
-                            if(h.status === 'completed') { statusColor = 'text-green-600 bg-green-50'; statusText = `הושלם (${h.score}%)`; }
-                            if(h.status === 'failed') { statusColor = 'text-red-600 bg-red-50'; statusText = `נכשל (${h.score}%)`; }
-                            if(h.status === 'late') { statusColor = 'text-orange-600 bg-orange-50'; statusText = 'איחור'; }
-                            histList.innerHTML += `<div class="py-2 flex justify-between items-center"><div><span class="font-bold text-xs block text-slate-800">${h.nickname}</span><span class="text-[10px] text-slate-400">${h.title}</span></div><span class="text-[10px] px-2 py-1 rounded-full font-bold ${statusColor}">${statusText}</span></div>`;
-                        });
-                    }
+                    histList.innerHTML = '';
+                    if(data.academyHistory.length === 0) histList.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין היסטוריה</p>';
+                    data.academyHistory.forEach(h => {
+                        let statusColor = 'text-slate-500 bg-slate-100'; let statusText = 'הוקצה';
+                        if(h.status === 'completed') { statusColor = 'text-green-600 bg-green-50'; statusText = `הושלם (${h.score}%)`; }
+                        if(h.status === 'failed') { statusColor = 'text-red-600 bg-red-50'; statusText = `נכשל (${h.score}%)`; }
+                        if(h.status === 'late') { statusColor = 'text-orange-600 bg-orange-50'; statusText = 'איחור'; }
+                        histList.innerHTML += `<div class="py-2 flex justify-between items-center"><div><span class="font-bold text-xs block text-slate-800">${h.nickname}</span><span class="text-[10px] text-slate-400">${h.title}</span></div><span class="text-[10px] px-2 py-1 rounded-full font-bold ${statusColor}">${statusText}</span></div>`;
+                    });
                 }
 
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) {
                     const spent = parseFloat(data.weekly_stats.spent).toFixed(1);
                     const limit = parseFloat(data.weekly_stats.limit).toFixed(1);
                     const pct = limit > 0 ? (spent / limit) * 100 : 0;
-                    if(document.getElementById('card-spend-status')) {
-                        document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`;
-                        const bar = document.getElementById('card-spend-bar');
-                        const msg = document.getElementById('card-spend-msg');
-                        bar.style.width = `${Math.min(100, pct)}%`;
-                        if (parseFloat(spent) > parseFloat(limit)) { bar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'חרגת מהיעד - אין ריבית השבוע 😢'; msg.className = 'text-[9px] mt-1 opacity-80 text-right text-red-300 font-bold'; } 
-                        else { bar.className = 'bg-green-400 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'שמור על ירוק לקבלת ריבית!'; msg.className = 'text-[9px] mt-1 opacity-60 text-right'; }
-                    }
+                    document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`;
+                    const bar = document.getElementById('card-spend-bar');
+                    const msg = document.getElementById('card-spend-msg');
+                    bar.style.width = `${Math.min(100, pct)}%`;
+                    if (parseFloat(spent) > parseFloat(limit)) { bar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'חרגת מהיעד - אין ריבית השבוע 😢'; msg.className = 'text-[9px] mt-1 opacity-80 text-right text-red-300 font-bold'; } 
+                    else { bar.className = 'bg-green-400 h-1.5 rounded-full transition-all duration-500'; msg.innerText = 'שמור על ירוק לקבלת ריבית!'; msg.className = 'text-[9px] mt-1 opacity-60 text-right'; }
                 }
 
                 const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list');
@@ -319,40 +280,35 @@
 
                 if (currentUser.role !== 'ADMIN' && data.assignments) {
                     const assignList = document.getElementById('my-assignments-list');
-                    if (assignList) {
-                        assignList.innerHTML = '';
-                        if (data.assignments.length === 0) assignList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פתוחות</p>';
-                        data.assignments.forEach(a => {
-                            let timeMsg = '';
-                            if(a.deadline) {
-                                const diff = new Date(a.deadline) - new Date();
-                                const hoursLeft = Math.ceil(diff / (1000 * 60 * 60));
-                                if(hoursLeft > 0) timeMsg = `<span class="text-red-400 text-[10px] block"><i class="fa-solid fa-clock"></i> נותרו ${hoursLeft} שעות</span>`;
-                                else timeMsg = `<span class="text-red-600 text-[10px] block font-bold">פג תוקף!</span>`;
-                            }
-                            const rewardDisplay = a.custom_reward ? a.custom_reward : a.reward;
-                            assignList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center"><div><span class="text-[10px] uppercase font-bold text-blue-500 tracking-wider">${a.type}</span><h4 class="font-bold text-slate-800">${a.title}</h4><span class="text-xs text-slate-400">תגמול: ₪${rewardDisplay}</span>${timeMsg}</div><button onclick="startQuiz(${a.bundle_id}, ${a.id})" class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition">התחל</button></div>`;
-                        });
-                    }
+                    assignList.innerHTML = '';
+                    if (data.assignments.length === 0) assignList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פתוחות</p>';
+                    data.assignments.forEach(a => {
+                        let timeMsg = '';
+                        if(a.deadline) {
+                            const diff = new Date(a.deadline) - new Date();
+                            const hoursLeft = Math.ceil(diff / (1000 * 60 * 60));
+                            if(hoursLeft > 0) timeMsg = `<span class="text-red-400 text-[10px] block"><i class="fa-solid fa-clock"></i> נותרו ${hoursLeft} שעות</span>`;
+                            else timeMsg = `<span class="text-red-600 text-[10px] block font-bold">פג תוקף!</span>`;
+                        }
+                        const rewardDisplay = a.custom_reward ? a.custom_reward : a.reward;
+                        assignList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center"><div><span class="text-[10px] uppercase font-bold text-blue-500 tracking-wider">${a.type}</span><h4 class="font-bold text-slate-800">${a.title}</h4><span class="text-xs text-slate-400">תגמול: ₪${rewardDisplay}</span>${timeMsg}</div><button onclick="startQuiz(${a.bundle_id}, ${a.id})" class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition">התחל</button></div>`;
+                    });
                 }
                 
                 fetchBudget();
-            } catch(e) { console.error(e); }
+            } catch(e) {}
         }
 
         async function fetchBundles() {
-            try {
-                const type = document.getElementById('assign-filter-type').value;
-                const age = document.getElementById('assign-filter-age').value;
-                const res = await fetch(`${API}/academy/bundles?type=${type}&age=${age}`);
-                const bundles = await res.json();
-                if (!Array.isArray(bundles)) return; 
-                bundlesCache = bundles;
-                const select = document.getElementById('assign-bundle-select');
-                select.innerHTML = '<option value="">בחר מבחן...</option>';
-                if(bundles.length === 0) select.innerHTML = '<option value="">לא נמצאו מבחנים</option>';
-                bundles.forEach(b => { select.innerHTML += `<option value="${b.id}">${b.title} (סף: ${b.threshold}%)</option>`; });
-            } catch(e) { console.error(e); }
+            const type = document.getElementById('assign-filter-type').value;
+            const age = document.getElementById('assign-filter-age').value;
+            const res = await fetch(`${API}/academy/bundles?type=${type}&age=${age}`);
+            const bundles = await res.json();
+            bundlesCache = bundles;
+            const select = document.getElementById('assign-bundle-select');
+            select.innerHTML = '<option value="">בחר מבחן...</option>';
+            if(bundles.length === 0) select.innerHTML = '<option value="">לא נמצאו מבחנים</option>';
+            bundles.forEach(b => { select.innerHTML += `<option value="${b.id}">${b.title} (סף: ${b.threshold}%)</option>`; });
         }
 
         function openAssignModal() {
@@ -381,13 +337,7 @@
             document.getElementById('quiz-runner-modal').classList.remove('hidden');
             document.getElementById('quiz-title').innerText = currentQuizData.title;
             const textEl = document.getElementById('quiz-text-content');
-            const container = document.getElementById('quiz-text-container');
-            if (currentQuizData.text_content) { 
-                textEl.innerText = currentQuizData.text_content; 
-                container.classList.remove('hidden'); 
-            } else { 
-                container.classList.add('hidden'); 
-            }
+            if (currentQuizData.text_content) { textEl.innerText = currentQuizData.text_content; textEl.classList.remove('hidden'); } else { textEl.classList.add('hidden'); }
             currentQuestionIndex = 0; quizScore = 0;
             document.getElementById('quiz-content').classList.remove('hidden');
             document.getElementById('quiz-result').classList.add('hidden');
@@ -397,17 +347,7 @@
         function renderQuestion() {
             const qData = currentQuizData.questions[currentQuestionIndex];
             document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`;
-            
-            const qTextEl = document.getElementById('q-text');
-            qTextEl.innerText = qData.q;
-            
-            // Set direction based on content (Math vs Text)
-            if (currentQuizData.type === 'math') {
-                qTextEl.setAttribute('dir', 'ltr');
-            } else {
-                qTextEl.setAttribute('dir', 'rtl');
-            }
-            
+            document.getElementById('q-text').innerText = qData.q;
             const optsContainer = document.getElementById('q-options');
             optsContainer.innerHTML = '';
             qData.options.forEach((opt, idx) => {
@@ -430,7 +370,7 @@
 
         async function finishQuiz() {
             document.getElementById('question-container').innerHTML = '';
-            document.getElementById('quiz-text-container').classList.add('hidden');
+            document.getElementById('quiz-text-content').classList.add('hidden');
             document.getElementById('quiz-result').classList.remove('hidden');
             const totalQ = currentQuizData.questions.length;
             const pct = Math.round((quizScore / totalQ) * 100);
@@ -444,28 +384,25 @@
         function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
         async function requestChallenge() { await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id }) }); showToast('success', 'בקשה נשלחה להורה! 🤞'); }
         async function fetchMembers() {
-            try {
-                const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
-                const list = await res.json();
-                if (!Array.isArray(list)) return;
-                membersCache = list; 
-                if(currentUser.role === 'ADMIN') {
-                    const filter = document.getElementById('budget-filter');
-                    if (filter.options.length <= 1) { const currentVal = filter.value; filter.innerHTML = '<option value="all">כל הבית</option>'; list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(currentVal) filter.value = currentVal; }
-                }
-                const container = document.getElementById('members-list'); container.innerHTML = '';
-                list.forEach(m => {
-                    const balanceDisplay = m.balance !== null ? `₪${m.balance}` : '🔒';
-                    container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${balanceDisplay}</span></div></div>`
+            const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
+            const list = await res.json();
+            membersCache = list; 
+            if(currentUser.role === 'ADMIN') {
+                const filter = document.getElementById('budget-filter');
+                if (filter.options.length <= 1) { const currentVal = filter.value; filter.innerHTML = '<option value="all">כל הבית</option>'; list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(currentVal) filter.value = currentVal; }
+            }
+            const container = document.getElementById('members-list'); container.innerHTML = '';
+            list.forEach(m => {
+                const balanceDisplay = m.balance !== null ? `₪${m.balance}` : '🔒';
+                container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${balanceDisplay}</span></div></div>`
+            });
+            const accountsList = document.getElementById('bank-accounts-list');
+            if (accountsList) {
+                accountsList.innerHTML = '';
+                list.filter(m => m.role !== 'ADMIN').forEach(m => {
+                    accountsList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`;
                 });
-                const accountsList = document.getElementById('bank-accounts-list');
-                if (accountsList) {
-                    accountsList.innerHTML = '';
-                    list.filter(m => m.role !== 'ADMIN').forEach(m => {
-                        accountsList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`;
-                    });
-                }
-            } catch(e) { console.error(e); }
+            }
         }
         function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
         async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
