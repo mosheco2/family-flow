@@ -25,23 +25,7 @@ app.get('/setup-db', async (req, res) => {
     for (const t of tables) await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
 
     await client.query(`CREATE TABLE groups (id SERIAL PRIMARY KEY, name VARCHAR(100), admin_email VARCHAR(255) UNIQUE, type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    
-    await client.query(`CREATE TABLE users (
-        id SERIAL PRIMARY KEY, 
-        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
-        nickname VARCHAR(50), 
-        password VARCHAR(255), 
-        role VARCHAR(20), 
-        status VARCHAR(20) DEFAULT 'PENDING', 
-        birth_year INTEGER, 
-        balance DECIMAL(10, 2) DEFAULT 0, 
-        allowance_amount DECIMAL(10, 2) DEFAULT 0, 
-        interest_rate DECIMAL(5, 2) DEFAULT 0,
-        xp INTEGER DEFAULT 0, 
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-        UNIQUE(group_id, nickname)
-    )`);
-
+    await client.query(`CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(255), role VARCHAR(20), status VARCHAR(20) DEFAULT 'PENDING', birth_year INTEGER, balance DECIMAL(10, 2) DEFAULT 0, xp INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(group_id, nickname))`);
     await client.query(`CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, amount DECIMAL(10, 2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
@@ -49,7 +33,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:blue">FamilyFlow V5.0 - System Ready 🏦</h1>`);
+    res.send(`<h1 style="color:green">System Ready V10.0 (Feed & Budget Fixed) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -118,85 +102,41 @@ app.get('/api/users/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Admin & Members
+// Admin
 app.get('/api/admin/pending-users', async (req, res) => {
   try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); }
 });
 app.post('/api/admin/approve-user', async (req, res) => {
   try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
 });
-
 app.get('/api/group/members', async (req, res) => {
   const { groupId, requesterId } = req.query;
   try {
     const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]);
     const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN';
-    const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]);
+    const r = await client.query("SELECT id, nickname, role, balance, birth_year FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]);
     
     const members = r.rows.map(m => ({
       ...m,
-      balance: (isAdmin || m.id == requesterId) ? m.balance : null,
-      allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null,
-      interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null
+      balance: (isAdmin || m.id == requesterId) ? m.balance : null
     }));
     res.json(members);
   } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// --- BANKING API ---
-app.post('/api/admin/update-settings', async (req, res) => {
-    const { userId, allowance, interest } = req.body;
-    try {
-        await client.query(`UPDATE users SET allowance_amount = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/admin/payday', async (req, res) => {
-    const { groupId } = req.body;
-    try {
-        await client.query('BEGIN');
-        const members = await client.query(`SELECT * FROM users WHERE group_id = $1 AND role = 'MEMBER' AND status = 'ACTIVE'`, [groupId]);
-        let totalDistributed = 0;
-        let report = [];
-
-        for (const user of members.rows) {
-            const currentBalance = parseFloat(user.balance);
-            const allowance = parseFloat(user.allowance_amount);
-            const rate = parseFloat(user.interest_rate);
-            let interestAmount = 0;
-            if (currentBalance > 0 && rate > 0) interestAmount = currentBalance * (rate / 100);
-            interestAmount = Math.round(interestAmount * 100) / 100;
-
-            if (allowance > 0) {
-                await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'allowance', 'income')`, [user.id, allowance, 'דמי כיס שבועיים']);
-                await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [allowance, user.id]);
-                totalDistributed += allowance;
-            }
-
-            if (interestAmount > 0) {
-                await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'bonus', 'income')`, [user.id, interestAmount, `ריבית על חיסכון (${rate}%)`]);
-                await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [interestAmount, user.id]);
-                totalDistributed += interestAmount;
-            }
-            report.push({ nickname: user.nickname, allowance, interest: interestAmount });
-        }
-        await client.query('COMMIT');
-        res.json({ success: true, report, totalDistributed });
-    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
-});
-
-// --- EXISTING DATA & LOGIC ---
+// --- DATA ---
 app.get('/api/data/:userId', async (req, res) => {
   try {
     const user = (await client.query('SELECT * FROM users WHERE id = $1', [req.params.userId])).rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
+    // Tasks Visibility (Pending + Done but not approved)
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
     if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
-    tasksSql += ` ORDER BY t.created_at DESC`;
+    tasksSql += ` AND t.status != 'approved' ORDER BY t.created_at DESC`;
 
+    // Loans Visibility
     let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
@@ -319,15 +259,19 @@ app.post('/api/tasks/update', async (req, res) => {
     await client.query('BEGIN');
     let finalStatus = status;
     const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
+    
+    // Auto-approve logic
     if (status === 'done' && (t.reward == 0 || t.reward == null)) finalStatus = 'approved';
     else if (status === 'completed_self') finalStatus = 'approved';
 
     if (finalStatus === 'approved') {
       if (t && t.status !== 'approved') {
-        if (t.reward > 0) {
-            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
-            await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]);
+        // Record as transaction even if 0, so it shows in feed!
+        const rewardAmount = t.reward || 0;
+        if (rewardAmount > 0) {
+            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [rewardAmount, t.assigned_to]);
         }
+        await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, rewardAmount, `משימה בוצעה: ${t.title}`]);
       }
     }
     await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [finalStatus, taskId]);
@@ -394,9 +338,3 @@ app.post('/api/loans/handle', async (req, res) => {
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.listen(port, () => console.log(`Server running on port ${port}`));
-
-
-
-
-
-
