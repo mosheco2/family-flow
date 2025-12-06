@@ -33,7 +33,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:green">System Ready V10.0 (Feed & Budget Fixed) 🚀</h1>`);
+    res.send(`<h1 style="color:green">System Ready V10.1 (Safe Math Fixes) 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -109,6 +109,8 @@ app.get('/api/admin/pending-users', async (req, res) => {
 app.post('/api/admin/approve-user', async (req, res) => {
   try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); }
 });
+
+// Group Members (Privacy V7)
 app.get('/api/group/members', async (req, res) => {
   const { groupId, requesterId } = req.query;
   try {
@@ -118,7 +120,7 @@ app.get('/api/group/members', async (req, res) => {
     
     const members = r.rows.map(m => ({
       ...m,
-      balance: (isAdmin || m.id == requesterId) ? m.balance : null
+      balance: (isAdmin || m.id == requesterId) ? m.balance : null // Hide balance from others
     }));
     res.json(members);
   } catch (e) { res.status(500).json({error:e.message}); }
@@ -131,21 +133,22 @@ app.get('/api/data/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
-    // Tasks Visibility (Pending + Done but not approved)
+    // Tasks
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
     if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
-    tasksSql += ` AND t.status != 'approved' ORDER BY t.created_at DESC`;
+    tasksSql += ` ORDER BY t.created_at DESC`;
 
-    // Loans Visibility
+    // Loans
     let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
 
+    // Budget
     let budgetStatus = [];
     if (user.role !== 'ADMIN') {
         const budgets = await client.query(`SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`, [gid, user.id]);
         for (const b of budgets.rows) {
-            const spent = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`, [user.id, b.category]);
+            const spent = await client.query(`SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`, [user.id, b.category]);
             budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) });
         }
     }
@@ -160,6 +163,7 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Budget Filter (Fix V10.1: COALESCE to prevent NULLs)
 app.get('/api/budget/filter', async (req, res) => {
   const { groupId, targetUserId } = req.query;
   try {
@@ -176,7 +180,7 @@ app.get('/api/budget/filter', async (req, res) => {
     
     if(targetUserId === 'all') {
        const allowanceTotal = await client.query(`
-        SELECT SUM(amount) as total FROM transactions t 
+        SELECT COALESCE(SUM(amount), 0) as total FROM transactions t 
         JOIN users u ON t.user_id = u.id 
         WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' 
         AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'loans')
@@ -189,10 +193,10 @@ app.get('/api/budget/filter', async (req, res) => {
       let spentQuery = '';
       let spentParams = [];
       if (targetUserId && targetUserId !== 'all') {
-          spentQuery = `SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`;
+          spentQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`;
           spentParams = [targetUserId, b.category];
       } else {
-          spentQuery = `SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`;
+          spentQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`;
           spentParams = [groupId, b.category];
       }
       const spent = await client.query(spentQuery, spentParams);
@@ -260,18 +264,17 @@ app.post('/api/tasks/update', async (req, res) => {
     let finalStatus = status;
     const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
     
-    // Auto-approve logic
+    // Fix V10.0: Zero reward tasks auto-approve
     if (status === 'done' && (t.reward == 0 || t.reward == null)) finalStatus = 'approved';
     else if (status === 'completed_self') finalStatus = 'approved';
 
     if (finalStatus === 'approved') {
       if (t && t.status !== 'approved') {
-        // Record as transaction even if 0, so it shows in feed!
-        const rewardAmount = t.reward || 0;
-        if (rewardAmount > 0) {
-            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [rewardAmount, t.assigned_to]);
+        if (t.reward > 0) {
+            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
         }
-        await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, rewardAmount, `משימה בוצעה: ${t.title}`]);
+        // Fix V10.0: Record ALL task completions in transactions (even 0) so they show in feed
+        await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'salary', 'income')`, [t.assigned_to, t.reward || 0, `משימה בוצעה: ${t.title}`]);
       }
     }
     await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [finalStatus, taskId]);
@@ -328,7 +331,7 @@ app.post('/api/loans/handle', async (req, res) => {
     const l = (await client.query('SELECT * FROM loans WHERE id=$1', [loanId])).rows[0];
     if(status === 'active') {
       await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]);
-      await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'loans', 'income')`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]);
+      await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, 'loans', 'income')`, [l.user_id, l.original_amount, `הלוואה: ${l.reason}`]);
     }
     await client.query('UPDATE loans SET status = $1 WHERE id = $2', [status, loanId]);
     await client.query('COMMIT');
