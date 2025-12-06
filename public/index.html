@@ -159,7 +159,7 @@
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
 
-                <!-- 2. BANK (NEW) -->
+                <!-- 2. BANK -->
                 <div id="content-bank" class="hidden">
                     
                     <!-- ADMIN VIEW -->
@@ -464,13 +464,12 @@
                 document.getElementById('btn-add-task').classList.remove('hidden');
                 document.getElementById('checkout-bar').classList.remove('hidden');
                 document.getElementById('budget-filter').classList.remove('hidden');
-                document.getElementById('bank-admin-view').classList.remove('hidden'); // Bank Admin
+                document.getElementById('bank-admin-view').classList.remove('hidden'); 
                 fetchPendingUsers();
             } else {
                 document.getElementById('btn-self-task').classList.remove('hidden');
-                document.getElementById('bank-child-view').classList.remove('hidden'); // Bank Child
+                document.getElementById('bank-child-view').classList.remove('hidden'); 
                 
-                // Populate Credit Card Info
                 document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase();
                 document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`;
                 document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
@@ -494,20 +493,32 @@
                 currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions
+                // Transactions - FIXED: Admin sees all, User sees theirs
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => {
-                    const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
-                    const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
-                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
+                    // Color per user based on ID
+                    const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50';
+                    const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : '';
+                    
+                    tList.innerHTML+=`
+                    <div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]">
+                        <div>
+                            ${userNameDisplay}
+                            <p class="font-bold text-slate-800 leading-tight">${t.description}</p>
+                            <p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p>
+                        </div>
+                        <span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">
+                            ${t.type==='income'?'+':'-'}₪${t.amount}
+                        </span>
+                    </div>`;
                 });
 
-                // Budget
+                // Budget - FIXED: Fetch logic now handles all rows in server
                 fetchBudget();
 
-                // Tasks
+                // Tasks - FIXED: Rendering for Admin vs User
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
                 if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
                 data.tasks.forEach(t => {
@@ -516,13 +527,37 @@
                     const isAdmin = currentUser.role === 'ADMIN';
                     
                     if(t.status === 'pending') {
-                        if(isMyTask) action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי</button>`;
-                        else if(isAdmin) action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
+                        if(isMyTask) {
+                            // User sees "I'm Done"
+                            action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`;
+                        } else if(isAdmin) {
+                             // Admin sees "Waiting"
+                             action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`;
+                        }
                     } else if (t.status === 'done') {
-                        if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר</button>`;
-                        else action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
+                        if(isAdmin) {
+                            // Admin sees "Approve"
+                            action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`;
+                        } else {
+                            // User sees "In Review"
+                             action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
+                        }
                     }
-                    taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">עבור ${t.assignee_name}</span><span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span></div></div>${action}</div>`;
+
+                    // Render if: It's my task OR I am admin
+                    if (isMyTask || isAdmin) {
+                        taskList.innerHTML+=`
+                        <div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm">
+                            <div>
+                                <p class="font-bold text-slate-800">${t.title}</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-xs text-slate-500">${t.assignee_name}</span>
+                                    ${t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : ''}
+                                </div>
+                            </div>
+                            ${action}
+                        </div>`;
+                    }
                 });
 
                 // Loans (Merged into Bank Tab)
@@ -564,6 +599,7 @@
                 let color = 'bg-blue-500'; if(pct>75) color='bg-yellow-500'; if(pct>=100) color='bg-red-500';
                 
                 if (b.category === 'allocations') {
+                    // Special Row for Admin
                     bList.innerHTML+=`<div class="mb-5 p-3 bg-purple-50 rounded-xl border border-purple-100"><div class="flex justify-between text-sm mb-1 font-bold text-purple-700"><div>${b.label}</div><span>₪${b.spent}</span></div><div class="w-full bg-purple-200 rounded-full h-3"><div class="bg-purple-600 h-3 rounded-full" style="width:100%"></div></div></div>`;
                     return;
                 }
@@ -591,7 +627,7 @@
                 }
             }
             
-            // Populate Members List (Just names and status)
+            // Populate Members List
             const container = document.getElementById('members-list'); container.innerHTML = '';
             list.forEach(m => {
                 const balanceDisplay = m.balance !== null ? `₪${m.balance}` : '🔒';
