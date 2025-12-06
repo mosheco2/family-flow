@@ -44,7 +44,6 @@
     <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
-
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
             <div class="p-10 text-center relative overflow-hidden">
@@ -134,7 +133,9 @@
             <button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
 
+        <!-- Modals -->
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
+        
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת אתגר חדש</h3><div class="flex gap-2 mb-4"><select id="assign-filter-type" class="modern-input text-xs" onchange="fetchBundles()"><option value="">סוג...</option><option value="math">חשבון</option><option value="reading">עיוני</option><option value="financial">פיננסי</option></select><select id="assign-filter-age" class="modern-input text-xs" onchange="fetchBundles()"><option value="">גיל...</option><option value="6-8">6-8</option><option value="8-10">8-10</option><option value="10-13">10-13</option><option value="13-15">13-15</option><option value="15-18">15-18</option></select></div><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white"><option>בחר קודם סינון...</option></select><div class="flex gap-3 mb-4"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center" placeholder="2.00"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">זמן (שעות):</label><input type="number" id="assign-deadline" class="modern-input text-center" placeholder="24"></div></div><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצה</button></div></div></div>
         
         <!-- Updated Quiz Modal -->
@@ -263,7 +264,6 @@
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
-                
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 else if (Array.isArray(recentT)) {
