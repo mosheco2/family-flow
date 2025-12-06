@@ -210,7 +210,20 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex justify-between items-end">
+                            
+                            <!-- Weekly Spending Progress (For 80/20 Rule) -->
+                            <div class="mt-4 pt-3 border-t border-white/10">
+                                <div class="flex justify-between text-[10px] opacity-80 mb-1">
+                                    <span>בזבוזים השבוע (מגבלת 20%)</span>
+                                    <span id="card-spend-status">0 / 0</span>
+                                </div>
+                                <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                                    <div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                                <p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p>
+                            </div>
+
+                            <div class="flex justify-between items-end mt-4">
                                 <span class="font-mono tracking-widest text-lg" id="card-name">NAME</span>
                                 <div class="w-8 h-8 rounded-full bg-white/20"></div>
                             </div>
@@ -493,7 +506,7 @@
                 currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions
+                // Transactions - FIXED: Admin sees all, User sees theirs
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
@@ -514,10 +527,34 @@
                     </div>`;
                 });
 
-                // Budget
+                // Update Credit Card Spending Bar (Child View)
+                if (currentUser.role !== 'ADMIN' && data.weekly_stats) {
+                    const spent = parseFloat(data.weekly_stats.spent).toFixed(1);
+                    const limit = parseFloat(data.weekly_stats.limit).toFixed(1);
+                    const pct = limit > 0 ? (spent / limit) * 100 : 0;
+                    
+                    document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`;
+                    
+                    const bar = document.getElementById('card-spend-bar');
+                    const msg = document.getElementById('card-spend-msg');
+                    
+                    bar.style.width = `${Math.min(100, pct)}%`;
+                    
+                    if (parseFloat(spent) > parseFloat(limit)) {
+                        bar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500';
+                        msg.innerText = 'חרגת מהיעד - אין ריבית השבוע 😢';
+                        msg.className = 'text-[9px] mt-1 opacity-80 text-right text-red-300 font-bold';
+                    } else {
+                        bar.className = 'bg-green-400 h-1.5 rounded-full transition-all duration-500';
+                        msg.innerText = 'שמור על ירוק לקבלת ריבית!';
+                        msg.className = 'text-[9px] mt-1 opacity-60 text-right';
+                    }
+                }
+
+                // Budget - FIXED: Fetch logic now handles all rows in server
                 fetchBudget();
 
-                // Tasks
+                // Tasks - FIXED: Rendering for Admin vs User
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
                 if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
                 data.tasks.forEach(t => {
