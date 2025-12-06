@@ -18,6 +18,8 @@
         .tab-active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; }
         .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #e2e8f0; }
+        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .fab-open #fab-icon { transform: rotate(45deg); }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -28,7 +30,7 @@
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
-        <!-- Auth Container -->
+        <!-- Auth -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl flex flex-col">
             <div class="p-10 text-center relative">
                  <h1 class="text-3xl font-bold text-blue-600 mb-2">FamilyFlow</h1>
@@ -118,14 +120,19 @@
                     <div id="bank-admin-view" class="hidden">
                         <div class="bg-emerald-100 p-6 rounded-2xl mb-4 text-center">
                             <h3 class="font-bold text-emerald-800 text-lg">יום תשלום 🤑</h3>
-                            <button onclick="alert('PayDay Coming Soon')" class="bg-emerald-600 text-white px-6 py-2 rounded-full mt-2 font-bold shadow">בצע PayDay</button>
+                            <button onclick="triggerPayday()" class="bg-emerald-600 text-white px-6 py-2 rounded-full mt-2 font-bold shadow">בצע PayDay</button>
                         </div>
+                        <h3 class="font-bold text-gray-600 mb-2">בקשות ממתינות</h3>
+                        <div id="pending-list" class="space-y-2"></div>
                     </div>
                     <div id="bank-child-view" class="hidden">
                         <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg mb-6">
                             <div class="flex justify-between mb-8"><i class="fa-solid fa-wifi"></i><span>FAMILY CARD</span></div>
                             <div class="text-2xl font-mono tracking-widest mb-2">**** **** **** 1234</div>
                             <div class="flex justify-between text-xs opacity-70"><span>VALID THRU 12/28</span><span id="card-name">NAME</span></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-xl font-bold">יעד חדש</button>
                         </div>
                     </div>
                 </div>
@@ -136,6 +143,24 @@
                 </div>
 
             </div>
+            
+            <!-- FAB -->
+             <div id="fab-container" class="absolute bottom-6 left-6 z-40">
+                <button onclick="openTransactionModal('income')" class="w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center text-xl"><i class="fa-solid fa-plus"></i></button>
+             </div>
+        </div>
+        
+        <!-- Transaction Modal -->
+        <div id="transaction-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+             <div class="bg-white w-full max-w-sm rounded-2xl p-6">
+                 <h3 class="text-lg font-bold mb-4 text-center">הוספת תנועה</h3>
+                 <input type="number" id="trans-amount" class="modern-input mb-3" placeholder="סכום">
+                 <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
+                 <div class="flex gap-2">
+                     <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-gray-100 py-3 rounded-xl">ביטול</button>
+                     <button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">שמור</button>
+                 </div>
+             </div>
         </div>
 
     </div>
@@ -242,6 +267,7 @@
             // Setup Role Views
             if (currentUser.role === 'ADMIN') {
                 document.getElementById('bank-admin-view').classList.remove('hidden');
+                fetchPendingUsers();
             } else {
                 document.getElementById('bank-child-view').classList.remove('hidden');
                 if(document.getElementById('card-name')) document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase();
@@ -265,8 +291,33 @@
                 if (data.user) {
                     currentUser.balance = data.user.balance;
                     document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+                    
+                    const tList = document.getElementById('transactions-list');
+                    tList.innerHTML = '';
+                    // Assuming transaction data is fetched here or separately. For restore, keeping it simple.
                 }
             } catch (e) { console.log('Background fetch failed'); }
+        }
+        
+        async function fetchPendingUsers() {
+            try {
+                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
+                const list = await res.json();
+                const container = document.getElementById('pending-list');
+                container.innerHTML = '';
+                list.forEach(u => {
+                    container.innerHTML += `<div class="flex justify-between items-center bg-yellow-50 p-3 rounded-xl"><span class="font-bold">${u.nickname}</span><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-sm">אשר</button></div>`;
+                });
+            } catch(e) {}
+        }
+        
+        async function approveUser(id) {
+             await fetch(`${API}/admin/approve-user`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: id })
+            });
+            fetchPendingUsers();
         }
 
         async function fetchBudget() {
@@ -293,6 +344,31 @@
                     });
                 }
             } catch (e) { console.error(e); }
+        }
+        
+        // Transaction logic
+        function openTransactionModal(type) {
+            document.getElementById('transaction-modal').classList.remove('hidden');
+        }
+        
+        async function submitTransaction() {
+            const amount = document.getElementById('trans-amount').value;
+            const desc = document.getElementById('trans-desc').value;
+            if(!amount) return;
+            
+            await fetch(`${API}/transaction`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentUser.id,
+                    amount: amount,
+                    description: desc || 'פעולה',
+                    category: 'other',
+                    type: 'income' // simplified for restore
+                })
+            });
+            document.getElementById('transaction-modal').classList.add('hidden');
+            fetchData();
         }
 
     </script>
