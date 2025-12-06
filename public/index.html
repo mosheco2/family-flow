@@ -29,8 +29,7 @@
         .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
         @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
 
-        /* FIXED FAB */
-        #fab-container { position: fixed; bottom: 24px; left: 24px; z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        /* FAB Animation */
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
     </style>
@@ -215,10 +214,11 @@
                 </div>
             </div>
 
+            <!-- FAB (Moved Outside for Sticky Fix) -->
         </div>
         
-        <!-- FAB Container -->
-        <div id="fab-container" class="hidden">
+        <!-- FAB Container (Now direct child of Body) -->
+        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                 <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
                 <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
@@ -229,7 +229,7 @@
             </button>
         </div>
 
-        <!-- Modals (Outside) -->
+        <!-- Modals (Moved Outside) -->
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
                 <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
@@ -302,8 +302,6 @@
 
     </div>
 
-    <div class="text-center pb-2 text-[10px] text-slate-300">V10.1</div>
-
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let currentUser = null;
@@ -357,7 +355,6 @@
         function loadDashboard() {
             document.getElementById('auth-container').classList.add('hidden');
             document.getElementById('dashboard-container').classList.remove('hidden');
-            document.getElementById('fab-container').classList.remove('hidden');
             document.getElementById('dash-group-name').innerText = currentGroup.name;
             document.getElementById('dash-nickname').innerText = currentUser.nickname;
             document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
@@ -390,12 +387,12 @@
                 
                 // Transactions
                 const tList = document.getElementById('transactions-list'); tList.innerHTML='';
-                const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=10`)).json();
+                const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => {
                     const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
                     const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
-                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.01]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
+                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
                 });
 
                 // Budget
@@ -403,11 +400,8 @@
 
                 // Tasks
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
-                // Fix: show pending and approved
-                const tasksToShow = data.tasks.filter(t => t.status !== 'rejected');
-                if(tasksToShow.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
-                
-                tasksToShow.forEach(t => {
+                if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
+                data.tasks.forEach(t => {
                     let action = '';
                     const isMyTask = t.assigned_to == currentUser.id;
                     const isAdmin = currentUser.role === 'ADMIN';
@@ -418,8 +412,6 @@
                     } else if (t.status === 'done') {
                         if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר</button>`;
                         else action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
-                    } else if (t.status === 'approved') {
-                         action = `<span class="text-[10px] text-green-600 font-bold flex items-center gap-1"><i class="fa-solid fa-check"></i> בוצע</span>`;
                     }
                     taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">עבור ${t.assignee_name}</span><span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span></div></div>${action}</div>`;
                 });
@@ -506,7 +498,6 @@
             list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
         }
 
-        // Budget Update Functions
         function openBudgetModal(catId, catName, currentLimit) {
             document.getElementById('budget-cat-name').innerText = catName;
             document.getElementById('budget-cat-id').value = catId;
