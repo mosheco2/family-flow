@@ -49,11 +49,12 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:blue">FamilyFlow V5.0 - System Ready 🏦</h1>`);
+    res.send(`<h1 style="color:blue">FamilyFlow V5.2 - Fixed & Ready 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
 // --- HELPER: Init Budgets ---
+// יצירת שורות תקציב לכל הקטגוריות
 const initBudgets = async (groupId, userId = null) => {
   const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
   for (const c of cats) {
@@ -74,7 +75,7 @@ app.post('/api/groups', async (req, res) => {
     const groupId = gRes.rows[0].id;
     const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [groupId, adminNickname, password, parseInt(birthYear)||0]);
     
-    await initBudgets(groupId, null);
+    await initBudgets(groupId, null); // תקציב כללי לבית
     await client.query('COMMIT');
     res.json({ success: true, user: uRes.rows[0], group: { id: groupId, name: groupName, type, adminEmail } });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
@@ -90,7 +91,7 @@ app.post('/api/join', async (req, res) => {
     if (check.rows.length > 0) return res.status(400).json({ error: 'כינוי תפוס' });
     
     const uRes = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0) RETURNING id`, [gRes.rows[0].id, nickname, password, parseInt(birthYear)||0]);
-    await initBudgets(gRes.rows[0].id, uRes.rows[0].id);
+    await initBudgets(gRes.rows[0].id, uRes.rows[0].id); // תקציב אישי לילד
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -186,29 +187,26 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
-// --- EXISTING DATA & LOGIC ---
+// --- DATA: Tasks, Shopping, Loans, Budget ---
+
 app.get('/api/data/:userId', async (req, res) => {
   try {
     const user = (await client.query('SELECT * FROM users WHERE id = $1', [req.params.userId])).rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
     const gid = user.group_id;
 
+    // FIX: Tasks Logic
+    // If Admin: Get ALL tasks for the group.
+    // If User: Get tasks assigned to me.
     let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`;
-    if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
+    if(user.role !== 'ADMIN') {
+        tasksSql += ` AND t.assigned_to = ${user.id}`;
+    }
     tasksSql += ` ORDER BY t.created_at DESC`;
 
     let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`;
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
-
-    let budgetStatus = [];
-    if (user.role !== 'ADMIN') {
-        const budgets = await client.query(`SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`, [gid, user.id]);
-        for (const b of budgets.rows) {
-            const spent = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`, [user.id, b.category]);
-            budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) });
-        }
-    }
 
     const [tasks, shop, loans] = await Promise.all([
       client.query(tasksSql, [gid]),
@@ -216,35 +214,45 @@ app.get('/api/data/:userId', async (req, res) => {
       client.query(loansSql, [gid])
     ]);
 
-    res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, budget_status: budgetStatus });
+    res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIX: Budget Logic
 app.get('/api/budget/filter', async (req, res) => {
   const { groupId, targetUserId } = req.query;
   try {
     const budgetStatus = [];
-    let budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`;
-    let queryParams = [groupId];
     
+    // 1. Get Limits (Using ALL categories to ensure rows exist)
+    let budgetQuery = '';
+    let queryParams = [];
+
     if (targetUserId && targetUserId !== 'all') {
         budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`;
-        queryParams.push(targetUserId);
+        queryParams = [groupId, targetUserId];
+    } else {
+        // Admin View (House Budget)
+        budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`;
+        queryParams = [groupId];
     }
-
+    
     const budgets = await client.query(budgetQuery, queryParams);
     
+    // 2. Add "Allocations" Row for Admin View
     if(targetUserId === 'all') {
-       const allowanceTotal = await client.query(`
+       // Calculates sum of Allowance, Tasks(salary), Interest(bonus) given to KIDS
+       const allocationsTotal = await client.query(`
         SELECT SUM(amount) as total FROM transactions t 
         JOIN users u ON t.user_id = u.id 
         WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' 
-        AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'loans')
+        AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus')
         AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
       `, [groupId]);
-      budgetStatus.push({ category: 'allocations', label: 'הפרשות לילדים 👶', limit: 0, spent: parseFloat(allowanceTotal.rows[0].total || 0) });
+      budgetStatus.push({ category: 'allocations', label: 'הפרשות לילדים 👶', limit: 0, spent: parseFloat(allocationsTotal.rows[0].total || 0) });
     }
 
+    // 3. Calculate Spent for each category
     for (const b of budgets.rows) {
       let spentQuery = '';
       let spentParams = [];
@@ -278,14 +286,25 @@ app.post('/api/budget/update', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIX: Transactions Logic
 app.get('/api/transactions', async (req, res) => {
   try {
     const { groupId, userId, limit = 20 } = req.query;
     const userRole = (await client.query('SELECT role FROM users WHERE id = $1', [userId])).rows[0].role;
-    let sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1`;
-    const params = [groupId, limit];
-    if (userRole !== 'ADMIN') { sql += ` AND t.user_id = $3`; params.push(userId); }
-    sql += ` ORDER BY t.date DESC LIMIT $2`;
+    
+    let sql = '';
+    let params = [];
+
+    if (userRole === 'ADMIN') {
+        // Admin sees ALL transactions in the group
+        sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 ORDER BY t.date DESC LIMIT $2`;
+        params = [groupId, limit];
+    } else {
+        // User sees ONLY their transactions
+        sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.user_id = $2 ORDER BY t.date DESC LIMIT $3`;
+        params = [groupId, userId, limit];
+    }
+    
     const r = await client.query(sql, params);
     res.json(r.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -304,11 +323,13 @@ app.post('/api/transaction', async (req, res) => {
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
+// FIX: Tasks Creation
 app.post('/api/tasks', async (req, res) => {
   const { title, reward, assignedTo } = req.body;
   try {
     const u = await client.query('SELECT group_id FROM users WHERE id = $1', [assignedTo]);
-    await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id) VALUES ($1, $2, $3, $4)`, [title, reward, assignedTo, u.rows[0].group_id]);
+    // Ensure Group ID is correctly set
+    await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [title, reward, assignedTo, u.rows[0].group_id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
