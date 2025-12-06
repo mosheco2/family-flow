@@ -7,7 +7,6 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-// מגיש קבצים סטטיים מתיקיית public
 app.use(express.static('public'));
 
 const client = new Client({
@@ -71,7 +70,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:blue">FamilyFlow V5.6 - Server Fixed 🚀</h1>`);
+    res.send(`<h1 style="color:blue">FamilyFlow V5.7 - Stable & Secure 🔒</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -174,21 +173,42 @@ app.post('/api/goals', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// UPDATED: Deposit with Balance Check
 app.post('/api/goals/deposit', async (req, res) => {
     const { userId, goalId, amount } = req.body;
     try {
         await client.query('BEGIN');
+        
+        // Check goal owner
         const goalRes = await client.query('SELECT user_id FROM goals WHERE id = $1', [goalId]);
         const goalOwnerId = goalRes.rows[0].user_id;
         
-        await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
-
-        if (parseInt(userId) !== parseInt(goalOwnerId)) {
-            await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'bonus', 'income', FALSE)`, [goalOwnerId, amount, 'הפקדה ליעד ע"י הורה']);
-        } else {
+        // Logic:
+        // 1. If User depositing to Self -> CHECK BALANCE
+        // 2. If Admin depositing to Child -> System money (no deduction from Admin)
+        // 3. If User (Admin) depositing to Self -> CHECK BALANCE
+        
+        if (parseInt(userId) === parseInt(goalOwnerId)) {
+            // User (or Admin) depositing to their own goal
+            const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
+            const currentBalance = parseFloat(userRes.rows[0].balance);
+            
+            if (currentBalance < parseFloat(amount)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'אין מספיק יתרה בחשבון' });
+            }
+            
+            // Deduct
             await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+            // Log transaction
             await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']);
+        } else {
+            // Admin depositing to Child (Bonus)
+            await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'bonus', 'income', FALSE)`, [goalOwnerId, amount, 'הפקדה ליעד ע"י הורה']);
         }
+
+        // Add to Goal
+        await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
         
         await client.query('COMMIT');
         res.json({ success: true });
@@ -503,9 +523,7 @@ app.post('/api/loans/handle', async (req, res) => {
   } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
-// IMPORTANT: Serve index.html for any unknown route (for SPA like behavior)
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-
 app.listen(port, () => console.log(`Server running on port ${port}`));
 
 
