@@ -18,12 +18,11 @@ client.connect()
   .then(() => console.log('Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- CONTENT GENERATOR (ENHANCED) ---
+// --- CONTENT GENERATOR (SEED) ---
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 5; i++) {
         let q, a, wrong1, wrong2, wrong3;
-        // Use * instead of x for better clarity, spaces added
         if (ageGroup === '6-8') {
             const n1 = Math.floor(Math.random() * 10) + 1;
             const n2 = Math.floor(Math.random() * 10) + 1;
@@ -31,14 +30,14 @@ const generateMathQuestions = (ageGroup) => {
         } else if (ageGroup === '8-10') {
             const n1 = Math.floor(Math.random() * 10) + 2;
             const n2 = Math.floor(Math.random() * 9) + 2;
-            q = `${n1} × ${n2} = ?`; a = n1 * n2;
+            q = `${n1} x ${n2} = ?`; a = n1 * n2;
         } else if (ageGroup === '10-13') {
             const n1 = Math.floor(Math.random() * 50) + 10;
             const n2 = Math.floor(Math.random() * 40) + 5;
             q = `${n1} - ${n2} + 5 = ?`; a = n1 - n2 + 5;
-        } else { 
+        } else { // 13-15+
             const n1 = Math.floor(Math.random() * 12) + 2;
-            q = `${n1}² = ?`; a = n1 * n1;
+            q = `${n1} בריבוע (${n1}^2) = ?`; a = n1 * n1;
         }
         
         wrong1 = a + 1; wrong2 = a - 1; wrong3 = a + Math.floor(Math.random() * 5) + 2;
@@ -50,70 +49,44 @@ const generateMathQuestions = (ageGroup) => {
 
 const seedQuizzes = async () => {
     const check = await client.query('SELECT count(*) FROM quiz_bundles');
-    if (parseInt(check.rows[0].count) > 10) return; // Already seeded
+    if (parseInt(check.rows[0].count) > 10) return;
 
-    console.log('Seeding Rich Content...');
+    console.log('Seeding Academy Content...');
     const ageGroups = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
     
-    // RICH TEXT TEMPLATES
-    const texts = {
-        reading: [
-            {
-                title: 'ההיסטוריה של הכסף',
-                text: `לפני אלפי שנים, לא היה כסף כמו שאנחנו מכירים היום. אנשים השתמשו בשיטה שנקראת "סחר חליפין". אם רצית תפוח, היית צריך לתת משהו בתמורה, כמו ביצה או חלב. אבל השיטה הזו הייתה מסובלת. תארו לעצמכם שאתם רוצים לקנות סוס, אבל יש לכם רק תרנגולות! הייתם צריכים לסחוב המון תרנגולות לשוק. לכן המציאו את המטבעות הראשונים, שעשויים ממתכת יקרה. הם היו קטנים, קלים לנשיאה, וכולם הסכימו על הערך שלהם.`,
-                qs: [
-                    { q: 'מהי השיטה שקדמה לכסף?', options: ['כרטיסי אשראי', 'סחר חליפין', 'ביטקוין', 'בנקאות'], correct: 1 },
-                    { q: 'מה הבעיה בסחר חליפין?', options: ['זה היה זול מדי', 'זה היה מסורבל וכבד', 'לא היו מספיק סוסים', 'כולם אהבו את זה'], correct: 1 },
-                    { q: 'ממה היו עשויים המטבעות הראשונים?', options: ['פלסטיק', 'נייר', 'מתכת יקרה', 'עץ'], correct: 2 }
-                ]
-            },
-            {
-                title: 'הבנק הראשון',
-                text: `הבנקים הראשונים הוקמו באיטליה לפני כ-500 שנה. הסוחרים היו יושבים על ספסלים (באיטלקית: "בנקו") בשוק ומחליפים מטבעות מארצות שונות. אם סוחר היה פושט רגל, היו שוברים לו את הספסל, ומכאן המושג "פשיטת רגל" (באיטלקית: בנקה-רוטה). הבנק הוא מקום בטוח לשמור בו את הכסף שלנו, והוא גם נותן לנו הלוואות כשאנחנו צריכים לקנות דברים יקרים כמו בית או מכונית.`,
-                qs: [
-                    { q: 'היכן הוקמו הבנקים הראשונים?', options: ['ישראל', 'אמריקה', 'איטליה', 'סין'], correct: 2 },
-                    { q: 'מה מקור המילה בנק?', options: ['בניין גדול', 'ספסל (בנקו)', 'כסף', 'כספת'], correct: 1 },
-                    { q: 'מה עושה הבנק?', options: ['מוכר ירקות', 'שומר על הכסף ונותן הלוואות', 'מייצר מכוניות', 'כלום'], correct: 1 }
-                ]
-            }
-        ],
-        financial: [
-             {
-                title: 'מהי אינפלציה?',
-                text: `שמעתם פעם את סבא וסבתא אומרים "פעם גלידה עלתה 10 אגורות"? זוהי אינפלציה. אינפלציה היא תהליך שבו המחירים של המוצרים עולים לאורך זמן, והכסף שלנו קונה פחות. אם יש אינפלציה גבוהה, הכסף שחסכנו בקופה שווה פחות בעתיד. לכן חשוב לא רק לשמור את הכסף מתחת למזרן, אלא להשקיע אותו כדי שיצבור ריבית וינצח את האינפלציה.`,
-                qs: [
-                    { q: 'מהי אינפלציה?', options: ['ירידת מחירים', 'עליית מחירים וערך הכסף יורד', 'סוג של גלידה', 'מבצע בחנות'], correct: 1 },
-                    { q: 'מה קורה לכסף שלנו באינפלציה?', options: ['הוא קונה פחות', 'הוא קונה יותר', 'הוא הופך לזהב', 'לא משתנה'], correct: 0 },
-                    { q: 'איך אפשר להתמודד עם אינפלציה?', options: ['לבזבז מהר', 'להשקיע כדי לקבל ריבית', 'להחביא מתחת למזרן', 'לבכות'], correct: 1 }
-                ]
-            }
-        ]
-    };
-
     for (const age of ageGroups) {
-        // 1. Math (50 items)
         for (let i = 1; i <= 50; i++) {
             await client.query(
                 `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, $2, $3, $4, $5, $6)`,
                 [`תרגול חשבון #${i} (גיל ${age})`, 'math', age, 2 + Math.floor(Math.random()*5), 85, JSON.stringify(generateMathQuestions(age))]
             );
         }
-
-        // 2. Reading (Enriched)
         for (let i = 1; i <= 50; i++) {
-            const template = texts.reading[i % texts.reading.length]; // Cycle through templates
+            const text = `קטע קריאה מספר ${i} בנושא מדע וטבע. המים הם משאב חשוב מאוד. ללא מים אין חיים. הצמחים זקוקים למים כדי לגדול, וגם בני האדם חייבים לשתות מים בכל יום.`;
+            const qs = [
+                { q: 'על מה מדבר הטקסט?', options: ['מים', 'אש', 'רוח', 'אדמה'], correct: 0 },
+                { q: 'מי זקוק למים?', options: ['רק צמחים', 'רק בני אדם', 'כולם', 'אף אחד'], correct: 2 },
+                { q: 'האם יש חיים בלי מים?', options: ['כן', 'אולי', 'לא', 'רק בלילה'], correct: 2 },
+                { q: 'מה קורה לצמחים בלי מים?', options: ['גדלים מהר', 'לא גדלים', 'הופכים לכחולים', 'שרים שירים'], correct: 1 },
+                { q: 'כמה פעמים צריך לשתות?', options: ['פעם בשנה', 'בכל יום', 'אף פעם', 'רק בשבת'], correct: 1 }
+            ];
             await client.query(
                 `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [`${template.title} #${i}`, 'reading', age, 8, 95, template.text, JSON.stringify(template.qs)]
+                [`הבנת הנקרא: המים #${i}`, 'reading', age, 5, 95, text, JSON.stringify(qs)]
             );
         }
-
-        // 3. Financial (Enriched)
         for (let i = 1; i <= 50; i++) {
-            const template = texts.financial[i % texts.financial.length];
+            const text = `שיעור פיננסי #${i}: חיסכון. חיסכון הוא הפעולה של שמירת כסף בצד לשימוש עתידי. במקום לבזבז את כל הכסף שמקבלים מיד, שמים חלק ממנו בקופה או בבנק. כך אפשר לקנות דברים יקרים יותר בעתיד.`;
+            const qs = [
+                { q: 'מה זה חיסכון?', options: ['לבזבז הכל', 'לשמור כסף בצד', 'לזרוק כסף', 'לתת לחברים'], correct: 1 },
+                { q: 'למה כדאי לחסוך?', options: ['כדי לקנות דברים יקרים בעתיד', 'כי זה משעמם', 'כדי שהכסף יעלם', 'אין סיבה'], correct: 0 },
+                { q: 'איפה שמים כסף?', options: ['בפח', 'בבנק או בקופה', 'על הגג', 'בתוך נעל'], correct: 1 },
+                { q: 'מתי משתמשים בחיסכון?', options: ['עכשיו', 'בעתיד', 'אתמול', 'אף פעם'], correct: 1 },
+                { q: 'האם צריך לבזבז הכל מיד?', options: ['כן בטח', 'לא, כדאי לשמור', 'רק אם זה ממתק', 'תלוי במצב הרוח'], correct: 1 }
+            ];
             await client.query(
                 `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [`${template.title} #${i}`, 'financial', age, 15, 95, template.text, JSON.stringify(template.qs)]
+                [`מושגים בכסף: חיסכון #${i}`, 'financial', age, 10, 95, text, JSON.stringify(qs)]
             );
         }
     }
@@ -196,7 +169,7 @@ app.get('/setup-db', async (req, res) => {
 
     await seedQuizzes(); 
 
-    res.send(`<h1 style="color:blue">FamilyFlow V6.2 - Rich Content & Fixes 🚀</h1>`);
+    res.send(`<h1 style="color:blue">FamilyFlow V6.1.1 - Fix Ready 🚀</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -478,7 +451,6 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// FIXED: Self-healing Budget
 app.get('/api/budget/filter', async (req, res) => {
   const { groupId, targetUserId } = req.query;
   try {
@@ -496,14 +468,11 @@ app.get('/api/budget/filter', async (req, res) => {
     
     let budgets = await client.query(budgetQuery, queryParams);
     
-    // --- SELF HEALING FIX ---
-    // If empty, init and re-fetch
     if (budgets.rows.length === 0) {
         const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null;
         await initBudgets(groupId, uid);
         budgets = await client.query(budgetQuery, queryParams);
     }
-    // ------------------------
 
     if(targetUserId === 'all') {
        const allocationsTotal = await client.query(`
