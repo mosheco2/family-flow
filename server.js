@@ -53,13 +53,25 @@ app.get('/setup-db', async (req, res) => {
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // NEW: Goals Table
+    await client.query(`CREATE TABLE goals (
+        id SERIAL PRIMARY KEY, 
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, 
+        group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
+        title VARCHAR(100), 
+        target_amount DECIMAL(10, 2), 
+        current_amount DECIMAL(10, 2) DEFAULT 0, 
+        status VARCHAR(20) DEFAULT 'active', 
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', estimated_price DECIMAL(10, 2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:blue">FamilyFlow V5.4 - Weekly Savings Stats 📊</h1>`);
+    res.send(`<h1 style="color:blue">FamilyFlow V5.5 - Goals Module Ready 🎯</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -151,7 +163,34 @@ app.get('/api/group/members', async (req, res) => {
   } catch (e) { res.status(500).json({error:e.message}); }
 });
 
-// --- BANKING API ---
+// --- GOALS API (NEW) ---
+app.post('/api/goals', async (req, res) => {
+    const { userId, title, target } = req.body;
+    try {
+        const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
+        await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [userId, u.rows[0].group_id, title, target]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/goals/deposit', async (req, res) => {
+    const { userId, goalId, amount } = req.body;
+    try {
+        await client.query('BEGIN');
+        // 1. Deduct from User Balance
+        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+        // 2. Add to Goal
+        await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
+        // 3. Log Transaction (Internal transfer, is_manual = FALSE so it doesn't count as spending/income in budget)
+        // We use a new category 'savings' which will be ignored in expenses calc
+        await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']);
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+// --- BANKING API (UPDATED LOGIC with GOALS) ---
 app.post('/api/admin/update-settings', async (req, res) => {
     const { userId, allowance, interest } = req.body;
     try {
@@ -173,7 +212,7 @@ app.post('/api/admin/payday', async (req, res) => {
             const allowance = parseFloat(user.allowance_amount);
             const rate = parseFloat(user.interest_rate);
             
-            // Logic: Calculate expenses last 7 days
+            // 1. Calculate Expenses last 7 days
             const expensesRes = await client.query(`
                 SELECT SUM(amount) as total FROM transactions 
                 WHERE user_id = $1 AND type = 'expense' 
@@ -181,18 +220,26 @@ app.post('/api/admin/payday', async (req, res) => {
             `, [user.id]);
             const expensesLastWeek = parseFloat(expensesRes.rows[0].total || 0);
 
-            // 80/20 Rule
-            const totalAvailableApprox = currentBalance + expensesLastWeek;
+            // 2. Calculate Goals Total (Savings)
+            const goalsRes = await client.query(`SELECT SUM(current_amount) as total FROM goals WHERE user_id = $1 AND status = 'active'`, [user.id]);
+            const goalsTotal = parseFloat(goalsRes.rows[0].total || 0);
+
+            // 3. 80/20 Rule: Total Asset Base = Balance + Savings + Spent
+            const totalAvailableApprox = currentBalance + goalsTotal + expensesLastWeek;
             const allowedSpending = totalAvailableApprox * 0.20;
             
             let interestAmount = 0;
             let interestNote = '';
 
             if (expensesLastWeek <= allowedSpending) {
+                 // Calculate interest on Balance (usually banks don't give interest on locked savings, but here we can decide. 
+                 // Let's give interest only on Balance to encourage keeping money flowing or Liquid?)
+                 // Actually, to encourage savings, usually savings accounts get BETTER interest. 
+                 // For simplicity V5.5: Interest is calculated on Current Balance only.
                  if (currentBalance > 0 && rate > 0) {
                      interestAmount = currentBalance * (rate / 100);
                      interestAmount = Math.round(interestAmount * 100) / 100;
-                     interestNote = `ריבית על חיסכון (${rate}%)`;
+                     interestNote = `ריבית על עו"ש (${rate}%)`;
                  }
             } else {
                  interestNote = 'לא עמד ביעד חיסכון (בזבז מעל 20%)';
@@ -233,16 +280,22 @@ app.get('/api/data/:userId', async (req, res) => {
     if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`;
     loansSql += ` ORDER BY l.created_at DESC`;
 
-    // --- NEW: Calculate Weekly Stats for UI (Same logic as PayDay) ---
+    // --- Weekly Stats + Goals Calculation ---
     const expensesRes = await client.query(`
         SELECT SUM(amount) as total FROM transactions 
         WHERE user_id = $1 AND type = 'expense' 
         AND date > NOW() - INTERVAL '7 days'
     `, [user.id]);
     const weeklyExpenses = parseFloat(expensesRes.rows[0].total || 0);
-    const totalAvailable = parseFloat(user.balance) + weeklyExpenses;
+    
+    // Fetch Goals
+    const goalsRes = await client.query(`SELECT * FROM goals WHERE user_id = $1 AND status = 'active' ORDER BY created_at DESC`, [user.id]);
+    const goalsList = goalsRes.rows;
+    const goalsTotal = goalsList.reduce((sum, g) => sum + parseFloat(g.current_amount), 0);
+
+    const totalAvailable = parseFloat(user.balance) + goalsTotal + weeklyExpenses;
     const allowedSpending = totalAvailable * 0.20;
-    // ----------------------------------------------------------------
+    // ----------------------------------------
 
     const [tasks, shop, loans] = await Promise.all([
       client.query(tasksSql, [gid]),
@@ -255,7 +308,7 @@ app.get('/api/data/:userId', async (req, res) => {
         tasks: tasks.rows, 
         shopping_list: shop.rows, 
         loans: loans.rows,
-        // Send stats to client
+        goals: goalsList, // Return goals
         weekly_stats: { spent: weeklyExpenses, limit: allowedSpending } 
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -445,3 +498,5 @@ app.post('/api/loans/handle', async (req, res) => {
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.listen(port, () => console.log(`Server running on port ${port}`));
+
+
