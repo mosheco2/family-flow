@@ -70,14 +70,18 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
-    res.send(`<h1 style="color:blue">FamilyFlow V5.7 - Stable & Secure 🔒</h1>`);
+    res.send(`<h1 style="color:blue">FamilyFlow V5.8 - Self Healing Budget 🛠️</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
 const initBudgets = async (groupId, userId = null) => {
   const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
   for (const c of cats) {
-    await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)`, [groupId, userId, c]);
+    // Insert only if not exists (to avoid duplicates in self-healing)
+    const check = await client.query(`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND (user_id=$3 OR ($3::int IS NULL AND user_id IS NULL))`, [groupId, c, userId]);
+    if (check.rows.length === 0) {
+        await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)`, [groupId, userId, c]);
+    }
   }
 };
 
@@ -173,43 +177,27 @@ app.post('/api/goals', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// UPDATED: Deposit with Balance Check
 app.post('/api/goals/deposit', async (req, res) => {
     const { userId, goalId, amount } = req.body;
     try {
         await client.query('BEGIN');
-        
-        // Check goal owner
         const goalRes = await client.query('SELECT user_id FROM goals WHERE id = $1', [goalId]);
         const goalOwnerId = goalRes.rows[0].user_id;
         
-        // Logic:
-        // 1. If User depositing to Self -> CHECK BALANCE
-        // 2. If Admin depositing to Child -> System money (no deduction from Admin)
-        // 3. If User (Admin) depositing to Self -> CHECK BALANCE
-        
         if (parseInt(userId) === parseInt(goalOwnerId)) {
-            // User (or Admin) depositing to their own goal
             const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
             const currentBalance = parseFloat(userRes.rows[0].balance);
-            
             if (currentBalance < parseFloat(amount)) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'אין מספיק יתרה בחשבון' });
             }
-            
-            // Deduct
             await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
-            // Log transaction
             await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']);
         } else {
-            // Admin depositing to Child (Bonus)
             await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'bonus', 'income', FALSE)`, [goalOwnerId, amount, 'הפקדה ליעד ע"י הורה']);
         }
 
-        // Add to Goal
         await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
-        
         await client.query('COMMIT');
         res.json({ success: true });
     } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
@@ -341,6 +329,7 @@ app.get('/api/data/:userId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// FIXED: Self-healing Budget
 app.get('/api/budget/filter', async (req, res) => {
   const { groupId, targetUserId } = req.query;
   try {
@@ -356,8 +345,18 @@ app.get('/api/budget/filter', async (req, res) => {
         queryParams = [groupId];
     }
     
-    const budgets = await client.query(budgetQuery, queryParams);
+    let budgets = await client.query(budgetQuery, queryParams);
     
+    // --- SELF HEALING FIX ---
+    if (budgets.rows.length === 0) {
+        // If no budget rows exist for this view, create them now.
+        const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null;
+        await initBudgets(groupId, uid);
+        // Fetch again after fix
+        budgets = await client.query(budgetQuery, queryParams);
+    }
+    // ------------------------
+
     if(targetUserId === 'all') {
        const allocationsTotal = await client.query(`
         SELECT SUM(amount) as total FROM transactions t 
