@@ -302,6 +302,8 @@
 
     </div>
 
+    <div class="text-center pb-2 text-[10px] text-slate-300">V10.1</div>
+
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let currentUser = null;
@@ -373,7 +375,7 @@
             if(!pollInterval) pollInterval = setInterval(() => { 
                 fetchData(); 
                 if(currentUser.role==='ADMIN') fetchPendingUsers();
-            }, 5000); // 5 sec is good
+            }, 10000);
 
             fetchMembers();
             fetchData();
@@ -392,9 +394,7 @@
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
                 recentT.forEach(t => {
                     const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
-                    // Color coding for admin
                     const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
-                    
                     tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.01]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
                 });
 
@@ -403,8 +403,8 @@
 
                 // Tasks
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
-                // Filter to show pending and recently approved/done
-                const tasksToShow = data.tasks.filter(t => t.status === 'pending' || t.status === 'done');
+                // Fix: show pending and approved
+                const tasksToShow = data.tasks.filter(t => t.status !== 'rejected');
                 if(tasksToShow.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
                 
                 tasksToShow.forEach(t => {
@@ -418,6 +418,8 @@
                     } else if (t.status === 'done') {
                         if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר</button>`;
                         else action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
+                    } else if (t.status === 'approved') {
+                         action = `<span class="text-[10px] text-green-600 font-bold flex items-center gap-1"><i class="fa-solid fa-check"></i> בוצע</span>`;
                     }
                     taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">עבור ${t.assignee_name}</span><span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span></div></div>${action}</div>`;
                 });
@@ -504,6 +506,7 @@
             list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
         }
 
+        // Budget Update Functions
         function openBudgetModal(catId, catName, currentLimit) {
             document.getElementById('budget-cat-name').innerText = catName;
             document.getElementById('budget-cat-id').value = catId;
