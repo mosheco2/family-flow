@@ -165,7 +165,14 @@ app.post('/api/shopping/update', async (req, res) => {
             await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
             const item = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
             if(item.rows.length && estimatedPrice > 0) {
-                const history = await client.query(`SELECT price, store_name, date FROM product_prices WHERE item_name=$1 AND price < $2 ORDER BY price ASC LIMIT 1`, [item.rows[0].item_name, estimatedPrice]);
+                // FIXED CROWD WISDOM QUERY: LOWER() and TRIM() for better matching
+                const history = await client.query(`
+                    SELECT price, store_name, date 
+                    FROM product_prices 
+                    WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 
+                    ORDER BY price ASC LIMIT 1
+                `, [item.rows[0].item_name, estimatedPrice]);
+                
                 if(history.rows.length) {
                     alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
                 }
@@ -300,8 +307,6 @@ app.post('/api/transaction', async (req, res) => {
 app.get('/api/budget/filter', async (req, res) => {
     const { groupId, targetUserId } = req.query;
     try {
-        // ... (Budget logic remains same as per phase 1, simplified here for brevity)
-        // Ensure to include allocations logic
         const budgets = await client.query(`SELECT * FROM budgets WHERE group_id=$1 AND ${targetUserId==='all' ? 'user_id IS NULL' : 'user_id='+targetUserId}`, [groupId]);
         const data = [];
         if(targetUserId === 'all') {
