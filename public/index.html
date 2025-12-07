@@ -23,25 +23,31 @@
         .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
         .scroll-btn.left { left: 0; }
         .scroll-btn.right { right: 0; }
+        
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+        
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         
-        /* Shop Styles */
+        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
+        
         .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
         .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
-        /* Autocomplete */
-        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 150px; overflow-y: auto; z-index: 50; shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        /* Autocomplete Styles */
+        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .suggestion-group { padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: bold; color: #94a3b8; background: #f8fafc; border-bottom: 1px solid #f1f5f9; }
+        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; transition: background 0.2s; }
         .suggestion-item:last-child { border-bottom: none; }
-        .suggestion-item:hover { background-color: #f8fafc; }
+        .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
+
+        /* Category Header in List */
+        .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
 
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
@@ -49,6 +55,7 @@
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        
         .wisdom-alert { animation: slideDown 0.3s ease-out; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -62,7 +69,7 @@
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-             <div class="p-10 text-center relative overflow-hidden">
+            <div class="p-10 text-center relative overflow-hidden">
                 <div class="absolute inset-0 bg-blue-600 rounded-b-[3rem] shadow-xl"></div>
                 <div class="relative z-10 pt-8 pb-4">
                     <div class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20"><i class="fa-solid fa-wallet"></i></div>
@@ -162,7 +169,11 @@
                     </div>
                 </div>
 
-                <div id="content-bank" class="hidden"><div id="bank-admin-view" class="hidden space-y-6"><div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm"><div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div><i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div></div><div id="bank-child-view" class="hidden space-y-6"><div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]"><div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div><div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div><div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div></div><div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div><div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div></div></div>
+                <div id="content-bank" class="hidden">
+                    <div id="bank-admin-view" class="hidden space-y-6"><div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm"><div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div><i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div></div>
+                    <div id="bank-child-view" class="hidden space-y-6"><div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]"><div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div><div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div><div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div></div><div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div><div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div></div>
+                </div>
+
                 <div id="content-academy" class="hidden"><div id="academy-admin-view" class="hidden"><div class="flex justify-between items-center mb-6 px-2"><h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3><button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת מבחן</button></div><div id="admin-assignments-list" class="space-y-3"></div></div><div id="academy-user-view" class="hidden"><div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div></div></div>
                 <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
                 <div id="content-tasks" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3><div class="flex gap-2"><button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button><button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button></div></div><div id="tasks-list" class="space-y-3 pb-20"></div></div>
@@ -177,7 +188,7 @@
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
                 <div class="space-y-4">
                     <div class="relative">
-                        <input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב, לחם...)" oninput="filterSuggestions(this.value)">
+                        <input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)">
                         <ul id="suggestions" class="suggestions-list hidden"></ul>
                     </div>
                     <div class="flex gap-2">
@@ -251,18 +262,22 @@
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
         const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
 
-        // 200 Israeli Products for Autocomplete
-        const COMMON_PRODUCTS = [
-            "חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה 3%", "חלב דל לקטוז", "חלב סויה", "חלב שקדים", "קוטג' תנובה 5%", "קוטג' טרה 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה צהובה נעם", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט טבעי", "מעדן מילקי", "מעדן דני", "מעדן יולו", "ביצים L", "ביצים M", "ביצים XL",
-            "לחם אחיד פרוס", "לחם מלא", "לחם שיפון", "חלה לשבת", "פיתות", "לחמניות", "באגט", "פריכיות אורז", "קרקרים",
-            "עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים",
-            "אורז פרסי", "אורז בסמטי", "פסטה ספגטי", "פסטה פנה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים ירוקות", "עדשים כתומות", "חומוס גרגירים", "שועית לבנה", "שימורי טונה", "שימורי תירס", "שימורי אפונה", "שימורי רסק עגבניות", "מלפפון חמוץ", "זיתים ירוקים", "זיתים שחורים",
-            "שמן זית", "שמן קנולה", "סוכר לבן", "סוכר חום", "מלח", "קמח לבן", "קמח תופח", "קמח מלא", "שמרים יבשים", "אבקת אפייה", "סוכר וניל", "שוקולד למריחה", "ריבה", "דבש", "טחינה גולמית", "חמאת בוטנים", "קורנפלקס", "דגני בוקר כריות", "שיבולת שועל",
-            "קפה נמס", "קפה שחור", "תה", "שוקולית", "סוכרזית", "מים מינרלים", "סודה", "קולה", "מיץ תפוזים",
-            "חזה עוף", "כרעיים עוף", "שוקיים עוף", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה",
-            "נייר טואלט", "מגבונים לחים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "מברשת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים",
-            "במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק"
-        ];
+        // 200 Israeli Products categorized (Task 2)
+        const PRODUCT_DB = {
+            "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"],
+            "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"],
+            "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"],
+            "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"],
+            "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"],
+            "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"],
+            "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"]
+        };
+
+        // Helper to flatten for search but keep category reference
+        const FLAT_PRODUCTS = [];
+        for (const [cat, items] of Object.entries(PRODUCT_DB)) {
+            items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat }));
+        }
 
         let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0, currentAssignmentId = null;
 
@@ -282,7 +297,7 @@
             }
         };
 
-        // --- CORE FUNCTIONS (Login, Tabs...) ---
+        // --- CORE ---
         function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
         function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
@@ -308,7 +323,6 @@
                 currentUser.balance = data.user.balance; currentUser.allowance_amount = data.user.allowance_amount; currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions
                 const tList = document.getElementById('transactions-list'); 
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); 
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
@@ -316,7 +330,6 @@
                     let tHtml = ''; recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tHtml += `<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; }); tList.innerHTML = tHtml;
                 }
                 
-                // Tasks
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML=''; 
                 if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; 
                 data.tasks.forEach(t => { 
@@ -326,10 +339,8 @@
                     if (isMyTask || isAdmin) { const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">משימה אישית</span>`; taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}</div></div>${action}</div>`; } 
                 });
                 
-                // Shop & Budget
                 shoppingListCache = data.shopping_list; renderShopList(); fetchBudget();
                 
-                // Bank & Goals (Simplified refresh)
                 const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); }
                 const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
             } catch(e) {}
@@ -341,15 +352,15 @@
             list.innerHTML = '';
             if (!val) { list.classList.add('hidden'); return; }
             
-            const filtered = COMMON_PRODUCTS.filter(p => p.includes(val)).slice(0, 5);
+            const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8);
             if (filtered.length > 0) {
                 list.classList.remove('hidden');
                 filtered.forEach(p => {
                     const li = document.createElement('div');
                     li.className = 'suggestion-item';
-                    li.innerText = p;
+                    li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`;
                     li.onclick = () => {
-                        document.getElementById('shop-item').value = p;
+                        document.getElementById('shop-item').value = p.name;
                         list.classList.add('hidden');
                     };
                     list.appendChild(li);
@@ -372,7 +383,6 @@
                 document.getElementById('shop-est-price').value = ''; 
                 document.getElementById('shop-quantity').value = 1;
                 document.getElementById('suggestions').classList.add('hidden');
-                
                 if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg;
                 showToast('success', 'נוסף לרשימה');
                 fetchData();
@@ -386,6 +396,22 @@
             fetchData();
         }
 
+        function toggleSelectAll() {
+            const allItems = shoppingListCache;
+            const anyPending = allItems.some(i => i.status === 'pending');
+            const targetStatus = anyPending; 
+            document.querySelectorAll('.shop-row').forEach(row => {
+               if(row.classList.contains('missing')) return;
+               const cb = row.querySelector('input[type="checkbox"]');
+               const inp = row.querySelector('.price-input');
+               cb.checked = targetStatus;
+               row.classList.toggle('in-cart', targetStatus);
+               inp.disabled = !targetStatus;
+            });
+            calcRunningTotal();
+            allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); });
+        }
+
         function renderShopList() {
             if (document.activeElement.classList.contains('price-input')) return;
             const list = document.getElementById('shop-list');
@@ -393,7 +419,25 @@
             if(shoppingListCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); return; }
             document.getElementById('cart-footer').classList.remove('hidden');
 
+            // Sorting by Category
+            const getCatScore = (name) => {
+                for(const [cat, items] of Object.entries(PRODUCT_DB)) {
+                    if(items.includes(name)) return cat; 
+                }
+                return 'שונות'; // Default
+            };
+            
+            // Sort by category then name
+            shoppingListCache.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+
+            let currentCat = '';
             shoppingListCache.forEach(i => {
+                const cat = getCatScore(i.item_name);
+                if(cat !== currentCat) {
+                    list.innerHTML += `<div class="category-header">${cat}</div>`;
+                    currentCat = cat;
+                }
+
                 const isChecked = i.status === 'in_cart';
                 const val = i.estimated_price > 0 ? i.estimated_price : ''; 
                 const savedWisdom = wisdomCache[i.id];
@@ -454,7 +498,7 @@
             calcRunningTotal();
         }
 
-        // --- HISTORY (Collapsible) ---
+        // --- HISTORY ---
         async function openHistoryModal() {
             const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`);
             const trips = await res.json();
@@ -464,7 +508,7 @@
             
             trips.forEach(t => {
                 let itemsHtml = '';
-                t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-50 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`);
+                t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`);
                 
                 list.innerHTML += `
                     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -500,6 +544,7 @@
         async function submitAssignQuiz() { const uid = val('assign-child-select'); const bid = val('assign-bundle-select'); if(!uid || !bid) return; await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, bundleId: bid }) }); document.getElementById('assign-quiz-modal').classList.add('hidden'); showToast('success', 'המשימה הוקצתה!'); }
         async function requestChallenge() { await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id }) }); showToast('success', 'בקשה נשלחה!'); }
         function toggleFab() { const container = document.getElementById('fab-container'); container.classList.toggle('fab-open'); }
+        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
         async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
@@ -509,21 +554,6 @@
         function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
         function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
         function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
-        async function fetchMembers() { const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
-        async function fetchPendingUsers() { const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const list = await res.json(); document.getElementById('pending-count').innerText = list.length; document.getElementById('pending-count').classList.toggle('hidden', list.length===0); document.getElementById('admin-panel').classList.toggle('hidden', list.length===0); const c = document.getElementById('pending-list'); c.innerHTML=''; list.forEach(u => c.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`); }
-        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); fetchMembers(); fetchData(); }
-        function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-        async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-        async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-        function openGoalModal() { document.getElementById('goal-modal').classList.remove('hidden'); }
-        function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-        async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
-        async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-        function switchTab(t) { ['feed','tasks','shop','bank','academy','members','budget'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); if(t==='tasks') { const s = document.getElementById('task-assignee'); s.innerHTML=''; membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`); } }
-        async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
-        async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
-        async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
     </script>
 </body>
 </html>
