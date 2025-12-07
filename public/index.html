@@ -16,7 +16,6 @@
         .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Slider & Nav */
         .slider-container { position: relative; display: flex; align-items: center; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; padding: 0.5rem 2.5rem; width: 100%; }
         .slider-scroll::-webkit-scrollbar { display: none; }
@@ -37,17 +36,16 @@
 
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
-        
         .btn-payday { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
-        
-        /* Smart Shop Styles */
-        .shop-row { transition: all 0.2s; }
+
+        /* SHOP ROW STYLES */
+        .shop-row { transition: background-color 0.2s; }
+        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
-        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
-        .price-input { transition: all 0.2s; }
-        .price-input:disabled { background-color: transparent; border-color: transparent; color: transparent; }
-        .price-input:enabled { background-color: white; border-color: #e2e8f0; color: #0f172a; }
+        
+        .price-input:disabled { background: transparent; border-color: transparent; color: transparent; }
+        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; }
 
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
@@ -151,7 +149,7 @@
                     
                     <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
                     
-                    <div id="cart-footer" class="fixed bottom-24 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-30 flex justify-between items-center animate-bounce-in">
+                    <div id="cart-footer" class="fixed bottom-24 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-30 flex justify-between items-center animate-bounce-in hidden">
                         <div>
                             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p>
                             <span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span>
@@ -184,47 +182,8 @@
         
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
 
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
-                <div class="space-y-4">
-                    <input type="text" id="shop-item" class="modern-input" placeholder="מה חסר?">
-                    <div class="flex gap-2">
-                        <div class="flex-1 relative">
-                            <input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0">
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ (משוער)</span>
-                        </div>
-                        <div class="w-24 relative">
-                            <input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex gap-3 mt-6">
-                    <button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3>
-                <p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p>
-                <input type="text" id="checkout-store" class="modern-input mb-4" placeholder="שם החנות (למשל: רמי לוי)">
-                <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2">
-                    <div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div>
-                    <div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div>
-                    <div class="h-px bg-slate-200 my-2"></div>
-                    <div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button>
-                    <button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button>
-                </div>
-            </div>
-        </div>
-
+        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר?"><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ (משוער)</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
+        <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><input type="text" id="checkout-store" class="modern-input mb-4" placeholder="שם החנות (למשל: רמי לוי)"><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-4 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
         <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div></div>
@@ -284,21 +243,23 @@
 
         async function fetchData() {
             try {
+                // If focused on price input, skip refresh to prevent jump (Stability Fix)
+                if (document.activeElement.classList.contains('price-input')) return;
+
                 const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
                 currentUser.balance = data.user.balance; currentUser.allowance_amount = data.user.allowance_amount; currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Trans
+                // Transactions
                 const tList = document.getElementById('transactions-list'); tList.innerHTML=''; const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; });
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
                 
-                // Goals
+                // Goals, Tasks... (Skipped brevity)
                 const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
                 
-                // Tasks
                 const taskList = document.getElementById('tasks-list'); taskList.innerHTML=''; if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; data.tasks.forEach(t => { let action = ''; const isMyTask = t.assigned_to == currentUser.id; const isAdmin = currentUser.role === 'ADMIN'; if(t.status === 'pending') { if(isMyTask) { action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`; } else if(isAdmin) { action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } } else if (t.status === 'done') { if(isAdmin) { action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } else { action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } } if (isMyTask || isAdmin) { taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : ''}</div></div>${action}</div>`; } });
                 
-                // --- SHOPPING (NEW LOGIC) ---
+                // SHOP UPDATE
                 shoppingListCache = data.shopping_list;
                 renderShopList();
                 fetchBudget();
@@ -323,6 +284,9 @@
         }
 
         function renderShopList() {
+            // Only re-render if NOT focused on an input to preserve state
+            if (document.activeElement.classList.contains('price-input')) return;
+
             const list = document.getElementById('shop-list');
             list.innerHTML = '';
             
@@ -336,13 +300,10 @@
 
             shoppingListCache.forEach(i => {
                 const isChecked = i.status === 'in_cart';
-                // We use estimated_price as the "Live Price" holder. 
-                // If checked, we assume the user might have updated it, otherwise use DB value.
                 const val = i.estimated_price > 0 ? i.estimated_price : ''; 
-                const isMissing = false; // We don't store "missing" state permanently in DB as a separate status in this flow, but visually we handle it here if needed. 
-
+                
                 list.innerHTML += `
-                <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2" id="row-${i.id}">
+                <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
                         <div class="flex-1">
@@ -351,6 +312,7 @@
                                 <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">x${i.quantity}</span>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-600 mt-1 font-bold hidden bg-blue-50 px-2 py-1 rounded w-fit"></div>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center pl-8">
@@ -379,17 +341,26 @@
                 row.classList.toggle('in-cart', value);
                 input.disabled = !value;
                 if(value) input.focus();
-                // Update status in DB
                 await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})});
+                // Checkbox update triggers reload naturally in polling, fine for UX
             } 
             else if (type === 'price') {
-                // Update price in DB & Check Crowd Wisdom
+                // Fix #2: Update price WITHOUT re-rendering or moving row
                 const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})});
                 const data = await res.json();
+                
+                // Show Crowd Wisdom inline (Fix #1)
                 if(data.alert) {
-                    showToast('success', 'נמצא חיסכון!'); // Generic toast
-                    alert(data.alert.msg); // Alert with details
+                    const wisdomDiv = document.getElementById(`wisdom-${id}`);
+                    wisdomDiv.innerText = data.alert.msg;
+                    wisdomDiv.classList.remove('hidden');
+                } else {
+                    document.getElementById(`wisdom-${id}`).classList.add('hidden');
                 }
+
+                // Update local cache manually so calc works
+                const cachedItem = shoppingListCache.find(i => i.id === id);
+                if(cachedItem) cachedItem.estimated_price = value;
             }
             calcRunningTotal();
         }
@@ -419,6 +390,7 @@
         function calcRunningTotal() {
             let total = 0;
             document.querySelectorAll('.shop-row').forEach(row => {
+                // Calculate from DOM elements (Stable)
                 const isChecked = row.querySelector('input[type="checkbox"]').checked;
                 const isMissing = row.classList.contains('missing');
                 if (isChecked && !isMissing) {
@@ -456,18 +428,16 @@
             const boughtItems = [];
             const missingItems = [];
 
-            // Gather data from the DOM state
             document.querySelectorAll('.shop-row').forEach(row => {
                 const id = row.id.replace('row-', '');
-                // We need to find the name/qty from cache or DOM. Let's grab from cache for safety.
-                const itemData = shoppingListCache.find(i => i.id == id);
+                const itemData = shoppingListCache.find(i => i.id == id); // Fallback to cache for names
                 
                 if (row.classList.contains('missing')) {
                     missingItems.push({ id });
                 } else if (row.querySelector('input[type="checkbox"]').checked) {
                     const price = parseFloat(document.getElementById(`price-${id}`).value) || 0;
                     total += price;
-                    boughtItems.push({ id, name: itemData.item_name, quantity: itemData.quantity, price });
+                    boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: itemData ? itemData.quantity : 1, price });
                 }
             });
 
@@ -484,7 +454,7 @@
             fetchData();
         }
 
-        // --- GENERAL HELPERS ---
+        // --- HELPERS (Unchanged) ---
         function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
         async function fetchMembers() { const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
         async function fetchPendingUsers() { const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const list = await res.json(); document.getElementById('pending-count').innerText = list.length; document.getElementById('pending-count').classList.toggle('hidden', list.length===0); document.getElementById('admin-panel').classList.toggle('hidden', list.length===0); const c = document.getElementById('pending-list'); c.innerHTML=''; list.forEach(u => c.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`); }
@@ -501,7 +471,7 @@
         function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
         async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
+        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
