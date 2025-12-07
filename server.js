@@ -162,16 +162,18 @@ app.post('/api/shopping/update', async (req, res) => {
         
         let alert = null;
         if(estimatedPrice !== undefined) {
-            await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+            const priceVal = parseFloat(estimatedPrice);
+            await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [priceVal, itemId]);
             const item = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
-            if(item.rows.length && estimatedPrice > 0) {
-                // FIXED CROWD WISDOM QUERY: LOWER() and TRIM() for better matching
+            
+            if(item.rows.length && priceVal > 0) {
+                // Crowd Wisdom Check: Find Cheaper History
                 const history = await client.query(`
                     SELECT price, store_name, date 
                     FROM product_prices 
                     WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 
                     ORDER BY price ASC LIMIT 1
-                `, [item.rows[0].item_name, estimatedPrice]);
+                `, [item.rows[0].item_name, priceVal]);
                 
                 if(history.rows.length) {
                     alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
@@ -192,6 +194,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
         for (const i of boughtItems) {
             await client.query("UPDATE shopping_list SET status='bought' WHERE id=$1", [i.id]);
             await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [trip.rows[0].id, i.name, i.quantity, i.price]);
+            // Insert into history for future wisdom
             if(i.price > 0) await client.query(`INSERT INTO product_prices (group_id, item_name, store_name, price) VALUES ($1, $2, $3, $4)`, [u.rows[0].group_id, i.name, storeName, i.price]);
         }
         
