@@ -145,7 +145,8 @@ app.post('/api/shopping/add', async (req, res) => {
     const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
         const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [itemName, quantity, estimatedPrice||0, userId, u.rows[0].group_id]);
+        // FIX: RETURNING id so frontend can link alert to row
+        const newItem = await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id`, [itemName, quantity, estimatedPrice||0, userId, u.rows[0].group_id]);
         
         let alert = null;
         if(estimatedPrice && parseFloat(estimatedPrice) > 0) {
@@ -154,7 +155,7 @@ app.post('/api/shopping/add', async (req, res) => {
                  alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
              }
         }
-        res.json({ success: true, alert });
+        res.json({ success: true, alert, id: newItem.rows[0].id });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -199,9 +200,11 @@ app.post('/api/shopping/checkout', async (req, res) => {
             await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [trip.rows[0].id, i.name, i.quantity, i.price]);
             if(i.price > 0) await client.query(`INSERT INTO product_prices (group_id, item_name, store_name, price) VALUES ($1, $2, $3, $4)`, [u.rows[0].group_id, i.name, storeName, i.price]);
         }
+        
         for (const i of missingItems) {
             await client.query("UPDATE shopping_list SET status='pending' WHERE id=$1", [i.id]);
         }
+
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'groceries', 'expense', TRUE)`, [userId, totalAmount, `קניות: ${storeName}`]);
         await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
         await client.query('COMMIT');
@@ -232,6 +235,7 @@ app.post('/api/shopping/copy', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- DATA FETCH ---
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const user = (await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId])).rows[0];
@@ -260,6 +264,7 @@ app.get('/api/data/:userId', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- OTHER ---
 app.post('/api/tasks', async (req, res) => {
     try {
         const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
