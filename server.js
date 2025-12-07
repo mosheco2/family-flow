@@ -71,6 +71,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(100), target_amount DECIMAL(10, 2), current_amount DECIMAL(10, 2) DEFAULT 0, status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    
     await client.query(`CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER DEFAULT 1, estimated_price DECIMAL(10, 2) DEFAULT 0, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INTEGER REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER, price_per_unit DECIMAL(10, 2))`);
@@ -92,7 +93,7 @@ const initBudgets = async (groupId, userId = null) => {
   }
 };
 
-// --- ROUTES ---
+// --- AUTH ---
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   adminEmail = adminEmail.trim().toLowerCase();
@@ -133,6 +134,7 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- CORE ---
 app.get('/api/users/:id', async (req, res) => { const r = await client.query('SELECT * FROM users WHERE id=$1', [req.params.id]); res.json(r.rows[0]); });
 app.get('/api/group/members', async (req, res) => { const r = await client.query("SELECT id, nickname, role, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status='ACTIVE'", [req.query.groupId]); res.json(r.rows); });
 app.get('/api/admin/pending-users', async (req, res) => { const r = await client.query("SELECT id, nickname FROM users WHERE group_id=$1 AND status='PENDING'", [req.query.groupId]); res.json(r.rows); });
@@ -140,10 +142,19 @@ app.post('/api/admin/approve-user', async (req, res) => { await client.query("UP
 
 // --- SHOPPING ---
 app.post('/api/shopping/add', async (req, res) => {
+    const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
-        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
-        await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [req.body.itemName, req.body.quantity, req.body.estimatedPrice||0, req.body.userId, u.rows[0].group_id]);
-        res.json({ success: true });
+        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [itemName, quantity, estimatedPrice||0, userId, u.rows[0].group_id]);
+        
+        let alert = null;
+        if(estimatedPrice && parseFloat(estimatedPrice) > 0) {
+             const history = await client.query(`SELECT price, store_name FROM product_prices WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 ORDER BY price ASC LIMIT 1`, [itemName, parseFloat(estimatedPrice)]);
+             if(history.rows.length) {
+                 alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
+             }
+        }
+        res.json({ success: true, alert });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -160,8 +171,13 @@ app.post('/api/shopping/update', async (req, res) => {
             const item = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
             
             if(item.rows.length && priceVal > 0) {
-                // FIXED CROWD WISDOM
-                const history = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 ORDER BY price ASC LIMIT 1`, [item.rows[0].item_name, priceVal]);
+                const history = await client.query(`
+                    SELECT price, store_name 
+                    FROM product_prices 
+                    WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 
+                    ORDER BY price ASC LIMIT 1
+                `, [item.rows[0].item_name, priceVal]);
+                
                 if(history.rows.length) {
                     alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
                 }
