@@ -27,7 +27,7 @@
         .tab-btn { flex: 0 0 auto; padding: 0.6rem 1.2rem; border-radius: 1rem; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
         
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
@@ -38,19 +38,24 @@
         .fab-open #fab-icon { transform: rotate(45deg); }
         .btn-payday { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
 
-        /* SHOP ROW STYLES */
+        /* SHOP ROW STYLES (FIXED) */
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
         
-        .price-input:disabled { background: transparent; border-color: transparent; color: transparent; }
-        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; }
+        /* Fixed Input Visibility */
+        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; /* Gray for estimated */ }
+        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        
+        /* Crowd Wisdom Alert Style */
+        .wisdom-alert { animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -243,15 +248,29 @@
 
         async function fetchData() {
             try {
-                // If focused on price input, skip refresh to prevent jump (Stability Fix)
+                // If focused on price input, skip refresh to prevent jump
                 if (document.activeElement.classList.contains('price-input')) return;
 
                 const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
                 currentUser.balance = data.user.balance; currentUser.allowance_amount = data.user.allowance_amount; currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions
-                const tList = document.getElementById('transactions-list'); tList.innerHTML=''; const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; });
+                // Transactions (Fixed disappearing issue)
+                const tList = document.getElementById('transactions-list'); 
+                const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); 
+                
+                if(recentT.length === 0) {
+                    tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
+                } else {
+                    let tHtml = '';
+                    recentT.forEach(t => { 
+                        const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; 
+                        const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; 
+                        tHtml += `<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; 
+                    });
+                    tList.innerHTML = tHtml;
+                }
+
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
                 
                 // Goals, Tasks... (Skipped brevity)
@@ -312,7 +331,7 @@
                                 <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">x${i.quantity}</span>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-600 mt-1 font-bold hidden bg-blue-50 px-2 py-1 rounded w-fit"></div>
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-800 mt-2 font-bold hidden bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg w-full wisdom-alert shadow-sm flex items-center gap-2"><i class="fa-solid fa-lightbulb text-yellow-500"></i><span></span></div>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center pl-8">
@@ -350,16 +369,16 @@
                 const data = await res.json();
                 
                 // Show Crowd Wisdom inline (Fix #1)
+                const wisdomDiv = document.getElementById(`wisdom-${id}`);
                 if(data.alert) {
-                    const wisdomDiv = document.getElementById(`wisdom-${id}`);
-                    wisdomDiv.innerText = data.alert.msg;
+                    wisdomDiv.querySelector('span').innerText = data.alert.msg;
                     wisdomDiv.classList.remove('hidden');
                 } else {
-                    document.getElementById(`wisdom-${id}`).classList.add('hidden');
+                    wisdomDiv.classList.add('hidden');
                 }
 
                 // Update local cache manually so calc works
-                const cachedItem = shoppingListCache.find(i => i.id === id);
+                const cachedItem = shoppingListCache.find(i => i.id == id);
                 if(cachedItem) cachedItem.estimated_price = value;
             }
             calcRunningTotal();
@@ -471,7 +490,7 @@
         function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
         async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
+        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
