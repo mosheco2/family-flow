@@ -16,7 +16,6 @@
         .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* FIX: Arrows perfectly aligned */
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
@@ -25,8 +24,8 @@
         .scroll-btn.left { left: 0; }
         .scroll-btn.right { right: 0; }
         
-        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; white-space: nowrap; }
-        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
         
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
@@ -47,7 +46,7 @@
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         
-        .wisdom-alert { animation: slideDown 0.3s ease-out; display: flex !important; }
+        .wisdom-alert { animation: slideDown 0.3s ease-out; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -275,6 +274,7 @@
                     let action = ''; 
                     const isMyTask = t.assigned_to == currentUser.id; 
                     const isAdmin = currentUser.role === 'ADMIN'; 
+                    // FIX 4: Check if admin self task with 0 reward to ensure visibility
                     const isSelfAdminTask = isAdmin && isMyTask && t.reward == 0;
 
                     if(t.status === 'pending') { 
@@ -308,12 +308,19 @@
             const est = val('shop-est-price');
             if(!item) return;
             const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, estimatedPrice: est, userId: currentUser.id}) });
-            if ((await res.json()).success) {
+            const data = await res.json(); // Wait for data to get alert
+            if (data.success) {
                 document.getElementById('shop-modal').classList.add('hidden');
                 document.getElementById('shop-item').value = ''; 
                 document.getElementById('shop-est-price').value = ''; 
                 document.getElementById('shop-quantity').value = 1;
-                showToast('success', 'נוסף לרשימה');
+                
+                // Show Alert if exists
+                if(data.alert) {
+                    alert(data.alert.msg);
+                } else {
+                    showToast('success', 'נוסף לרשימה');
+                }
                 fetchData();
             }
         }
@@ -321,8 +328,10 @@
         function toggleSelectAll() {
             const allItems = shoppingListCache;
             const anyPending = allItems.some(i => i.status === 'pending');
+            // If any pending, select all. If all selected, deselect all.
             const targetStatus = anyPending; 
             
+            // Optimistic UI update
             document.querySelectorAll('.shop-row').forEach(row => {
                if(row.classList.contains('missing')) return;
                const cb = row.querySelector('input[type="checkbox"]');
@@ -333,8 +342,10 @@
             });
             calcRunningTotal();
 
+            // Bulk update logic (sending one by one for now to keep API simple)
+            // In real app, create a bulk API endpoint.
             allItems.forEach(i => {
-                if(i.status !== 'bought') { 
+                if(i.status !== 'bought') { // Don't touch bought items
                     updateRow(i.id, 'check', targetStatus);
                 }
             });
@@ -358,6 +369,7 @@
                 const isChecked = i.status === 'in_cart';
                 const val = i.estimated_price > 0 ? i.estimated_price : ''; 
                 const savedWisdom = wisdomCache[i.id];
+                const showWisdom = savedWisdom && savedWisdom.length > 0;
                 
                 list.innerHTML += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
@@ -369,7 +381,8 @@
                                 <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">x${i.quantity}</span>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${savedWisdom ? '' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert flex items-center gap-2 transition-all">
+                            
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? '' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert flex items-center gap-2 transition-all">
                                 <i class="fa-solid fa-lightbulb text-yellow-400"></i>
                                 <span>${savedWisdom || ''}</span>
                             </div>
@@ -400,6 +413,7 @@
                 if(row) {
                     row.classList.toggle('in-cart', value);
                     input.disabled = !value;
+                    // if(value) input.focus(); // Removed focus to support Select All without jumping
                 }
                 await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})});
             } 
@@ -407,21 +421,17 @@
                 const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})});
                 const data = await res.json();
                 
-                // Re-select element to avoid stale reference (FIX 1)
-                const freshWisdomDiv = document.getElementById(`wisdom-${id}`);
-                if(freshWisdomDiv) {
+                const wisdomDiv = document.getElementById(`wisdom-${id}`);
+                if(wisdomDiv) {
                     if(data.alert) {
                         wisdomCache[id] = data.alert.msg;
-                        freshWisdomDiv.querySelector('span').innerText = data.alert.msg;
-                        freshWisdomDiv.classList.remove('hidden');
-                        freshWisdomDiv.classList.add('flex'); // Ensure flex is applied
+                        wisdomDiv.querySelector('span').innerText = data.alert.msg;
+                        wisdomDiv.classList.remove('hidden');
                     } else {
                         delete wisdomCache[id];
-                        freshWisdomDiv.classList.add('hidden');
-                        freshWisdomDiv.classList.remove('flex');
+                        wisdomDiv.classList.add('hidden');
                     }
                 }
-                
                 const cachedItem = shoppingListCache.find(i => i.id == id);
                 if(cachedItem) cachedItem.estimated_price = value;
             }
