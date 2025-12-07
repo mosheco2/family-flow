@@ -113,7 +113,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     
-    // UPDATED: Shopping List with Estimated Price (Task 1 & 7)
+    // Shopping List (Phase 2 Ready)
     await client.query(`CREATE TABLE shopping_list (
         id SERIAL PRIMARY KEY, 
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
@@ -176,7 +176,7 @@ app.get('/setup-db', async (req, res) => {
     )`);
 
     await seedQuizzes(); 
-    res.send(`<h1 style="color:blue">Oneflow Life System Ready 🚀 (Updated Schema)</h1>`);
+    res.send(`<h1 style="color:blue">Oneflow Life System Ready 🚀 (Phase 2 Backend)</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -242,9 +242,9 @@ app.get('/api/admin/pending-users', async (req, res) => { try { const r = await 
 app.post('/api/admin/approve-user', async (req, res) => { try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); } });
 app.get('/api/group/members', async (req, res) => { const { groupId, requesterId } = req.query; try { const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]); const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN'; const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]); const members = r.rows.map(m => ({ ...m, balance: (isAdmin || m.id == requesterId) ? m.balance : null, allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null, interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null })); res.json(members); } catch (e) { res.status(500).json({error:e.message}); } });
 
-// --- SMART SHOPPING & CROWD WISDOM ---
+// --- SMART SHOPPING & CROWD WISDOM (UPDATED PHASE 2) ---
 
-// 1. הוספת פריט לרשימה (תומך במחיר משוער - משימה 7)
+// 1. Add Item
 app.post('/api/shopping/add', async (req, res) => {
     const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
@@ -255,42 +255,51 @@ app.post('/api/shopping/add', async (req, res) => {
             `INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
             [itemName, quantity || 1, estimatedPrice || 0, userId, groupId]
         );
-        
-        // Crowd Wisdom
-        const history = await client.query(`
-            SELECT price, store_name, date 
-            FROM product_prices 
-            WHERE item_name = $1 
-            ORDER BY price ASC LIMIT 1
-        `, [itemName]);
-
-        let alert = null;
-        if (history.rows.length > 0) {
-            const best = history.rows[0];
-            const dateStr = new Date(best.date).toLocaleDateString('he-IL');
-            alert = {
-                msg: `💡 חכמת המונים: מוצר זה נרכש במחיר טוב יותר של ₪${best.price} ב-${best.store_name} (בתאריך ${dateStr})`,
-                price: best.price,
-                store: best.store_name
-            };
-        }
-
-        res.json({ success: true, alert }); 
+        res.json({ success: true }); // Alert is now handled on update/entry of price
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. עדכון סטטוס/כמות/מחיר פריט
+// 2. Update Item (Logic for Crowd Wisdom Alert moved here)
 app.post('/api/shopping/update', async (req, res) => {
     const { itemId, status, quantity, estimatedPrice } = req.body;
     try { 
         if(status) await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]);
         if(quantity) await client.query('UPDATE shopping_list SET quantity = $1 WHERE id = $2', [quantity, itemId]);
-        if(estimatedPrice !== undefined) await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [estimatedPrice, itemId]);
-        res.json({ success: true }); 
+        
+        let alert = null;
+        if(estimatedPrice !== undefined) {
+            // Update the price
+            await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [estimatedPrice, itemId]);
+            
+            // Check Crowd Wisdom (Task 8: Alert only when price is specified)
+            // We need the item name to check history
+            const itemRes = await client.query('SELECT item_name FROM shopping_list WHERE id = $1', [itemId]);
+            if(itemRes.rows.length > 0 && estimatedPrice > 0) {
+                const itemName = itemRes.rows[0].item_name;
+                const history = await client.query(`
+                    SELECT price, store_name, date 
+                    FROM product_prices 
+                    WHERE item_name = $1 AND price < $2
+                    ORDER BY price ASC LIMIT 1
+                `, [itemName, estimatedPrice]);
+
+                if (history.rows.length > 0) {
+                    const best = history.rows[0];
+                    const dateStr = new Date(best.date).toLocaleDateString('he-IL');
+                    // Alert only if current price is significantly higher (e.g. > 10% diff) - Optional logic, here we just alert if cheaper exists
+                    alert = {
+                        msg: `💡 שים לב: ${itemName} נרכש בעבר ב-₪${best.price} ב-${best.store_name} (${dateStr})`,
+                        price: best.price,
+                        store: best.store_name
+                    };
+                }
+            }
+        }
+        res.json({ success: true, alert }); 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. צ'ק-אאוט
+// 3. Checkout (Task 6: Missing items -> pending)
 app.post('/api/shopping/checkout', async (req, res) => {
     const { boughtItems, missingItems, totalAmount, userId, storeName } = req.body;
     try {
@@ -304,10 +313,12 @@ app.post('/api/shopping/checkout', async (req, res) => {
         if (boughtItems && boughtItems.length > 0) {
             for (const item of boughtItems) {
                 await client.query("UPDATE shopping_list SET status = 'bought' WHERE id = $1", [item.id]);
+                // Save actual price paid
                 await client.query(
                     `INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`,
                     [tripId, item.name, item.quantity, item.price]
                 );
+                // Learn price for Crowd Wisdom
                 if (item.price > 0) {
                     await client.query(
                         `INSERT INTO product_prices (group_id, item_name, store_name, price) VALUES ($1, $2, $3, $4)`,
@@ -317,6 +328,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
             }
         }
 
+        // Missing Items: Stay as 'pending' for next list (Task 6)
         if (missingItems && missingItems.length > 0) {
             for (const item of missingItems) {
                 await client.query("UPDATE shopping_list SET status = 'pending' WHERE id = $1", [item.id]);
@@ -331,7 +343,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
     } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
 });
 
-// 4. קבלת היסטוריית רשימות
+// 4. History
 app.get('/api/shopping/history', async (req, res) => {
     const { groupId } = req.query;
     try {
@@ -345,7 +357,7 @@ app.get('/api/shopping/history', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 5. העתקת רשימה ישנה (משימה 3 - כולל מחירים משוערים)
+// 5. Copy List (Task 3)
 app.post('/api/shopping/copy', async (req, res) => {
     const { tripId, userId } = req.body;
     try {
@@ -353,10 +365,8 @@ app.post('/api/shopping/copy', async (req, res) => {
         const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         const gid = u.rows[0].group_id;
 
-        // שליפת הפריטים מהטיול הישן כולל המחיר ששולם אז
         const items = await client.query('SELECT item_name, quantity, price_per_unit FROM shopping_trip_items WHERE trip_id = $1', [tripId]);
         
-        // הוספה לרשימה הנוכחית עם המחיר הישן כ"מחיר משוער"
         for (const item of items.rows) {
             await client.query(
                 `INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
@@ -369,8 +379,7 @@ app.post('/api/shopping/copy', async (req, res) => {
     } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
-// --- GOALS, TASKS & BUDGETS ---
-
+// --- GOALS, TASKS & BUDGETS (Unchanged) ---
 app.post('/api/goals', async (req, res) => { const { userId, targetUserId, title, target } = req.body; try { const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]); const ownerId = targetUserId || userId; await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [ownerId, u.rows[0].group_id, title, target]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/goals/deposit', async (req, res) => { const { userId, goalId, amount } = req.body; try { await client.query('BEGIN'); const goalRes = await client.query('SELECT user_id FROM goals WHERE id = $1', [goalId]); const goalOwnerId = goalRes.rows[0].user_id; if (parseInt(userId) === parseInt(goalOwnerId)) { const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]); if (parseFloat(userRes.rows[0].balance) < parseFloat(amount)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין מספיק יתרה בחשבון' }); } await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']); } else { await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'bonus', 'income', FALSE)`, [goalOwnerId, amount, 'הפקדה ליעד ע"י הורה']); } await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.post('/api/admin/update-settings', async (req, res) => { const { userId, allowance, interest } = req.body; try { await client.query(`UPDATE users SET allowance_amount = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
@@ -380,68 +389,9 @@ app.post('/api/admin/payday', async (req, res) => { const { groupId } = req.body
 app.get('/api/data/:userId', async (req, res) => { try { const user = (await client.query('SELECT * FROM users WHERE id = $1', [req.params.userId])).rows[0]; if (!user) return res.status(404).json({ error: 'User not found' }); const gid = user.group_id; let tasksSql = `SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1`; if(user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`; tasksSql += ` ORDER BY t.created_at DESC`; let loansSql = `SELECT l.*, u.nickname as user_name FROM loans l LEFT JOIN users u ON l.user_id = u.id WHERE l.group_id = $1`; if(user.role !== 'ADMIN') loansSql += ` AND l.user_id = ${user.id}`; loansSql += ` ORDER BY l.created_at DESC`; const expensesRes = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND type = 'expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]); const weeklyExpenses = parseFloat(expensesRes.rows[0].total || 0); let goalsSql = ''; let goalsParams = []; if (user.role === 'ADMIN') { goalsSql = `SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id = $1 AND g.status = 'active' ORDER BY g.created_at DESC`; goalsParams = [gid]; } else { goalsSql = `SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.user_id = $1 AND g.status = 'active' ORDER BY g.created_at DESC`; goalsParams = [user.id]; } const goalsRes = await client.query(goalsSql, goalsParams); const goalsList = goalsRes.rows; const userGoals = goalsList.filter(g => g.user_id === user.id); const goalsTotal = userGoals.reduce((sum, g) => sum + parseFloat(g.current_amount), 0); const totalAvailable = parseFloat(user.balance) + goalsTotal + weeklyExpenses; const allowedSpending = totalAvailable * 0.20; 
     let assignments = []; if(user.role !== 'ADMIN') { const assignsRes = await client.query(`SELECT ua.*, qb.title, qb.type, qb.reward, qb.threshold, ua.deadline FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id = $1 AND ua.status != 'completed'`, [user.id]); assignments = assignsRes.rows; }
     let academyHistory = []; if (user.role === 'ADMIN') { const histRes = await client.query(`SELECT ua.*, u.nickname, qb.title FROM user_assignments ua JOIN users u ON ua.user_id = u.id JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE u.group_id = $1 ORDER BY ua.created_at DESC`, [gid]); academyHistory = histRes.rows; }
-    const [tasks, shop, loans] = await Promise.all([ client.query(tasksSql, [gid]), client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]), client.query(loansSql, [gid]) ]); res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goalsList, weekly_stats: { spent: weeklyExpenses, limit: allowedSpending }, assignments, academyHistory }); } catch (err) { res.status(500).json({ error: err.message }); } });
+    const [tasks, shop, loans] = await Promise.all([ client.query(tasksSql, [gid]), client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]), client.query(loansSql, [gid]) ]); res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goalsList, weekly_stats: { spent: weeklyExpenses, limit: allowedSpending }, assignments, academyHistory }); } catch (err) { res.status(500).json({ error: err.message }); } });
 
-// BUDGET & TRANSACTIONS (Updated: Task 12)
-app.get('/api/budget/filter', async (req, res) => { 
-    const { groupId, targetUserId } = req.query; 
-    try { 
-        let budgetQuery = '', queryParams = []; 
-        if (targetUserId && targetUserId !== 'all') { 
-            budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`; 
-            queryParams = [groupId, targetUserId]; 
-        } else { 
-            budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`; 
-            queryParams = [groupId]; 
-        } 
-        
-        let budgets = await client.query(budgetQuery, queryParams); 
-        if (budgets.rows.length === 0) { 
-            const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null; 
-            await initBudgets(groupId, uid); 
-            budgets = await client.query(budgetQuery, queryParams); 
-        } 
-        
-        const budgetStatus = []; 
-        
-        // --- Allocations Logic (Task 12) ---
-        // Only sum 'allowance', 'salary' (task reward), 'bonus' given by system/parent
-        if(targetUserId === 'all') { 
-            const allocationsTotal = await client.query(`
-                SELECT SUM(amount) as total 
-                FROM transactions t 
-                JOIN users u ON t.user_id = u.id 
-                WHERE u.group_id = $1 
-                  AND u.role != 'ADMIN' 
-                  AND t.type = 'income' 
-                  AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus')
-                  AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
-            `, [groupId]); 
-            
-            budgetStatus.push({ 
-                category: 'allocations', 
-                label: 'הפרשות לילדים 👶', 
-                limit: 0, 
-                spent: parseFloat(allocationsTotal.rows[0].total || 0) 
-            }); 
-        } 
-        
-        for (const b of budgets.rows) { 
-            let spentQuery = '', spentParams = []; 
-            if (targetUserId && targetUserId !== 'all') { 
-                spentQuery = `SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`; 
-                spentParams = [targetUserId, b.category]; 
-            } else { 
-                spentQuery = `SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`; 
-                spentParams = [groupId, b.category]; 
-            } 
-            const spent = await client.query(spentQuery, spentParams); 
-            budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) }); 
-        } 
-        res.json(budgetStatus); 
-    } catch(e) { res.status(500).json({error:e.message}); } 
-});
-
+app.get('/api/budget/filter', async (req, res) => { const { groupId, targetUserId } = req.query; try { let budgetQuery = '', queryParams = []; if (targetUserId && targetUserId !== 'all') { budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`; queryParams = [groupId, targetUserId]; } else { budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`; queryParams = [groupId]; } let budgets = await client.query(budgetQuery, queryParams); if (budgets.rows.length === 0) { const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null; await initBudgets(groupId, uid); budgets = await client.query(budgetQuery, queryParams); } const budgetStatus = []; if(targetUserId === 'all') { const allocationsTotal = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus') AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`, [groupId]); budgetStatus.push({ category: 'allocations', label: 'הפרשות לילדים 👶', limit: 0, spent: parseFloat(allocationsTotal.rows[0].total || 0) }); } for (const b of budgets.rows) { let spentQuery = '', spentParams = []; if (targetUserId && targetUserId !== 'all') { spentQuery = `SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`; spentParams = [targetUserId, b.category]; } else { spentQuery = `SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`; spentParams = [groupId, b.category]; } const spent = await client.query(spentQuery, spentParams); budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) }); } res.json(budgetStatus); } catch(e) { res.status(500).json({error:e.message}); } });
 app.post('/api/budget/update', async (req, res) => { const { groupId, category, limit, targetUserId } = req.body; try { let query = '', params = []; if (targetUserId && targetUserId !== 'all') { query = `UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND user_id = $3 AND category = $4`; params = [limit, groupId, targetUserId, category]; } else { query = `UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND user_id IS NULL AND category = $3`; params = [limit, groupId, category]; } await client.query(query, params); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.get('/api/transactions', async (req, res) => { try { const { groupId, userId, limit = 20 } = req.query; const userRole = (await client.query('SELECT role FROM users WHERE id = $1', [userId])).rows[0].role; let sql = '', params = []; if (userRole === 'ADMIN') { sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 ORDER BY t.date DESC LIMIT $2`; params = [groupId, limit]; } else { sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.user_id = $2 ORDER BY t.date DESC LIMIT $3`; params = [groupId, userId, limit]; } const r = await client.query(sql, params); res.json(r.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/transaction', async (req, res) => { const { userId, amount, description, category, type } = req.body; try { await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, $5, TRUE)`, [userId, amount, description, category, type]); const factor = type === 'income' ? 1 : -1; await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amount * factor, userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
