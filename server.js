@@ -145,14 +145,14 @@ app.post('/api/shopping/add', async (req, res) => {
     const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
         const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        // FIX: RETURNING id so frontend can link alert to row
         const newItem = await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id`, [itemName, quantity, estimatedPrice||0, userId, u.rows[0].group_id]);
         
         let alert = null;
         if(estimatedPrice && parseFloat(estimatedPrice) > 0) {
-             const history = await client.query(`SELECT price, store_name FROM product_prices WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 ORDER BY price ASC LIMIT 1`, [itemName, parseFloat(estimatedPrice)]);
+             const history = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 ORDER BY price ASC LIMIT 1`, [itemName, parseFloat(estimatedPrice)]);
              if(history.rows.length) {
-                 alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
+                 const dateStr = new Date(history.rows[0].date).toLocaleDateString('he-IL');
+                 alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name} (${dateStr})`, price: history.rows[0].price };
              }
         }
         res.json({ success: true, alert, id: newItem.rows[0].id });
@@ -173,14 +173,15 @@ app.post('/api/shopping/update', async (req, res) => {
             
             if(item.rows.length && priceVal > 0) {
                 const history = await client.query(`
-                    SELECT price, store_name 
+                    SELECT price, store_name, date 
                     FROM product_prices 
                     WHERE LOWER(TRIM(item_name)) = LOWER(TRIM($1)) AND price < $2 
                     ORDER BY price ASC LIMIT 1
                 `, [item.rows[0].item_name, priceVal]);
                 
                 if(history.rows.length) {
-                    alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name}`, price: history.rows[0].price };
+                    const dateStr = new Date(history.rows[0].date).toLocaleDateString('he-IL');
+                    alert = { msg: `נמצא זול יותר: ₪${history.rows[0].price} ב-${history.rows[0].store_name} (${dateStr})`, price: history.rows[0].price };
                 }
             }
         }
