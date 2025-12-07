@@ -18,7 +18,7 @@ client.connect()
   .then(() => console.log('Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- CONTENT GENERATOR (SEED) - ללא שינוי ---
+// --- CONTENT GENERATOR (SEED) ---
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 5; i++) {
@@ -60,8 +60,6 @@ const seedQuizzes = async () => {
                 [`תרגול חשבון #${i} (גיל ${age})`, 'math', age, 2 + Math.floor(Math.random()*5), 85, JSON.stringify(generateMathQuestions(age))]
             );
         }
-        // Reading & Financial bundles (Shortened for brevity, same logic as before)
-        // ... (הלוגיקה המקורית של ה-Seed נשמרת)
     }
     console.log('Seeding Complete.');
 };
@@ -69,7 +67,6 @@ const seedQuizzes = async () => {
 // --- SETUP DB ---
 app.get('/setup-db', async (req, res) => {
   try {
-    // מוחק טבלאות ישנות כדי לעדכן מבנה
     const tables = ['user_assignments', 'quiz_bundles', 'shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
     for (const t of tables) await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`);
 
@@ -116,18 +113,18 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     
-    // UPDATED: Shopping List with Quantity
+    // UPDATED: Shopping List with Estimated Price (Task 1 & 7)
     await client.query(`CREATE TABLE shopping_list (
         id SERIAL PRIMARY KEY, 
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
         item_name VARCHAR(255), 
         quantity INTEGER DEFAULT 1,
+        estimated_price DECIMAL(10, 2) DEFAULT 0,
         requested_by INTEGER REFERENCES users(id), 
         status VARCHAR(20) DEFAULT 'pending', 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // UPDATED: Shopping Trip & History Items
     await client.query(`CREATE TABLE shopping_trips (
         id SERIAL PRIMARY KEY, 
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
@@ -145,7 +142,6 @@ app.get('/setup-db', async (req, res) => {
         price_per_unit DECIMAL(10, 2)
     )`);
 
-    // UPDATED: Product Prices (Global Crowd Wisdom)
     await client.query(`CREATE TABLE product_prices (
         id SERIAL PRIMARY KEY, 
         group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, 
@@ -180,7 +176,7 @@ app.get('/setup-db', async (req, res) => {
     )`);
 
     await seedQuizzes(); 
-    res.send(`<h1 style="color:blue">Oneflow Life System Ready 🚀</h1>`);
+    res.send(`<h1 style="color:blue">Oneflow Life System Ready 🚀 (Updated Schema)</h1>`);
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -248,16 +244,19 @@ app.get('/api/group/members', async (req, res) => { const { groupId, requesterId
 
 // --- SMART SHOPPING & CROWD WISDOM ---
 
-// 1. הוספת פריט לרשימה (כולל חכמת המונים גלובלית)
+// 1. הוספת פריט לרשימה (תומך במחיר משוער - משימה 7)
 app.post('/api/shopping/add', async (req, res) => {
-    const { itemName, quantity, userId } = req.body;
+    const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
         const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         const groupId = u.rows[0].group_id;
         
-        await client.query(`INSERT INTO shopping_list (item_name, quantity, requested_by, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [itemName, quantity || 1, userId, groupId]);
+        await client.query(
+            `INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
+            [itemName, quantity || 1, estimatedPrice || 0, userId, groupId]
+        );
         
-        // Crowd Wisdom: חיפוש בכל ה-DB (לא רק בקבוצה)
+        // Crowd Wisdom
         const history = await client.query(`
             SELECT price, store_name, date 
             FROM product_prices 
@@ -280,44 +279,35 @@ app.post('/api/shopping/add', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. עדכון סטטוס/כמות פריט
+// 2. עדכון סטטוס/כמות/מחיר פריט
 app.post('/api/shopping/update', async (req, res) => {
-    const { itemId, status, quantity } = req.body;
+    const { itemId, status, quantity, estimatedPrice } = req.body;
     try { 
         if(status) await client.query('UPDATE shopping_list SET status = $1 WHERE id = $2', [status, itemId]);
         if(quantity) await client.query('UPDATE shopping_list SET quantity = $1 WHERE id = $2', [quantity, itemId]);
+        if(estimatedPrice !== undefined) await client.query('UPDATE shopping_list SET estimated_price = $1 WHERE id = $2', [estimatedPrice, itemId]);
         res.json({ success: true }); 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. צ'ק-אאוט חכם - שמירת היסטוריה וטיפול בחוסרים
+// 3. צ'ק-אאוט
 app.post('/api/shopping/checkout', async (req, res) => {
-    // boughtItems: [{name, price, quantity, id}]
-    // missingItems: [{id}] - פריטים שסומנו כחסרים
     const { boughtItems, missingItems, totalAmount, userId, storeName } = req.body;
-    
     try {
         await client.query('BEGIN');
         const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         const gid = u.rows[0].group_id;
 
-        // יצירת טיול קניות
         const tripRes = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, total_amount) VALUES ($1, $2, $3, $4) RETURNING id`, [gid, userId, storeName, totalAmount]);
         const tripId = tripRes.rows[0].id;
 
-        // טיפול בפריטים שנקנו
         if (boughtItems && boughtItems.length > 0) {
             for (const item of boughtItems) {
-                // עדכון סטטוס ברשימה ל-bought
                 await client.query("UPDATE shopping_list SET status = 'bought' WHERE id = $1", [item.id]);
-
-                // שמירה בהיסטוריית הטיול הספציפי (כולל כמויות ומחירים)
                 await client.query(
                     `INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`,
                     [tripId, item.name, item.quantity, item.price]
                 );
-
-                // שמירה לטבלת המחירים הכללית (למידה עבור חכמת המונים)
                 if (item.price > 0) {
                     await client.query(
                         `INSERT INTO product_prices (group_id, item_name, store_name, price) VALUES ($1, $2, $3, $4)`,
@@ -327,14 +317,12 @@ app.post('/api/shopping/checkout', async (req, res) => {
             }
         }
 
-        // טיפול בפריטים חסרים - מחזירים לסטטוס pending כדי שיופיעו ברשימה הבאה
         if (missingItems && missingItems.length > 0) {
             for (const item of missingItems) {
                 await client.query("UPDATE shopping_list SET status = 'pending' WHERE id = $1", [item.id]);
             }
         }
 
-        // יצירת טרנזקציה כספית
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'groceries', 'expense', TRUE)`, [userId, totalAmount, `קניות ב-${storeName}`]);
         await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
 
@@ -347,10 +335,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
 app.get('/api/shopping/history', async (req, res) => {
     const { groupId } = req.query;
     try {
-        // שליפת הטיולים
         const trips = await client.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.user_id = u.id WHERE st.group_id = $1 ORDER BY st.trip_date DESC LIMIT 20`, [groupId]);
-        
-        // לכל טיול, שליפת הפריטים
         const historyData = [];
         for (const trip of trips.rows) {
             const items = await client.query(`SELECT * FROM shopping_trip_items WHERE trip_id = $1`, [trip.id]);
@@ -360,7 +345,7 @@ app.get('/api/shopping/history', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 5. העתקת רשימה ישנה
+// 5. העתקת רשימה ישנה (משימה 3 - כולל מחירים משוערים)
 app.post('/api/shopping/copy', async (req, res) => {
     const { tripId, userId } = req.body;
     try {
@@ -368,13 +353,15 @@ app.post('/api/shopping/copy', async (req, res) => {
         const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         const gid = u.rows[0].group_id;
 
-        // שליפת הפריטים מהטיול הישן
-        const items = await client.query('SELECT item_name, quantity FROM shopping_trip_items WHERE trip_id = $1', [tripId]);
+        // שליפת הפריטים מהטיול הישן כולל המחיר ששולם אז
+        const items = await client.query('SELECT item_name, quantity, price_per_unit FROM shopping_trip_items WHERE trip_id = $1', [tripId]);
         
-        // הוספה לרשימה הנוכחית
+        // הוספה לרשימה הנוכחית עם המחיר הישן כ"מחיר משוער"
         for (const item of items.rows) {
-            await client.query(`INSERT INTO shopping_list (item_name, quantity, requested_by, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, 
-                [item.item_name, item.quantity, userId, gid]);
+            await client.query(
+                `INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
+                [item.item_name, item.quantity, item.price_per_unit || 0, userId, gid]
+            );
         }
         
         await client.query('COMMIT');
@@ -382,7 +369,7 @@ app.post('/api/shopping/copy', async (req, res) => {
     } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
-// --- OTHER FEATURES (Goals, Tasks, Academy...) ---
+// --- GOALS, TASKS & BUDGETS ---
 
 app.post('/api/goals', async (req, res) => { const { userId, targetUserId, title, target } = req.body; try { const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]); const ownerId = targetUserId || userId; await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [ownerId, u.rows[0].group_id, title, target]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/goals/deposit', async (req, res) => { const { userId, goalId, amount } = req.body; try { await client.query('BEGIN'); const goalRes = await client.query('SELECT user_id FROM goals WHERE id = $1', [goalId]); const goalOwnerId = goalRes.rows[0].user_id; if (parseInt(userId) === parseInt(goalOwnerId)) { const userRes = await client.query('SELECT balance FROM users WHERE id = $1', [userId]); if (parseFloat(userRes.rows[0].balance) < parseFloat(amount)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין מספיק יתרה בחשבון' }); } await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']); } else { await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'bonus', 'income', FALSE)`, [goalOwnerId, amount, 'הפקדה ליעד ע"י הורה']); } await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
@@ -395,7 +382,66 @@ app.get('/api/data/:userId', async (req, res) => { try { const user = (await cli
     let academyHistory = []; if (user.role === 'ADMIN') { const histRes = await client.query(`SELECT ua.*, u.nickname, qb.title FROM user_assignments ua JOIN users u ON ua.user_id = u.id JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE u.group_id = $1 ORDER BY ua.created_at DESC`, [gid]); academyHistory = histRes.rows; }
     const [tasks, shop, loans] = await Promise.all([ client.query(tasksSql, [gid]), client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought'`, [gid]), client.query(loansSql, [gid]) ]); res.json({ user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goalsList, weekly_stats: { spent: weeklyExpenses, limit: allowedSpending }, assignments, academyHistory }); } catch (err) { res.status(500).json({ error: err.message }); } });
 
-app.get('/api/budget/filter', async (req, res) => { const { groupId, targetUserId } = req.query; try { let budgetQuery = '', queryParams = []; if (targetUserId && targetUserId !== 'all') { budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`; queryParams = [groupId, targetUserId]; } else { budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`; queryParams = [groupId]; } let budgets = await client.query(budgetQuery, queryParams); if (budgets.rows.length === 0) { const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null; await initBudgets(groupId, uid); budgets = await client.query(budgetQuery, queryParams); } const budgetStatus = []; if(targetUserId === 'all') { const allocationsTotal = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND u.role != 'ADMIN' AND t.type = 'income' AND t.is_manual = FALSE AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus') AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`, [groupId]); budgetStatus.push({ category: 'allocations', label: 'הפרשות לילדים 👶', limit: 0, spent: parseFloat(allocationsTotal.rows[0].total || 0) }); } for (const b of budgets.rows) { let spentQuery = '', spentParams = []; if (targetUserId && targetUserId !== 'all') { spentQuery = `SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`; spentParams = [targetUserId, b.category]; } else { spentQuery = `SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`; spentParams = [groupId, b.category]; } const spent = await client.query(spentQuery, spentParams); budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) }); } res.json(budgetStatus); } catch(e) { res.status(500).json({error:e.message}); } });
+// BUDGET & TRANSACTIONS (Updated: Task 12)
+app.get('/api/budget/filter', async (req, res) => { 
+    const { groupId, targetUserId } = req.query; 
+    try { 
+        let budgetQuery = '', queryParams = []; 
+        if (targetUserId && targetUserId !== 'all') { 
+            budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id = $2 ORDER BY category`; 
+            queryParams = [groupId, targetUserId]; 
+        } else { 
+            budgetQuery = `SELECT * FROM budgets WHERE group_id = $1 AND user_id IS NULL ORDER BY category`; 
+            queryParams = [groupId]; 
+        } 
+        
+        let budgets = await client.query(budgetQuery, queryParams); 
+        if (budgets.rows.length === 0) { 
+            const uid = (targetUserId && targetUserId !== 'all') ? targetUserId : null; 
+            await initBudgets(groupId, uid); 
+            budgets = await client.query(budgetQuery, queryParams); 
+        } 
+        
+        const budgetStatus = []; 
+        
+        // --- Allocations Logic (Task 12) ---
+        // Only sum 'allowance', 'salary' (task reward), 'bonus' given by system/parent
+        if(targetUserId === 'all') { 
+            const allocationsTotal = await client.query(`
+                SELECT SUM(amount) as total 
+                FROM transactions t 
+                JOIN users u ON t.user_id = u.id 
+                WHERE u.group_id = $1 
+                  AND u.role != 'ADMIN' 
+                  AND t.type = 'income' 
+                  AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus')
+                  AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)
+            `, [groupId]); 
+            
+            budgetStatus.push({ 
+                category: 'allocations', 
+                label: 'הפרשות לילדים 👶', 
+                limit: 0, 
+                spent: parseFloat(allocationsTotal.rows[0].total || 0) 
+            }); 
+        } 
+        
+        for (const b of budgets.rows) { 
+            let spentQuery = '', spentParams = []; 
+            if (targetUserId && targetUserId !== 'all') { 
+                spentQuery = `SELECT SUM(amount) as total FROM transactions WHERE user_id = $1 AND category = $2 AND type = 'expense' AND date_trunc('month', date) = date_trunc('month', CURRENT_DATE)`; 
+                spentParams = [targetUserId, b.category]; 
+            } else { 
+                spentQuery = `SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.category = $2 AND t.type = 'expense' AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`; 
+                spentParams = [groupId, b.category]; 
+            } 
+            const spent = await client.query(spentQuery, spentParams); 
+            budgetStatus.push({ category: b.category, limit: parseFloat(b.limit_amount), spent: parseFloat(spent.rows[0].total || 0) }); 
+        } 
+        res.json(budgetStatus); 
+    } catch(e) { res.status(500).json({error:e.message}); } 
+});
+
 app.post('/api/budget/update', async (req, res) => { const { groupId, category, limit, targetUserId } = req.body; try { let query = '', params = []; if (targetUserId && targetUserId !== 'all') { query = `UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND user_id = $3 AND category = $4`; params = [limit, groupId, targetUserId, category]; } else { query = `UPDATE budgets SET limit_amount = $1 WHERE group_id = $2 AND user_id IS NULL AND category = $3`; params = [limit, groupId, category]; } await client.query(query, params); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.get('/api/transactions', async (req, res) => { try { const { groupId, userId, limit = 20 } = req.query; const userRole = (await client.query('SELECT role FROM users WHERE id = $1', [userId])).rows[0].role; let sql = '', params = []; if (userRole === 'ADMIN') { sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 ORDER BY t.date DESC LIMIT $2`; params = [groupId, limit]; } else { sql = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id = $1 AND t.user_id = $2 ORDER BY t.date DESC LIMIT $3`; params = [groupId, userId, limit]; } const r = await client.query(sql, params); res.json(r.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
 app.post('/api/transaction', async (req, res) => { const { userId, amount, description, category, type } = req.body; try { await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, $5, TRUE)`, [userId, amount, description, category, type]); const factor = type === 'income' ? 1 : -1; await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amount * factor, userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); } });
