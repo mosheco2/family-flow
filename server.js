@@ -73,7 +73,8 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     
     await client.query(`CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER DEFAULT 1, estimated_price DECIMAL(10, 2) DEFAULT 0, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    // Added branch_name column
+    await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INTEGER REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER, price_per_unit DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE product_prices (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), store_name VARCHAR(100), price DECIMAL(10, 2), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
@@ -81,7 +82,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
     await seedQuizzes();
-    res.send('Oneflow Life DB Ready');
+    res.send('Oneflow Life DB Ready (Updated with Branch & Delete)');
   } catch (err) { res.status(500).send(err.message); }
 });
 
@@ -159,6 +160,14 @@ app.post('/api/shopping/add', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// NEW: Delete item route
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try {
+        await client.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/shopping/update', async (req, res) => {
     const { itemId, status, quantity, estimatedPrice } = req.body;
     try {
@@ -190,11 +199,12 @@ app.post('/api/shopping/update', async (req, res) => {
 });
 
 app.post('/api/shopping/checkout', async (req, res) => {
-    const { boughtItems, missingItems, totalAmount, userId, storeName } = req.body;
+    const { boughtItems, missingItems, totalAmount, userId, storeName, branchName } = req.body;
     try {
         await client.query('BEGIN');
         const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const trip = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, total_amount) VALUES ($1, $2, $3, $4) RETURNING id`, [u.rows[0].group_id, userId, storeName, totalAmount]);
+        // Updated to save branch_name
+        const trip = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.rows[0].group_id, userId, storeName, branchName, totalAmount]);
         
         for (const i of boughtItems) {
             await client.query("UPDATE shopping_list SET status='bought' WHERE id=$1", [i.id]);
@@ -215,6 +225,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
 
 app.get('/api/shopping/history', async (req, res) => {
     try {
+        // Fetch branch_name as well
         const trips = await client.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.user_id=u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 20`, [req.query.groupId]);
         const data = [];
         for(const t of trips.rows) {
@@ -265,7 +276,7 @@ app.get('/api/data/:userId', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- OTHER ---
+// --- OTHER (Tasks, Budget, etc) ---
 app.post('/api/tasks', async (req, res) => {
     try {
         const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
