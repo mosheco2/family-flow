@@ -328,8 +328,10 @@
         function toggleSelectAll() {
             const allItems = shoppingListCache;
             const anyPending = allItems.some(i => i.status === 'pending');
+            // If any pending, select all. If all selected, deselect all.
             const targetStatus = anyPending; 
             
+            // Optimistic UI update
             document.querySelectorAll('.shop-row').forEach(row => {
                if(row.classList.contains('missing')) return;
                const cb = row.querySelector('input[type="checkbox"]');
@@ -340,8 +342,10 @@
             });
             calcRunningTotal();
 
+            // Bulk update logic (sending one by one for now to keep API simple)
+            // In real app, create a bulk API endpoint.
             allItems.forEach(i => {
-                if(i.status !== 'bought') { 
+                if(i.status !== 'bought') { // Don't touch bought items
                     updateRow(i.id, 'check', targetStatus);
                 }
             });
@@ -409,6 +413,7 @@
                 if(row) {
                     row.classList.toggle('in-cart', value);
                     input.disabled = !value;
+                    // if(value) input.focus(); // Removed focus to support Select All without jumping
                 }
                 await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})});
             } 
@@ -423,13 +428,14 @@
                         wisdomCache[id] = data.alert.msg;
                         freshWisdomDiv.querySelector('span').innerText = data.alert.msg;
                         freshWisdomDiv.classList.remove('hidden');
-                        freshWisdomDiv.classList.add('flex');
+                        freshWisdomDiv.classList.add('flex'); // Ensure flex is applied
                     } else {
                         delete wisdomCache[id];
                         freshWisdomDiv.classList.add('hidden');
                         freshWisdomDiv.classList.remove('flex');
                     }
                 }
+                
                 const cachedItem = shoppingListCache.find(i => i.id == id);
                 if(cachedItem) cachedItem.estimated_price = value;
             }
@@ -513,6 +519,7 @@
             fetchData();
         }
 
+        // --- HELPERS (Unchanged) ---
         function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
         async function fetchMembers() { const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
         async function fetchPendingUsers() { const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const list = await res.json(); document.getElementById('pending-count').innerText = list.length; document.getElementById('pending-count').classList.toggle('hidden', list.length===0); document.getElementById('admin-panel').classList.toggle('hidden', list.length===0); const c = document.getElementById('pending-list'); c.innerHTML=''; list.forEach(u => c.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`); }
