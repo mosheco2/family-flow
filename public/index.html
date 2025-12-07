@@ -16,11 +16,9 @@
         .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        .slider-container { position: relative; display: flex; align-items: center; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; padding: 0.5rem 2.5rem; width: 100%; }
         .slider-scroll::-webkit-scrollbar { display: none; }
         .scroll-btn { position: absolute; z-index: 10; width: 2rem; height: 2rem; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; border: 1px solid #e2e8f0; }
-        .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
         .scroll-btn.left { left: 0; }
         .scroll-btn.right { right: 0; }
         
@@ -31,30 +29,20 @@
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
-        .shake-effect { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; border: 1px solid #ef4444; }
-        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
-
-        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .fab-open #fab-icon { transform: rotate(45deg); }
-        .btn-payday { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
-
-        /* SHOP ROW STYLES */
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
         
-        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; /* Gray for estimated */ }
+        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
         .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
+        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .fab-open #fab-icon { transform: rotate(45deg); }
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-        
-        /* Wisdom Alert */
-        .wisdom-alert { animation: slideDown 0.3s ease-out; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -151,6 +139,10 @@
                         </div>
                     </div>
                     
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
+                    </div>
+
                     <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
                     
                     <div id="cart-footer" class="fixed bottom-24 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-30 flex justify-between items-center animate-bounce-in hidden">
@@ -208,7 +200,7 @@
         let pollInterval = null;
         let membersCache = [];
         let shoppingListCache = [];
-        let wisdomCache = {}; // Cache for crowd wisdom messages
+        let wisdomCache = {};
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
         const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
@@ -248,20 +240,16 @@
 
         async function fetchData() {
             try {
-                // If focused on price input, skip refresh to prevent jump
                 if (document.activeElement.classList.contains('price-input')) return;
 
                 const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
                 currentUser.balance = data.user.balance; currentUser.allowance_amount = data.user.allowance_amount; currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                // Transactions (Fixed disappearing issue)
                 const tList = document.getElementById('transactions-list'); 
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); 
-                
-                if(recentT.length === 0) {
-                    tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
-                } else {
+                if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
+                else {
                     let tHtml = '';
                     recentT.forEach(t => { 
                         const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; 
@@ -273,19 +261,42 @@
 
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
                 
-                // Goals, Tasks... (Skipped brevity)
-                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
-                
-                const taskList = document.getElementById('tasks-list'); taskList.innerHTML=''; if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; data.tasks.forEach(t => { let action = ''; const isMyTask = t.assigned_to == currentUser.id; const isAdmin = currentUser.role === 'ADMIN'; if(t.status === 'pending') { if(isMyTask) { action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`; } else if(isAdmin) { action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } } else if (t.status === 'done') { if(isAdmin) { action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } else { action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } } if (isMyTask || isAdmin) { taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : ''}</div></div>${action}</div>`; } });
+                // Tasks
+                const taskList = document.getElementById('tasks-list'); 
+                taskList.innerHTML=''; 
+                if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; 
+                data.tasks.forEach(t => { 
+                    let action = ''; 
+                    const isMyTask = t.assigned_to == currentUser.id; 
+                    const isAdmin = currentUser.role === 'ADMIN'; 
+                    // FIX 4: Check if admin self task with 0 reward to ensure visibility
+                    const isSelfAdminTask = isAdmin && isMyTask && t.reward == 0;
+
+                    if(t.status === 'pending') { 
+                        if(isMyTask) { action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`; } 
+                        else if(isAdmin) { action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } 
+                    } else if (t.status === 'done') { 
+                        if(isAdmin) { action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } 
+                        else { action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } 
+                    } 
+                    
+                    if (isMyTask || isAdmin) { 
+                        const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">משימה אישית</span>`;
+                        taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}</div></div>${action}</div>`; 
+                    } 
+                });
                 
                 // SHOP UPDATE
                 shoppingListCache = data.shopping_list;
                 renderShopList();
                 fetchBudget();
+                
+                // Goals... (omitted)
+                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
             } catch(e) {}
         }
 
-        // --- SMART SHOPPING FUNCTIONS ---
+        // --- SHOPPING ---
         async function submitShopItem() {
             const item = val('shop-item');
             const qty = val('shop-quantity');
@@ -302,8 +313,33 @@
             }
         }
 
+        function toggleSelectAll() {
+            const allItems = shoppingListCache;
+            const anyPending = allItems.some(i => i.status === 'pending');
+            // If any pending, select all. If all selected, deselect all.
+            const targetStatus = anyPending; 
+            
+            // Optimistic UI update
+            document.querySelectorAll('.shop-row').forEach(row => {
+               if(row.classList.contains('missing')) return;
+               const cb = row.querySelector('input[type="checkbox"]');
+               const inp = row.querySelector('.price-input');
+               cb.checked = targetStatus;
+               row.classList.toggle('in-cart', targetStatus);
+               inp.disabled = !targetStatus;
+            });
+            calcRunningTotal();
+
+            // Bulk update logic (sending one by one for now to keep API simple)
+            // In real app, create a bulk API endpoint.
+            allItems.forEach(i => {
+                if(i.status !== 'bought') { // Don't touch bought items
+                    updateRow(i.id, 'check', targetStatus);
+                }
+            });
+        }
+
         function renderShopList() {
-            // Only re-render if NOT focused on an input to preserve state
             if (document.activeElement.classList.contains('price-input')) return;
 
             const list = document.getElementById('shop-list');
@@ -320,7 +356,7 @@
             shoppingListCache.forEach(i => {
                 const isChecked = i.status === 'in_cart';
                 const val = i.estimated_price > 0 ? i.estimated_price : ''; 
-                const savedWisdom = wisdomCache[i.id]; // Get from Cache
+                const savedWisdom = wisdomCache[i.id];
                 
                 list.innerHTML += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
@@ -332,8 +368,8 @@
                                 <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">x${i.quantity}</span>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-800 mt-2 font-bold ${savedWisdom ? '' : 'hidden'} bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg w-full wisdom-alert shadow-sm flex items-center gap-2">
-                                <i class="fa-solid fa-lightbulb text-yellow-500"></i>
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${savedWisdom ? '' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert flex items-center gap-2 transition-all">
+                                <i class="fa-solid fa-lightbulb text-yellow-400"></i>
                                 <span>${savedWisdom || ''}</span>
                             </div>
                         </div>
@@ -357,15 +393,15 @@
         }
 
         async function updateRow(id, type, value) {
-            const row = document.getElementById(`row-${id}`);
-            const input = document.getElementById(`price-${id}`);
-            
             if (type === 'check') {
-                row.classList.toggle('in-cart', value);
-                input.disabled = !value;
-                if(value) input.focus();
+                const row = document.getElementById(`row-${id}`);
+                const input = document.getElementById(`price-${id}`);
+                if(row) {
+                    row.classList.toggle('in-cart', value);
+                    input.disabled = !value;
+                    // if(value) input.focus(); // Removed focus to support Select All without jumping
+                }
                 await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})});
-                // Checkbox update triggers reload naturally in polling, fine for UX
             } 
             else if (type === 'price') {
                 const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})});
@@ -373,15 +409,13 @@
                 
                 const wisdomDiv = document.getElementById(`wisdom-${id}`);
                 if(data.alert) {
-                    wisdomCache[id] = data.alert.msg; // Save to Cache
+                    wisdomCache[id] = data.alert.msg;
                     wisdomDiv.querySelector('span').innerText = data.alert.msg;
                     wisdomDiv.classList.remove('hidden');
                 } else {
-                    delete wisdomCache[id]; // Remove from Cache
+                    delete wisdomCache[id];
                     wisdomDiv.classList.add('hidden');
                 }
-
-                // Update local cache manually so calc works
                 const cachedItem = shoppingListCache.find(i => i.id == id);
                 if(cachedItem) cachedItem.estimated_price = value;
             }
@@ -413,7 +447,6 @@
         function calcRunningTotal() {
             let total = 0;
             document.querySelectorAll('.shop-row').forEach(row => {
-                // Calculate from DOM elements (Stable)
                 const isChecked = row.querySelector('input[type="checkbox"]').checked;
                 const isMissing = row.classList.contains('missing');
                 if (isChecked && !isMissing) {
@@ -428,7 +461,6 @@
             let count = 0;
             let missing = 0;
             let total = 0;
-
             document.querySelectorAll('.shop-row').forEach(row => {
                 if (row.classList.contains('missing')) missing++;
                 else if (row.querySelector('input[type="checkbox"]').checked) {
@@ -436,9 +468,7 @@
                     total += parseFloat(row.querySelector('.price-input').value) || 0;
                 }
             });
-
             if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; }
-
             document.getElementById('summ-count').innerText = count;
             document.getElementById('summ-missing').innerText = missing;
             document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`;
@@ -450,11 +480,9 @@
             let total = 0;
             const boughtItems = [];
             const missingItems = [];
-
             document.querySelectorAll('.shop-row').forEach(row => {
                 const id = row.id.replace('row-', '');
-                const itemData = shoppingListCache.find(i => i.id == id); // Fallback to cache for names
-                
+                const itemData = shoppingListCache.find(i => i.id == id);
                 if (row.classList.contains('missing')) {
                     missingItems.push({ id });
                 } else if (row.querySelector('input[type="checkbox"]').checked) {
@@ -463,21 +491,14 @@
                     boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: itemData ? itemData.quantity : 1, price });
                 }
             });
-
             triggerShake();
-            await fetch(`${API}/shopping/checkout`, {
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, boughtItems, missingItems })
-            });
-
+            await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, boughtItems, missingItems })});
             document.getElementById('confirm-checkout-modal').classList.add('hidden');
             triggerConfetti();
             showToast('success', 'הקנייה הושלמה!');
             fetchData();
         }
 
-        // --- HELPERS (Unchanged) ---
         function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
         async function fetchMembers() { const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
         async function fetchPendingUsers() { const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const list = await res.json(); document.getElementById('pending-count').innerText = list.length; document.getElementById('pending-count').classList.toggle('hidden', list.length===0); document.getElementById('admin-panel').classList.toggle('hidden', list.length===0); const c = document.getElementById('pending-list'); c.innerHTML=''; list.forEach(u => c.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`); }
@@ -494,7 +515,8 @@
         function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
         async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
+        // FIX 2: Added price to history display
+        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
