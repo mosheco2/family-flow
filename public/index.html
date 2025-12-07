@@ -38,13 +38,12 @@
         .fab-open #fab-icon { transform: rotate(45deg); }
         .btn-payday { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3); }
 
-        /* SHOP ROW STYLES (FIXED) */
+        /* SHOP ROW STYLES */
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
         
-        /* Fixed Input Visibility */
         .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; /* Gray for estimated */ }
         .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
@@ -53,7 +52,7 @@
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         
-        /* Crowd Wisdom Alert Style */
+        /* Wisdom Alert */
         .wisdom-alert { animation: slideDown 0.3s ease-out; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -209,6 +208,7 @@
         let pollInterval = null;
         let membersCache = [];
         let shoppingListCache = [];
+        let wisdomCache = {}; // Cache for crowd wisdom messages
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
         const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
@@ -320,6 +320,7 @@
             shoppingListCache.forEach(i => {
                 const isChecked = i.status === 'in_cart';
                 const val = i.estimated_price > 0 ? i.estimated_price : ''; 
+                const savedWisdom = wisdomCache[i.id]; // Get from Cache
                 
                 list.innerHTML += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
@@ -331,7 +332,10 @@
                                 <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded">x${i.quantity}</span>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-800 mt-2 font-bold hidden bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg w-full wisdom-alert shadow-sm flex items-center gap-2"><i class="fa-solid fa-lightbulb text-yellow-500"></i><span></span></div>
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-800 mt-2 font-bold ${savedWisdom ? '' : 'hidden'} bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg w-full wisdom-alert shadow-sm flex items-center gap-2">
+                                <i class="fa-solid fa-lightbulb text-yellow-500"></i>
+                                <span>${savedWisdom || ''}</span>
+                            </div>
                         </div>
                     </div>
                     <div class="flex gap-2 items-center pl-8">
@@ -364,16 +368,16 @@
                 // Checkbox update triggers reload naturally in polling, fine for UX
             } 
             else if (type === 'price') {
-                // Fix #2: Update price WITHOUT re-rendering or moving row
                 const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})});
                 const data = await res.json();
                 
-                // Show Crowd Wisdom inline (Fix #1)
                 const wisdomDiv = document.getElementById(`wisdom-${id}`);
                 if(data.alert) {
+                    wisdomCache[id] = data.alert.msg; // Save to Cache
                     wisdomDiv.querySelector('span').innerText = data.alert.msg;
                     wisdomDiv.classList.remove('hidden');
                 } else {
+                    delete wisdomCache[id]; // Remove from Cache
                     wisdomDiv.classList.add('hidden');
                 }
 
@@ -490,7 +494,7 @@
         function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
         async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
+        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`); list.innerHTML += `<div class="bg-slate-50 p-4 rounded-2xl border border-slate-100"><div class="flex justify-between items-start mb-2"><div><h4 class="font-bold text-slate-700">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div><button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
