@@ -1,71 +1,23 @@
-name: Create auth feature PR
+name: Test heredoc parsing
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  create-pr:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node (for any scripts)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Create directories
+      - name: Create test directory
         run: |
-          mkdir -p routes services middleware migrations
+          mkdir -p tmp_test
 
-      - name: Add services/authService.js
+      - name: Write small file with heredoc
         run: |
-          cat > services/authService.js <<'EOF'
-          const bcrypt = require('bcryptjs');
-          const jwt = require('jsonwebtoken');
+          cat > tmp_test/hello.txt <<'EOF'
+          Hello from heredoc!
+          This is a test line.
+          EOF
 
-          const ACCESS_EX_DEFAULT = '15m';
-          const REFRESH_EX_DEFAULT = '7d';
-
-          function parseEnvExpiry(envValue, fallback) {
-            if (!envValue) return fallback;
-            return envValue;
-          }
-
-          async function hashPassword(plain) {
-            const salt = await bcrypt.genSalt(10);
-            return bcrypt.hash(plain, salt);
-          }
-
-          async function comparePassword(plain, hash) {
-            if (!hash) return false;
-            return bcrypt.compare(plain, hash);
-          }
-
-          function issueAccessToken(payload) {
-            const secret = process.env.JWT_SECRET;
-            const expiresIn = parseEnvExpiry(process.env.ACCESS_TOKEN_EXPIRES, ACCESS_EX_DEFAULT);
-            return jwt.sign(payload, secret, { expiresIn });
-          }
-
-          function issueRefreshToken(payload) {
-            const secret = process.env.JWT_REFRESH_SECRET;
-            const expiresIn = parseEnvExpiry(process.env.REFRESH_TOKEN_EXPIRES, REFRESH_EX_DEFAULT);
-            return jwt.sign(payload, secret, { expiresIn });
-          }
-
-          function verifyAccessToken(token) {
-            try {
-              return jwt.verify(token, process.env.JWT_SECRET);
-            } catch (e) {
-              return null;
-            }
-          }
-
-          function verifyRefreshToken(token) {
-            try {
+      - name: Show file
+        run: |
+          echo "----- file contents -----"
+          cat tmp_test/hello.txt
