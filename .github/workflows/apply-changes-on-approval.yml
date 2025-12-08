@@ -74,7 +74,6 @@ jobs:
             const files = {
               "services/authService.js": `const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
 const ACCESS_EX_DEFAULT = '15m';
 const REFRESH_EX_DEFAULT = '7d';
 
