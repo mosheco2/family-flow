@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Oneflow Life - Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, 'Rubik', sans-serif; background:#f8fafc; }
+    .hidden { display:none !important; }
+    .loader { width: 16px; height:16px; border:2px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .checkout-price-input { text-align: right; padding-right: 0.75rem; }
+    .cheapest-badge { font-size: 11px; color: #065f46; background:#ecfdf5; padding:3px 6px; border-radius: 8px; display:inline-flex; gap:6px; align-items:center; }
+  </style>
+</head>
+<body class="p-4">
+
+  <div class="max-w-2xl mx-auto">
+    <header class="mb-4">
+      <h1 class="text-2xl font-bold">Oneflow Life — דמו מקומי</h1>
+      <p class="text-sm text-slate-500">מודול סופר חכם + אקדמיה (דמו)</p>
+    </header>
+
+    <!-- SHOP -->
+    <section id="shop-section" class="bg-white p-4 rounded-xl shadow mb-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="font-bold">סופר חכם 🛒</h2>
+        <div class="flex gap-2 items-center">
+          <span id="cart-total-display" class="font-bold text-lg">₪0.00</span>
+          <button onclick="openCheckout()" class="bg-green-600 text-white px-3 py-1.5 rounded">סיום קנייה</button>
+        </div>
+      </div>
+
+      <div class="mb-3 grid grid-cols-3 gap-2">
+        <input id="shop-item" class="modern-input col-span-2 p-2 border rounded" placeholder="הוספת פריט...">
+        <input id="shop-quantity" type="number" min="1" value="1" class="p-2 border rounded text-center">
+        <div class="col-span-3 flex gap-2 mt-2">
+          <button onclick="submitShopItem()" class="bg-pink-500 text-white px-4 py-2 rounded">הוסף</button>
+          <input id="shop-est-price" placeholder="מחיר משוער (₪)" class="p-2 border rounded w-40" type="number" step="0.1">
+          <div id="suggestions" class="hidden absolute bg-white border rounded mt-12 w-80 z-30"></div>
+        </div>
+      </div>
+
+      <div id="shop-list" class="space-y-2 min-h-[120px]"></div>
+
+      <div class="mt-4 flex gap-2">
+        <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded">היסטוריית קניות</button>
+        <button onclick="toggleSelectAll()" class="bg-blue-50 text-blue-600 px-3 py-1 rounded">בחר הכל/בטל</button>
+      </div>
+    </section>
+
+    <!-- ACADEMY -->
+    <section id="academy-section" class="bg-white p-4 rounded-xl shadow mb-6">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="font-bold">האקדמיה הפיננסית 🎓</h2>
+        <button onclick="fetchBundles()" class="text-sm text-slate-600">רענון</button>
+      </div>
+      <div id="academy-list" class="space-y-2"></div>
+    </section>
+
+    <!-- Modals -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+      <div class="bg-white p-6 rounded-xl w-full max-w-lg">
+        <h3 class="font-bold mb-2">סיכום קנייה</h3>
+        <input id="checkout-store" placeholder="שם חנות" class="p-2 border rounded w-full mb-3">
+        <div id="checkout-items-list" class="space-y-2 max-h-64 overflow-y-auto mb-4"></div>
+        <div class="flex justify-between items-center mb-4">
+          <b>סה"כ:</b> <span id="checkout-total-display">₪0.00</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeCheckout()" class="p-2 border rounded flex-1">ביטול</button>
+          <button onclick="submitSmartCheckout()" class="p-2 bg-green-600 text-white rounded flex-1">סיים ותעדכן</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="history-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+      <div class="bg-white p-6 rounded-xl w-full max-w-xl max-h-[80vh] overflow-y-auto">
+        <h3 class="font-bold mb-3">היסטוריית קניות</h3>
+        <div id="history-list" class="space-y-3"></div>
+        <div class="mt-4 flex gap-2">
+          <button onclick="document.getElementById('history-modal').classList.add('hidden')" class="p-2 border rounded">סגור</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-runner-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
+      <div class="bg-white p-6 rounded-xl w-full max-w-lg">
+        <button onclick="closeQuiz()" class="text-slate-400 mb-2">סגור ×</button>
+        <div id="quiz-content">
+          <h3 id="quiz-title" class="font-bold mb-2"></h3>
+          <div id="question-container">
+            <div id="q-progress" class="text-xs mb-2"></div>
+            <div id="q-text" class="mb-3"></div>
+            <div id="q-options" class="space-y-2"></div>
+          </div>
+          <div id="quiz-result" class="hidden">
+            <div id="quiz-icon" class="text-4xl mb-2"></div>
+            <div id="quiz-msg-title" class="font-bold"></div>
+            <div id="quiz-msg-desc" class="text-sm text-slate-600"></div>
+            <div id="quiz-score-display" class="mt-2 font-bold"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
