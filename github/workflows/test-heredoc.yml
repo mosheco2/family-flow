@@ -1,1 +1,23 @@
+name: Test heredoc parsing
+on:
+  workflow_dispatch:
 
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create test directory
+        run: |
+          mkdir -p tmp_test
+
+      - name: Write small file with heredoc
+        run: |
+          cat > tmp_test/hello.txt <<'EOF'
+          Hello from heredoc!
+          This is a test line.
+          EOF
+
+      - name: Show file
+        run: |
+          echo "----- file contents -----"
+          cat tmp_test/hello.txt
