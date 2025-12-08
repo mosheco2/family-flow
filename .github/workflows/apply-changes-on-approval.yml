@@ -1,4 +1,4 @@
-# Apply approved changes: create/update files on a feature branch, open PR and enable auto-merge
+# Apply approved changes: create/update files on a feature branch, open PR (reuse if exists) and enable auto-merge
 name: Apply approved changes (create branch + PR + auto-merge)
 on:
   issue_comment:
@@ -20,7 +20,7 @@ jobs:
           script: |
             const commentBody = context.payload.comment ? context.payload.comment.body : '';
             const isDispatch = context.eventName === 'workflow_dispatch';
-            const allowedUsers = ['mosheco2']; // <-- הוסף כאן משתמשים מורשים במידת הצורך
+            const allowedUsers = ['mosheco2']; // <-- add other allowed users if needed
             const actor = context.payload.comment ? context.payload.comment.user.login : context.actor;
 
             if (!isDispatch && !commentBody.includes('/apply-changes')) {
@@ -59,7 +59,7 @@ jobs:
             }
             return { branch: newBranch };
 
-      - name: Create/Update files and open PR
+      - name: Create/Update files and open PR (reuse existing PR if present)
         uses: actions/github-script@v6
         id: create_pr
         with:
@@ -70,7 +70,7 @@ jobs:
             const prTitle = 'Add secure auth (bcrypt + JWT) and auth routes (auto)';
             const prBody = 'This PR was created automatically after approval. Adds auth services, middleware, routes and DB migration.';
 
-            // Files to create/update (build content as arrays then join to avoid template literal issues)
+            // Files to create/update - build as arrays and join to avoid YAML/template literal issues
             const files = {
               "services/authService.js": [
                 "const bcrypt = require('bcryptjs');",
@@ -379,7 +379,21 @@ jobs:
               }
             }
 
-            // create pull request
+            // Check for existing open PR from this head (owner:branch)
+            const existingPRs = await github.rest.pulls.list({
+              owner,
+              repo,
+              head: `${owner}:${branch}`,
+              state: 'open'
+            });
+
+            if (existingPRs.data && existingPRs.data.length > 0) {
+              const pr = existingPRs.data[0];
+              core.info(`Found existing open PR: ${pr.html_url} (#${pr.number}). Will reuse it.`);
+              return { pr_url: pr.html_url, pr_number: pr.number };
+            }
+
+            // create pull request (none exists)
             const pr = await github.rest.pulls.create({
               owner, repo, title: prTitle, head: branch, base: 'main', body: prBody
             });
