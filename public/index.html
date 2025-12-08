@@ -45,7 +45,6 @@
         .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
         .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
         .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
-
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
@@ -275,7 +274,7 @@
             document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
             const isAdmin = currentUser.role === 'ADMIN';
             if(isAdmin) { 
-                document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); fetchPendingUsers(); fetchBundles(); 
+                document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); fetchPendingUsers(); 
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
@@ -505,8 +504,8 @@
                 panel.classList.add('hidden');
             }
         }
-
-        // --- PREVIOUS FUNCTIONS (SHOPPING, ETC) KEPT AS IS ---
+        
+        // --- PREVIOUS FUNCTIONS ---
         function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
         async function submitShopItem() { const item = val('shop-item'); const qty = val('shop-quantity'); const est = val('shop-est-price'); if(!item) return; const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, estimatedPrice: est, userId: currentUser.id}) }); const data = await res.json(); if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); document.getElementById('shop-item').value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'נוסף לרשימה'); fetchData(); } }
         async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
@@ -572,3 +571,4 @@
     </script>
 </body>
 </html>
+}
