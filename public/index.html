@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oneflow life</title>
+    <title>FamilyFlow</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -39,15 +39,6 @@
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .credit-card::before { content: ''; position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; }
         .credit-card::after { content: ''; position: absolute; bottom: -50px; left: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.05); border-radius: 50%; }
-        
-        .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
-        .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
-        .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-
-        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
-        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
-        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
-        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -58,6 +49,7 @@
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
+        <!-- AUTH -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
             <div class="p-10 text-center relative overflow-hidden">
                 <div class="absolute inset-0 bg-blue-600 rounded-b-[3rem] shadow-xl"></div>
@@ -65,11 +57,12 @@
                     <div class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20">
                         <i class="fa-solid fa-wallet"></i>
                     </div>
-                    <h1 class="text-3xl font-bold tracking-tight text-white">Oneflow life</h1>
-                    <p class="text-blue-100 text-sm font-light">ניהול חכם למשפחה</p>
+                    <h1 class="text-3xl font-bold tracking-tight text-white">FamilyFlow</h1>
+                    <p class="text-blue-100 text-sm font-light">הבנק המשפחתי החכם</p>
                 </div>
             </div>
 
+            <!-- Login -->
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי">
@@ -85,6 +78,7 @@
                 </div>
             </div>
 
+            <!-- Create -->
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
@@ -105,6 +99,7 @@
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
             </div>
 
+            <!-- Join -->
             <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
@@ -118,8 +113,10 @@
             </div>
         </div>
 
+        <!-- DASHBOARD -->
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
             
+            <!-- Header -->
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50">
@@ -133,48 +130,41 @@
                 <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
 
+            <!-- Slider Tabs -->
             <div class="relative px-2 mb-6 group">
+                <button onclick="scrollSlider(-100)" class="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm ml-1"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                <button onclick="scrollSlider(100)" class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 bg-white/80 rounded-full shadow-sm mr-1"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+
                 <div class="slider-scroll" id="slider-scroll">
                     <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
-                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
                     <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
-                    <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                     <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                     <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                    <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
                     <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
                 </div>
             </div>
 
+            <!-- Content -->
             <div class="px-2">
+                <!-- 1. FEED -->
                 <div id="content-feed">
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div>
                     </div>
+                    
                     <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3>
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
 
-                <div id="content-shop" class="hidden">
-                    <div class="flex justify-between items-center mb-4 px-2">
-                        <h3 class="font-bold text-slate-700 text-lg">רשימת קניות</h3>
-                        <div class="flex gap-2">
-                             <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
-                            <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
-                        </div>
-                    </div>
-                    
-                    <div id="shop-list" class="space-y-2 mb-24 min-h-[200px]"></div>
-                    
-                    <div id="checkout-bar" class="fixed bottom-24 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl flex justify-between items-center hidden z-30 animate-bounce-in">
-                        <span class="font-bold text-slate-700">סיימתם בסופר?</span>
-                        <button onclick="checkout()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-green-700 transition">סיום וחיוב</button>
-                    </div>
-                </div>
-
+                <!-- 2. BANK (NEW) -->
                 <div id="content-bank" class="hidden">
+                    
+                    <!-- ADMIN VIEW -->
                     <div id="bank-admin-view" class="hidden space-y-6">
+                        <!-- PayDay Card -->
                         <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
                             <div class="relative z-10">
                                 <h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3>
@@ -185,44 +175,68 @@
                             </div>
                             <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                         </div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+
+                        <!-- Children Accounts -->
+                        <div>
+                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3>
+                            <div id="bank-accounts-list" class="space-y-3"></div>
+                        </div>
+
+                         <!-- Loan Requests -->
+                         <div>
+                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">בקשות להלוואה</h3>
+                            <div id="bank-loans-list" class="space-y-3"></div>
+                        </div>
                     </div>
+
+                    <!-- CHILD VIEW -->
                     <div id="bank-child-view" class="hidden space-y-6">
+                        <!-- Credit Card Visual -->
                         <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                            <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                            <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
-                            <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
+                            <div class="flex justify-between items-start mb-8">
+                                <i class="fa-solid fa-wifi text-2xl opacity-50"></i>
+                                <span class="font-mono text-sm opacity-70">FAMILY CARD</span>
+                            </div>
+                            <div class="mb-6">
+                                <p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p>
+                                <div class="flex gap-6">
+                                    <div>
+                                        <span class="block text-xl font-bold" id="card-allowance">₪0</span>
+                                        <span class="text-[10px] opacity-70">דמי כיס</span>
+                                    </div>
+                                    <div>
+                                        <span class="block text-xl font-bold text-green-400" id="card-interest">0%</span>
+                                        <span class="text-[10px] opacity-70">ריבית</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-end">
+                                <span class="font-mono tracking-widest text-lg" id="card-name">NAME</span>
+                                <div class="w-8 h-8 rounded-full bg-white/20"></div>
+                            </div>
                         </div>
+
+                        <!-- Actions -->
                         <div class="grid grid-cols-2 gap-3">
-                            <button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button>
-                            <button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button>
+                            <button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition">
+                                <i class="fa-solid fa-hand-holding-dollar text-2xl"></i>
+                                <span class="font-bold text-sm">בקש הלוואה</span>
+                            </button>
+                            <button class="bg-white text-slate-400 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-2 cursor-not-allowed">
+                                <i class="fa-solid fa-bullseye text-2xl"></i>
+                                <span class="font-bold text-sm">יעד חיסכון (בקרוב)</span>
+                            </button>
                         </div>
-                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
+
+                        <!-- My Loans -->
+                        <div>
+                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3>
+                            <div id="my-loans-list" class="space-y-3"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div id="content-academy" class="hidden">
-                    <div id="academy-admin-view" class="hidden">
-                        <div class="flex justify-between items-center mb-6 px-2">
-                            <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
-                            <button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת מבחן</button>
-                        </div>
-                        <div id="admin-assignments-list" class="space-y-3"></div>
-                    </div>
-                    <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3>
-                            <p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p>
-                            <button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button>
-                            <i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
-                        <div id="my-assignments-list" class="space-y-3"></div>
-                    </div>
-                </div>
-
+                <!-- 3. BUDGET -->
                 <div id="content-budget" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                         <div class="flex justify-between items-center mb-6">
@@ -233,6 +247,7 @@
                     </div>
                 </div>
 
+                <!-- 4. TASKS -->
                 <div id="content-tasks" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
@@ -244,6 +259,20 @@
                     <div id="tasks-list" class="space-y-3 pb-20"></div>
                 </div>
 
+                <!-- 5. SHOPPING -->
+                <div id="content-shop" class="hidden">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h3 class="font-bold text-slate-700 text-lg">רשימת קניות</h3>
+                        <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
+                    </div>
+                    <div id="shop-list" class="space-y-2 mb-24"></div>
+                    <div id="checkout-bar" class="fixed bottom-24 left-4 right-4 bg-white/90 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl flex justify-between items-center hidden z-30 animate-bounce-in">
+                        <span class="font-bold text-slate-700">סיימתם בסופר?</span>
+                        <button onclick="checkout()" class="bg-green-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-green-700 transition">סיום וחיוב</button>
+                    </div>
+                </div>
+
+                <!-- 6. MEMBERS -->
                 <div id="content-members" class="hidden space-y-6">
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50">
@@ -262,7 +291,8 @@
             </div>
         </div>
         
-        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden">
+        <!-- FAB Container -->
+        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                 <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
                 <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
@@ -273,20 +303,76 @@
             </button>
         </div>
 
-        <div id="checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
-                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">סיום קנייה 🛒</h3>
-                <p class="text-center text-slate-500 text-sm mb-6">סמן מה נקנה ועדכן מחירים</p>
-                <input type="text" id="checkout-store" class="modern-input mb-4" placeholder="שם החנות (למשל: רמי לוי)">
-                
-                <div id="checkout-items-list" class="flex-1 overflow-y-auto space-y-3 mb-6 pr-2"></div>
-                <div class="bg-slate-50 p-4 rounded-xl mb-4 flex justify-between items-center border border-slate-100">
-                    <span class="font-bold text-slate-700">סה"כ לתשלום:</span>
-                    <span id="checkout-total-display" class="font-bold text-2xl text-blue-600">₪0</span>
+        <!-- Modals -->
+        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
+                <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
+                <input type="hidden" id="trans-type">
+                <div class="relative mb-4">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span>
+                    <input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00">
                 </div>
-                <div class="flex gap-3 mt-auto">
-                    <button onclick="document.getElementById('checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="submitSmartCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">בצע תשלום</button>
+                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
+                <select id="trans-cat" class="modern-input mb-8 bg-white"></select>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Settings Modal -->
+        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+                <h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3>
+                <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p>
+                <input type="hidden" id="bank-user-id">
+                
+                <label class="text-xs font-bold text-slate-400 mr-1">דמי כיס (שבועי)</label>
+                <div class="relative mb-4">
+                    <input type="number" id="bank-allowance" class="modern-input" placeholder="0">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">₪</span>
+                </div>
+
+                <label class="text-xs font-bold text-slate-400 mr-1">ריבית על יתרה (שבועי)</label>
+                <div class="relative mb-6">
+                    <input type="number" id="bank-interest" class="modern-input" placeholder="0">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+                <h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3>
+                <p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p>
+                <input type="hidden" id="budget-cat-id">
+                <input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי">
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+                <h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3>
+                <input type="hidden" id="task-is-self" value="false">
+                <input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?">
+                <div id="task-reward-group">
+                    <input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)">
+                    <select id="task-assignee" class="modern-input mb-6 bg-white"></select>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button>
                 </div>
             </div>
         </div>
@@ -294,10 +380,7 @@
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
-                <div class="flex gap-2 mb-6">
-                    <input type="text" id="shop-item" class="modern-input flex-1" placeholder="מה חסר?">
-                    <input type="number" id="shop-quantity" class="modern-input w-20 text-center" value="1" min="1">
-                </div>
+                <input type="text" id="shop-item" class="modern-input mb-6" placeholder="מה חסר?">
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
                     <button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button>
@@ -305,46 +388,16 @@
             </div>
         </div>
 
-        <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]">
-                <h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3>
-                <div id="history-list" class="flex-1 overflow-y-auto space-y-4 pr-1"></div>
-                <button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button>
-            </div>
-        </div>
-
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
-                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
-                <input type="hidden" id="trans-type">
-                <div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div>
-                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select>
-                <div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div>
-            </div>
-        </div>
-        <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div>
-        </div>
-        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div>
-        </div>
-        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div>
-        </div>
-        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3><p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id"><input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי"><div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div></div>
-        </div>
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div>
-        </div>
         <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div>
-        </div>
-        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-4 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-6 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצה</button></div></div>
-        </div>
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><p id="quiz-text-content" class="text-sm text-slate-600 bg-blue-50 p-4 rounded-xl mb-6 text-right hidden leading-relaxed"></p><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>Question</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-lg font-bold mb-6 min-h-[60px] flex items-center justify-center"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div>
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+                <h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3>
+                <input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום">
+                <input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?">
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -355,11 +408,12 @@
         let currentGroup = null;
         let pollInterval = null;
         let membersCache = [];
-        let shoppingListCache = [];
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
-        const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
 
-        let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0, currentAssignmentId = null;
+        const CATEGORIES = {
+            income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ],
+            expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ]
+        };
 
         window.onload = async () => {
             const saved = localStorage.getItem('ofl_session');
@@ -383,235 +437,367 @@
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
         async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
         async function handleJoin(e) { e.preventDefault(); const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); d.success ? (showToast('success', 'נשלח!'), switchView('login')) : showToast('error', d.error); }
-        async function authAction(endpoint, body) { toggleLoader('login', true); try { const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const data = await res.json(); if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); loadDashboard(); } else showToast('error', data.error); } catch(e) { showToast('error', 'שגיאה'); } finally { toggleLoader('login', false); } }
+
+        async function authAction(endpoint, body) {
+            toggleLoader('login', true);
+            try {
+                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                const data = await res.json();
+                if(data.success) {
+                    currentUser = data.user; currentGroup = data.group;
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup}));
+                    loadDashboard();
+                } else showToast('error', data.error);
+            } catch(e) { showToast('error', 'שגיאה'); }
+            finally { toggleLoader('login', false); }
+        }
 
         function loadDashboard() {
-            document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
-            document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-            if(currentUser.role === 'ADMIN') { document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('checkout-bar').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); fetchPendingUsers(); fetchBundles(); } else { document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; }
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(currentUser.role==='ADMIN') fetchPendingUsers(); }, 10000);
-            fetchMembers(); fetchData();
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('dashboard-container').classList.remove('hidden');
+            document.getElementById('dash-group-name').innerText = currentGroup.name;
+            document.getElementById('dash-nickname').innerText = currentUser.nickname;
+            document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+            
+            if(currentUser.role === 'ADMIN') {
+                document.getElementById('admin-panel').classList.remove('hidden');
+                document.getElementById('btn-add-task').classList.remove('hidden');
+                document.getElementById('checkout-bar').classList.remove('hidden');
+                document.getElementById('budget-filter').classList.remove('hidden');
+                document.getElementById('bank-admin-view').classList.remove('hidden'); // Bank Admin
+                fetchPendingUsers();
+            } else {
+                document.getElementById('btn-self-task').classList.remove('hidden');
+                document.getElementById('bank-child-view').classList.remove('hidden'); // Bank Child
+                
+                // Populate Credit Card Info
+                document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase();
+                document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`;
+                document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
+            }
+            
+            if(!pollInterval) pollInterval = setInterval(() => { 
+                fetchData(); 
+                if(currentUser.role==='ADMIN') fetchPendingUsers();
+            }, 10000);
+
+            fetchMembers();
+            fetchData();
         }
 
         async function fetchData() {
             try {
-                const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-                currentUser.balance = data.user.balance; currentUser.allowance_amount = data.user.allowance_amount; currentUser.interest_rate = data.user.interest_rate;
+                const res = await fetch(`${API}/data/${currentUser.id}`);
+                const data = await res.json();
+                currentUser.balance = data.user.balance;
+                currentUser.allowance_amount = data.user.allowance_amount;
+                currentUser.interest_rate = data.user.interest_rate;
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-                const tList = document.getElementById('transactions-list'); tList.innerHTML=''; const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; });
-                if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
                 
-                // Goals
-                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
-                
-                // Tasks
-                const taskList = document.getElementById('tasks-list'); taskList.innerHTML=''; if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; data.tasks.forEach(t => { let action = ''; const isMyTask = t.assigned_to == currentUser.id; const isAdmin = currentUser.role === 'ADMIN'; if(t.status === 'pending') { if(isMyTask) { action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי!</button>`; } else if(isAdmin) { action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } } else if (t.status === 'done') { if(isAdmin) { action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } else { action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } } if (isMyTask || isAdmin) { taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : ''}</div></div>${action}</div>`; } });
-                
-                // Shop (Updated with Quantity)
-                shoppingListCache = data.shopping_list;
-                const sList = document.getElementById('shop-list'); sList.innerHTML=''; 
-                if(data.shopping_list.length === 0) sList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
-                else {
-                    data.shopping_list.forEach(i => { 
-                        sList.innerHTML+=`
-                        <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm mb-2">
-                            <input type="checkbox" ${i.status==='in_cart'?'checked':''} onchange="updateShop(${i.id}, this.checked ? 'in_cart' : 'pending')" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer">
-                            <span class="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded">x${i.quantity || 1}</span>
-                            <span class="${i.status==='in_cart'?'line-through text-slate-400':'text-slate-700 font-medium'} flex-1">${i.item_name}</span>
-                            <span class="text-[10px] bg-slate-50 px-2 py-1 rounded text-slate-500">${i.requester_name}</span>
-                        </div>`; 
-                    });
-                }
-                
+                // Transactions
+                const tList = document.getElementById('transactions-list'); tList.innerHTML='';
+                const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json();
+                if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
+                recentT.forEach(t => {
+                    const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs text-slate-400 font-normal">(${t.user_name})</span>` : '';
+                    const colorClass = currentUser.role === 'ADMIN' ? userColors[t.user_id % userColors.length] : 'bg-white border-slate-50';
+                    tList.innerHTML+=`<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div><p class="font-bold text-slate-800">${t.description} ${userNameDisplay}</p><p class="text-[10px] text-slate-400">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`;
+                });
+
+                // Budget
                 fetchBudget();
+
+                // Tasks
+                const taskList = document.getElementById('tasks-list'); taskList.innerHTML='';
+                if(data.tasks.length === 0) taskList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
+                data.tasks.forEach(t => {
+                    let action = '';
+                    const isMyTask = t.assigned_to == currentUser.id;
+                    const isAdmin = currentUser.role === 'ADMIN';
+                    
+                    if(t.status === 'pending') {
+                        if(isMyTask) action = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי</button>`;
+                        else if(isAdmin) action = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
+                    } else if (t.status === 'done') {
+                        if(isAdmin) action = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר</button>`;
+                        else action = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
+                    }
+                    taskList.innerHTML+=`<div class="card-modern p-4 flex justify-between items-center mb-2 bg-white rounded-2xl border border-slate-50 shadow-sm"><div><p class="font-bold text-slate-800">${t.title}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">עבור ${t.assignee_name}</span><span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span></div></div>${action}</div>`;
+                });
+
+                // Loans (Merged into Bank Tab)
+                const loansContainer = currentUser.role === 'ADMIN' ? 'bank-loans-list' : 'my-loans-list';
+                const lList = document.getElementById(loansContainer);
+                lList.innerHTML='';
+                if(data.loans.length === 0) lList.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין הלוואות פעילות</div>';
+                data.loans.forEach(l => {
+                    let action = '';
+                    let badge = '';
+                    if(l.status==='active') badge = '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1"><i class="fa-solid fa-check"></i> אושר</span>';
+                    else if(l.status==='rejected') badge = '<span class="bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1"><i class="fa-solid fa-xmark"></i> נדחה</span>';
+                    else if(l.status==='pending') badge = '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1"><i class="fa-solid fa-clock"></i> ממתין</span>';
+
+                    if(currentUser.role==='ADMIN' && l.status==='pending') action = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-50"><button onclick="handleLoan(${l.id}, 'active')" class="flex-1 bg-green-500 text-white py-1.5 rounded-lg text-xs font-bold">אשר</button><button onclick="handleLoan(${l.id}, 'rejected')" class="flex-1 bg-red-500 text-white py-1.5 rounded-lg text-xs font-bold">דחה</button></div>`;
+                    lList.innerHTML+=`<div class="bg-white p-4 rounded-2xl border border-slate-50 shadow-sm mb-3"> <div class="flex justify-between items-start"> <div><p class="font-bold text-slate-800">${l.reason}</p><p class="text-xs text-slate-500 mt-1">${l.user_name} • <span class="font-bold text-slate-700">₪${l.original_amount}</span></p></div> ${badge} </div> ${action} </div>`;
+                });
+
+                // Shop
+                const sList = document.getElementById('shop-list'); sList.innerHTML='';
+                if(data.shopping_list.length === 0) sList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>';
+                data.shopping_list.forEach(i => {
+                    sList.innerHTML+=`<div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm mb-2"><input type="checkbox" ${i.status==='in_cart'?'checked':''} onchange="updateShop(${i.id}, this.checked ? 'in_cart' : 'pending')" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer"><span class="${i.status==='in_cart'?'line-through text-slate-400':'text-slate-700 font-medium'} flex-1">${i.item_name}</span><span class="text-[10px] bg-slate-50 px-2 py-1 rounded text-slate-500">${i.requester_name}</span></div>`;
+                });
+
             } catch(e) {}
         }
 
-        // --- SHOPPING LOGIC (NEW) ---
-        async function submitShopItem() {
-            const item = val('shop-item');
-            const qty = val('shop-quantity');
-            if(!item) return;
-            const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, userId: currentUser.id}) });
+        async function fetchBudget() {
+            const targetUserId = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
+            const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${targetUserId}`);
             const data = await res.json();
-            if (data.success) {
-                document.getElementById('shop-modal').classList.add('hidden');
-                document.getElementById('shop-item').value = ''; 
-                document.getElementById('shop-quantity').value = 1;
-                if (data.alert) {
-                    showToast('success', 'הפריט נוסף!');
-                    setTimeout(() => alert(data.alert.msg), 500);
-                } else showToast('success', 'נוסף לרשימה');
-                fetchData();
-            }
-        }
-
-        async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
-
-        function checkout() {
-            const inCart = shoppingListCache.filter(i => i.status === 'in_cart');
-            if (inCart.length === 0) { showToast('error', 'העגלה ריקה או לא סימנת פריטים'); return; }
+            const bList = document.getElementById('budget-list'); bList.innerHTML='';
             
-            const container = document.getElementById('checkout-items-list');
-            container.innerHTML = '';
+            if(data.length === 0) bList.innerHTML = '<p class="text-slate-400 text-center text-sm py-4">אין נתונים</p>';
             
-            inCart.forEach(item => {
-                container.innerHTML += `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col gap-2 item-row" data-id="${item.id}" data-name="${item.item_name}" data-qty="${item.quantity || 1}">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-slate-700">${item.item_name} <span class="text-xs text-slate-400">x${item.quantity||1}</span></span>
-                            <div class="flex gap-2">
-                                <button onclick="toggleMissing(this)" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded text-slate-400 font-bold hover:text-orange-500 hover:border-orange-500">חסר</button>
-                            </div>
-                        </div>
-                        <div class="relative w-full">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪</span>
-                            <input type="number" step="0.1" class="checkout-price-input w-full bg-white border border-slate-200 rounded-lg py-2 pl-6 pr-2 text-right text-sm font-bold outline-none focus:border-blue-500" placeholder="מחיר בפועל" oninput="calcCheckoutTotal()">
-                        </div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('checkout-store').value = '';
-            document.getElementById('checkout-total-display').innerText = '₪0';
-            document.getElementById('checkout-modal').classList.remove('hidden');
-        }
-
-        function toggleMissing(btn) {
-            const row = btn.closest('.item-row');
-            row.classList.toggle('is-missing');
-            if (row.classList.contains('is-missing')) {
-                btn.className = 'text-xs bg-orange-100 border border-orange-200 px-2 py-1 rounded text-orange-600 font-bold';
-                btn.innerText = 'סומן כחסר';
-                row.querySelector('.checkout-price-input').disabled = true;
-                row.querySelector('.checkout-price-input').value = '';
-                row.classList.add('opacity-50');
-            } else {
-                btn.className = 'text-xs bg-white border border-slate-200 px-2 py-1 rounded text-slate-400 font-bold hover:text-orange-500 hover:border-orange-500';
-                btn.innerText = 'חסר';
-                row.querySelector('.checkout-price-input').disabled = false;
-                row.classList.remove('opacity-50');
-            }
-            calcCheckoutTotal();
-        }
-
-        function calcCheckoutTotal() {
-            let total = 0;
-            document.querySelectorAll('.checkout-price-input').forEach(inp => { if(!inp.disabled) total += parseFloat(inp.value) || 0; });
-            document.getElementById('checkout-total-display').innerText = `₪${total.toFixed(2)}`;
-        }
-
-        async function submitSmartCheckout() {
-            const store = document.getElementById('checkout-store').value || 'סופר כללי';
-            let total = 0;
-            const boughtItems = [];
-            const missingItems = [];
-
-            document.querySelectorAll('.item-row').forEach(row => {
-                const id = row.getAttribute('data-id');
-                const name = row.getAttribute('data-name');
-                const qty = row.getAttribute('data-qty');
+            data.forEach(b => {
+                const pct = Math.min(100, Math.round((b.spent/b.limit)*100)) || 0;
+                let color = 'bg-blue-500'; if(pct>75) color='bg-yellow-500'; if(pct>=100) color='bg-red-500';
                 
-                if (row.classList.contains('is-missing')) {
-                    missingItems.push({ id });
-                } else {
-                    const price = parseFloat(row.querySelector('.checkout-price-input').value) || 0;
-                    total += price;
-                    boughtItems.push({ id, name, quantity: qty, price });
+                if (b.category === 'allocations') {
+                    bList.innerHTML+=`<div class="mb-5 p-3 bg-purple-50 rounded-xl border border-purple-100"><div class="flex justify-between text-sm mb-1 font-bold text-purple-700"><div>${b.label}</div><span>₪${b.spent}</span></div><div class="w-full bg-purple-200 rounded-full h-3"><div class="bg-purple-600 h-3 rounded-full" style="width:100%"></div></div></div>`;
+                    return;
                 }
-            });
 
-            if (total === 0 && boughtItems.length > 0) {
-                const manualTotal = prompt('לא הזנת מחירים. מה הסכום הכולל?');
-                if (manualTotal) total = parseFloat(manualTotal);
+                const label = {'food':'🍔 אוכל','groceries':'🛒 סופר','transport':'🚌 נסיעות','bills':'📄 חשבונות','fun':'🎉 בילויים','clothes':'👕 בגדים','health':'💊 בריאות','education':'📚 חינוך','other':'💸 אחר'}[b.category] || b.category;
+                const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBudgetModal('${b.category}', '${label}', ${b.limit})" class="text-slate-300 hover:text-blue-500 px-2"><i class="fa-solid fa-pencil text-xs"></i></button>` : '';
+
+                bList.innerHTML+=`<div class="mb-5"><div class="flex justify-between text-sm mb-1 font-medium"><div class="flex items-center">${label}${editBtn}</div><span class="text-slate-500 text-xs">₪${b.spent} / ${b.limit}</span></div><div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden"><div class="${color} h-3 rounded-full transition-all duration-1000 ease-out shadow-sm" style="width:${pct}%"></div></div></div>`;
+            });
+        }
+
+        async function fetchMembers() {
+            const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
+            const list = await res.json();
+            membersCache = list; 
+            
+            // Populate Budget Filter
+            if(currentUser.role === 'ADMIN') {
+                const filter = document.getElementById('budget-filter');
+                if (filter.options.length <= 1) { 
+                    const currentVal = filter.value;
+                    filter.innerHTML = '<option value="all">כל הבית</option>';
+                    list.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
+                    if(currentVal) filter.value = currentVal;
+                }
             }
-
-            triggerShake();
-            await fetch(`${API}/shopping/checkout`, {
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, boughtItems, missingItems })
+            
+            // Populate Members List (Just names and status)
+            const container = document.getElementById('members-list'); container.innerHTML = '';
+            list.forEach(m => {
+                const balanceDisplay = m.balance !== null ? `₪${m.balance}` : '🔒';
+                container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${balanceDisplay}</span></div></div>`
             });
 
-            document.getElementById('checkout-modal').classList.add('hidden');
-            triggerConfetti();
-            showToast('success', 'הקנייה הושלמה!');
-            fetchData();
-        }
-
-        async function openHistoryModal() {
-            const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`);
-            const trips = await res.json();
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            
-            if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>';
-            
-            trips.forEach(t => {
-                let itemsHtml = '';
-                t.items.forEach(i => itemsHtml += `<span class="text-[10px] bg-slate-100 px-1 rounded ml-1">${i.item_name} (x${i.quantity})</span>`);
-                
-                list.innerHTML += `
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <div class="flex justify-between items-start mb-2">
+            // Populate BANK ACCOUNTS (For Admin View)
+            const accountsList = document.getElementById('bank-accounts-list');
+            if (accountsList) {
+                accountsList.innerHTML = '';
+                list.filter(m => m.role !== 'ADMIN').forEach(m => {
+                    accountsList.innerHTML += `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div>
                             <div>
-                                <h4 class="font-bold text-slate-700">${t.store_name}</h4>
-                                <p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p>
+                                <h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4>
+                                <p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p>
                             </div>
-                            <span class="font-bold text-blue-600">₪${t.total_amount}</span>
                         </div>
-                        <div class="flex flex-wrap gap-1 mb-3">${itemsHtml}</div>
-                        <button onclick="copyList(${t.id})" class="w-full bg-blue-100 text-blue-700 py-2 rounded-xl text-xs font-bold hover:bg-blue-200">העתק רשימה זו</button>
-                    </div>
-                `;
+                        <button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
+                    </div>`;
+                });
+            }
+        }
+
+        async function fetchPendingUsers() {
+            const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
+            const list = await res.json();
+            const container = document.getElementById('pending-list'); 
+            document.getElementById('pending-count').innerText = list.length;
+            document.getElementById('pending-count').classList.toggle('hidden', list.length===0);
+            document.getElementById('admin-panel').classList.toggle('hidden', list.length===0);
+            container.innerHTML = '';
+            list.forEach(u => container.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`);
+        }
+        
+        // --- Banking Functions ---
+        
+        function openBankSettings(id, name, allowance, interest) {
+            document.getElementById('bank-user-id').value = id;
+            document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`;
+            document.getElementById('bank-allowance').value = allowance;
+            document.getElementById('bank-interest').value = interest;
+            document.getElementById('bank-settings-modal').classList.remove('hidden');
+        }
+
+        async function submitBankSettings() {
+            const uid = document.getElementById('bank-user-id').value;
+            const allowance = document.getElementById('bank-allowance').value;
+            const interest = document.getElementById('bank-interest').value;
+            
+            await fetch(`${API}/admin/update-settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: uid, allowance, interest })
             });
             
-            document.getElementById('history-modal').classList.remove('hidden');
+            document.getElementById('bank-settings-modal').classList.add('hidden');
+            showToast('success', 'הגדרות עודכנו');
+            fetchMembers(); // Refresh
         }
 
-        async function copyList(tripId) {
-            if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return;
-            await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) });
-            document.getElementById('history-modal').classList.add('hidden');
-            showToast('success', 'הרשימה הועתקה!');
+        async function triggerPayday() {
+            if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return;
+            
+            toggleLoader('payday', true); 
+            try {
+                const res = await fetch(`${API}/admin/payday`, {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ groupId: currentGroup.id })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    triggerConfetti();
+                    showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`);
+                    fetchData();
+                } else {
+                    showToast('error', data.error);
+                }
+            } catch(e) { showToast('error', 'שגיאה'); }
+        }
+
+        function openBudgetModal(catId, catName, currentLimit) {
+            document.getElementById('budget-cat-name').innerText = catName;
+            document.getElementById('budget-cat-id').value = catId;
+            document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : '';
+            document.getElementById('budget-modal').classList.remove('hidden');
+        }
+
+        async function submitBudgetUpdate() {
+            const cat = document.getElementById('budget-cat-id').value;
+            const limit = document.getElementById('budget-limit').value;
+            const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
+            
+            await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})});
+            document.getElementById('budget-modal').classList.add('hidden'); fetchBudget();
+        }
+
+        function switchTab(t) {
+            ['feed','tasks','shop','bank','members','budget'].forEach(x => {
+                document.getElementById(`content-${x}`).classList.add('hidden');
+                document.getElementById(`tab-${x}`).classList.remove('tab-active');
+            });
+            document.getElementById(`content-${t}`).classList.remove('hidden');
+            document.getElementById(`tab-${t}`).classList.add('tab-active');
+            if(t==='tasks') {
+                const s = document.getElementById('task-assignee'); s.innerHTML='';
+                membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`);
+            }
+        }
+
+        function scrollSlider(amount) {
+            document.getElementById('slider-scroll').scrollBy({ left: amount, behavior: 'smooth' });
+        }
+
+        async function submitTransaction() {
+            const amount = val('trans-amount'); if(!amount) return;
+            if(val('trans-type') === 'expense') triggerShake();
+            else triggerConfetti();
+
+            await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+                userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type')
+            })});
+            document.getElementById('transaction-modal').classList.add('hidden');
+            showToast('success', 'נשמר!'); fetchData();
+        }
+
+        function openTaskModal(isSelf = false) {
+            document.getElementById('task-modal').classList.remove('hidden');
+            document.getElementById('task-is-self').value = isSelf;
+            if(isSelf) {
+                document.getElementById('task-modal-title').innerText = 'משימה אישית';
+                document.getElementById('task-reward-group').classList.add('hidden');
+            } else {
+                document.getElementById('task-modal-title').innerText = 'משימה חדשה';
+                document.getElementById('task-reward-group').classList.remove('hidden');
+            }
+        }
+
+        async function submitTask() {
+            const isSelf = document.getElementById('task-is-self').value === 'true';
+            const assignee = isSelf ? currentUser.id : val('task-assignee');
+            const reward = isSelf ? 0 : val('task-reward');
+            await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ 
+                title: val('task-title'), reward: reward, assignedTo: assignee 
+            })});
+            if(isSelf) triggerConfetti();
+            document.getElementById('task-modal').classList.add('hidden'); fetchData();
+        }
+        
+        async function updateTask(id, s) { 
+            if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti();
+            await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); 
+        }
+        async function submitShopItem() { await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: val('shop-item'), userId: currentUser.id})}); document.getElementById('shop-modal').classList.add('hidden'); fetchData(); }
+        async function updateShop(id, s) { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status:s})}); fetchData(); }
+        async function checkout() { 
+            const total = prompt('סכום הקנייה הכולל:'); if(!total) return;
+            triggerShake(); 
+            await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({totalAmount:total, userId:currentUser.id, storeName:'סופר', items:[]})});
             fetchData();
         }
+        async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
+        async function handleLoan(id, s) { 
+            if(s==='active') triggerConfetti();
+            await fetch(`${API}/loans/handle`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({loanId:id, status:s})}); fetchData(); 
+        }
+        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); }
 
-        // --- GENERAL HELPERS ---
-        async function fetchMembers() { const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
-        async function fetchPendingUsers() { const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const list = await res.json(); document.getElementById('pending-count').innerText = list.length; document.getElementById('pending-count').classList.toggle('hidden', list.length===0); document.getElementById('admin-panel').classList.toggle('hidden', list.length===0); const c = document.getElementById('pending-list'); c.innerHTML=''; list.forEach(u => c.innerHTML+=`<div class="p-3 flex justify-between items-center"><span class="font-bold text-sm text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-green-600 transition">אשר</button></div>`); }
-        async function approveUser(id) { await fetch(`${API}/admin/approve-user`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); fetchPendingUsers(); fetchMembers(); fetchData(); }
-        function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-        async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-        async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-        function openGoalModal() { document.getElementById('goal-modal').classList.remove('hidden'); }
-        function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-        async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
-        async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-        function switchTab(t) { ['feed','tasks','shop','bank','academy','members','budget'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); if(t==='tasks') { const s = document.getElementById('task-assignee'); s.innerHTML=''; membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`); } }
-        async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
-        async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
-        async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-        async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBudgetModal('${b.category}', '${b.category}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${b.category} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
-        function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
-        async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
-        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-        async function fetchBundles() { const res = await fetch(`${API}/academy/bundles`); const bundles = await res.json(); const select = document.getElementById('assign-bundle-select'); select.innerHTML = '<option value="">בחר מבחן...</option>'; bundles.forEach(b => select.innerHTML += `<option value="${b.id}">[${b.type}] ${b.title} (גיל ${b.age_group})</option>`); }
-        function openAssignModal() { const select = document.getElementById('assign-child-select'); select.innerHTML = '<option value="">בחר ילד...</option>'; membersCache.filter(m => m.id !== currentUser.id).forEach(m => select.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); document.getElementById('assign-quiz-modal').classList.remove('hidden'); }
-        async function submitAssignQuiz() { const uid = val('assign-child-select'); const bid = val('assign-bundle-select'); if(!uid || !bid) return; await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, bundleId: bid }) }); document.getElementById('assign-quiz-modal').classList.add('hidden'); showToast('success', 'המשימה הוקצתה!'); }
-        async function requestChallenge() { await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id }) }); showToast('success', 'בקשה נשלחה!'); }
-        function toggleFab() { const container = document.getElementById('fab-container'); container.classList.toggle('fab-open'); }
+        
+        function toggleFab() {
+            const container = document.getElementById('fab-container');
+            const icon = document.getElementById('fab-icon');
+            container.classList.toggle('fab-open');
+        }
+
         function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
         function val(id) { return document.getElementById(id).value; }
-        function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
-        function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
-        function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
-        function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
+        
+        function showToast(t,m) { 
+            const el=document.getElementById('toast'); 
+            const icon = document.getElementById('toast-icon');
+            el.classList.remove('hidden'); 
+            document.getElementById('toast-message').innerText=m; 
+            if(t==='success') { icon.className='fa-solid fa-check text-green-400'; } else { icon.className='fa-solid fa-xmark text-red-400'; }
+            setTimeout(()=>el.classList.add('hidden'),3000); 
+        }
+        function toggleLoader(a,s) { 
+            const txt = document.getElementById(`btn-${a}-text`);
+            const ldr = document.getElementById(`btn-${a}-loader`);
+            if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); }
+        }
+
+        function triggerConfetti() {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }
+        function triggerShake() {
+            const app = document.getElementById('main-wrapper');
+            app.classList.add('shake-effect');
+            setTimeout(() => app.classList.remove('shake-effect'), 500);
+        }
     </script>
 </body>
 </html>
