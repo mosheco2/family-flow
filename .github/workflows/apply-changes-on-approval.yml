@@ -1,3 +1,4 @@
+# Apply approved changes: create/update files on a feature branch, open PR and enable auto-merge
 name: Apply approved changes (create branch + PR + auto-merge)
 on:
   issue_comment:
@@ -69,6 +70,7 @@ jobs:
             const prTitle = 'Add secure auth (bcrypt + JWT) and auth routes (auto)';
             const prBody = 'This PR was created automatically after approval. Adds auth services, middleware, routes and DB migration.';
 
+            // Files to create/update (use template literals). Keep indentation exact as shown.
             const files = {
               "services/authService.js": `const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -341,8 +343,15 @@ router.get('/group/members', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
-`
-            };
+`            };
+
+            // ensure branch exists
+            try {
+              await github.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
+            } catch (e) {
+              const mainRef = await github.rest.git.getRef({ owner, repo, ref: 'heads/main' });
+              await github.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: mainRef.data.object.sha });
+            }
 
             // create/update files on branch
             for (const [path, content] of Object.entries(files)) {
@@ -378,10 +387,10 @@ module.exports = router;
           token: ${{ secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ fromJson(steps.create_pr.outputs.result).pr_number }}
           merge-method: squash
-          # optional: adjust commit title/message or required labels
-          # commit-title: "chore: merge auth changes"
-          # commit-message: "Auto-merged by workflow"
       - name: Output PR URL
         run: |
           PR_URL="${{ fromJson(steps.create_pr.outputs.result).pr_url }}"
           echo "PR created: $PR_URL"
+``` 
+
+הקובץ מתוקן כך שהתוכן הארוך של הקבצים משוכפל בתוך בלוק literal של actions/github-script עם הזחות אחידות (אפשר להעתיק ולהדביק ישירות ל־.github/workflows/). אם תרצה, אני יכול גם להכין גרסה שמקבלת את רשימת המשתמשים המורשים כקלט של workflow_dispatch או להוציא את התוכן של הקבצים החוצה כקבצים בתיקיית templates כדי לפשט את ה‑workflow עוד יותר.
