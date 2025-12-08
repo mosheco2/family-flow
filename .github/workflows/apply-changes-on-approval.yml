@@ -60,288 +60,295 @@ jobs:
             return { branch: newBranch };
 
       - name: Create/Update files and open PR
-    uses: actions/github-script@v6
-    id: create_pr
-    with:
-      script: |
-        const owner = context.repo.owner;
-        const repo = context.repo.repo;
-        const branch = 'feature/auth-bcrypt-jwt';
-        const prTitle = 'Add secure auth (bcrypt + JWT) and auth routes (auto)';
-        const prBody = 'This PR was created automatically after approval. Adds auth services, middleware, routes and DB migration.';
+        uses: actions/github-script@v6
+        id: create_pr
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = 'feature/auth-bcrypt-jwt';
+            const prTitle = 'Add secure auth (bcrypt + JWT) and auth routes (auto)';
+            const prBody = 'This PR was created automatically after approval. Adds auth services, middleware, routes and DB migration.';
 
-        // Files to create/update (keep this whole block inside the literal)
-        const files = {
-         "services/authService.js": `
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+            // Files to create/update (build content as arrays then join to avoid template literal issues)
+            const files = {
+              "services/authService.js": [
+                "const bcrypt = require('bcryptjs');",
+                "const jwt = require('jsonwebtoken');",
+                "",
+                "const ACCESS_EX_DEFAULT = '15m';",
+                "const REFRESH_EX_DEFAULT = '7d';",
+                "",
+                "function parseEnvExpiry(envValue, fallback) {",
+                "  if (!envValue) return fallback;",
+                "  return envValue;",
+                "}",
+                "",
+                "async function hashPassword(plain) {",
+                "  const salt = await bcrypt.genSalt(10);",
+                "  return bcrypt.hash(plain, salt);",
+                "}",
+                "",
+                "async function comparePassword(plain, hash) {",
+                "  if (!hash) return false;",
+                "  return bcrypt.compare(plain, hash);",
+                "}",
+                "",
+                "function issueAccessToken(payload) {",
+                "  const secret = process.env.JWT_SECRET;",
+                "  const expiresIn = parseEnvExpiry(process.env.ACCESS_TOKEN_EXPIRES, ACCESS_EX_DEFAULT);",
+                "  return jwt.sign(payload, secret, { expiresIn });",
+                "}",
+                "",
+                "function issueRefreshToken(payload) {",
+                "  const secret = process.env.JWT_REFRESH_SECRET;",
+                "  const expiresIn = parseEnvExpiry(process.env.REFRESH_TOKEN_EXPIRES, REFRESH_EX_DEFAULT);",
+                "  return jwt.sign(payload, secret, { expiresIn });",
+                "}",
+                "",
+                "function verifyAccessToken(token) {",
+                "  try {",
+                "    return jwt.verify(token, process.env.JWT_SECRET);",
+                "  } catch (e) {",
+                "    return null;",
+                "  }",
+                "}",
+                "",
+                "function verifyRefreshToken(token) {",
+                "  try {",
+                "    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);",
+                "  } catch (e) {",
+                "    return null;",
+                "  }",
+                "}",
+                "",
+                "module.exports = {",
+                "  hashPassword,",
+                "  comparePassword,",
+                "  issueAccessToken,",
+                "  issueRefreshToken,",
+                "  verifyAccessToken,",
+                "  verifyRefreshToken,",
+                "};"
+              ].join("\n"),
 
-function parseEnvExpiry(envValue, fallback) {
-  if (!envValue) return fallback;
-  return envValue;
-}
+              "middleware/auth.js": [
+                "const { verifyAccessToken } = require('../services/authService');",
+                "",
+                "function authenticateToken(req, res, next) {",
+                "  const auth = req.headers['authorization'];",
+                "  if (!auth) return res.status(401).json({ error: 'Missing Authorization header' });",
+                "  const parts = auth.split(' ');",
+                "  if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ error: 'Invalid Authorization format' });",
+                "  const token = parts[1];",
+                "  const payload = verifyAccessToken(token);",
+                "  if (!payload) return res.status(401).json({ error: 'Invalid or expired token' });",
+                "  req.user = payload;",
+                "  next();",
+                "}",
+                "",
+                "function requireRole(role) {",
+                "  return (req, res, next) => {",
+                "    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });",
+                "    if (req.user.role !== role) return res.status(403).json({ error: 'Forbidden' });",
+                "    next();",
+                "  };",
+                "}",
+                "",
+                "function requireOwnerOrAdmin(req, res, next) {",
+                "  if (!req.user) return res.status(401).json({ error: 'Not authenticated' });",
+                "  const targetUserId = Number(req.params.id);",
+                "  if (req.user.role === 'ADMIN' || req.user.id === targetUserId) return next();",
+                "  return res.status(403).json({ error: 'Forbidden' });",
+                "}",
+                "",
+                "module.exports = {",
+                "  authenticateToken,",
+                "  requireRole,",
+                "  requireOwnerOrAdmin,",
+                "};"
+              ].join("\n"),
 
-async function hashPassword(plain) {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(plain, salt);
-}
+              "routes/auth.js": [
+                "const express = require('express');",
+                "const router = express.Router();",
+                "const { Client } = require('pg');",
+                "const rateLimit = require('express-rate-limit');",
+                "const { hashPassword, comparePassword, issueAccessToken, issueRefreshToken, verifyRefreshToken } = require('../services/authService');",
+                "",
+                "const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6, message: { error: 'Too many login attempts, try later' } });",
+                "",
+                "function createClient() {",
+                "  return new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });",
+                "}",
+                "",
+                "function parseExpiryToMs(ex) {",
+                "  if (!ex) return 7 * 24 * 3600 * 1000;",
+                "  if (typeof ex === 'string' && ex.endsWith('m')) return parseInt(ex.slice(0, -1), 10) * 60 * 1000;",
+                "  if (typeof ex === 'string' && ex.endsWith('d')) return parseInt(ex.slice(0, -1), 10) * 24 * 3600 * 1000;",
+                "  return 7 * 24 * 3600 * 1000;",
+                "}",
+                "",
+                "// POST /api/groups",
+                "router.post('/groups', async (req, res) => {",
+                "  const { groupName, adminEmail, adminNickname, password, type, birthYear } = req.body || {};",
+                "  if (!groupName || !adminEmail || !adminNickname || !password) return res.status(400).json({ error: 'Missing fields' });",
+                "  const client = createClient();",
+                "  await client.connect();",
+                "  try {",
+                "    await client.query('BEGIN');",
+                "    const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail.trim().toLowerCase()]);",
+                "    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Email exists' }); }",
+                "    const g = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id, name, admin_email', [groupName, adminEmail.trim().toLowerCase(), type || 'FAMILY']);",
+                "    const hashed = await hashPassword(password);",
+                "    const u = await client.query(`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING id, nickname, role, status, birth_year, balance`, [g.rows[0].id, adminNickname, hashed, birthYear || null]);",
+                "    const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];",
+                "    for (const c of cats) {",
+                "      await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, NULL, $2, 0) ON CONFLICT DO NOTHING`, [g.rows[0].id, c]);",
+                "    }",
+                "    await client.query('COMMIT');",
+                "    const payload = { id: u.rows[0].id, role: u.rows[0].role, group_id: g.rows[0].id };",
+                "    const accessToken = issueAccessToken(payload);",
+                "    const refreshToken = issueRefreshToken(payload);",
+                "    const maxAge = parseExpiryToMs(process.env.REFRESH_TOKEN_EXPIRES || '7d');",
+                "    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge });",
+                "    res.json({ success: true, user: u.rows[0], group: g.rows[0], accessToken });",
+                "  } catch (e) {",
+                "    await client.query('ROLLBACK');",
+                "    res.status(500).json({ error: e.message });",
+                "  } finally {",
+                "    client.end();",
+                "  }",
+                "});",
+                "",
+                "// POST /api/join",
+                "router.post('/join', async (req, res) => {",
+                "  const { groupEmail, nickname, password, birthYear } = req.body || {};",
+                "  if (!groupEmail || !nickname || !password) return res.status(400).json({ error: 'Missing fields' });",
+                "  const client = createClient(); await client.connect();",
+                "  try {",
+                "    const g = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);",
+                "    if (g.rows.length === 0) return res.status(404).json({ error: 'Group not found' });",
+                "    const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);",
+                "    if (check.rows.length > 0) return res.status(400).json({ error: 'Nickname taken' });",
+                "    const hashed = await hashPassword(password);",
+                "    await client.query(`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [g.rows[0].id, nickname, hashed, birthYear || null]);",
+                "    res.json({ success: true });",
+                "  } catch (e) { res.status(500).json({ error: e.message }); }",
+                "  finally { client.end(); }",
+                "});",
+                "",
+                "// POST /api/login",
+                "router.post('/login', loginLimiter, async (req, res) => {",
+                "  const { groupEmail, nickname, password } = req.body || {};",
+                "  if (!groupEmail || !nickname || !password) return res.status(400).json({ error: 'Missing credentials' });",
+                "  const client = createClient(); await client.connect();",
+                "  try {",
+                "    const g = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);",
+                "    if (g.rows.length === 0) return res.status(401).json({ error: 'Group not found' });",
+                "    const ures = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);",
+                "    if (ures.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });",
+                "    const user = ures.rows[0];",
+                "    let valid = false;",
+                "    if (user.password_hash) {",
+                "      valid = await comparePassword(password, user.password_hash);",
+                "    } else if (user.password) {",
+                "      valid = (password === user.password);",
+                "      if (valid) {",
+                "        const h = await hashPassword(password);",
+                "        await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [h, user.id]);",
+                "      }",
+                "    }",
+                "    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });",
+                "    if (user.status !== 'ACTIVE') return res.status(403).json({ error: 'Account pending' });",
+                "    await client.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);",
+                "    const payload = { id: user.id, role: user.role, group_id: user.group_id };",
+                "    const accessToken = issueAccessToken(payload);",
+                "    const refreshToken = issueRefreshToken(payload);",
+                "    const maxAge = parseExpiryToMs(process.env.REFRESH_TOKEN_EXPIRES || '7d');",
+                "    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge });",
+                "    res.json({ success: true, user: { id: user.id, nickname: user.nickname, role: user.role, status: user.status, balance: user.balance }, group: g.rows[0], accessToken });",
+                "  } catch (e) { res.status(500).json({ error: e.message }); }",
+                "  finally { client.end(); }",
+                "});",
+                "",
+                "// POST /api/auth/refresh",
+                "router.post('/auth/refresh', async (req, res) => {",
+                "  const token = req.cookies && req.cookies.refreshToken;",
+                "  if (!token) return res.status(401).json({ error: 'No refresh token' });",
+                "  const payload = verifyRefreshToken(token);",
+                "  if (!payload) return res.status(401).json({ error: 'Invalid refresh token' });",
+                "  const accessToken = issueAccessToken({ id: payload.id, role: payload.role, group_id: payload.group_id });",
+                "  res.json({ accessToken });",
+                "});",
+                "",
+                "// POST /api/auth/logout",
+                "router.post('/auth/logout', async (req, res) => {",
+                "  res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });",
+                "  res.json({ success: true });",
+                "});",
+                "",
+                "module.exports = router;"
+              ].join("\n"),
 
-async function comparePassword(plain, hash) {
-  if (!hash) return false;
-  return bcrypt.compare(plain, hash);
-}
-
-function issueAccessToken(payload) {
-  const secret = process.env.JWT_SECRET;
-  const expiresIn = parseEnvExpiry(process.env.ACCESS_TOKEN_EXPIRES, ACCESS_EX_DEFAULT);
-  return jwt.sign(payload, secret, { expiresIn });
-}
-
-function issueRefreshToken(payload) {
-  const secret = process.env.JWT_REFRESH_SECRET;
-  const expiresIn = parseEnvExpiry(process.env.REFRESH_TOKEN_EXPIRES, REFRESH_EX_DEFAULT);
-  return jwt.sign(payload, secret, { expiresIn });
-}
-
-function verifyAccessToken(token) {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (e) {
-    return null;
-  }
-}
-
-function verifyRefreshToken(token) {
-  try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-  } catch (e) {
-    return null;
-  }
-}
-
-module.exports = {
-  hashPassword,
-  comparePassword,
-  issueAccessToken,
-  issueRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-};
-`,
-
-              "middleware/auth.js": `const { verifyAccessToken } = require('../services/authService');
-
-function authenticateToken(req, res, next) {
-  const auth = req.headers['authorization'];
-  if (!auth) return res.status(401).json({ error: 'Missing Authorization header' });
-  const parts = auth.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ error: 'Invalid Authorization format' });
-  const token = parts[1];
-  const payload = verifyAccessToken(token);
-  if (!payload) return res.status(401).json({ error: 'Invalid or expired token' });
-  req.user = payload;
-  next();
-}
-
-function requireRole(role) {
-  return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-    if (req.user.role !== role) return res.status(403).json({ error: 'Forbidden' });
-    next();
-  };
-}
-
-function requireOwnerOrAdmin(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-  const targetUserId = Number(req.params.id);
-  if (req.user.role === 'ADMIN' || req.user.id === targetUserId) return next();
-  return res.status(403).json({ error: 'Forbidden' });
-}
-
-module.exports = {
-  authenticateToken,
-  requireRole,
-  requireOwnerOrAdmin,
-};
-`,
-
-              "routes/auth.js": `const express = require('express');
-const router = express.Router();
-const { Client } = require('pg');
-const rateLimit = require('express-rate-limit');
-const { hashPassword, comparePassword, issueAccessToken, issueRefreshToken, verifyRefreshToken } = require('../services/authService');
-
-const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6, message: { error: 'Too many login attempts, try later' } });
-
-function createClient() {
-  return new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-}
-
-function parseExpiryToMs(ex) {
-  if (!ex) return 7 * 24 * 3600 * 1000;
-  if (typeof ex === 'string' && ex.endsWith('m')) return parseInt(ex.slice(0, -1), 10) * 60 * 1000;
-  if (typeof ex === 'string' && ex.endsWith('d')) return parseInt(ex.slice(0, -1), 10) * 24 * 3600 * 1000;
-  return 7 * 24 * 3600 * 1000;
-}
-
-// POST /api/groups
-router.post('/groups', async (req, res) => {
-  const { groupName, adminEmail, adminNickname, password, type, birthYear } = req.body || {};
-  if (!groupName || !adminEmail || !adminNickname || !password) return res.status(400).json({ error: 'Missing fields' });
-  const client = createClient();
-  await client.connect();
-  try {
-    await client.query('BEGIN');
-    const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail.trim().toLowerCase()]);
-    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Email exists' }); }
-    const g = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id, name, admin_email', [groupName, adminEmail.trim().toLowerCase(), type || 'FAMILY']);
-    const hashed = await hashPassword(password);
-    const u = await client.query(\`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING id, nickname, role, status, birth_year, balance\`, [g.rows[0].id, adminNickname, hashed, birthYear || null]);
-    const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
-    for (const c of cats) {
-      await client.query(\`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, NULL, $2, 0) ON CONFLICT DO NOTHING\`, [g.rows[0].id, c]);
-    }
-    await client.query('COMMIT');
-    const payload = { id: u.rows[0].id, role: u.rows[0].role, group_id: g.rows[0].id };
-    const accessToken = issueAccessToken(payload);
-    const refreshToken = issueRefreshToken(payload);
-    const maxAge = parseExpiryToMs(process.env.REFRESH_TOKEN_EXPIRES || '7d');
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge });
-    res.json({ success: true, user: u.rows[0], group: g.rows[0], accessToken });
-  } catch (e) {
-    await client.query('ROLLBACK');
-    res.status(500).json({ error: e.message });
-  } finally {
-    client.end();
-  }
-});
-
-// POST /api/join
-router.post('/join', async (req, res) => {
-  const { groupEmail, nickname, password, birthYear } = req.body || {};
-  if (!groupEmail || !nickname || !password) return res.status(400).json({ error: 'Missing fields' });
-  const client = createClient(); await client.connect();
-  try {
-    const g = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);
-    if (g.rows.length === 0) return res.status(404).json({ error: 'Group not found' });
-    const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);
-    if (check.rows.length > 0) return res.status(400).json({ error: 'Nickname taken' });
-    const hashed = await hashPassword(password);
-    await client.query(\`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)\`, [g.rows[0].id, nickname, hashed, birthYear || null]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// POST /api/login
-router.post('/login', loginLimiter, async (req, res) => {
-  const { groupEmail, nickname, password } = req.body || {};
-  if (!groupEmail || !nickname || !password) return res.status(400).json({ error: 'Missing credentials' });
-  const client = createClient(); await client.connect();
-  try {
-    const g = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);
-    if (g.rows.length === 0) return res.status(401).json({ error: 'Group not found' });
-    const ures = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);
-    if (ures.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
-    const user = ures.rows[0];
-    let valid = false;
-    if (user.password_hash) {
-      valid = await comparePassword(password, user.password_hash);
-    } else if (user.password) {
-      valid = (password === user.password);
-      if (valid) {
-        const h = await hashPassword(password);
-        await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [h, user.id]);
-      }
-    }
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-    if (user.status !== 'ACTIVE') return res.status(403).json({ error: 'Account pending' });
-    await client.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
-    const payload = { id: user.id, role: user.role, group_id: user.group_id };
-    const accessToken = issueAccessToken(payload);
-    const refreshToken = issueRefreshToken(payload);
-    const maxAge = parseExpiryToMs(process.env.REFRESH_TOKEN_EXPIRES || '7d');
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge });
-    res.json({ success: true, user: { id: user.id, nickname: user.nickname, role: user.role, status: user.status, balance: user.balance }, group: g.rows[0], accessToken });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// POST /api/auth/refresh
-router.post('/auth/refresh', async (req, res) => {
-  const token = req.cookies && req.cookies.refreshToken;
-  if (!token) return res.status(401).json({ error: 'No refresh token' });
-  const payload = verifyRefreshToken(token);
-  if (!payload) return res.status(401).json({ error: 'Invalid refresh token' });
-  const accessToken = issueAccessToken({ id: payload.id, role: payload.role, group_id: payload.group_id });
-  res.json({ accessToken });
-});
-
-// POST /api/auth/logout
-router.post('/auth/logout', async (req, res) => {
-  res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
-  res.json({ success: true });
-});
-
-module.exports = router;
-`,
-
-              "routes/users.js": `const express = require('express');
-const router = express.Router();
-const { Client } = require('pg');
-const { authenticateToken, requireOwnerOrAdmin } = require('../middleware/auth');
-const { hashPassword } = require('../services/authService');
-
-function createClient() { return new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }); }
-
-// GET /api/users/:id
-router.get('/users/:id', authenticateToken, async (req, res) => {
-  const id = Number(req.params.id);
-  const client = createClient(); await client.connect();
-  try {
-    const ures = await client.query('SELECT id, nickname, role, status, birth_year, balance, group_id FROM users WHERE id=$1', [id]);
-    if (ures.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    const user = ures.rows[0];
-    if (req.user.role !== 'ADMIN' && req.user.id !== user.id) return res.status(403).json({ error: 'Forbidden' });
-    res.json(user);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// PUT /api/users/:id  (update profile)
-router.put('/users/:id', authenticateToken, requireOwnerOrAdmin, async (req, res) => {
-  const id = Number(req.params.id);
-  const { nickname, birth_year, password } = req.body || {};
-  if (!nickname && !birth_year && !password) return res.status(400).json({ error: 'Nothing to update' });
-  const client = createClient(); await client.connect();
-  try {
-    if (nickname) await client.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, id]);
-    if (birth_year !== undefined) await client.query('UPDATE users SET birth_year=$1 WHERE id=$2', [birth_year, id]);
-    if (password) {
-      const hashed = await hashPassword(password);
-      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hashed, id]);
-    }
-    const ures = await client.query('SELECT id, nickname, role, status, birth_year, balance FROM users WHERE id=$1', [id]);
-    res.json({ success: true, user: ures.rows[0] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// GET /api/group/members?groupId=123
-router.get('/group/members', authenticateToken, async (req, res) => {
-  const groupId = Number(req.query.groupId);
-  if (!groupId) return res.status(400).json({ error: 'Missing groupId' });
-  const client = createClient(); await client.connect();
-  try {
-    if (req.user.role !== 'ADMIN' && req.user.group_id !== groupId) return res.status(403).json({ error: 'Forbidden' });
-    const r = await client.query("SELECT id, nickname, role, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status='ACTIVE'", [groupId]);
-    res.json(r.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-module.exports = router;
-`            };
+              "routes/users.js": [
+                "const express = require('express');",
+                "const router = express.Router();",
+                "const { Client } = require('pg');",
+                "const { authenticateToken, requireOwnerOrAdmin } = require('../middleware/auth');",
+                "const { hashPassword } = require('../services/authService');",
+                "",
+                "function createClient() { return new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }); }",
+                "",
+                "// GET /api/users/:id",
+                "router.get('/users/:id', authenticateToken, async (req, res) => {",
+                "  const id = Number(req.params.id);",
+                "  const client = createClient(); await client.connect();",
+                "  try {",
+                "    const ures = await client.query('SELECT id, nickname, role, status, birth_year, balance, group_id FROM users WHERE id=$1', [id]);",
+                "    if (ures.rows.length === 0) return res.status(404).json({ error: 'User not found' });",
+                "    const user = ures.rows[0];",
+                "    if (req.user.role !== 'ADMIN' && req.user.id !== user.id) return res.status(403).json({ error: 'Forbidden' });",
+                "    res.json(user);",
+                "  } catch (e) { res.status(500).json({ error: e.message }); }",
+                "  finally { client.end(); }",
+                "});",
+                "",
+                "// PUT /api/users/:id  (update profile)",
+                "router.put('/users/:id', authenticateToken, requireOwnerOrAdmin, async (req, res) => {",
+                "  const id = Number(req.params.id);",
+                "  const { nickname, birth_year, password } = req.body || {};",
+                "  if (!nickname && !birth_year && !password) return res.status(400).json({ error: 'Nothing to update' });",
+                "  const client = createClient(); await client.connect();",
+                "  try {",
+                "    if (nickname) await client.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, id]);",
+                "    if (birth_year !== undefined) await client.query('UPDATE users SET birth_year=$1 WHERE id=$2', [birth_year, id]);",
+                "    if (password) {",
+                "      const hashed = await hashPassword(password);",
+                "      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hashed, id]);",
+                "    }",
+                "    const ures = await client.query('SELECT id, nickname, role, status, birth_year, balance FROM users WHERE id=$1', [id]);",
+                "    res.json({ success: true, user: ures.rows[0] });",
+                "  } catch (e) { res.status(500).json({ error: e.message }); }",
+                "  finally { client.end(); }",
+                "});",
+                "",
+                "// GET /api/group/members?groupId=123",
+                "router.get('/group/members', authenticateToken, async (req, res) => {",
+                "  const groupId = Number(req.query.groupId);",
+                "  if (!groupId) return res.status(400).json({ error: 'Missing groupId' });",
+                "  const client = createClient(); await client.connect();",
+                "  try {",
+                "    if (req.user.role !== 'ADMIN' && req.user.group_id !== groupId) return res.status(403).json({ error: 'Forbidden' });",
+                "    const r = await client.query(\"SELECT id, nickname, role, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status='ACTIVE'\", [groupId]);",
+                "    res.json(r.rows);",
+                "  } catch (e) { res.status(500).json({ error: e.message }); }",
+                "  finally { client.end(); }",
+                "});",
+                "",
+                "module.exports = router;"
+              ].join("\n")
+            };
 
             // ensure branch exists
             try {
@@ -389,6 +396,3 @@ module.exports = router;
         run: |
           PR_URL="${{ fromJson(steps.create_pr.outputs.result).pr_url }}"
           echo "PR created: $PR_URL"
-``` 
-
-הקובץ מתוקן כך שהתוכן הארוך של הקבצים משוכפל בתוך בלוק literal של actions/github-script עם הזחות אחידות (אפשר להעתיק ולהדביק ישירות ל־.github/workflows/). אם תרצה, אני יכול גם להכין גרסה שמקבלת את רשימת המשתמשים המורשים כקלט של workflow_dispatch או להוציא את התוכן של הקבצים החוצה כקבצים בתיקיית templates כדי לפשט את ה‑workflow עוד יותר.
