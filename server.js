@@ -116,7 +116,8 @@ app.post('/api/join', async (req, res) => {
     if (g.rows.length === 0) return res.status(404).json({ error: 'Group not found' });
     const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);
     if (check.rows.length > 0) return res.status(400).json({ error: 'Nickname taken' });
-    const u = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [g.rows[0].id, nickname, password, parseInt(birthYear)||0]);
+    const u = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0) RETURNING id`, [g.rows[0].id, nickname, password, parseInt(birthYear)]);
+    // initBudgets is NOT called here on purpose - it's called upon approval
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -136,13 +137,15 @@ app.post('/api/login', async (req, res) => {
 // --- CORE ---
 app.get('/api/users/:id', async (req, res) => { const r = await client.query('SELECT * FROM users WHERE id=$1', [req.params.id]); res.json(r.rows[0]); });
 app.get('/api/group/members', async (req, res) => { const r = await client.query("SELECT id, nickname, role, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status='ACTIVE'", [req.query.groupId]); res.json(r.rows); });
-app.get('/api/admin/pending-users', async (req, res) => { const r = await client.query("SELECT id, nickname FROM users WHERE group_id=$1 AND status='PENDING'", [req.query.groupId]); res.json(r.rows); });
+app.get('/api/admin/pending-users', async (req, res) => { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id=$1 AND status='PENDING'", [req.query.groupId]); res.json(r.rows); });
 
 // **FIXED: Approve User + Init Budgets**
 app.post('/api/admin/approve-user', async (req, res) => { 
     try {
+        // 1. Update status
         await client.query("UPDATE users SET status='ACTIVE' WHERE id=$1", [req.body.userId]); 
-        // Get user group ID to init budget
+        
+        // 2. Initialize budget for the new user immediately
         const u = await client.query("SELECT group_id FROM users WHERE id=$1", [req.body.userId]);
         if(u.rows.length > 0) {
             await initBudgets(u.rows[0].group_id, req.body.userId);
@@ -266,12 +269,13 @@ app.get('/api/data/:userId', async (req, res) => {
         if (user.role !== 'ADMIN') tasksSql += ` AND t.assigned_to = ${user.id}`;
         tasksSql += ` ORDER BY t.created_at DESC`;
 
-        const [tasks, shop, loans, goals, trans] = await Promise.all([
+        const [tasks, shop, loans, goals, trans, bundles] = await Promise.all([
             client.query(tasksSql, [gid]),
             client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id = $1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]),
             client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
             client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
-            client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id])
+            client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]),
+            client.query('SELECT * FROM quiz_bundles LIMIT 100')
         ]);
 
         res.json({
@@ -280,7 +284,8 @@ app.get('/api/data/:userId', async (req, res) => {
             shopping_list: shop.rows,
             loans: loans.rows,
             goals: goals.rows,
-            weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
+            weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) },
+            quiz_bundles: bundles.rows // Sending quizzes for later use
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -353,5 +358,8 @@ app.post('/api/budget/update', async (req, res) => {
     res.json({ success: true });
 });
 
+app.post('/api/academy/request-challenge', async (req, res) => { res.json({ success: true }); });
+
+// Default Route
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.listen(port, () => console.log(`Server running on port ${port}`));
