@@ -49,7 +49,6 @@ if (DATABASE_URL) {
   pool = new Pool({
     connectionString: DATABASE_URL,
     ssl: enableSsl ? { rejectUnauthorized: false } : false,
-    // optionally set idleTimeoutMillis/connectionTimeoutMillis here
   });
   useDb = true;
   console.log('Using Postgres DB (DATABASE_URL detected). SSL:', enableSsl);
@@ -77,7 +76,7 @@ async function ensureSchemaAndSeed() {
     return;
   }
 
-  // Create tables if not exists
+  // Create tables if not exists and seed
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -151,7 +150,7 @@ async function ensureSchemaAndSeed() {
         id SERIAL PRIMARY KEY,
         bundle_id INT REFERENCES bundles(id) ON DELETE CASCADE,
         q TEXT,
-        options TEXT[],   -- Postgres array of options
+        options TEXT[],
         correct INT
       );
     `);
@@ -194,7 +193,7 @@ async function ensureSchemaAndSeed() {
     const { rows: prodCountRows } = await client.query(`SELECT count(*)::int AS c FROM products`);
     const prodCount = parseInt(prodCountRows[0].c, 10);
     if (prodCount < 900) {
-      // base categories and items (same as demo)
+      // base categories and items
       const PRODUCT_CATS = {
         "ירקות ופירות 🍎": ["עגבניה","מלפפון","גזר","בצל","תפוח","בננה","מנדרינה","תפוז","חסה"],
         "מעדניות": ["גבינה צהובה","גבינת מוצרלה","יוגורט","חמאה"],
@@ -204,7 +203,6 @@ async function ensureSchemaAndSeed() {
         "חטיפים": ["עוגיות","שוקולד","חטיפי אנרגיה"],
         "מאפים": ["לחם","בייגל","קרואסון"]
       };
-      // insert programmatically until we have ~920 items
       const base = [];
       Object.entries(PRODUCT_CATS).forEach(([cat, items]) => {
         items.forEach(it => base.push({ name: it, category: cat }));
@@ -477,7 +475,7 @@ app.get('/api/products/search', async (req, res) => {
   try {
     if (!q) return res.json([]);
     if (!useDb) {
-      // fallback search in generated list (we didn't generate full list here for fallback)
+      // fallback search in generated list (not implemented fully for fallback)
       return res.json([]);
     }
     const r = await dbQuery(`SELECT name, category FROM products WHERE LOWER(name) LIKE $1 LIMIT 30`, [`%${q}%`]);
