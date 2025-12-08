@@ -98,7 +98,7 @@ function authenticateToken(req, res, next) {
   const token = parts[1];
   const payload = verifyAccessToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired token' });
-  req.user = payload; // expected to contain { id, role, group_id } from issuance
+  req.user = payload;
   next();
 }
 
@@ -141,8 +141,8 @@ function createClient() {
 
 function parseExpiryToMs(ex) {
   if (!ex) return 7 * 24 * 3600 * 1000;
-  if (ex.endsWith('m')) return parseInt(ex.slice(0, -1), 10) * 60 * 1000;
-  if (ex.endsWith('d')) return parseInt(ex.slice(0, -1), 10) * 24 * 3600 * 1000;
+  if (typeof ex === 'string' && ex.endsWith('m')) return parseInt(ex.slice(0, -1), 10) * 60 * 1000;
+  if (typeof ex === 'string' && ex.endsWith('d')) return parseInt(ex.slice(0, -1), 10) * 24 * 3600 * 1000;
   return 7 * 24 * 3600 * 1000;
 }
 
@@ -158,10 +158,10 @@ router.post('/groups', async (req, res) => {
     if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Email exists' }); }
     const g = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id, name, admin_email', [groupName, adminEmail.trim().toLowerCase(), type || 'FAMILY']);
     const hashed = await hashPassword(password);
-    const u = await client.query(\`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING id, nickname, role, status, birth_year, balance\`, [g.rows[0].id, adminNickname, hashed, birthYear || null]);
+    const u = await client.query(`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING id, nickname, role, status, birth_year, balance`, [g.rows[0].id, adminNickname, hashed, birthYear || null]);
     const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
     for (const c of cats) {
-      await client.query(\`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, NULL, $2, 0) ON CONFLICT DO NOTHING\`, [g.rows[0].id, c]);
+      await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, NULL, $2, 0) ON CONFLICT DO NOTHING`, [g.rows[0].id, c]);
     }
     await client.query('COMMIT');
     const payload = { id: u.rows[0].id, role: u.rows[0].role, group_id: g.rows[0].id };
@@ -189,7 +189,7 @@ router.post('/join', async (req, res) => {
     const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname]);
     if (check.rows.length > 0) return res.status(400).json({ error: 'Nickname taken' });
     const hashed = await hashPassword(password);
-    await client.query(\`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)\`, [g.rows[0].id, nickname, hashed, birthYear || null]);
+    await client.query(`INSERT INTO users (group_id, nickname, password_hash, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [g.rows[0].id, nickname, hashed, birthYear || null]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
   finally { client.end(); }
@@ -308,198 +308,6 @@ router.get('/group/members', authenticateToken, async (req, res) => {
 module.exports = router;
 EOF
 
-      - name: Add routes/admin.js
-        run: |
-          cat > routes/admin.js <<'EOF'
-const express = require('express');
-const router = express.Router();
-const { Client } = require('pg');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+I see you've pasted the workflow YAML. The run steps include long heredoc blocks that must be indented correctly in YAML. The issue appears to be that the heredoc content lines are not indented relative to the run: | block, so the YAML parser treats them as out-of-block and reports syntax errors around the first JS line (const bcrypt...). To fix, ensure the content following run: | is indented by at least two spaces (or consistent indentation) so YAML treats it as the scalar content.
 
-function createClient() { return new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }); }
-
-const BUDGET_CATEGORIES = ['food','groceries','transport','bills','fun','clothes','health','education','other'];
-
-// GET /api/admin/pending-users?groupId=123
-router.get('/admin/pending-users', authenticateToken, requireRole('ADMIN'), async (req, res) => {
-  const groupId = Number(req.query.groupId);
-  if (!groupId) return res.status(400).json({ error: 'Missing groupId' });
-  const client = createClient(); await client.connect();
-  try {
-    const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id=$1 AND status='PENDING'", [groupId]);
-    res.json(r.rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// POST /api/admin/approve-user
-router.post('/admin/approve-user', authenticateToken, requireRole('ADMIN'), async (req, res) => {
-  const { userId } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'Missing userId' });
-  const client = createClient(); await client.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query("UPDATE users SET status='ACTIVE' WHERE id=$1", [userId]);
-    const u = await client.query("SELECT group_id FROM users WHERE id=$1", [userId]);
-    if (u.rows.length > 0) {
-      const gid = u.rows[0].group_id;
-      for (const c of BUDGET_CATEGORIES) {
-        const check = await client.query(\`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND (user_id=$3 OR ($3::int IS NULL AND user_id IS NULL))\`, [gid, c, userId]);
-        if (check.rows.length === 0) {
-          await client.query(\`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)\`, [gid, userId, c]);
-        }
-      }
-    }
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-// POST /api/admin/spy/:targetUserId  (view-only)
-router.post('/admin/spy/:targetUserId', authenticateToken, requireRole('ADMIN'), async (req, res) => {
-  const targetId = Number(req.params.targetUserId);
-  const client = createClient(); await client.connect();
-  try {
-    const userQ = await client.query('SELECT id, nickname, role, status, balance FROM users WHERE id=$1', [targetId]);
-    if (userQ.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    const tasks = (await client.query('SELECT id, title, status, reward FROM tasks WHERE assigned_to=$1 ORDER BY created_at DESC LIMIT 50', [targetId])).rows;
-    const shop = (await client.query('SELECT id, item_name, quantity, status FROM shopping_list WHERE requested_by=$1 ORDER BY id DESC LIMIT 50', [targetId])).rows;
-    const goals = (await client.query('SELECT id, title, current_amount, target_amount FROM goals WHERE user_id=$1', [targetId])).rows;
-    try {
-      await client.query('INSERT INTO audit_logs ("actor_id", "target_id", "action", "created_at") VALUES ($1, $2, $3, NOW())', [req.user.id, targetId, 'spy_view']);
-    } catch (e) {
-      console.warn('audit log failed:', e.message);
-    }
-    res.json({ user: userQ.rows[0], tasks, shopping: shop, goals });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-  finally { client.end(); }
-});
-
-module.exports = router;
-EOF
-
-      - name: Add migration SQL
-        run: |
-          cat > migrations/001_add_password_hash_and_timestamps.sql <<'EOF'
--- Adds password_hash and timestamp columns to users and audit_logs table for spy auditing.
-BEGIN;
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS password_hash TEXT,
-  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id SERIAL PRIMARY KEY,
-  actor_id INTEGER,
-  target_id INTEGER,
-  action VARCHAR(150),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- indexes
-CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id);
-CREATE INDEX IF NOT EXISTS idx_users_nickname_lower ON users ((LOWER(nickname)));
-
-COMMIT;
-EOF
-
-      - name: Add .env.example and protected.json and README snippet
-        run: |
-          cat > .env.example <<'EOF'
-# Database
-DATABASE_URL=postgres://user:pass@localhost:5432/family_flow
-
-# JWT
-JWT_SECRET=your_access_token_secret_here
-JWT_REFRESH_SECRET=your_refresh_token_secret_here
-ACCESS_TOKEN_EXPIRES=15m
-REFRESH_TOKEN_EXPIRES=7d
-
-# App
-PORT=3000
-NODE_ENV=development
-EOF
-
-          cat > protected.json <<'EOF'
-{
-  "protected": [
-    "public/index.html",
-    "public/",
-    "server.js",
-    "routes/shopping.js",
-    "services/shoppingService.js",
-    "db/migrations/*shopping*.sql"
-  ],
-  "note": "Shopping related files are marked protected. Do not change them as per agreement."
-}
-EOF
-
-          cat > README-auth-snippet.md <<'EOF'
-# Local test checklist (after adding auth changes)
-
-1. Add environment variables (use .env file matching .env.example)
-
-2. Install new dependencies:
-   npm install bcryptjs jsonwebtoken express-rate-limit cookie-parser dotenv
-
-3. Run migration:
-   psql "$DATABASE_URL" -f migrations/001_add_password_hash_and_timestamps.sql
-
-   NOTE: If you have existing plaintext passwords in users.password, plan manual migration:
-   - Option A: Ask users to reset passwords (recommended).
-   - Option B: Manually set a temporary password for accounts and hash it into password_hash.
-
-4. Start server:
-   npm install
-   npm start
-
-5. Manual test flow:
-   - POST /api/groups
-     body: { groupName, adminEmail, adminNickname, password }
-     Expect: success + user and group + accessToken in response and refresh cookie set.
-   - POST /api/join
-     body: { groupEmail, nickname, password }
-     Expect: success (user created PENDING).
-   - GET /api/admin/pending-users?groupId=<id> (ADMIN accessToken)
-     Expect: list with joined user.
-   - POST /api/admin/approve-user body: { userId } (ADMIN)
-     Expect: user.status changed to ACTIVE.
-   - POST /api/login body: { groupEmail, nickname, password }
-     Expect: accessToken in body and Set-Cookie refresh token.
-   - POST /api/auth/refresh (send refresh cookie)
-     Expect: { accessToken }
-   - POST /api/auth/logout
-     Expect: success and refresh cookie cleared.
-   - GET /api/users/:id (with Authorization: Bearer <accessToken>)
-     Expect: user info (owner or ADMIN).
-   - POST /api/admin/spy/:id (ADMIN only)
-     Expect: read-only data (no session changes) and audit log entry in audit_logs table.
-
-If anything fails, check the server logs for errors and ensure env vars set correctly.
-EOF
-
-      - name: Configure git
-        run: |
-          git config user.name "auto-pr-bot"
-          git config user.email "action@localhost"
-
-      - name: Create branch and commit files
-        run: |
-          BRANCH=feature/auth-bcrypt-jwt
-          git checkout -b $BRANCH
-          git add services middleware routes migrations protected.json .env.example README-auth-snippet.md
-          git commit -m "chore: add auth bcrypt + JWT routes and middleware (auto PR)" || echo "No changes to commit"
-          git push --set-upstream origin $BRANCH
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: add auth bcrypt + JWT routes and middleware (auto PR)"
-          title: "Add secure auth (bcrypt + JWT) and auth routes"
-          body: |
-            This PR adds secure authentication (bcrypt + JWT), auth routes, middleware and DB migration.
-            Protected shopping module files: protected.json
+I should output a concise guidance and a corrected full YAML. Provide fixed file for copy.
