@@ -10,19 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 80px; }
-        
-        /* FIX: 'transform: none' at 100% allows fixed children to work properly */
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: none; } 
-        }
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
         .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Slider & Scroll */
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
@@ -30,43 +23,34 @@
         .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
         .scroll-btn.left { left: 0; }
         .scroll-btn.right { right: 0; }
-        
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        
-        /* Inputs & UI */
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         
-        /* Shop Styles */
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
         .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
         .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
         .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        
-        /* Autocomplete & Wisdom */
         .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
         .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
         .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
         .wisdom-alert { animation: slideDown 0.3s ease-out; }
 
-        /* Quiz & Bank */
         .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
         .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
         .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
         .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
-        
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -104,7 +88,7 @@
                     <input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input">
                     <div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
+                    <button type="submit" id="btn-create-submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
             </div>
@@ -151,26 +135,21 @@
                 </div>
 
                 <div id="content-shop" class="hidden">
-                    <div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3><div class="flex gap-2"><button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div></div>
-                    
-                    <div class="flex justify-between items-center mb-2 px-2">
-                        <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
+                        <div class="flex gap-2">
+                             <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
+                            <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
+                        </div>
                     </div>
-
+                    <div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div>
+                    
                     <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
                         <h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4>
                         <div id="shop-requests-list" class="space-y-2"></div>
                     </div>
 
                     <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
-                    
-                    <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden">
-                        <div>
-                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p>
-                            <span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span>
-                        </div>
-                        <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
-                    </div>
                 </div>
 
                 <div id="content-bank" class="hidden">
@@ -201,9 +180,18 @@
             </div>
         </div>
         
+        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden">
+            <div>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p>
+                <span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span>
+            </div>
+            <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
+        </div>
+
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
         
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-32 overflow-y-auto text-right hidden"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
+
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ (משוער)</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
@@ -239,7 +227,27 @@
         function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
         function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+        
+        // FIXED: Create Group Handler
+        async function handleCreate(e) { 
+            e.preventDefault(); 
+            const btn = document.getElementById('btn-create-submit');
+            btn.disabled = true;
+            btn.innerText = 'מקים מערכת...';
+
+            authAction('groups', { 
+                type: val('create-type'), 
+                groupName: val('create-group-name'), 
+                adminEmail: val('create-email'), 
+                adminNickname: val('create-nickname'), 
+                birthYear: val('create-year'), 
+                password: val('create-password') 
+            }).finally(() => {
+                btn.disabled = false;
+                btn.innerText = 'סיום והרשמה';
+            }); 
+        }
+
         async function handleJoin(e) { e.preventDefault(); const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); d.success ? (showToast('success', 'נשלח!'), switchView('login')) : showToast('error', d.error); }
         async function authAction(endpoint, body) { toggleLoader('login', true); try { const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const data = await res.json(); if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); loadDashboard(); } else showToast('error', data.error); } catch(e) { showToast('error', 'שגיאה'); } finally { toggleLoader('login', false); } }
         function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
@@ -258,15 +266,15 @@
             document.getElementById(`content-${t}`).classList.remove('hidden'); 
             document.getElementById(`tab-${t}`).classList.add('tab-active'); 
             
-            // Handle FAB visibility
+            // Handle FAB & Footer
             const fab = document.getElementById('fab-container');
             const footer = document.getElementById('cart-footer');
 
             if (t === 'shop') {
-                if (fab) fab.classList.add('hidden'); // HIDE FAB IN SHOP
+                if (fab) fab.classList.add('hidden'); // Hide FAB in Shop
                 renderShopList(); // Will show footer if needed
             } else {
-                if (fab) fab.classList.remove('hidden'); // SHOW FAB ELSEWHERE
+                if (fab) fab.classList.remove('hidden'); // Show FAB elsewhere
                 if (footer) footer.classList.add('hidden');
             }
 
@@ -533,7 +541,7 @@
         async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
         function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
         
-        // FIXED CALC AND UI
+        // FIXED SHOP REQUESTS RENDERING (NO DUPLICATES) + FIXED CALCULATIONS
         function renderShopList() {
             if (document.activeElement.classList.contains('price-input')) return;
             
@@ -653,10 +661,13 @@
                 const cachedItem = shoppingListCache.find(i => i.id == id); 
                 if(cachedItem) cachedItem.estimated_price = value; 
             } 
+            // Re-fetch to update lists (e.g. move from requested to active)
             if(type === 'approve_request') fetchData();
             else calcRunningTotal(); 
         }
 
+        function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
+        
         // FIXED CALC TOTAL LOGIC
         function calcRunningTotal() { 
             let total = 0; 
