@@ -52,8 +52,8 @@ const generateMathQuestions = (ageGroup) => {
             if (op === '-' && n2 > n1) [n1, n2] = [n2, n1]; 
             q = `${n1} ${op} ${n2} = ?`; a = op === '+' ? n1 + n2 : n1 - n2;
         } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 12) + 2;
-            const n2 = Math.floor(Math.random() * 12) + 2;
+            const n1 = Math.floor(Math.random() * 10) + 2;
+            const n2 = Math.floor(Math.random() * 10) + 2;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
         } else { // 13+
             const n1 = Math.floor(Math.random() * 50) + 10;
@@ -165,16 +165,19 @@ const seedQuizzes = async () => {
         
         for (const age of ages) {
             // 1. Math Bundles (15 Questions, 85% Pass)
-            for (let i = 1; i <= 3; i++) {
-                await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
-                [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
+            if (['6-8', '8-10', '10-13', '13-15'].includes(age)) {
+                for (let i = 1; i <= 3; i++) {
+                    await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
+                    [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
+                }
             }
 
             // 2. Content Bundles (5 Questions, 95% Pass)
             const relevantContent = CONTENT_DB.filter(c => c.age.includes(age));
             for (const content of relevantContent) {
+                // FIXED THE PARAMETER ORDER HERE:
                 await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, 95, $5, $6)`,
-                [content.title, age, 1.00, content.text, JSON.stringify(content.questions)]);
+                [content.title, content.type, age, 1.00, content.text, JSON.stringify(content.questions)]);
             }
         }
         console.log('Seeding Complete!');
