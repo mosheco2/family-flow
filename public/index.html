@@ -218,6 +218,7 @@
         let shoppingListCache = [];
         let wisdomCache = {};
         let bundlesCache = [];
+        let allBundles = [];
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
         const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
@@ -370,6 +371,45 @@
         }
 
         // --- ACADEMY LOGIC ---
+        async function fetchBundles() {
+            try {
+                const res = await fetch(`${API}/academy/bundles`);
+                allBundles = await res.json();
+            } catch(e) {}
+        }
+
+        function openAssignModal() {
+            const cSelect = document.getElementById('assign-child-select');
+            cSelect.innerHTML = '';
+            membersCache.forEach(m => {
+                if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+            });
+            
+            const bSelect = document.getElementById('assign-bundle-select');
+            bSelect.innerHTML = '';
+            allBundles.forEach(b => {
+                bSelect.innerHTML += `<option value="${b.id}">${b.title} (${b.age_group}) - ₪${b.reward}</option>`;
+            });
+            
+            document.getElementById('assign-quiz-modal').classList.remove('hidden');
+        }
+
+        async function submitAssignQuiz() {
+            const childId = document.getElementById('assign-child-select').value;
+            const bundleId = document.getElementById('assign-bundle-select').value;
+            
+            if(!childId || !bundleId) return;
+
+            await fetch(`${API}/academy/assign`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: childId, bundleId: bundleId })
+            });
+            
+            document.getElementById('assign-quiz-modal').classList.add('hidden');
+            showToast('success', 'הוקצה בהצלחה');
+        }
+
         function renderAcademy(bundles) {
             const list = document.getElementById('my-assignments-list');
             const historyList = document.getElementById('academy-list');
