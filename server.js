@@ -24,7 +24,19 @@ const calculateAge = (birthYear) => {
     return currentYear - birthYear;
 };
 
+const getAgeGroup = (age) => {
+    if (age >= 6 && age < 8) return '6-8';
+    if (age >= 8 && age < 10) return '8-10';
+    if (age >= 10 && age < 13) return '10-13';
+    if (age >= 13 && age < 15) return '13-15';
+    if (age >= 15 && age < 18) return '15-18';
+    if (age >= 18) return '18+';
+    return 'other';
+};
+
 // --- ACADEMY CONTENT GENERATORS ---
+
+// 1. Math Generator (Fixed bug here: changed const to let)
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 15; i++) { 
@@ -34,14 +46,15 @@ const generateMathQuestions = (ageGroup) => {
             const n2 = Math.floor(Math.random() * 10) + 1;
             q = `${n1} + ${n2} = ?`; a = n1 + n2;
         } else if (ageGroup === '8-10') {
-            const n1 = Math.floor(Math.random() * 20) + 5;
-            const n2 = Math.floor(Math.random() * 15) + 5;
+            // FIXED: Used 'let' instead of 'const' to allow swapping
+            let n1 = Math.floor(Math.random() * 20) + 5;
+            let n2 = Math.floor(Math.random() * 15) + 5;
             const op = Math.random() > 0.5 ? '+' : '-';
             if (op === '-' && n2 > n1) [n1, n2] = [n2, n1]; 
             q = `${n1} ${op} ${n2} = ?`; a = op === '+' ? n1 + n2 : n1 - n2;
         } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 12) + 2;
-            const n2 = Math.floor(Math.random() * 12) + 2;
+            const n1 = Math.floor(Math.random() * 10) + 2;
+            const n2 = Math.floor(Math.random() * 10) + 2;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
         } else { 
             const n1 = Math.floor(Math.random() * 50) + 10;
@@ -58,6 +71,7 @@ const generateMathQuestions = (ageGroup) => {
                 a = eval(q.split('=')[0]);
             }
         }
+        
         const wrong = new Set();
         while(wrong.size < 3) {
             const r = a + Math.floor(Math.random() * 10) - 5;
@@ -69,6 +83,7 @@ const generateMathQuestions = (ageGroup) => {
     return questions;
 };
 
+// 2. Content Repositories
 const CONTENT_DB = [
     { type: 'reading', age: ['6-8'], title: "הכלב של יוסי", text: "ליוסי יש כלב קטן וחמוד ושמו כתם. לכתם יש פרווה לבנה עם כתם שחור על הגב. יוסי אוהב לצאת עם כתם לטיול בפארק כל יום אחרי בית הספר. בטיול, כתם אוהב לרוץ אחרי כדורים ולשחק עם כלבים אחרים. כשחוזרים הביתה, יוסי נותן לכתם אוכל ומים טריים.", questions: [{ q: "איך קוראים לכלב של יוסי?", options: ["בובי", "כתם", "שחורי", "לבן"], correct: 1 }, { q: "מה יש לכתם על הגב?", options: ["כתם שחור", "פס לבן", "כתם חום", "אין לו כלום"], correct: 0 }, { q: "מתי יוסי יוצא לטיול?", options: ["בבוקר", "בלילה", "אחרי בית הספר", "בשבת בבוקר"], correct: 2 }, { q: "מה כתם אוהב לעשות בטיול?", options: ["לישון", "לרוץ אחרי חתולים", "לרוץ אחרי כדורים", "לאכול"], correct: 2 }, { q: "מה יוסי נותן לכתם בבית?", options: ["ממתקים", "אוכל ומים", "צעצועים", "בגדים"], correct: 1 }] },
     { type: 'reading', age: ['8-10'], title: "החיסכון של דני", text: "דני רצה מאוד לקנות אופניים שעולים 200 שקלים. בארנק שלו היו רק 50 שקלים. הוא החליט לחסוך את דמי הכיס שהוא מקבל בכל יום שישי. אבא הבטיח שאם דני יחסוך יפה במשך חודש, הוא ישלים לו את הסכום החסר. דני שמח והכין קופסה מיוחדת לחיסכון.", questions: [{ q: "מה דני רצה לקנות?", options: ["מחשב", "אופניים", "כדור", "קורקינט"], correct: 1 }, { q: "כמה כסף היה לדני בהתחלה?", options: ["200", "100", "50", "0"], correct: 2 }, { q: "מתי דני מקבל דמי כיס?", options: ["ביום ראשון", "ביום שישי", "בשבת", "כל יום"], correct: 1 }, { q: "מה אבא הבטיח?", options: ["לקנות לו גלידה", "לקחת אותו לטיול", "להשלים את הסכום", "לקנות את האופניים מיד"], correct: 2 }, { q: "איפה דני שמר את הכסף?", options: ["בבנק", "מתחת לכרית", "בקופסה מיוחדת", "בכיס"], correct: 2 }] },
@@ -79,22 +94,22 @@ const CONTENT_DB = [
 
 const seedQuizzes = async () => {
     try {
-        console.log('Checking Academy content...');
-        const check = await client.query('SELECT count(*) FROM quiz_bundles');
-        if (parseInt(check.rows[0].count) > 5) return; // Skip if seeded
-
         console.log('Force Seeding Academy...');
+        // Force delete all existing bundles to ensure new content is loaded
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
         
         for (const age of ages) {
+            // 1. Math Bundles (15 Questions, 85% Pass)
             if (['6-8', '8-10', '10-13', '13-15'].includes(age)) {
                 for (let i = 1; i <= 3; i++) {
                     await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
                     [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
                 }
             }
+
+            // 2. Content Bundles (5 Questions, 95% Pass)
             const relevantContent = CONTENT_DB.filter(c => c.age.includes(age));
             for (const content of relevantContent) {
                 await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, 95, $5, $6)`,
@@ -102,7 +117,7 @@ const seedQuizzes = async () => {
             }
         }
         console.log('Seeding Complete!');
-    } catch(e) { console.log('Seed error', e); }
+    } catch(e) { console.log('Seed skipped/error', e); }
 };
 
 // --- SETUP ---
