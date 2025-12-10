@@ -3,34 +3,25 @@ const { Client } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const app = express();
-
-// Render sets this environment variable. Default to 3000 for local dev.
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Database Connection
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Required for Render/Heroku Postgres
+  ssl: { rejectUnauthorized: false }
 });
 
-const connectDB = async () => {
-    try {
-        await client.connect();
-        console.log('✅ Connected to Database Successfully');
-    } catch (err) {
-        console.error('❌ Database Connection Failed:', err.message);
-    }
-};
-connectDB();
+client.connect()
+  .then(() => console.log('✅ Connected to DB'))
+  .catch(err => console.error('Connection Error', err.stack));
 
 // --- SEED CONTENT (ACADEMY) ---
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
-    for (let i = 0; i < 15; i++) { // Updated to 15 questions
+    for (let i = 0; i < 15; i++) { 
         let q, a;
         if (ageGroup === '6-8') {
             const n1 = Math.floor(Math.random() * 10) + 1;
@@ -222,33 +213,22 @@ app.post('/api/join', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   let { groupEmail, nickname, password } = req.body;
-  if(groupEmail) groupEmail = groupEmail.trim().toLowerCase();
   try {
-    const gRes = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail]);
-    if (gRes.rows.length === 0) return res.status(401).json({ error: 'Group not found' });
-    const uRes = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [gRes.rows[0].id, nickname.trim()]);
-    if (uRes.rows.length === 0) return res.status(401).json({ error: 'User not found' });
-    const user = uRes.rows[0];
-    if (user.password !== password) return res.status(401).json({ error: 'Invalid credentials' });
-    if (user.status !== 'ACTIVE') return res.status(403).json({ error: 'Account pending approval' });
-    res.json({ success: true, user, group: gRes.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const g = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);
+    if (g.rows.length === 0) return res.status(401).json({ error: 'Group not found' });
+    const u = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname.trim()]);
+    if (u.rows.length === 0 || u.rows[0].password !== password) return res.status(401).json({ error: 'Invalid credentials' });
+    if (u.rows[0].status !== 'ACTIVE') return res.status(403).json({ error: 'Account pending' });
+    res.json({ success: true, user: u.rows[0], group: g.rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- ADMIN & USERS ---
 app.get('/api/users/:id', async (req, res) => { try { const r = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]); res.json(r.rows[0]); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get('/api/group/members', async (req, res) => { const { groupId, requesterId } = req.query; try { const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]); const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN'; const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]); const members = r.rows.map(m => ({ ...m, balance: (isAdmin || m.id == requesterId) ? m.balance : null, allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null, interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null })); res.json(members); } catch (e) { res.status(500).json({error:e.message}); } });
 app.get('/api/admin/pending-users', async (req, res) => { try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
-app.post('/api/admin/approve-user', async (req, res) => { 
-    try { 
-        await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); 
-        const u = await client.query("SELECT group_id FROM users WHERE id=$1", [req.body.userId]);
-        await initBudgets(u.rows[0].group_id, req.body.userId);
-        res.json({success:true}); 
-    } catch (e) { res.status(500).json({error:e.message}); } 
-});
+app.post('/api/admin/approve-user', async (req, res) => { try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); const u = await client.query("SELECT group_id FROM users WHERE id=$1", [req.body.userId]); await initBudgets(u.rows[0].group_id, req.body.userId); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); } });
+app.get('/api/group/members', async (req, res) => { const { groupId, requesterId } = req.query; try { const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]); const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN'; const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]); const members = r.rows.map(m => ({ ...m, balance: (isAdmin || m.id == requesterId) ? m.balance : null, allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null, interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null })); res.json(members); } catch (e) { res.status(500).json({error:e.message}); } });
 
-// --- SHOPPING ROUTES ---
+// --- SHOPPING (REQUEST FLOW ADDED) ---
 app.post('/api/shopping/add', async (req, res) => {
     const { itemName, quantity, userId, estimatedPrice } = req.body;
     try {
@@ -308,7 +288,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
 
         const tripRes = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [gid, userId, storeName, branchName, totalAmount]);
         const tripId = tripRes.rows[0].id;
-
         for (const i of boughtItems) {
             await client.query("UPDATE shopping_list SET status = 'bought' WHERE id = $1", [i.id]);
             await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [tripId, i.name, i.quantity, i.price]);
@@ -317,7 +296,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
         for (const i of missingItems) {
             await client.query("UPDATE shopping_list SET status = 'pending' WHERE id = $1", [i.id]);
         }
-
         await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'groceries', 'expense', TRUE)`, [userId, totalAmount, `קניות: ${storeName}`]);
         await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
         await client.query('COMMIT');
@@ -448,7 +426,7 @@ app.get('/api/budget/filter', async (req, res) => {
         let budgets = await client.query(budgetQuery, queryParams);
         const budgetStatus = [];
         if(targetUserId === 'all') {
-             const allocations = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND u.role!='ADMIN' AND t.type='income' AND t.category IN ('allowance','salary','bonus') AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [groupId]);
+             const allocations = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND u.role!='ADMIN' AND t.type='income' AND t.is_manual = FALSE AND (t.category = 'allowance' OR t.category = 'salary' OR t.category = 'bonus') AND date_trunc('month', t.date) = date_trunc('month', CURRENT_DATE)`, [groupId]);
              budgetStatus.push({category: 'allocations', limit: 0, spent: parseFloat(allocations.rows[0].total||0)});
         }
         for (const b of budgets.rows) {
@@ -485,10 +463,10 @@ app.post('/api/budget/update', async (req, res) => {
 
 app.post('/api/admin/payday', async (req, res) => { const { groupId } = req.body; try { await client.query('BEGIN'); const members = await client.query(`SELECT * FROM users WHERE group_id = $1 AND role = 'MEMBER' AND status = 'ACTIVE'`, [groupId]); for (const user of members.rows) { if (user.allowance_amount > 0) { await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'allowance', 'income', FALSE)`, [user.id, user.allowance_amount, 'דמי כיס שבועיים']); await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [user.allowance_amount, user.id]); } } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.post('/api/goals', async (req, res) => { const { userId, targetUserId, title, target } = req.body; try { const u = await client.query('SELECT group_id FROM users WHERE id = $1', [userId]); await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [targetUserId || userId, u.rows[0].group_id, title, target]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/goals/deposit', async (req, res) => { const { userId, goalId, amount } = req.body; try { await client.query('BEGIN'); await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]); await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [userId, amount, 'הפקדה לחיסכון']); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
+app.post('/api/goals/deposit', async (req, res) => { const { userId, goalId, amount } = req.body; try { await client.query('BEGIN'); await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]); await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [req.body.userId, req.body.amount, 'הפקדה לחיסכון']); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.post('/api/admin/update-settings', async (req, res) => { const { userId, allowance, interest } = req.body; try { await client.query(`UPDATE users SET allowance_amount = $1, interest_rate = $2 WHERE id = $3`, [allowance, interest, userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/loans/request', async (req, res) => { const { userId, amount, reason } = req.body; try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]); await client.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, 'pending')`, [userId, u.rows[0].group_id, amount, reason]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/loans/handle', async (req, res) => { const { loanId, status } = req.body; try { await client.query('BEGIN'); const l = (await client.query('SELECT * FROM loans WHERE id=$1', [loanId])).rows[0]; if(status === 'active') { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'loans', 'income', FALSE)`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]); } await client.query('UPDATE loans SET status = $1 WHERE id = $2', [status, loanId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
+app.post('/api/loans/handle', async (req, res) => { const { loanId, status } = req.body; try { await client.query('BEGIN'); const l = (await client.query('SELECT * FROM loans WHERE id=$1', [req.body.loanId])).rows[0]; if(status === 'active') { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'loans', 'income', FALSE)`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]); } await client.query('UPDATE loans SET status = $1 WHERE id = $2', [status, loanId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.post('/api/academy/request-challenge', async (req, res) => { res.json({ success: true }); });
 
 // Default Route
