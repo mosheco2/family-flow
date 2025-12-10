@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -59,6 +58,10 @@
         
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
+        
+        /* FAB Lift Animation for checkout banner */
+        .fab-lifted { transform: translateY(-80px) !important; }
+
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
@@ -193,7 +196,7 @@
         
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-32 overflow-y-auto text-right hidden"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
 
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ (משוער)</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
+        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
@@ -251,6 +254,7 @@
             if (t !== 'shop') {
                 const footer = document.getElementById('cart-footer');
                 if (footer) footer.classList.add('hidden');
+                document.getElementById('fab-container').classList.remove('fab-lifted');
             } else {
                 // If returning to shop, re-render to check if footer should show
                 renderShopList();
@@ -519,7 +523,7 @@
         async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
         function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
         
-        // FIXED SHOP REQUESTS RENDERING (NO DUPLICATES)
+        // FIXED SHOP REQUESTS RENDERING & CALCULATION FIX
         function renderShopList() {
             if (document.activeElement.classList.contains('price-input')) return;
             
@@ -560,10 +564,13 @@
             if(activeItems.length === 0) { 
                 list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
                 document.getElementById('cart-footer').classList.add('hidden'); 
+                document.getElementById('fab-container').classList.remove('fab-lifted');
                 return; 
             }
             
             document.getElementById('cart-footer').classList.remove('hidden');
+            // Lift FAB when checkout banner is visible
+            document.getElementById('fab-container').classList.add('fab-lifted');
             
             const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
             activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
@@ -577,17 +584,18 @@
                 const savedWisdom = wisdomCache[i.id];
                 const showWisdom = savedWisdom && savedWisdom.length > 0;
                 
+                // New Calculation Display Logic
+                const unitPrice = parseFloat(i.estimated_price) || 0;
+                const totalRowPrice = unitPrice * i.quantity;
+                
                 list.innerHTML += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
                         <div class="flex-1">
-                            <div class="flex justify-between">
+                            <div class="flex justify-between items-start">
                                 <span class="text-slate-700 font-medium item-name">${i.item_name}</span>
-                                <div>
-                                    <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded ml-1">x${i.quantity}</span>
-                                    <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
-                                </div>
+                                <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
                             <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all">
@@ -595,12 +603,21 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex gap-2 items-center pl-8">
-                        <div class="relative flex-1">
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₪</span>
-                            <input type="number" id="price-${i.id}" value="${val}" placeholder="מחיר" ${isChecked ? '' : 'disabled'} onchange="updateRow(${i.id}, 'price', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pr-6 pl-2 text-sm outline-none focus:border-pink-500">
+                    
+                    <div class="flex gap-2 items-center pl-0 mt-1">
+                         <div class="relative w-24">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span>
+                            <input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center">
                         </div>
-                        <button onclick="toggleMissingLocal(${i.id})" class="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition" id="btn-missing-${i.id}">חסר</button>
+                        <div class="flex flex-col items-center leading-none">
+                             <span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span>
+                             <span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span>
+                        </div>
+                        <div class="flex flex-col items-center leading-none ml-auto">
+                            <span class="text-[9px] text-slate-400 mb-0.5">כמות</span>
+                            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span>
+                        </div>
+                        <button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button>
                     </div>
                 </div>`;
             });
@@ -616,7 +633,20 @@
                 if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } 
                 await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); 
             } 
-            else if (type === 'price') { 
+            else if (type === 'price_calc') {
+                // Just update the UI calculation, don't save yet
+                const item = shoppingListCache.find(i => i.id == id);
+                if(item) {
+                    const unitPrice = parseFloat(value) || 0;
+                    const total = unitPrice * item.quantity;
+                    const totalEl = document.getElementById(`row-total-${id}`);
+                    if(totalEl) totalEl.innerText = `₪${total.toFixed(0)}`;
+                }
+                calcRunningTotal(); // Update footer total immediately
+                return; // Don't save to DB on every keystroke
+            }
+            else if (type === 'price_save') { 
+                // Save to DB on change/blur
                 const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); 
                 const data = await res.json(); 
                 const freshWisdomDiv = document.getElementById(`wisdom-${id}`); 
@@ -632,9 +662,26 @@
         }
 
         function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
-        function calcRunningTotal() { let total = 0; document.querySelectorAll('.shop-row').forEach(row => { const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); if (isChecked && !isMissing) { const price = parseFloat(row.querySelector('.price-input').value) || 0; total += price; } }); document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; }
-        function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; total += parseFloat(row.querySelector('.price-input').value) || 0; } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
-        async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const price = parseFloat(document.getElementById(`price-${id}`).value) || 0; total += price; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: itemData ? itemData.quantity : 1, price }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
+        
+        function calcRunningTotal() { 
+            let total = 0; 
+            document.querySelectorAll('.shop-row').forEach(row => { 
+                const isChecked = row.querySelector('input[type="checkbox"]').checked; 
+                const isMissing = row.classList.contains('missing'); 
+                if (isChecked && !isMissing) { 
+                    // Calculate Total: Unit Price from Input * Quantity from Cache
+                    const id = row.id.replace('row-', '');
+                    const itemData = shoppingListCache.find(i => i.id == id);
+                    const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; 
+                    const qty = itemData ? itemData.quantity : 1;
+                    total += (unitPrice * qty); 
+                } 
+            }); 
+            document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
+        }
+        
+        function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
+        async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         
         // --- HELPERS ---
