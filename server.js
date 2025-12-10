@@ -36,7 +36,7 @@ const getAgeGroup = (age) => {
 
 // --- ACADEMY CONTENT GENERATORS ---
 
-// 1. Math Generator (15 Questions, 85% Threshold)
+// 1. Math Generator
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 15; i++) { 
@@ -52,8 +52,8 @@ const generateMathQuestions = (ageGroup) => {
             if (op === '-' && n2 > n1) [n1, n2] = [n2, n1]; 
             q = `${n1} ${op} ${n2} = ?`; a = op === '+' ? n1 + n2 : n1 - n2;
         } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 10) + 2;
-            const n2 = Math.floor(Math.random() * 10) + 2;
+            const n1 = Math.floor(Math.random() * 12) + 2;
+            const n2 = Math.floor(Math.random() * 12) + 2;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
         } else { // 13+
             const n1 = Math.floor(Math.random() * 50) + 10;
@@ -82,7 +82,7 @@ const generateMathQuestions = (ageGroup) => {
     return questions;
 };
 
-// 2. Content Repositories (Reading & Financial - 5 Questions, 95% Threshold)
+// 2. Content Repositories
 const CONTENT_DB = [
     // --- 6-8 ---
     {
@@ -157,13 +157,9 @@ const CONTENT_DB = [
 
 const seedQuizzes = async () => {
     try {
-        const check = await client.query('SELECT count(*) FROM quiz_bundles');
-        // Force seed if less than 10 bundles (assumes partial seed)
-        if (parseInt(check.rows[0].count) > 10) return;
-        
-        console.log('Seeding Academy...');
-        // Clear existing to avoid duplicates during partial seed fix
-        await client.query('DELETE FROM quiz_bundles');
+        console.log('Force Seeding Academy...');
+        // Force delete all existing bundles to ensure new content is loaded
+        await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
         
