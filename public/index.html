@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oneflow life</title>
+    <title>Oneflow Life</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,9 +13,8 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
-        .loader { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
         
+        /* Slider & Tabs */
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
@@ -25,9 +24,13 @@
         .scroll-btn.right { right: 0; }
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+        
+        /* Inputs & UI Elements */
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+        
+        /* Shop Styles */
         .shop-row { transition: background-color 0.2s; }
         .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
         .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
@@ -39,16 +42,27 @@
         .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
         .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
         .wisdom-alert { animation: slideDown 0.3s ease-out; }
+
+        /* Quiz Styles */
         .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
         .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
         .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
         .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
+        
+        /* Floating Action Button */
         .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .fab-open #fab-icon { transform: rotate(45deg); }
+        
+        /* Bank Card */
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+
+        /* Budget Bar */
+        .budget-bar-bg { background-color: #f1f5f9; border-radius: 99px; height: 10px; overflow: hidden; }
+        .budget-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease-out; }
+        
         @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -65,7 +79,7 @@
                 <div class="absolute inset-0 bg-blue-600 rounded-b-[3rem] shadow-xl"></div>
                 <div class="relative z-10 pt-8 pb-4">
                     <div class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20"><i class="fa-solid fa-wallet"></i></div>
-                    <h1 class="text-3xl font-bold tracking-tight text-white">Oneflow life</h1>
+                    <h1 class="text-3xl font-bold tracking-tight text-white">Oneflow Life</h1>
                     <p class="text-blue-100 text-sm font-light">ניהול חכם למשפחה</p>
                 </div>
             </div>
@@ -145,13 +159,10 @@
                             <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button>
                         </div>
                     </div>
+                    <div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div>
                     
-                    <div class="flex justify-between items-center mb-2 px-2">
-                        <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
-                    </div>
-
-                    <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100">
-                        <h4 class="text-sm font-bold text-orange-700 mb-2 px-1">בקשות ממתינות לאישור ⏳</h4>
+                    <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
+                        <h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4>
                         <div id="shop-requests-list" class="space-y-2"></div>
                     </div>
 
@@ -166,48 +177,44 @@
                     </div>
                 </div>
 
+                <div id="content-budget" class="hidden">
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3>
+                            <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select>
+                        </div>
+                        <div id="budget-list" class="space-y-6"></div>
+                    </div>
+                </div>
+
                 <div id="content-bank" class="hidden">
                     <div id="bank-admin-view" class="hidden space-y-6"><div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm"><div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div><i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div></div>
                     <div id="bank-child-view" class="hidden space-y-6"><div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]"><div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div><div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div><div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div></div><div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div><div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div><div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div></div>
                 </div>
 
                 <div id="content-academy" class="hidden">
-                    <div id="academy-admin-view" class="hidden">
-                        <div class="flex justify-between items-center mb-6 px-2"><h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3><button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת מבחן</button></div>
-                        <div id="admin-assignments-list" class="space-y-3"></div>
-                    </div>
+                    <div id="academy-admin-view" class="hidden"><div class="flex justify-between items-center mb-6 px-2"><h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3><button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת מבחן</button></div><div id="admin-assignments-list" class="space-y-3"></div></div>
                     <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p>
-                            <button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button>
-                            <i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
-                        <div id="my-assignments-list" class="space-y-3"></div>
+                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div>
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-6">מאגר המבחנים</h3><div id="academy-list" class="space-y-4"></div>
                     </div>
                 </div>
 
-                <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
-                
                 <div id="content-tasks" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3><div class="flex gap-2"><button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button><button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button></div></div>
                     <div id="tasks-list" class="space-y-3 pb-20"></div>
                 </div>
 
                 <div id="content-members" class="hidden space-y-6">
-                    <div class="card-modern overflow-hidden">
-                        <div class="p-4 border-b border-slate-50 bg-slate-50/50"><h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3></div>
-                        <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
-                    </div>
-                    <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
-                        <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div>
-                        <div id="pending-list" class="space-y-2 p-2"></div>
-                    </div>
+                    <div class="card-modern overflow-hidden"><div class="p-4 border-b border-slate-50 bg-slate-50/50"><h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3></div><div id="members-list" class="divide-y divide-slate-50 p-2"></div></div>
+                    <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden"><div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div><div id="pending-list" class="space-y-2 p-2"></div></div>
                 </div>
             </div>
         </div>
         
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-32 overflow-y-auto text-right hidden"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
 
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ (משוער)</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
@@ -220,8 +227,6 @@
         <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
         <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-4 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-6 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצה</button></div></div></div>
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><p id="quiz-text-content" class="text-sm text-slate-600 bg-blue-50 p-4 rounded-xl mb-6 text-right hidden leading-relaxed"></p><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>Question</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-lg font-bold mb-6 min-h-[60px] flex items-center justify-center"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
-
     </div>
 
     <script>
@@ -239,7 +244,7 @@
         const PRODUCT_DB = { "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"], "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"], "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"], "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"], "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"], "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"], "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"] };
         const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
-        let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0, currentAssignmentId = null;
+        let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0;
 
         window.onload = async () => { const saved = localStorage.getItem('ofl_session'); if(saved) { try { const session = JSON.parse(saved); const res = await fetch(`${API}/users/${session.user.id}`); if(res.ok) { currentUser = await res.json(); currentGroup = session.group; localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); loadDashboard(); } else logout(); } catch(e) { logout(); } } };
 
@@ -394,6 +399,8 @@
             quizScore = 0;
             
             document.getElementById('quiz-title').innerText = bundle.title;
+            document.getElementById('quiz-text-container').innerHTML = bundle.text_content ? `<p>${bundle.text_content}</p>` : '';
+            document.getElementById('quiz-text-container').classList.toggle('hidden', !bundle.text_content);
             document.getElementById('quiz-runner-modal').classList.remove('hidden');
             renderQuestion();
         }
@@ -494,40 +501,120 @@
         async function submitShopItem() { const item = val('shop-item'); const qty = val('shop-quantity'); const est = val('shop-est-price'); if(!item) return; const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, estimatedPrice: est, userId: currentUser.id}) }); const data = await res.json(); if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); document.getElementById('shop-item').value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'נוסף לרשימה'); fetchData(); } }
         async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
         function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
-        function renderShopList() { if (document.activeElement.classList.contains('price-input')) return; const list = document.getElementById('shop-list'); list.innerHTML = ''; if(shoppingListCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); return; } document.getElementById('cart-footer').classList.remove('hidden'); const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; }; shoppingListCache.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name))); let currentCat = ''; shoppingListCache.forEach(i => { const cat = getCatScore(i.item_name); if(cat !== currentCat) { list.innerHTML += `<div class="category-header">${cat}</div>`; currentCat = cat; } const isChecked = i.status === 'in_cart'; const val = i.estimated_price > 0 ? i.estimated_price : ''; const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0; list.innerHTML += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between"><span class="text-slate-700 font-medium item-name">${i.item_name}</span><div><span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded ml-1">x${i.quantity}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">${i.requester_name}</span><div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-8"><div class="relative flex-1"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₪</span><input type="number" id="price-${i.id}" value="${val}" placeholder="מחיר" ${isChecked ? '' : 'disabled'} onchange="updateRow(${i.id}, 'price', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pr-6 pl-2 text-sm outline-none focus:border-pink-500"></div><button onclick="toggleMissingLocal(${i.id})" class="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition" id="btn-missing-${i.id}">חסר</button></div></div>`; }); calcRunningTotal(); }
-        async function updateRow(id, type, value) { if (type === 'check') { const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } else if (type === 'price') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); const data = await res.json(); const freshWisdomDiv = document.getElementById(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = value; } calcRunningTotal(); }
-        // --- HISTORY ---
-        async function openHistoryModal() {
-            const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`);
-            const trips = await res.json();
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>';
+        
+        // FIXED SHOP REQUESTS RENDERING
+        function renderShopList() {
+            if (document.activeElement.classList.contains('price-input')) return;
+            const list = document.getElementById('shop-list');
+            const reqList = document.getElementById('shop-requests-list');
+            const reqContainer = document.getElementById('shop-requests-container');
             
-            trips.forEach(t => {
-                let itemsHtml = '';
-                t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`);
+            list.innerHTML = '';
+            reqList.innerHTML = '';
+            
+            let hasRequests = false;
+            
+            // Separate Logic
+            const activeItems = [];
+            const requestedItems = [];
+            
+            shoppingListCache.forEach(i => {
+                if(i.status === 'requested') requestedItems.push(i);
+                else activeItems.push(i);
+            });
+            
+            // Render Requests (Admin Only)
+            if (currentUser.role === 'ADMIN' && requestedItems.length > 0) {
+                hasRequests = true;
+                reqContainer.classList.remove('hidden');
+                requestedItems.forEach(i => {
+                    reqList.innerHTML += `
+                    <div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200">
+                        <div>
+                            <span class="font-bold text-slate-700">${i.item_name}</span>
+                            <span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button>
+                            <button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>`;
+                });
+            } else {
+                reqContainer.classList.add('hidden');
+            }
+
+            // Render Active List
+            if(activeItems.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); return; }
+            document.getElementById('cart-footer').classList.remove('hidden');
+            
+            const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
+            activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+            
+            let currentCat = '';
+            activeItems.forEach(i => {
+                const cat = getCatScore(i.item_name);
+                if(cat !== currentCat) { list.innerHTML += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+                const isChecked = i.status === 'in_cart';
+                const val = i.estimated_price > 0 ? i.estimated_price : '';
+                const savedWisdom = wisdomCache[i.id];
+                const showWisdom = savedWisdom && savedWisdom.length > 0;
                 
                 list.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                        <div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer">
-                            <div>
-                                <h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4>
-                                <p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p>
+                <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
+                        <div class="flex-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-700 font-medium item-name">${i.item_name}</span>
+                                <div>
+                                    <span class="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded ml-1">x${i.quantity}</span>
+                                    <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                                </div>
                             </div>
-                            <span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span>
-                        </div>
-                        <div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">
-                            ${itemsHtml}
-                            <button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button>
+                            <span class="text-[10px] text-slate-400">${i.requester_name}</span>
+                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all">
+                                <i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span>
+                            </div>
                         </div>
                     </div>
-                `;
+                    <div class="flex gap-2 items-center pl-8">
+                        <div class="relative flex-1">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">₪</span>
+                            <input type="number" id="price-${i.id}" value="${val}" placeholder="מחיר" ${isChecked ? '' : 'disabled'} onchange="updateRow(${i.id}, 'price', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pr-6 pl-2 text-sm outline-none focus:border-pink-500">
+                        </div>
+                        <button onclick="toggleMissingLocal(${i.id})" class="text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition" id="btn-missing-${i.id}">חסר</button>
+                    </div>
+                </div>`;
             });
-            document.getElementById('history-modal').classList.remove('hidden');
+            calcRunningTotal();
         }
 
-        // --- Other Helpers (Unchanged logic) ---
+        async function updateRow(id, type, value) {
+            if (type === 'approve_request') {
+                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})});
+            }
+            else if (type === 'check') { 
+                const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); 
+                if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } 
+                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); 
+            } 
+            else if (type === 'price') { 
+                const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); 
+                const data = await res.json(); 
+                const freshWisdomDiv = document.getElementById(`wisdom-${id}`); 
+                if(freshWisdomDiv) { 
+                    if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } 
+                    else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } 
+                } 
+                const cachedItem = shoppingListCache.find(i => i.id == id); 
+                if(cachedItem) cachedItem.estimated_price = value; 
+            } 
+            // Re-fetch to update lists (e.g. move from requested to active)
+            if(type === 'approve_request') fetchData();
+            else calcRunningTotal(); 
+        }
+
         function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
         function calcRunningTotal() { let total = 0; document.querySelectorAll('.shop-row').forEach(row => { const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); if (isChecked && !isMissing) { const price = parseFloat(row.querySelector('.price-input').value) || 0; total += price; } }); document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; }
         function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; total += parseFloat(row.querySelector('.price-input').value) || 0; } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
@@ -552,7 +639,7 @@
         function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
         function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
         function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); }
+        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button></div></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
     </script>
 </body>
 </html>
-}
