@@ -36,6 +36,7 @@ const getAgeGroup = (age) => {
 
 // --- ACADEMY CONTENT GENERATORS ---
 
+// 1. Math Generator (15 Questions, 85% Threshold)
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 15; i++) { 
@@ -54,7 +55,7 @@ const generateMathQuestions = (ageGroup) => {
             const n1 = Math.floor(Math.random() * 10) + 2;
             const n2 = Math.floor(Math.random() * 10) + 2;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
-        } else { 
+        } else { // 13+
             const n1 = Math.floor(Math.random() * 50) + 10;
             const n2 = Math.floor(Math.random() * 5) + 2;
             const op = Math.random() > 0.7 ? '/' : (Math.random() > 0.5 ? 'x' : '+');
@@ -81,7 +82,9 @@ const generateMathQuestions = (ageGroup) => {
     return questions;
 };
 
+// 2. Content Repositories (Reading & Financial - 5 Questions, 95% Threshold)
 const CONTENT_DB = [
+    // --- 6-8 ---
     {
         type: 'reading',
         age: ['6-8'],
@@ -95,30 +98,59 @@ const CONTENT_DB = [
             { q: "מה יוסי נותן לכתם בבית?", options: ["ממתקים", "אוכל ומים", "צעצועים", "בגדים"], correct: 1 }
         ]
     },
+    // --- 8-10 ---
     {
-        type: 'financial',
-        age: ['10-13', '13-15'],
-        title: "מהו תקציב?",
-        text: "תקציב הוא כלי שעוזר לנו לנהל את הכסף שלנו. דמיינו שיש לכם עוגה שלמה - זה כל הכסף שלכם. התקציב עוזר לכם להחליט איך לחלק את העוגה: חתיכה למשחקים, חתיכה לאוכל, וחתיכה לחיסכון. אם נאכל את כל העוגה בבת אחת, לא יישאר לנו למחר. תקציב טוב כולל הכנסות (כסף שנכנס) והוצאות (כסף שיוצא). המטרה היא תמיד שההוצאות לא יהיו גדולות מההכנסות.",
+        type: 'reading',
+        age: ['8-10'],
+        title: "החיסכון של דני",
+        text: "דני רצה מאוד לקנות אופניים שעולים 200 שקלים. בארנק שלו היו רק 50 שקלים. הוא החליט לחסוך את דמי הכיס שהוא מקבל בכל יום שישי. אבא הבטיח שאם דני יחסוך יפה במשך חודש, הוא ישלים לו את הסכום החסר. דני שמח והכין קופסה מיוחדת לחיסכון.",
         questions: [
-            { q: "למה מדמים כסף בטקסט?", options: ["לכדור", "לעוגה", "לבית", "למכונית"], correct: 1 },
-            { q: "מה המטרה של תקציב?", options: ["לבזבז הכל מהר", "לנהל את הכסף נכון", "להחביא את הכסף", "לקנות רק ממתקים"], correct: 1 },
-            { q: "מה קורה אם ההוצאות גדולות מההכנסות?", options: ["נכנסים למינוס/חוב", "נהיים עשירים", "הבנק נותן מתנה", "לא קורה כלום"], correct: 0 },
-            { q: "מהן הכנסות?", options: ["כסף שיוצא", "כסף שנכנס", "כסף שהולך לפח", "מיסים"], correct: 1 },
-            { q: "למה כדאי לשמור 'חתיכה' לחיסכון?", options: ["כדי שיהיה למחר או למשהו גדול", "כי לא טעים", "כי חייבים", "כדי לזרוק אחר כך"], correct: 0 }
+            { q: "מה דני רצה לקנות?", options: ["מחשב", "אופניים", "כדור", "קורקינט"], correct: 1 },
+            { q: "כמה כסף היה לדני בהתחלה?", options: ["200", "100", "50", "0"], correct: 2 },
+            { q: "מתי דני מקבל דמי כיס?", options: ["ביום ראשון", "ביום שישי", "בשבת", "כל יום"], correct: 1 },
+            { q: "מה אבא הבטיח?", options: ["לקנות לו גלידה", "לקחת אותו לטיול", "להשלים את הסכום", "לקנות את האופניים מיד"], correct: 2 },
+            { q: "איפה דני שמר את הכסף?", options: ["בבנק", "מתחת לכרית", "בקופסה מיוחדת", "בכיס"], correct: 2 }
         ]
     },
     {
         type: 'financial',
-        age: ['15-18', '18+'],
-        title: "ריבית דריבית - הפלא השמיני",
-        text: "אלברט איינשטיין אמר שריבית דריבית היא הפלא השמיני של העולם. זהו מצב בו הריבית מצטרפת לקרן, ובתקופה הבאה גם היא נושאת ריבית. לדוגמה: השקעתם 100 שקלים ב-10% תשואה. בסוף השנה יש לכם 110. בשנה הבאה, ה-10% יחושבו על ה-110, ותקבלו 11 שקלים (ולא 10). ככל שהזמן עובר, הכסף גדל בצורה מעריכית (אקספוננציאלית) ולא לינארית. לכן, ככל שמתחילים לחסוך מוקדם יותר, האפקט חזק יותר.",
+        age: ['8-10'],
+        title: "למה צריך בנק?",
+        text: "הבנק הוא מקום בטוח לשמור בו כסף. אם נשמור את כל הכסף בבית, הוא עלול ללכת לאיבוד או להיגנב. הבנק גם עוזר לנו לשלם על דברים בלי להסתובב עם מזומן, בעזרת כרטיס אשראי או אפליקציה. בנוסף, אם נשאיר את הכסף בבנק בתוכנית חיסכון, הבנק ישלם לנו עוד קצת כסף שנקרא 'ריבית'.",
         questions: [
-            { q: "איך הכסף גדל בריבית דריבית?", options: ["בצורה לינארית (חיבור)", "בצורה מעריכית (כפל)", "הוא לא גדל", "הוא קטן"], correct: 1 },
-            { q: "בדוגמה, כמה ריבית מקבלים בשנה השנייה?", options: ["10 שקלים", "11 שקלים", "100 שקלים", "5 שקלים"], correct: 1 },
-            { q: "מה הגורם הכי חשוב בריבית דריבית?", options: ["כמות הכסף ההתחלתית", "הזמן", "שם הבנק", "המטבע"], correct: 1 },
-            { q: "מי מיוחס לאמירה על ריבית דריבית?", options: ["איינשטיין", "ניוטון", "ביל גייטס", "וורן באפט"], correct: 0 },
-            { q: "למה הריבית בשנה השנייה גבוהה יותר?", options: ["כי הבנק נחמד", "כי הריבית מחושבת גם על הריבית שנצברה", "זו טעות", "האינפלציה עלתה"], correct: 1 }
+            { q: "מה התפקיד העיקרי של הבנק?", options: ["למכור צעצועים", "לשמור על הכסף שלנו", "לחלק מתנות", "לייצר כסף"], correct: 1 },
+            { q: "מה עלול לקרות לכסף בבית?", options: ["הוא יגדל", "הוא ילך לאיבוד", "הוא יהפוך לזהב", "כלום"], correct: 1 },
+            { q: "איך משלמים בלי מזומן?", options: ["בכרטיס אשראי", "במכתב", "בחיבוק", "אי אפשר"], correct: 0 },
+            { q: "מהי ריבית?", options: ["קנס", "תוספת כסף על חיסכון", "עמלה", "סוג של הלוואה"], correct: 1 },
+            { q: "איפה הכי בטוח לשמור סכום גדול?", options: ["מתחת לבלטה", "בבנק", "בארנק", "בתיק בית ספר"], correct: 1 }
+        ]
+    },
+    // --- 10-13 ---
+    {
+        type: 'financial',
+        age: ['10-13', '13-15'],
+        title: "מהו תקציב?",
+        text: "תקציב הוא תוכנית שעוזרת לנו לנהל את הכסף. דמיינו עוגה שהיא כל הכסף שלכם. התקציב מחלק את העוגה: חתיכה למשחקים, חתיכה לאוכל, וחתיכה לחיסכון. המטרה היא שההוצאות (כסף שיוצא) לא יהיו גדולות מההכנסות (כסף שנכנס).",
+        questions: [
+            { q: "למה מדמים כסף בטקסט?", options: ["לכדור", "לעוגה", "לבית", "למכונית"], correct: 1 },
+            { q: "מה המטרה של תקציב?", options: ["לבזבז הכל מהר", "לנהל את הכסף נכון", "להחביא את הכסף", "לקנות רק ממתקים"], correct: 1 },
+            { q: "מה קורה אם ההוצאות גדולות מההכנסות?", options: ["נכנסים לחוב", "נהיים עשירים", "מקבלים מתנה", "לא קורה כלום"], correct: 0 },
+            { q: "מהן הכנסות?", options: ["כסף שיוצא", "כסף שנכנס", "מיסים", "קנסות"], correct: 1 },
+            { q: "למה כדאי לחסוך?", options: ["כדי שיהיה למחר/מטרה גדולה", "כי זה לא טעים", "סתם ככה", "כדי לזרוק"], correct: 0 }
+        ]
+    },
+    // --- 13-15+ ---
+    {
+        type: 'financial',
+        age: ['13-15', '15-18', '18+'],
+        title: "ריבית דריבית",
+        text: "אלברט איינשטיין אמר שריבית דריבית היא הפלא השמיני בתבל. זה מצב בו הריבית מצטרפת לקרן, ובשנה הבאה גם היא נושאת ריבית. לדוגמה: 100 שקלים ב-10% ריבית יהפכו ל-110. בשנה הבאה, ה-10% יחושבו על ה-110, ונקבל 11 שקלים נוספים. הכסף גדל בצורה מעריכית.",
+        questions: [
+            { q: "איך הכסף גדל בריבית דריבית?", options: ["בצורה לינארית", "בצורה מעריכית (אקספוננציאלית)", "לא גדל", "קטן"], correct: 1 },
+            { q: "כמה ריבית נקבל בשנה השנייה בדוגמה?", options: ["10", "11", "100", "5"], correct: 1 },
+            { q: "מהו המרכיב החשוב בצמיחה כזו?", options: ["זמן", "שם הבנק", "צבע הכסף", "המזל"], correct: 0 },
+            { q: "מי מיוחס למשפט על הפלא השמיני?", options: ["ניוטון", "איינשטיין", "הרצל", "אדיסון"], correct: 1 },
+            { q: "האם הריבית מחושבת רק על הקרן המקורית?", options: ["כן", "לא, גם על הריבית שנצברה", "רק בשנה הראשונה", "תלוי במזג האוויר"], correct: 1 }
         ]
     }
 ];
@@ -126,24 +158,30 @@ const CONTENT_DB = [
 const seedQuizzes = async () => {
     try {
         const check = await client.query('SELECT count(*) FROM quiz_bundles');
-        if (parseInt(check.rows[0].count) > 0) return;
+        // Force seed if less than 10 bundles (assumes partial seed)
+        if (parseInt(check.rows[0].count) > 10) return;
         
         console.log('Seeding Academy...');
+        // Clear existing to avoid duplicates during partial seed fix
+        await client.query('DELETE FROM quiz_bundles');
+
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
         
         for (const age of ages) {
-            if (['6-8', '8-10', '10-13', '13-15'].includes(age)) {
-                for (let i = 1; i <= 3; i++) {
-                    await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
-                    [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
-                }
+            // 1. Math Bundles (15 Questions, 85% Pass)
+            for (let i = 1; i <= 3; i++) {
+                await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
+                [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
             }
+
+            // 2. Content Bundles (5 Questions, 95% Pass)
             const relevantContent = CONTENT_DB.filter(c => c.age.includes(age));
             for (const content of relevantContent) {
                 await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, 95, $5, $6)`,
                 [content.title, age, 1.00, content.text, JSON.stringify(content.questions)]);
             }
         }
+        console.log('Seeding Complete!');
     } catch(e) { console.log('Seed skipped/error', e); }
 };
 
@@ -260,7 +298,28 @@ app.get('/api/data/:userId', async (req, res) => {
 // --- ACADEMY ENDPOINTS ---
 app.get('/api/academy/bundles', async (req, res) => { try { const r = await client.query('SELECT * FROM quiz_bundles ORDER BY age_group, title'); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
 app.post('/api/academy/assign', async (req, res) => { try { await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, req.body.bundleId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/academy/request-challenge', async (req, res) => { try { const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; const age = calculateAge(user.birth_year); const ageGroup = getAgeGroup(age); const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [req.body.userId]); if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); const available = await client.query(`SELECT * FROM quiz_bundles WHERE age_group=$1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים זמינים כרגע לגילך' }); await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, available.rows[0].id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.post('/api/academy/request-challenge', async (req, res) => { 
+    try { 
+        const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; 
+        const age = calculateAge(user.birth_year); 
+        const ageGroup = getAgeGroup(age); 
+        
+        const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [req.body.userId]); 
+        if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); 
+        
+        // Find bundle for age AND not already assigned/completed
+        const available = await client.query(`
+            SELECT * FROM quiz_bundles 
+            WHERE age_group=$1 
+            AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) 
+            ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); 
+            
+        if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים זמינים כרגע לגילך' }); 
+        
+        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, available.rows[0].id]); 
+        res.json({ success: true }); 
+    } catch (e) { res.status(500).json({ error: e.message }); } 
+});
 app.post('/api/academy/submit', async (req, res) => { try { await client.query('BEGIN'); const bundle = (await client.query('SELECT * FROM quiz_bundles WHERE id=$1', [req.body.bundleId])).rows[0]; const ua = (await client.query('SELECT * FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status=\'assigned\'', [req.body.userId, req.body.bundleId])).rows[0]; if(!ua) throw new Error('Assignment not found'); const passed = req.body.score >= bundle.threshold; const reward = passed ? bundle.reward : 0; const status = passed ? 'completed' : 'failed'; await client.query(`UPDATE user_assignments SET status=$1, score=$2, date_completed=NOW() WHERE id=$3`, [status, req.body.score, ua.id]); if(passed) { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [reward, req.body.userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [req.body.userId, reward, `בונוס אקדמיה: ${bundle.title}`]); } if(!passed) { await client.query(`DELETE FROM user_assignments WHERE id=$1`, [ua.id]); } await client.query('COMMIT'); res.json({ success: true, passed, reward }); } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 
 // --- OTHER ---
