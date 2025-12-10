@@ -24,19 +24,7 @@ const calculateAge = (birthYear) => {
     return currentYear - birthYear;
 };
 
-const getAgeGroup = (age) => {
-    if (age >= 6 && age < 8) return '6-8';
-    if (age >= 8 && age < 10) return '8-10';
-    if (age >= 10 && age < 13) return '10-13';
-    if (age >= 13 && age < 15) return '13-15';
-    if (age >= 15 && age < 18) return '15-18';
-    if (age >= 18) return '18+';
-    return 'other';
-};
-
 // --- ACADEMY CONTENT GENERATORS ---
-
-// 1. Math Generator
 const generateMathQuestions = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 15; i++) { 
@@ -52,10 +40,10 @@ const generateMathQuestions = (ageGroup) => {
             if (op === '-' && n2 > n1) [n1, n2] = [n2, n1]; 
             q = `${n1} ${op} ${n2} = ?`; a = op === '+' ? n1 + n2 : n1 - n2;
         } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 10) + 2;
-            const n2 = Math.floor(Math.random() * 10) + 2;
+            const n1 = Math.floor(Math.random() * 12) + 2;
+            const n2 = Math.floor(Math.random() * 12) + 2;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
-        } else { // 13+
+        } else { 
             const n1 = Math.floor(Math.random() * 50) + 10;
             const n2 = Math.floor(Math.random() * 5) + 2;
             const op = Math.random() > 0.7 ? '/' : (Math.random() > 0.5 ? 'x' : '+');
@@ -70,7 +58,6 @@ const generateMathQuestions = (ageGroup) => {
                 a = eval(q.split('=')[0]);
             }
         }
-        
         const wrong = new Set();
         while(wrong.size < 3) {
             const r = a + Math.floor(Math.random() * 10) - 5;
@@ -82,106 +69,40 @@ const generateMathQuestions = (ageGroup) => {
     return questions;
 };
 
-// 2. Content Repositories
 const CONTENT_DB = [
-    // --- 6-8 ---
-    {
-        type: 'reading',
-        age: ['6-8'],
-        title: "הכלב של יוסי",
-        text: "ליוסי יש כלב קטן וחמוד ושמו כתם. לכתם יש פרווה לבנה עם כתם שחור על הגב. יוסי אוהב לצאת עם כתם לטיול בפארק כל יום אחרי בית הספר. בטיול, כתם אוהב לרוץ אחרי כדורים ולשחק עם כלבים אחרים. כשחוזרים הביתה, יוסי נותן לכתם אוכל ומים טריים.",
-        questions: [
-            { q: "איך קוראים לכלב של יוסי?", options: ["בובי", "כתם", "שחורי", "לבן"], correct: 1 },
-            { q: "מה יש לכתם על הגב?", options: ["כתם שחור", "פס לבן", "כתם חום", "אין לו כלום"], correct: 0 },
-            { q: "מתי יוסי יוצא לטיול?", options: ["בבוקר", "בלילה", "אחרי בית הספר", "בשבת בבוקר"], correct: 2 },
-            { q: "מה כתם אוהב לעשות בטיול?", options: ["לישון", "לרוץ אחרי חתולים", "לרוץ אחרי כדורים", "לאכול"], correct: 2 },
-            { q: "מה יוסי נותן לכתם בבית?", options: ["ממתקים", "אוכל ומים", "צעצועים", "בגדים"], correct: 1 }
-        ]
-    },
-    // --- 8-10 ---
-    {
-        type: 'reading',
-        age: ['8-10'],
-        title: "החיסכון של דני",
-        text: "דני רצה מאוד לקנות אופניים שעולים 200 שקלים. בארנק שלו היו רק 50 שקלים. הוא החליט לחסוך את דמי הכיס שהוא מקבל בכל יום שישי. אבא הבטיח שאם דני יחסוך יפה במשך חודש, הוא ישלים לו את הסכום החסר. דני שמח והכין קופסה מיוחדת לחיסכון.",
-        questions: [
-            { q: "מה דני רצה לקנות?", options: ["מחשב", "אופניים", "כדור", "קורקינט"], correct: 1 },
-            { q: "כמה כסף היה לדני בהתחלה?", options: ["200", "100", "50", "0"], correct: 2 },
-            { q: "מתי דני מקבל דמי כיס?", options: ["ביום ראשון", "ביום שישי", "בשבת", "כל יום"], correct: 1 },
-            { q: "מה אבא הבטיח?", options: ["לקנות לו גלידה", "לקחת אותו לטיול", "להשלים את הסכום", "לקנות את האופניים מיד"], correct: 2 },
-            { q: "איפה דני שמר את הכסף?", options: ["בבנק", "מתחת לכרית", "בקופסה מיוחדת", "בכיס"], correct: 2 }
-        ]
-    },
-    {
-        type: 'financial',
-        age: ['8-10'],
-        title: "למה צריך בנק?",
-        text: "הבנק הוא מקום בטוח לשמור בו כסף. אם נשמור את כל הכסף בבית, הוא עלול ללכת לאיבוד או להיגנב. הבנק גם עוזר לנו לשלם על דברים בלי להסתובב עם מזומן, בעזרת כרטיס אשראי או אפליקציה. בנוסף, אם נשאיר את הכסף בבנק בתוכנית חיסכון, הבנק ישלם לנו עוד קצת כסף שנקרא 'ריבית'.",
-        questions: [
-            { q: "מה התפקיד העיקרי של הבנק?", options: ["למכור צעצועים", "לשמור על הכסף שלנו", "לחלק מתנות", "לייצר כסף"], correct: 1 },
-            { q: "מה עלול לקרות לכסף בבית?", options: ["הוא יגדל", "הוא ילך לאיבוד", "הוא יהפוך לזהב", "כלום"], correct: 1 },
-            { q: "איך משלמים בלי מזומן?", options: ["בכרטיס אשראי", "במכתב", "בחיבוק", "אי אפשר"], correct: 0 },
-            { q: "מהי ריבית?", options: ["קנס", "תוספת כסף על חיסכון", "עמלה", "סוג של הלוואה"], correct: 1 },
-            { q: "איפה הכי בטוח לשמור סכום גדול?", options: ["מתחת לבלטה", "בבנק", "בארנק", "בתיק בית ספר"], correct: 1 }
-        ]
-    },
-    // --- 10-13 ---
-    {
-        type: 'financial',
-        age: ['10-13', '13-15'],
-        title: "מהו תקציב?",
-        text: "תקציב הוא תוכנית שעוזרת לנו לנהל את הכסף. דמיינו עוגה שהיא כל הכסף שלכם. התקציב מחלק את העוגה: חתיכה למשחקים, חתיכה לאוכל, וחתיכה לחיסכון. המטרה היא שההוצאות (כסף שיוצא) לא יהיו גדולות מההכנסות (כסף שנכנס).",
-        questions: [
-            { q: "למה מדמים כסף בטקסט?", options: ["לכדור", "לעוגה", "לבית", "למכונית"], correct: 1 },
-            { q: "מה המטרה של תקציב?", options: ["לבזבז הכל מהר", "לנהל את הכסף נכון", "להחביא את הכסף", "לקנות רק ממתקים"], correct: 1 },
-            { q: "מה קורה אם ההוצאות גדולות מההכנסות?", options: ["נכנסים לחוב", "נהיים עשירים", "מקבלים מתנה", "לא קורה כלום"], correct: 0 },
-            { q: "מהן הכנסות?", options: ["כסף שיוצא", "כסף שנכנס", "מיסים", "קנסות"], correct: 1 },
-            { q: "למה כדאי לחסוך?", options: ["כדי שיהיה למחר/מטרה גדולה", "כי זה לא טעים", "סתם ככה", "כדי לזרוק"], correct: 0 }
-        ]
-    },
-    // --- 13-15+ ---
-    {
-        type: 'financial',
-        age: ['13-15', '15-18', '18+'],
-        title: "ריבית דריבית",
-        text: "אלברט איינשטיין אמר שריבית דריבית היא הפלא השמיני בתבל. זה מצב בו הריבית מצטרפת לקרן, ובשנה הבאה גם היא נושאת ריבית. לדוגמה: 100 שקלים ב-10% ריבית יהפכו ל-110. בשנה הבאה, ה-10% יחושבו על ה-110, ונקבל 11 שקלים נוספים. הכסף גדל בצורה מעריכית.",
-        questions: [
-            { q: "איך הכסף גדל בריבית דריבית?", options: ["בצורה לינארית", "בצורה מעריכית (אקספוננציאלית)", "לא גדל", "קטן"], correct: 1 },
-            { q: "כמה ריבית נקבל בשנה השנייה בדוגמה?", options: ["10", "11", "100", "5"], correct: 1 },
-            { q: "מהו המרכיב החשוב בצמיחה כזו?", options: ["זמן", "שם הבנק", "צבע הכסף", "המזל"], correct: 0 },
-            { q: "מי מיוחס למשפט על הפלא השמיני?", options: ["ניוטון", "איינשטיין", "הרצל", "אדיסון"], correct: 1 },
-            { q: "האם הריבית מחושבת רק על הקרן המקורית?", options: ["כן", "לא, גם על הריבית שנצברה", "רק בשנה הראשונה", "תלוי במזג האוויר"], correct: 1 }
-        ]
-    }
+    { type: 'reading', age: ['6-8'], title: "הכלב של יוסי", text: "ליוסי יש כלב קטן וחמוד ושמו כתם. לכתם יש פרווה לבנה עם כתם שחור על הגב. יוסי אוהב לצאת עם כתם לטיול בפארק כל יום אחרי בית הספר. בטיול, כתם אוהב לרוץ אחרי כדורים ולשחק עם כלבים אחרים. כשחוזרים הביתה, יוסי נותן לכתם אוכל ומים טריים.", questions: [{ q: "איך קוראים לכלב של יוסי?", options: ["בובי", "כתם", "שחורי", "לבן"], correct: 1 }, { q: "מה יש לכתם על הגב?", options: ["כתם שחור", "פס לבן", "כתם חום", "אין לו כלום"], correct: 0 }, { q: "מתי יוסי יוצא לטיול?", options: ["בבוקר", "בלילה", "אחרי בית הספר", "בשבת בבוקר"], correct: 2 }, { q: "מה כתם אוהב לעשות בטיול?", options: ["לישון", "לרוץ אחרי חתולים", "לרוץ אחרי כדורים", "לאכול"], correct: 2 }, { q: "מה יוסי נותן לכתם בבית?", options: ["ממתקים", "אוכל ומים", "צעצועים", "בגדים"], correct: 1 }] },
+    { type: 'reading', age: ['8-10'], title: "החיסכון של דני", text: "דני רצה מאוד לקנות אופניים שעולים 200 שקלים. בארנק שלו היו רק 50 שקלים. הוא החליט לחסוך את דמי הכיס שהוא מקבל בכל יום שישי. אבא הבטיח שאם דני יחסוך יפה במשך חודש, הוא ישלים לו את הסכום החסר. דני שמח והכין קופסה מיוחדת לחיסכון.", questions: [{ q: "מה דני רצה לקנות?", options: ["מחשב", "אופניים", "כדור", "קורקינט"], correct: 1 }, { q: "כמה כסף היה לדני בהתחלה?", options: ["200", "100", "50", "0"], correct: 2 }, { q: "מתי דני מקבל דמי כיס?", options: ["ביום ראשון", "ביום שישי", "בשבת", "כל יום"], correct: 1 }, { q: "מה אבא הבטיח?", options: ["לקנות לו גלידה", "לקחת אותו לטיול", "להשלים את הסכום", "לקנות את האופניים מיד"], correct: 2 }, { q: "איפה דני שמר את הכסף?", options: ["בבנק", "מתחת לכרית", "בקופסה מיוחדת", "בכיס"], correct: 2 }] },
+    { type: 'financial', age: ['8-10'], title: "למה צריך בנק?", text: "הבנק הוא מקום בטוח לשמור בו כסף. אם נשמור את כל הכסף בבית, הוא עלול ללכת לאיבוד או להיגנב. הבנק גם עוזר לנו לשלם על דברים בלי להסתובב עם מזומן, בעזרת כרטיס אשראי או אפליקציה. בנוסף, אם נשאיר את הכסף בבנק בתוכנית חיסכון, הבנק ישלם לנו עוד קצת כסף שנקרא 'ריבית'.", questions: [{ q: "מה התפקיד העיקרי של הבנק?", options: ["למכור צעצועים", "לשמור על הכסף שלנו", "לחלק מתנות", "לייצר כסף"], correct: 1 }, { q: "מה עלול לקרות לכסף בבית?", options: ["הוא יגדל", "הוא ילך לאיבוד", "הוא יהפוך לזהב", "כלום"], correct: 1 }, { q: "איך משלמים בלי מזומן?", options: ["בכרטיס אשראי", "במכתב", "בחיבוק", "אי אפשר"], correct: 0 }, { q: "מהי ריבית?", options: ["קנס", "תוספת כסף על חיסכון", "עמלה", "סוג של הלוואה"], correct: 1 }, { q: "איפה הכי בטוח לשמור סכום גדול?", options: ["מתחת לבלטה", "בבנק", "בארנק", "בתיק בית ספר"], correct: 1 }] },
+    { type: 'financial', age: ['10-13', '13-15'], title: "מהו תקציב?", text: "תקציב הוא תוכנית שעוזרת לנו לנהל את הכסף. דמיינו עוגה שהיא כל הכסף שלכם. התקציב מחלק את העוגה: חתיכה למשחקים, חתיכה לאוכל, וחתיכה לחיסכון. המטרה היא שההוצאות (כסף שיוצא) לא יהיו גדולות מההכנסות (כסף שנכנס).", questions: [{ q: "למה מדמים כסף בטקסט?", options: ["לכדור", "לעוגה", "לבית", "למכונית"], correct: 1 }, { q: "מה המטרה של תקציב?", options: ["לבזבז הכל מהר", "לנהל את הכסף נכון", "להחביא את הכסף", "לקנות רק ממתקים"], correct: 1 }, { q: "מה קורה אם ההוצאות גדולות מההכנסות?", options: ["נכנסים לחוב", "נהיים עשירים", "מקבלים מתנה", "לא קורה כלום"], correct: 0 }, { q: "מהן הכנסות?", options: ["כסף שיוצא", "כסף שנכנס", "מיסים", "קנסות"], correct: 1 }, { q: "למה כדאי לחסוך?", options: ["כדי שיהיה למחר/מטרה גדולה", "כי זה לא טעים", "סתם ככה", "כדי לזרוק"], correct: 0 }] },
+    { type: 'financial', age: ['13-15', '15-18', '18+'], title: "ריבית דריבית", text: "אלברט איינשטיין אמר שריבית דריבית היא הפלא השמיני בתבל. זה מצב בו הריבית מצטרפת לקרן, ובשנה הבאה גם היא נושאת ריבית. לדוגמה: 100 שקלים ב-10% ריבית יהפכו ל-110. בשנה הבאה, ה-10% יחושבו על ה-110, ונקבל 11 שקלים נוספים. הכסף גדל בצורה מעריכית.", questions: [{ q: "איך הכסף גדל בריבית דריבית?", options: ["בצורה לינארית", "בצורה מעריכית (אקספוננציאלית)", "לא גדל", "קטן"], correct: 1 }, { q: "כמה ריבית נקבל בשנה השנייה בדוגמה?", options: ["10", "11", "100", "5"], correct: 1 }, { q: "מהו המרכיב החשוב בצמיחה כזו?", options: ["זמן", "שם הבנק", "צבע הכסף", "המזל"], correct: 0 }, { q: "מי מיוחס למשפט על הפלא השמיני?", options: ["ניוטון", "איינשטיין", "הרצל", "אדיסון"], correct: 1 }, { q: "האם הריבית מחושבת רק על הקרן המקורית?", options: ["כן", "לא, גם על הריבית שנצברה", "רק בשנה הראשונה", "תלוי במזג האוויר"], correct: 1 }] }
 ];
 
 const seedQuizzes = async () => {
     try {
+        console.log('Checking Academy content...');
+        const check = await client.query('SELECT count(*) FROM quiz_bundles');
+        if (parseInt(check.rows[0].count) > 5) return; // Skip if seeded
+
         console.log('Force Seeding Academy...');
-        // Force delete all existing bundles to ensure new content is loaded
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
         
         for (const age of ages) {
-            // 1. Math Bundles (15 Questions, 85% Pass)
             if (['6-8', '8-10', '10-13', '13-15'].includes(age)) {
                 for (let i = 1; i <= 3; i++) {
                     await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
                     [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
                 }
             }
-
-            // 2. Content Bundles (5 Questions, 95% Pass)
             const relevantContent = CONTENT_DB.filter(c => c.age.includes(age));
             for (const content of relevantContent) {
-                // FIXED THE PARAMETER ORDER HERE:
                 await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, 95, $5, $6)`,
                 [content.title, content.type, age, 1.00, content.text, JSON.stringify(content.questions)]);
             }
         }
         console.log('Seeding Complete!');
-    } catch(e) { console.log('Seed skipped/error', e); }
+    } catch(e) { console.log('Seed error', e); }
 };
 
 // --- SETUP ---
@@ -202,7 +123,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE product_prices (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), store_name VARCHAR(100), price DECIMAL(10, 2), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, title VARCHAR(150), type VARCHAR(50), age_group VARCHAR(50), reward DECIMAL(10,2), threshold INTEGER, text_content TEXT, questions JSONB)`);
-    await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), date_completed TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), deadline TIMESTAMP, date_completed TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
     await seedQuizzes();
     res.send('<h1>Oneflow Life System Ready 🚀</h1><a href="/">Go Home</a>');
@@ -219,7 +140,7 @@ const initBudgets = async (groupId, userId = null) => {
   }
 };
 
-// --- AUTH & USER ---
+// --- AUTH ---
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
@@ -284,11 +205,16 @@ app.get('/api/data/:userId', async (req, res) => {
             client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
             client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
             client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]),
-            client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status='assigned'`, [user.id])
+            client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status='assigned'`, [user.id])
         ]);
+        
+        // Add all available bundles for the Library
+        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold FROM quiz_bundles ORDER BY age_group, title');
+
         res.json({
             user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
             quiz_bundles: myAssignments.rows,
+            all_bundles: allBundles.rows, // For library view
             weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -296,30 +222,88 @@ app.get('/api/data/:userId', async (req, res) => {
 
 // --- ACADEMY ENDPOINTS ---
 app.get('/api/academy/bundles', async (req, res) => { try { const r = await client.query('SELECT * FROM quiz_bundles ORDER BY age_group, title'); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
-app.post('/api/academy/assign', async (req, res) => { try { await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, req.body.bundleId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+
+// Assign Quiz (Admin) - Supports Custom Reward & Deadline
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 86400000) : null;
+        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status, custom_reward, deadline) VALUES ($1, $2, 'assigned', $3, $4)`, 
+        [userId, bundleId, reward || null, deadline]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Request Challenge (User) - Random or Specific
 app.post('/api/academy/request-challenge', async (req, res) => { 
     try { 
-        const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; 
-        const age = calculateAge(user.birth_year); 
-        const ageGroup = getAgeGroup(age); 
-        
+        // 3 Max Limit
         const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [req.body.userId]); 
         if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); 
         
-        // Find bundle for age AND not already assigned/completed
-        const available = await client.query(`
-            SELECT * FROM quiz_bundles 
-            WHERE age_group=$1 
-            AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) 
-            ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); 
+        let bundleId = req.body.bundleId;
+
+        // If no ID provided, pick random by age (Legacy behavior)
+        if (!bundleId) {
+            const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; 
+            const age = calculateAge(user.birth_year); 
+            const ageGroup = getAgeGroup(age); 
             
-        if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים זמינים כרגע לגילך' }); 
-        
-        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, available.rows[0].id]); 
+            const available = await client.query(`
+                SELECT id FROM quiz_bundles 
+                WHERE age_group=$1 
+                AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) 
+                ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); 
+            
+            if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים אקראיים זמינים לגילך' }); 
+            bundleId = available.rows[0].id;
+        }
+
+        // Check if already assigned/completed
+        const exists = await client.query('SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2', [req.body.userId, bundleId]);
+        if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר ביצעת או שהוקצה לך מבחן זה' });
+
+        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [req.body.userId, bundleId]); 
         res.json({ success: true }); 
     } catch (e) { res.status(500).json({ error: e.message }); } 
 });
-app.post('/api/academy/submit', async (req, res) => { try { await client.query('BEGIN'); const bundle = (await client.query('SELECT * FROM quiz_bundles WHERE id=$1', [req.body.bundleId])).rows[0]; const ua = (await client.query('SELECT * FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status=\'assigned\'', [req.body.userId, req.body.bundleId])).rows[0]; if(!ua) throw new Error('Assignment not found'); const passed = req.body.score >= bundle.threshold; const reward = passed ? bundle.reward : 0; const status = passed ? 'completed' : 'failed'; await client.query(`UPDATE user_assignments SET status=$1, score=$2, date_completed=NOW() WHERE id=$3`, [status, req.body.score, ua.id]); if(passed) { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [reward, req.body.userId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [req.body.userId, reward, `בונוס אקדמיה: ${bundle.title}`]); } if(!passed) { await client.query(`DELETE FROM user_assignments WHERE id=$1`, [ua.id]); } await client.query('COMMIT'); res.json({ success: true, passed, reward }); } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
+
+// Submit Quiz - Check Validity
+app.post('/api/academy/submit', async (req, res) => { 
+    try { 
+        await client.query('BEGIN');
+        const ua = (await client.query(`
+            SELECT ua.*, qb.threshold, qb.reward as default_reward, qb.title 
+            FROM user_assignments ua 
+            JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+            WHERE ua.user_id=$1 AND ua.bundle_id=$2 AND ua.status='assigned'`, 
+            [req.body.userId, req.body.bundleId])).rows[0];
+        
+        if(!ua) throw new Error('Assignment not found');
+
+        // Check Deadline
+        if (ua.deadline && new Date() > new Date(ua.deadline)) {
+            await client.query(`UPDATE user_assignments SET status='expired', date_completed=NOW() WHERE id=$1`, [ua.id]);
+            await client.query('COMMIT');
+            return res.json({ success: true, passed: false, expired: true });
+        }
+
+        const passed = req.body.score >= ua.threshold;
+        const reward = passed ? (ua.custom_reward !== null ? parseFloat(ua.custom_reward) : parseFloat(ua.default_reward)) : 0;
+        const status = passed ? 'completed' : 'failed'; 
+
+        await client.query(`UPDATE user_assignments SET status=$1, score=$2, date_completed=NOW() WHERE id=$3`, [status, req.body.score, ua.id]);
+        
+        if(passed) { 
+            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [reward, req.body.userId]); 
+            await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [req.body.userId, reward, `בונוס אקדמיה: ${ua.title}`]); 
+        } 
+        
+        if(!passed) { await client.query(`DELETE FROM user_assignments WHERE id=$1`, [ua.id]); } 
+        await client.query('COMMIT'); 
+        res.json({ success: true, passed, reward }); 
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } 
+});
 
 // --- OTHER ---
 app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
