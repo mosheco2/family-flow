@@ -164,9 +164,9 @@
                 <div id="content-academy" class="hidden">
                     <div id="academy-admin-view" class="hidden"><div class="flex justify-between items-center mb-6 px-2"><h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3><button onclick="openAssignModal()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i> הקצאת מבחן</button></div><div id="admin-assignments-list" class="space-y-3"></div></div>
                     <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
+                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ בקש אתגר (עד 3 ביום)</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-6">מאגר המבחנים</h3><div id="academy-list" class="space-y-4"></div>
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-6">מאגר המבחנים (היסטוריה)</h3><div id="academy-list" class="space-y-4"></div>
                     </div>
                 </div>
 
@@ -194,7 +194,7 @@
 
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
         
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-32 overflow-y-auto text-right hidden"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
 
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
@@ -371,36 +371,79 @@
 
         // --- ACADEMY LOGIC ---
         function renderAcademy(bundles) {
-            const list = document.getElementById('academy-list'); // Create this container in HTML if missing
-            if(!list) return;
-            list.innerHTML = '';
+            const list = document.getElementById('my-assignments-list');
+            const historyList = document.getElementById('academy-list');
+            if(!list || !historyList) return;
             
-            bundles.forEach(b => {
-                // Determine if user is eligible (by age group matching somewhat) - Simplified: Show all
+            list.innerHTML = '';
+            historyList.innerHTML = '';
+            
+            // Separate assigned/completed bundles
+            const activeBundles = bundles.filter(b => b.status === 'assigned');
+            const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed');
+
+            if (activeBundles.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בקש אתגר!</p>';
+
+            const getIcon = (type) => {
+                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
+                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
+                return '<i class="fa-solid fa-chart-line"></i>';
+            };
+
+            activeBundles.forEach(b => {
                 list.innerHTML += `
                 <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01]">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div>
                         <div>
                             <h4 class="font-bold text-slate-800">${b.title}</h4>
-                            <p class="text-xs text-slate-500">פרס: ₪${b.reward} • ציון עובר: ${b.threshold}</p>
+                            <p class="text-xs text-slate-500">פרס: ₪${b.reward} • צריך לעבור: ${b.threshold}%</p>
                         </div>
                     </div>
-                    <button onclick="startQuiz(${b.id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
+                    <button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
                 </div>`;
             });
             
-            // Populate Admin dropdown
-            if(currentUser.role === 'ADMIN') {
-                const select = document.getElementById('assign-bundle-select');
-                if(select && select.options.length <= 1) {
-                    bundles.forEach(b => select.innerHTML += `<option value="${b.id}">${b.title} (₪${b.reward})</option>`);
+            doneBundles.forEach(b => {
+                const isWin = b.status === 'completed';
+                historyList.innerHTML += `
+                <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80">
+                    <span class="text-sm font-bold text-slate-600">${b.title}</span>
+                    <span class="text-xs font-bold px-2 py-1 rounded ${isWin?'bg-green-100 text-green-600':'bg-red-100 text-red-600'}">${isWin ? 'הושלם' : 'נכשל'} (${b.score}%)</span>
+                </div>`;
+            });
+        }
+
+        async function requestChallenge() {
+            const btn = document.querySelector('#academy-user-view button');
+            btn.disabled = true;
+            btn.innerText = 'מבקש...';
+            
+            try {
+                const res = await fetch(`${API}/academy/request-challenge`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    triggerConfetti();
+                    showToast('success', 'אתגר חדש התווסף למשימות שלך!');
+                    fetchData();
+                } else {
+                    showToast('error', data.error);
                 }
+            } catch(e) {
+                showToast('error', 'שגיאה בתקשורת');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '🙋‍♂️ בקש אתגר (עד 3 ביום)';
             }
         }
 
         async function startQuiz(bundleId) {
-            const bundle = bundlesCache.find(b => b.id === bundleId);
+            const bundle = bundlesCache.find(b => b.bundle_id === bundleId);
             if(!bundle) return;
             
             currentQuizData = bundle;
@@ -408,8 +451,16 @@
             quizScore = 0;
             
             document.getElementById('quiz-title').innerText = bundle.title;
-            document.getElementById('quiz-text-container').innerHTML = bundle.text_content ? `<p>${bundle.text_content}</p>` : '';
-            document.getElementById('quiz-text-container').classList.toggle('hidden', !bundle.text_content);
+            
+            // Handle Text Content (Reading/Financial)
+            const textContainer = document.getElementById('quiz-text-container');
+            if (bundle.text_content) {
+                textContainer.innerHTML = `<p>${bundle.text_content}</p>`;
+                textContainer.classList.remove('hidden');
+            } else {
+                textContainer.classList.add('hidden');
+            }
+
             document.getElementById('quiz-runner-modal').classList.remove('hidden');
             renderQuestion();
         }
@@ -455,25 +506,27 @@
         async function finishQuiz() {
             const total = currentQuizData.questions.length;
             const finalScore = Math.round((quizScore / total) * 100);
+            
+            // Use the specific threshold from the bundle (85 or 95)
             const passed = finalScore >= currentQuizData.threshold;
             
             document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('quiz-text-container').classList.add('hidden'); // Hide text on result
             document.getElementById('quiz-result').classList.remove('hidden');
             
             document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚';
             document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...';
-            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.reward}` : 'נסה שוב בפעם הבאה';
-            document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}`;
+            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
+            document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
             
-            if (passed) {
-                triggerConfetti();
-                await fetch(`${API}/academy/submit`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.id, score: finalScore, reward: currentQuizData.reward })
-                });
-                fetchData(); // Refresh balance
-            }
+            if (passed) triggerConfetti();
+            
+            await fetch(`${API}/academy/submit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore })
+            });
+            fetchData(); // Refresh balance and list
         }
         
         function closeQuiz() { 
