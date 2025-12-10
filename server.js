@@ -19,10 +19,7 @@ client.connect()
   .catch(err => console.error('Connection Error', err.stack));
 
 // --- HELPERS ---
-const calculateAge = (birthYear) => {
-    const currentYear = new Date().getFullYear();
-    return currentYear - birthYear;
-};
+const calculateAge = (birthYear) => new Date().getFullYear() - birthYear;
 
 const getAgeGroup = (age) => {
     if (age >= 6 && age < 8) return '6-8';
@@ -34,93 +31,114 @@ const getAgeGroup = (age) => {
     return 'other';
 };
 
-// --- ACADEMY CONTENT GENERATORS ---
+// --- CONTENT GENERATORS ---
 
-// 1. Math Generator (Fixed bug here: changed const to let)
-const generateMathQuestions = (ageGroup) => {
+// 1. Math Generator (Auto-generated)
+const generateMath = (ageGroup) => {
     const questions = [];
-    for (let i = 0; i < 15; i++) { 
+    for (let i = 0; i < 10; i++) { 
         let q, a;
         if (ageGroup === '6-8') {
-            const n1 = Math.floor(Math.random() * 10) + 1;
-            const n2 = Math.floor(Math.random() * 10) + 1;
+            const n1 = Math.floor(Math.random() * 10) + 1; const n2 = Math.floor(Math.random() * 10) + 1;
             q = `${n1} + ${n2} = ?`; a = n1 + n2;
         } else if (ageGroup === '8-10') {
-            // FIXED: Used 'let' instead of 'const' to allow swapping
-            let n1 = Math.floor(Math.random() * 20) + 5;
-            let n2 = Math.floor(Math.random() * 15) + 5;
-            const op = Math.random() > 0.5 ? '+' : '-';
-            if (op === '-' && n2 > n1) [n1, n2] = [n2, n1]; 
-            q = `${n1} ${op} ${n2} = ?`; a = op === '+' ? n1 + n2 : n1 - n2;
-        } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 10) + 2;
-            const n2 = Math.floor(Math.random() * 10) + 2;
+            const n1 = Math.floor(Math.random() * 20) + 5; const n2 = Math.floor(Math.random() * 15) + 5;
             q = `${n1} x ${n2} = ?`; a = n1 * n2;
-        } else { 
-            const n1 = Math.floor(Math.random() * 50) + 10;
-            const n2 = Math.floor(Math.random() * 5) + 2;
-            const op = Math.random() > 0.7 ? '/' : (Math.random() > 0.5 ? 'x' : '+');
-            if(op === '/') { 
-                const res = Math.floor(Math.random() * 10) + 2;
-                const num = res * n2;
-                q = `${num} / ${n2} = ?`; a = res;
-            } else if (op === 'x') {
-                q = `${n1} x ${n2} = ?`; a = n1 * n2;
-            } else {
-                q = `${n1} + ${n2} + ${Math.floor(Math.random()*20)} = ?`; 
-                a = eval(q.split('=')[0]);
-            }
+        } else if (ageGroup === '10-13') {
+            const n1 = Math.floor(Math.random() * 50) + 10; const n2 = Math.floor(Math.random() * 10) + 2;
+            q = `${n1} x ${n2} + 5 = ?`; a = n1 * n2 + 5;
+        } else {
+            const n1 = Math.floor(Math.random() * 20);
+            q = `${n1} בריבוע = ?`; a = n1 * n1;
         }
-        
-        const wrong = new Set();
-        while(wrong.size < 3) {
-            const r = a + Math.floor(Math.random() * 10) - 5;
-            if(r !== a && r > -100) wrong.add(r);
-        }
-        const opts = [a.toString(), ...Array.from(wrong).map(String)].sort(() => Math.random() - 0.5);
-        questions.push({ q, options: opts, correct: opts.indexOf(a.toString()) });
+        const opts = [a, a+1, a-1, a+2].sort(() => Math.random() - 0.5);
+        questions.push({ q, options: opts.map(String), correct: opts.indexOf(a) });
     }
     return questions;
 };
 
-// 2. Content Repositories
-const CONTENT_DB = [
-    { type: 'reading', age: ['6-8'], title: "הכלב של יוסי", text: "ליוסי יש כלב קטן וחמוד ושמו כתם. לכתם יש פרווה לבנה עם כתם שחור על הגב. יוסי אוהב לצאת עם כתם לטיול בפארק כל יום אחרי בית הספר. בטיול, כתם אוהב לרוץ אחרי כדורים ולשחק עם כלבים אחרים. כשחוזרים הביתה, יוסי נותן לכתם אוכל ומים טריים.", questions: [{ q: "איך קוראים לכלב של יוסי?", options: ["בובי", "כתם", "שחורי", "לבן"], correct: 1 }, { q: "מה יש לכתם על הגב?", options: ["כתם שחור", "פס לבן", "כתם חום", "אין לו כלום"], correct: 0 }, { q: "מתי יוסי יוצא לטיול?", options: ["בבוקר", "בלילה", "אחרי בית הספר", "בשבת בבוקר"], correct: 2 }, { q: "מה כתם אוהב לעשות בטיול?", options: ["לישון", "לרוץ אחרי חתולים", "לרוץ אחרי כדורים", "לאכול"], correct: 2 }, { q: "מה יוסי נותן לכתם בבית?", options: ["ממתקים", "אוכל ומים", "צעצועים", "בגדים"], correct: 1 }] },
-    { type: 'reading', age: ['8-10'], title: "החיסכון של דני", text: "דני רצה מאוד לקנות אופניים שעולים 200 שקלים. בארנק שלו היו רק 50 שקלים. הוא החליט לחסוך את דמי הכיס שהוא מקבל בכל יום שישי. אבא הבטיח שאם דני יחסוך יפה במשך חודש, הוא ישלים לו את הסכום החסר. דני שמח והכין קופסה מיוחדת לחיסכון.", questions: [{ q: "מה דני רצה לקנות?", options: ["מחשב", "אופניים", "כדור", "קורקינט"], correct: 1 }, { q: "כמה כסף היה לדני בהתחלה?", options: ["200", "100", "50", "0"], correct: 2 }, { q: "מתי דני מקבל דמי כיס?", options: ["ביום ראשון", "ביום שישי", "בשבת", "כל יום"], correct: 1 }, { q: "מה אבא הבטיח?", options: ["לקנות לו גלידה", "לקחת אותו לטיול", "להשלים את הסכום", "לקנות את האופניים מיד"], correct: 2 }, { q: "איפה דני שמר את הכסף?", options: ["בבנק", "מתחת לכרית", "בקופסה מיוחדת", "בכיס"], correct: 2 }] },
-    { type: 'financial', age: ['8-10'], title: "למה צריך בנק?", text: "הבנק הוא מקום בטוח לשמור בו כסף. אם נשמור את כל הכסף בבית, הוא עלול ללכת לאיבוד או להיגנב. הבנק גם עוזר לנו לשלם על דברים בלי להסתובב עם מזומן, בעזרת כרטיס אשראי או אפליקציה. בנוסף, אם נשאיר את הכסף בבנק בתוכנית חיסכון, הבנק ישלם לנו עוד קצת כסף שנקרא 'ריבית'.", questions: [{ q: "מה התפקיד העיקרי של הבנק?", options: ["למכור צעצועים", "לשמור על הכסף שלנו", "לחלק מתנות", "לייצר כסף"], correct: 1 }, { q: "מה עלול לקרות לכסף בבית?", options: ["הוא יגדל", "הוא ילך לאיבוד", "הוא יהפוך לזהב", "כלום"], correct: 1 }, { q: "איך משלמים בלי מזומן?", options: ["בכרטיס אשראי", "במכתב", "בחיבוק", "אי אפשר"], correct: 0 }, { q: "מהי ריבית?", options: ["קנס", "תוספת כסף על חיסכון", "עמלה", "סוג של הלוואה"], correct: 1 }, { q: "איפה הכי בטוח לשמור סכום גדול?", options: ["מתחת לבלטה", "בבנק", "בארנק", "בתיק בית ספר"], correct: 1 }] },
-    { type: 'financial', age: ['10-13', '13-15'], title: "מהו תקציב?", text: "תקציב הוא תוכנית שעוזרת לנו לנהל את הכסף. דמיינו עוגה שהיא כל הכסף שלכם. התקציב מחלק את העוגה: חתיכה למשחקים, חתיכה לאוכל, וחתיכה לחיסכון. המטרה היא שההוצאות (כסף שיוצא) לא יהיו גדולות מההכנסות (כסף שנכנס).", questions: [{ q: "למה מדמים כסף בטקסט?", options: ["לכדור", "לעוגה", "לבית", "למכונית"], correct: 1 }, { q: "מה המטרה של תקציב?", options: ["לבזבז הכל מהר", "לנהל את הכסף נכון", "להחביא את הכסף", "לקנות רק ממתקים"], correct: 1 }, { q: "מה קורה אם ההוצאות גדולות מההכנסות?", options: ["נכנסים לחוב", "נהיים עשירים", "מקבלים מתנה", "לא קורה כלום"], correct: 0 }, { q: "מהן הכנסות?", options: ["כסף שיוצא", "כסף שנכנס", "מיסים", "קנסות"], correct: 1 }, { q: "למה כדאי לחסוך?", options: ["כדי שיהיה למחר/מטרה גדולה", "כי זה לא טעים", "סתם ככה", "כדי לזרוק"], correct: 0 }] },
-    { type: 'financial', age: ['13-15', '15-18', '18+'], title: "ריבית דריבית", text: "אלברט איינשטיין אמר שריבית דריבית היא הפלא השמיני בתבל. זה מצב בו הריבית מצטרפת לקרן, ובשנה הבאה גם היא נושאת ריבית. לדוגמה: 100 שקלים ב-10% ריבית יהפכו ל-110. בשנה הבאה, ה-10% יחושבו על ה-110, ונקבל 11 שקלים נוספים. הכסף גדל בצורה מעריכית.", questions: [{ q: "איך הכסף גדל בריבית דריבית?", options: ["בצורה לינארית", "בצורה מעריכית (אקספוננציאלית)", "לא גדל", "קטן"], correct: 1 }, { q: "כמה ריבית נקבל בשנה השנייה בדוגמה?", options: ["10", "11", "100", "5"], correct: 1 }, { q: "מהו המרכיב החשוב בצמיחה כזו?", options: ["זמן", "שם הבנק", "צבע הכסף", "המזל"], correct: 0 }, { q: "מי מיוחס למשפט על הפלא השמיני?", options: ["ניוטון", "איינשטיין", "הרצל", "אדיסון"], correct: 1 }, { q: "האם הריבית מחושבת רק על הקרן המקורית?", options: ["כן", "לא, גם על הריבית שנצברה", "רק בשנה הראשונה", "תלוי במזג האוויר"], correct: 1 }] }
+// 2. Static Content (Reading & Financial) - FULL DATABASE
+const STATIC_CONTENT = [
+    // Reading 6-8
+    { type: 'reading', age: '6-8', title: 'הכלב של דני', text: 'לדני יש כלב חמוד ושמו חומי. חומי אוהב לרוץ בגינה ולשחק בכדור אדום. דני נותן לחומי אוכל ומים בכל יום.', questions: [
+        {q: 'איך קוראים לכלב?', options: ['בובי', 'חומי', 'שחורי', 'לביא'], correct: 1},
+        {q: 'במה חומי משחק?', options: ['בובה', 'כדור אדום', 'מקל', 'חתול'], correct: 1},
+        {q: 'איפה חומי רץ?', options: ['בבית', 'בגינה', 'ברחוב', 'בגג'], correct: 1},
+        {q: 'מה דני נותן לחומי?', options: ['סוכריות', 'אוכל ומים', 'בגדים', 'צעצועים'], correct: 1},
+        {q: 'מי הבעלים של חומי?', options: ['יוסי', 'דני', 'אבא', 'סבא'], correct: 1}
+    ]},
+    // Reading 8-10
+    { type: 'reading', age: '8-10', title: 'הטיול לירושלים', text: 'כיתה ג יצאה לטיול בירושלים. הם ביקרו בכותל המערבי וראו את חומות העיר העתיקה. המדריך הסביר להם על ההיסטוריה של העיר. בסוף היום הם אכלו פלאפל בשוק.', questions: [
+        {q: 'לאן נסעה הכיתה?', options: ['תל אביב', 'חיפה', 'ירושלים', 'אילת'], correct: 2},
+        {q: 'מה הם ראו?', options: ['ים', 'חומות העיר', 'קניון', 'מטוסים'], correct: 1},
+        {q: 'מי הסביר להם?', options: ['המורה', 'הנהג', 'המדריך', 'השומר'], correct: 2},
+        {q: 'מה אכלו בסוף?', options: ['פיצה', 'פלאפל', 'גלידה', 'סלט'], correct: 1},
+        {q: 'איזו כיתה יצאה לטיול?', options: ['א', 'ב', 'ג', 'ד'], correct: 2}
+    ]},
+    // Financial 8-10
+    { type: 'financial', age: '8-10', title: 'מהו חיסכון?', text: 'חיסכון הוא כסף שאנחנו לא מבזבזים מיד, אלא שומרים למשהו חשוב בעתיד. אפשר לשמור כסף בקופת חיסכון בבית או בבנק. כשיש לנו סבלנות, הסכום גדל ואפשר לקנות דברים יקרים יותר.', questions: [
+        {q: 'מה זה חיסכון?', options: ['לבזבז הכל', 'לשמור כסף לעתיד', 'לקנות ממתקים', 'לאבד כסף'], correct: 1},
+        {q: 'איפה אפשר לשמור כסף?', options: ['בפח', 'בבנק או בקופה', 'בנעליים', 'בחול'], correct: 1},
+        {q: 'למה כדאי לחסוך?', options: ['כדי לקנות דברים יקרים', 'סתם ככה', 'כדי שהכסף יעלם', 'לא כדאי'], correct: 0},
+        {q: 'מה צריך כדי לחסוך?', options: ['כוח', 'מהירות', 'סבלנות', 'מזל'], correct: 2},
+        {q: 'מה קורה לכסף בחיסכון?', options: ['הוא נעלם', 'הוא נשמר/גדל', 'הוא הופך לנייר', 'כלום'], correct: 1}
+    ]},
+    // Financial 10-13
+    { type: 'financial', age: '10-13', title: 'הכנסות והוצאות', text: 'כדי לנהל כסף צריך להבין שני מושגים: הכנסות והוצאות. הכנסה היא כסף שנכנס אלינו (משכורת, דמי כיס). הוצאה היא כסף שאנחנו משלמים (קניות, חשבונות). כדי לא להיכנס למינוס (חוב), ההוצאות חייבות להיות קטנות מההכנסות.', questions: [
+        {q: 'מהי הכנסה?', options: ['כסף שיוצא', 'כסף שנכנס', 'חוב', 'מיסים'], correct: 1},
+        {q: 'מהי הוצאה?', options: ['כסף שמקבלים', 'כסף שמשלמים', 'חיסכון', 'מתנה'], correct: 1},
+        {q: 'מה קורה אם ההוצאות גדולות מההכנסות?', options: ['נהיים עשירים', 'נכנסים למינוס', 'הכל בסדר', 'מקבלים פרס'], correct: 1},
+        {q: 'דמי כיס הם דוגמה ל...', options: ['הוצאה', 'הכנסה', 'חוב', 'קנס'], correct: 1},
+        {q: 'מה המטרה בניהול תקציב?', options: ['להוציא יותר ממה שיש', 'שההוצאות יהיו קטנות מההכנסות', 'לא לקנות כלום', 'לזרוק כסף'], correct: 1}
+    ]},
+    // Financial 13-15
+    { type: 'financial', age: '13-15', title: 'ריבית דריבית', text: 'ריבית דריבית היא כוח חזק מאוד בעולם ההשקעות. כאשר מפקידים כסף וצוברים ריבית, בשנה הבאה הריבית מחושבת גם על הקרן המקורית וגם על הריבית שכבר הצטברה. זה גורם לכסף לגדול בצורה מהירה יותר (אקספוננציאלית) לאורך זמן.', questions: [
+        {q: 'מהי ריבית דריבית?', options: ['ריבית רגילה', 'ריבית על ריבית', 'קנס בבנק', 'דמי ניהול'], correct: 1},
+        {q: 'איך הכסף גדל בריבית דריבית?', options: ['לאט', 'לינארית', 'אקספוננציאלית (מהר)', 'הוא קטן'], correct: 2},
+        {q: 'על מה מחושבת הריבית בשנה השנייה?', options: ['רק על הקרן', 'על הקרן + הריבית שנצברה', 'רק על הריבית', 'לא מחושבת'], correct: 1},
+        {q: 'מה משפיע לטובה על ריבית דריבית?', options: ['זמן ארוך', 'זמן קצר', 'משיכת הכסף', 'ריבית נמוכה'], correct: 0},
+        {q: 'למי זה טוב?', options: ['למי שחוסך לטווח ארוך', 'למי שמבזבז', 'לאף אחד', 'רק לבנק'], correct: 0}
+    ]},
+    // Financial 15-18
+    { type: 'financial', age: '15-18', title: 'שוק ההון ומניות', text: 'מניה היא חלק מבעלות בחברה. כשאתה קונה מניה, אתה הופך לשותף קטן בחברה. מחיר המניה עולה ויורד לפי הביקוש וההיצע בבורסה ולפי ביצועי החברה. השקעה במניות נחשבת מסוכנת יותר מפיקדון בבנק, אך לטווח ארוך היא עשויה להניב רווחים גבוהים יותר.', questions: [
+        {q: 'מה מייצגת מניה?', options: ['הלוואה', 'בעלות חלקית בחברה', 'אישור כניסה', 'הנחה'], correct: 1},
+        {q: 'מה קובע את מחיר המניה?', options: ['הממשלה', 'היצע וביקוש', 'מזג האוויר', 'המנכ"ל'], correct: 1},
+        {q: 'מה הסיכון במניות?', options: ['אין סיכון', 'נמוך מפיקדון', 'גבוה מפיקדון', 'הכסף בטוח תמיד'], correct: 2},
+        {q: 'למה אנשים משקיעים במניות?', options: ['כי זה מחייב', 'פוטנציאל לרווח גבוה', 'כדי להפסיד', 'כי אין ברירה'], correct: 1},
+        {q: 'איפה נסחרות מניות?', options: ['בסופר', 'בבורסה', 'בבנק', 'ברחוב'], correct: 1}
+    ]}
 ];
 
+// --- SEEDING LOGIC (AGGRESSIVE) ---
 const seedQuizzes = async () => {
     try {
-        console.log('Force Seeding Academy...');
-        // Force delete all existing bundles to ensure new content is loaded
+        console.log('🔄 Force Seeding Database...');
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
-        const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
-        
+        // 1. Insert Math Bundles (3 sets per age group)
+        const ages = ['6-8', '8-10', '10-13', '13-15', '15-18'];
         for (const age of ages) {
-            // 1. Math Bundles (15 Questions, 85% Pass)
-            if (['6-8', '8-10', '10-13', '13-15'].includes(age)) {
-                for (let i = 1; i <= 3; i++) {
-                    await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, $3, 85, $4)`, 
-                    [`חשבון לגיל ${age} - סט ${i}`, age, 0.50, JSON.stringify(generateMathQuestions(age))]);
-                }
-            }
-
-            // 2. Content Bundles (5 Questions, 95% Pass)
-            const relevantContent = CONTENT_DB.filter(c => c.age.includes(age));
-            for (const content of relevantContent) {
-                await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, $4, 95, $5, $6)`,
-                [content.title, content.type, age, 1.00, content.text, JSON.stringify(content.questions)]);
+            for (let i = 1; i <= 3; i++) {
+                await client.query(
+                    `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions) VALUES ($1, 'math', $2, 0.5, 85, $3)`,
+                    [`חשבון (${age}) - סט ${i}`, age, JSON.stringify(generateMath(age))]
+                );
             }
         }
-        console.log('Seeding Complete!');
-    } catch(e) { console.log('Seed skipped/error', e); }
+
+        // 2. Insert Static Content (Reading/Financial)
+        for (const item of STATIC_CONTENT) {
+            await client.query(
+                `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions) VALUES ($1, $2, $3, 1.0, 95, $4, $5)`,
+                [item.title, item.type, item.age, item.text, JSON.stringify(item.questions)]
+            );
+        }
+        
+        console.log('✅ Seeding Complete! All content loaded.');
+    } catch(e) { console.error('❌ Seed Error:', e); }
 };
 
-// --- SETUP ---
+// --- SETUP ROUTE ---
 app.get('/setup-db', async (req, res) => {
   try {
     const tables = ['user_assignments', 'quiz_bundles', 'shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
@@ -141,7 +159,7 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), deadline TIMESTAMP, date_completed TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
     await seedQuizzes();
-    res.send('<h1>Oneflow Life System Ready 🚀</h1><a href="/">Go Home</a>');
+    res.send('<h1>Oneflow Life System Ready 🚀</h1><p>Database Reset & Full Content Seeded!</p><a href="/">Go Home</a>');
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -155,7 +173,9 @@ const initBudgets = async (groupId, userId = null) => {
   }
 };
 
-// --- AUTH ---
+// --- API ENDPOINTS ---
+
+// AUTH
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
@@ -200,7 +220,7 @@ app.get('/api/admin/pending-users', async (req, res) => { try { const r = await 
 app.post('/api/admin/approve-user', async (req, res) => { try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); const u = await client.query("SELECT group_id FROM users WHERE id=$1", [req.body.userId]); await initBudgets(u.rows[0].group_id, req.body.userId); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); } });
 app.get('/api/group/members', async (req, res) => { const { groupId, requesterId } = req.query; try { const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]); const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN'; const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]); const members = r.rows.map(m => ({ ...m, balance: (isAdmin || m.id == requesterId) ? m.balance : null, allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null, interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null })); res.json(members); } catch (e) { res.status(500).json({error:e.message}); } });
 
-// --- SHOPPING ---
+// SHOPPING
 app.post('/api/shopping/add', async (req, res) => { try { const uRes = await client.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]); const user = uRes.rows[0]; const status = user.role === 'ADMIN' ? 'pending' : 'requested'; const r = await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, [req.body.itemName, req.body.quantity, req.body.estimatedPrice||0, req.body.userId, user.group_id, status]); let alert = null; if(req.body.estimatedPrice > 0) { const h = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name))=LOWER(TRIM($1)) AND price<$2 ORDER BY price ASC LIMIT 1`, [req.body.itemName, parseFloat(req.body.estimatedPrice)]); if(h.rows.length) { const d = new Date(h.rows[0].date).toLocaleDateString('he-IL'); alert = { msg: `נמצא זול יותר: ₪${h.rows[0].price} ב-${h.rows[0].store_name} (${d})`, price: h.rows[0].price }; } } res.json({ success: true, alert, id: r.rows[0].id, status }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.delete('/api/shopping/delete/:id', async (req, res) => { try { await client.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/update', async (req, res) => { try { if(req.body.status) await client.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [req.body.status, req.body.itemId]); if(req.body.quantity) await client.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [req.body.quantity, req.body.itemId]); let alert = null; if(req.body.estimatedPrice !== undefined) { await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [req.body.estimatedPrice, req.body.itemId]); const i = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [req.body.itemId]); if(i.rows.length && req.body.estimatedPrice > 0) { const h = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name))=LOWER(TRIM($1)) AND price<$2 ORDER BY price ASC LIMIT 1`, [i.rows[0].item_name, req.body.estimatedPrice]); if(h.rows.length) { const d = new Date(h.rows[0].date).toLocaleDateString('he-IL'); alert = { msg: `נמצא זול יותר: ₪${h.rows[0].price} ב-${h.rows[0].store_name} (${d})`, price: h.rows[0].price }; } } } res.json({ success: true, alert }); } catch (e) { res.status(500).json({ error: e.message }); } });
@@ -223,22 +243,21 @@ app.get('/api/data/:userId', async (req, res) => {
             client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status='assigned'`, [user.id])
         ]);
         
-        // Add all available bundles for the Library
-        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold FROM quiz_bundles ORDER BY age_group, title');
+        // Return ALL bundles for Library View
+        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold FROM quiz_bundles ORDER BY age_group, type');
 
         res.json({
             user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
             quiz_bundles: myAssignments.rows,
-            all_bundles: allBundles.rows, // For library view
+            all_bundles: allBundles.rows, // Sending full library
             weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- ACADEMY ENDPOINTS ---
+// --- ACADEMY ---
 app.get('/api/academy/bundles', async (req, res) => { try { const r = await client.query('SELECT * FROM quiz_bundles ORDER BY age_group, title'); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
 
-// Assign Quiz (Admin) - Supports Custom Reward & Deadline
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -249,32 +268,23 @@ app.post('/api/academy/assign', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Request Challenge (User) - Random or Specific
 app.post('/api/academy/request-challenge', async (req, res) => { 
     try { 
-        // 3 Max Limit
         const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [req.body.userId]); 
         if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); 
         
         let bundleId = req.body.bundleId;
 
-        // If no ID provided, pick random by age (Legacy behavior)
+        // If random requested
         if (!bundleId) {
             const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; 
             const age = calculateAge(user.birth_year); 
             const ageGroup = getAgeGroup(age); 
-            
-            const available = await client.query(`
-                SELECT id FROM quiz_bundles 
-                WHERE age_group=$1 
-                AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) 
-                ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); 
-            
+            const available = await client.query(`SELECT id FROM quiz_bundles WHERE age_group=$1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); 
             if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים אקראיים זמינים לגילך' }); 
             bundleId = available.rows[0].id;
         }
 
-        // Check if already assigned/completed
         const exists = await client.query('SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2', [req.body.userId, bundleId]);
         if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר ביצעת או שהוקצה לך מבחן זה' });
 
@@ -283,20 +293,12 @@ app.post('/api/academy/request-challenge', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); } 
 });
 
-// Submit Quiz - Check Validity
 app.post('/api/academy/submit', async (req, res) => { 
     try { 
         await client.query('BEGIN');
-        const ua = (await client.query(`
-            SELECT ua.*, qb.threshold, qb.reward as default_reward, qb.title 
-            FROM user_assignments ua 
-            JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-            WHERE ua.user_id=$1 AND ua.bundle_id=$2 AND ua.status='assigned'`, 
-            [req.body.userId, req.body.bundleId])).rows[0];
-        
+        const ua = (await client.query(`SELECT ua.*, qb.threshold, qb.reward as default_reward, qb.title FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.bundle_id=$2 AND ua.status='assigned'`, [req.body.userId, req.body.bundleId])).rows[0];
         if(!ua) throw new Error('Assignment not found');
 
-        // Check Deadline
         if (ua.deadline && new Date() > new Date(ua.deadline)) {
             await client.query(`UPDATE user_assignments SET status='expired', date_completed=NOW() WHERE id=$1`, [ua.id]);
             await client.query('COMMIT');
@@ -320,7 +322,7 @@ app.post('/api/academy/submit', async (req, res) => {
     } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } 
 });
 
-// --- OTHER ---
+// --- OTHERS ---
 app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/tasks/update', async (req, res) => { try { await client.query('BEGIN'); let final = req.body.status; const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0]; if(req.body.status==='done' && (t.reward==0 || t.reward==null)) final='approved'; else if(req.body.status==='completed_self') final='approved'; await client.query('UPDATE tasks SET status=$1 WHERE id=$2', [final, req.body.taskId]); if(final==='approved' && t.reward>0 && t.status!=='approved') { await client.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`, [t.reward, t.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]); } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.get('/api/transactions', async (req, res) => { const r = await client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${req.query.userId ? 'AND t.user_id='+req.query.userId : ''} ORDER BY t.date DESC LIMIT 20`, [req.query.groupId]); res.json(r.rows); });
