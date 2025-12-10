@@ -227,7 +227,28 @@
 
         let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0;
 
-        window.onload = async () => { const saved = localStorage.getItem('ofl_session'); if(saved) { try { const session = JSON.parse(saved); const res = await fetch(`${API}/users/${session.user.id}`); if(res.ok) { currentUser = await res.json(); currentGroup = session.group; localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); loadDashboard(); } else logout(); } catch(e) { logout(); } } };
+        window.onload = async () => { 
+            const saved = localStorage.getItem('ofl_session'); 
+            if(saved) { 
+                try { 
+                    const session = JSON.parse(saved); 
+                    // Verify if user still exists on server before loading dashboard
+                    if(session && session.user && session.user.id) {
+                         const res = await fetch(`${API}/users/${session.user.id}`);
+                         if(res.ok) {
+                             currentUser = await res.json();
+                             currentGroup = session.group;
+                             // Update local storage with fresh data
+                             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                             loadDashboard();
+                         } else {
+                             // User not found on server (maybe db reset), logout
+                             logout();
+                         }
+                    } else { logout(); }
+                } catch(e) { logout(); } 
+            } 
+        };
 
         function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
         function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
@@ -273,7 +294,9 @@
             document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
             const isAdmin = currentUser.role === 'ADMIN';
             if(isAdmin) { 
-                document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); fetchPendingUsers(); fetchBundles(); 
+                document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
+                fetchPendingUsers(); // Now this function exists!
+                fetchBundles(); 
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
@@ -381,6 +404,7 @@
         function openAssignModal() {
             const cSelect = document.getElementById('assign-child-select');
             cSelect.innerHTML = '';
+            // Show all members except admin, or all if we want admin to test
             membersCache.forEach(m => {
                 if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
             });
@@ -810,6 +834,44 @@
         async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
         async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
+
+        // --- NEW ADMIN FUNCTIONS ---
+        async function fetchPendingUsers() {
+            try {
+                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
+                const users = await res.json();
+                const list = document.getElementById('pending-list');
+                const container = document.getElementById('admin-panel');
+                
+                if (users.length > 0) {
+                    container.classList.remove('hidden');
+                    list.innerHTML = '';
+                    users.forEach(u => {
+                        const age = new Date().getFullYear() - u.birth_year;
+                        list.innerHTML += `
+                        <div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm">
+                            <span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span>
+                            <div class="flex gap-2">
+                                <button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
+                            </div>
+                        </div>`;
+                    });
+                } else {
+                    container.classList.add('hidden');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function approveUser(id) {
+            await fetch(`${API}/admin/approve-user`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: id })
+            });
+            showToast('success', 'משתמש אושר!');
+            fetchPendingUsers();
+            fetchMembers();
+        }
     </script>
 </body>
 </html>
