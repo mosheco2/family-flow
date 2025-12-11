@@ -177,7 +177,6 @@ const initBudgets = async (groupId, userId = null) => {
 
 // --- API ENDPOINTS (Other sections omitted for brevity) ---
 
-// ... (Authentication and Shopping Endpoints are here, unchanged) ...
 // AUTH
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
@@ -280,7 +279,31 @@ app.get('/api/academy/bundle/:id', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// 3. Admin Assigns Bundle
+// NEW: 3. Admin Creates New Quiz Bundle
+app.post('/api/academy/create-bundle', async (req, res) => {
+    try {
+        const { title, type, age_group, threshold, reward, text_content, questions } = req.body;
+        
+        if (!title || !type || !age_group || !threshold || !questions || questions.length < 5) {
+             return res.status(400).json({ success: false, error: 'יש למלא את כל השדות ולפחות 5 שאלות.' });
+        }
+        
+        const finalReward = parseFloat(reward) || 1.0; 
+        
+        await client.query(
+            `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [title, type, age_group, finalReward, threshold, text_content, JSON.stringify(questions), 'ADMIN']
+        );
+
+        res.json({ success: true });
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+
+// 4. Admin Assigns Bundle
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -291,18 +314,39 @@ app.post('/api/academy/assign', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 4. User Requests Challenge -> PENDING APPROVAL
+// 5. User Requests Challenge -> PENDING APPROVAL (Handles random if no bundleId is passed)
 app.post('/api/academy/request-challenge', async (req, res) => { 
     try { 
-        const { userId, bundleId } = req.body;
-        
+        const { userId, bundleId: requestedBundleId } = req.body;
+        let bundleId = requestedBundleId;
+
         // Daily Limit Check (3 max)
         const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [userId]); 
         if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); 
+        
+        // Handle Random Challenge Request
+        if (!bundleId) {
+            const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [userId])).rows[0]; 
+            const age = calculateAge(user.birth_year); 
+            const ageGroup = getAgeGroup(age); 
+            // Select a random bundle for their age group that is NOT currently assigned (assigned or pending) or completed.
+            const available = await client.query(`
+                SELECT id 
+                FROM quiz_bundles 
+                WHERE age_group=$1 
+                AND id NOT IN (
+                    SELECT bundle_id FROM user_assignments WHERE user_id=$2 AND status IN ('assigned', 'pending_approval', 'completed')
+                ) 
+                ORDER BY RANDOM() LIMIT 1`, 
+                [ageGroup, userId]
+            ); 
+            if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים אקראיים זמינים/חדשים לגילך' }); 
+            bundleId = available.rows[0].id;
+        }
 
         // Check if already assigned (pending or active)
         const exists = await client.query('SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status IN (\'assigned\', \'pending_approval\')', [userId, bundleId]);
-        if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר ביצעת או שהוקצה/נשלח לך מבחן זה' });
+        if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר הוגשה בקשה או שהוקצה לך מבחן זה' });
         
         // Insert with 'pending_approval'
         await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'pending_approval')`, [userId, bundleId]); 
@@ -310,7 +354,7 @@ app.post('/api/academy/request-challenge', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); } 
 });
 
-// 5. Admin Gets Pending Requests
+// 6. Admin Gets Pending Requests
 app.get('/api/admin/academy-requests', async (req, res) => {
     try {
         const r = await client.query(`
@@ -324,33 +368,41 @@ app.get('/api/admin/academy-requests', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 6. Admin Approves Request (Sets Reward/Deadline/Status)
+// 7. Admin Approves/Rejects Request (Sets Reward/Deadline/Status)
 app.post('/api/academy/approve-request', async (req, res) => {
     try {
         const { assignmentId, reward, days, status: newStatus } = req.body;
-        const deadline = days ? new Date(Date.now() + days * 86400000) : null;
         
-        // Allows Admin to Approve (assigned) or Reject/Delete (failed)
         if (newStatus === 'assigned') {
+            const deadline = days ? new Date(Date.now() + days * 86400000) : null;
             await client.query(
                 `UPDATE user_assignments SET status='assigned', custom_reward=$1, deadline=$2 WHERE id=$3`, 
                 [reward, deadline, assignmentId]
             );
         } else if (newStatus === 'failed') { // Reject/Cancel
              await client.query(`DELETE FROM user_assignments WHERE id=$1`, [assignmentId]); 
+        } else {
+            throw new Error('Invalid status action');
         }
 
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 7. Submit Quiz (Checks Score and Pays)
+// 8. Submit Quiz (Checks Score and Pays)
 app.post('/api/academy/submit', async (req, res) => { 
     try { 
         await client.query('BEGIN');
-        // Need to check for status='assigned' or 'pending_approval' here
+        // Fetch the assignment that is currently 'assigned' (prevents submitting a pending/completed one)
         const ua = (await client.query(`SELECT ua.*, qb.threshold, qb.reward as default_reward, qb.title FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.bundle_id=$2 AND ua.status='assigned'`, [req.body.userId, req.body.bundleId])).rows[0];
-        if(!ua) throw new Error('Assignment not found');
+        if(!ua) throw new Error('Assignment not found or not active');
+
+        // Check for deadline
+        if (ua.deadline && new Date() > new Date(ua.deadline)) {
+            await client.query(`UPDATE user_assignments SET status='expired', date_completed=NOW() WHERE id=$1`, [ua.id]);
+            await client.query('COMMIT');
+            return res.json({ success: true, passed: false, expired: true });
+        }
 
         const passed = req.body.score >= ua.threshold;
         const reward = passed ? (ua.custom_reward !== null ? parseFloat(ua.custom_reward) : parseFloat(ua.default_reward)) : 0;
@@ -363,7 +415,7 @@ app.post('/api/academy/submit', async (req, res) => {
             await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [req.body.userId, reward, `בונוס אקדמיה: ${ua.title}`]); 
         } 
         
-        // If failed, delete the assignment (to allow a retry)
+        // If failed, delete the assignment (to allow a retry/new request for the same bundle)
         if(!passed) { await client.query(`DELETE FROM user_assignments WHERE id=$1`, [ua.id]); } 
         await client.query('COMMIT'); 
         res.json({ success: true, passed, reward }); 
@@ -371,7 +423,7 @@ app.post('/api/academy/submit', async (req, res) => {
 });
 
 
-// --- OTHERS (omitted for brevity) ---
+// --- OTHERS ---
 app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/tasks/update', async (req, res) => { try { await client.query('BEGIN'); let final = req.body.status; const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0]; if(req.body.status==='done' && (t.reward==0 || t.reward==null)) final='approved'; else if(req.body.status==='completed_self') final='approved'; await client.query('UPDATE tasks SET status=$1 WHERE id=$2', [final, req.body.taskId]); if(final==='approved' && t.reward>0 && t.status!=='approved') { await client.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`, [t.reward, t.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]); } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.get('/api/transactions', async (req, res) => { const r = await client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${req.query.userId ? 'AND t.user_id='+req.query.userId : ''} ORDER BY t.date DESC LIMIT 20`, [req.query.groupId]); res.json(r.rows); });
