@@ -15,12 +15,16 @@
         .hidden { display: none !important; }
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* Layout */
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; margin-bottom: 0.5rem; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
         .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+        
+        /* UI */
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
@@ -129,7 +133,6 @@
             <div class="bg-white w-full max-w-xl rounded-[2rem] p-6 shadow-2xl h-[85vh] flex flex-col relative">
                 <button onclick="document.getElementById('full-history-modal').classList.add('hidden')" class="absolute top-6 left-6 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
                 <h3 class="text-2xl font-bold mb-6 text-center text-slate-800">היסטוריה מלאה</h3>
-                
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     <select id="hist-user" onchange="loadHistory()" class="modern-input py-2 text-xs bg-white hidden"></select>
                     <select id="hist-type" onchange="loadHistory()" class="modern-input py-2 text-xs bg-white">
@@ -140,7 +143,6 @@
                     </select>
                     <input type="month" id="hist-date" onchange="loadHistory()" class="modern-input py-2 text-xs bg-white text-right">
                 </div>
-
                 <div id="full-history-list" class="flex-1 overflow-y-auto space-y-3 pr-2"></div>
             </div>
         </div>
@@ -254,6 +256,8 @@
             } else {
                 footer.classList.add('hidden');
                 fab.classList.remove('fab-lifted');
+                // Ensure FAB is visible
+                fab.classList.remove('hidden');
             }
 
             if(t==='tasks') { 
@@ -274,6 +278,10 @@
             if(isAdmin) { 
                 document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
                 fetchPendingUsers(); fetchBundles(); fetchAcademyRequests();
+                
+                // Show Feed Filter for Admin
+                const feedFilter = document.getElementById('feed-user-filter');
+                feedFilter.classList.remove('hidden');
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
@@ -315,9 +323,14 @@
         // --- TRANSACTIONS & HISTORY ---
         async function fetchTransactions() {
             const tList = document.getElementById('transactions-list');
-            // Simplified feed fetch (last 50, all or user)
+            const userFilter = document.getElementById('feed-user-filter').value;
+            
             let url = `${API}/transactions?groupId=${currentGroup.id}`;
-            if(currentUser.role !== 'ADMIN') url += `&userId=${currentUser.id}`;
+            if(currentUser.role === 'ADMIN' && userFilter && userFilter !== 'all') {
+                url += `&targetUserId=${userFilter}`;
+            } else if (currentUser.role !== 'ADMIN') {
+                url += `&userId=${currentUser.id}`;
+            }
 
             try {
                 const recentT = await (await fetch(url)).json(); 
@@ -338,6 +351,12 @@
         // FULL HISTORY
         function openHistoryView() {
             document.getElementById('full-history-modal').classList.remove('hidden');
+            // Populate User Filter for Admin in Modal
+            if(currentUser.role === 'ADMIN') {
+                 const histUserSelect = document.getElementById('hist-user');
+                 histUserSelect.innerHTML = '<option value="all">כל המשתמשים</option>';
+                 membersCache.forEach(m => histUserSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
+            }
             loadHistory();
         }
 
