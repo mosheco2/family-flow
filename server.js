@@ -87,7 +87,7 @@ const seedQuizzes = async () => {
             }
         }
         console.log('✅ Seeding Complete');
-    } catch(e) { console.log(e); }
+    } catch(e) { console.log('Seed skip/error: ', e.message); }
 };
 
 // --- SETUP ---
@@ -120,25 +120,20 @@ app.get('/setup-db', async (req, res) => {
 const initBudgets = async (groupId, userId = null) => {
     const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
     for (const c of cats) {
-        let query = `SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND `;
-        let params = [groupId, c];
-        
-        if (userId) { 
-            query += `user_id=$3`; 
-            params.push(userId); 
-        } else { 
-            query += `user_id IS NULL`; 
-        }
-        
         try {
-            const check = await client.query(query, params);
-            if (check.rows.length === 0) {
-                // FIXED ORDER: groupId, category, userId
-                // The previous error was [groupId, userId, c] which swapped params!
-                let insertQuery = `INSERT INTO budgets (group_id, category, limit_amount, user_id) VALUES ($1, $2, 0, $3)`;
-                await client.query(insertQuery, [groupId, c, userId]);
+            // FIX: Explicitly handle NULL user_id query
+            if (userId) {
+                const check = await client.query(`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND user_id=$3`, [groupId, c, userId]);
+                if (check.rows.length === 0) {
+                    await client.query(`INSERT INTO budgets (group_id, category, limit_amount, user_id) VALUES ($1, $2, 0, $3)`, [groupId, c, userId]);
+                }
+            } else {
+                const check = await client.query(`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND user_id IS NULL`, [groupId, c]);
+                if (check.rows.length === 0) {
+                    await client.query(`INSERT INTO budgets (group_id, category, limit_amount, user_id) VALUES ($1, $2, 0, NULL)`, [groupId, c]);
+                }
             }
-        } catch(e) { console.error('Init budget error:', e); }
+        } catch(e) { console.error('Init budget error for category ' + c + ':', e); }
     }
 };
 
@@ -261,29 +256,39 @@ app.get('/api/data/:userId', async (req, res) => {
         if (!user) return res.status(404).json({error:'User not found'});
         const gid = user.group_id;
         
+        // Use Promise.all but catch individual errors so one failure doesn't block everything
         const [tasks, shop, loans, goals, myAssignments] = await Promise.all([
-            client.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [gid]),
-            client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]),
-            client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
-            client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
-            client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND (ua.status='assigned' OR ua.status='pending_approval')`, [user.id])
+            client.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [gid]).catch(e => ({rows: []})),
+            client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]).catch(e => ({rows: []})),
+            client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]).catch(e => ({rows: []})),
+            client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]).catch(e => ({rows: []})),
+            client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND (ua.status='assigned' OR ua.status='pending_approval')`, [user.id]).catch(e => ({rows: []}))
         ]);
 
-        const trans = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]);
-        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold, created_by FROM quiz_bundles ORDER BY age_group, type, title');
+        const trans = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]).catch(e => ({rows: [{total:0}]}));
+        
+        // Metadata only for library to keep payload small
+        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold, created_by FROM quiz_bundles ORDER BY age_group, type, title').catch(e => ({rows: []}));
 
         res.json({
-            user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
+            user, 
+            tasks: tasks.rows, 
+            shopping_list: shop.rows, 
+            loans: loans.rows, 
+            goals: goals.rows,
             quiz_bundles: myAssignments.rows,
             all_bundles: allBundles.rows,
             weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
         });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error('Data Fetch Error:', e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // --- ACADEMY ---
 app.get('/api/academy/bundles', async (req, res) => { try { const r = await client.query('SELECT id, title, type, age_group, reward FROM quiz_bundles ORDER BY age_group, title'); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
-app.get('/api/academy/bundle/:id', async (req, res) => { try { const r = await client.query('SELECT * FROM quiz_bundles WHERE id=$1', [req.params.id]); if(r.rows.length === 0) return res.status(404).json({error: 'Not found'}); res.json(r.rows[0]); } catch(e) { res.status(500).json({error: e.message}); } });
+app.get('/api/academy/bundle/:id', async (req, res) => { try { const r = await client.query('SELECT * FROM quiz_bundles WHERE id=$1', [req.params.id]); if(r.rows.length === 0) return res.status(404).json({error: 'Not found'}); res.json(r.rows[0]); } catch (e) { res.status(500).json({error: e.message}); } });
 app.post('/api/academy/request-challenge', async (req, res) => { try { const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [req.body.userId]); if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); let bundleId = req.body.bundleId; if (!bundleId) { const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; const age = calculateAge(user.birth_year); const ageGroup = getAgeGroup(age); const available = await client.query(`SELECT id FROM quiz_bundles WHERE age_group=$1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2) ORDER BY RANDOM() LIMIT 1`, [ageGroup, req.body.userId]); if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים אקראיים זמינים לגילך' }); bundleId = available.rows[0].id; } const exists = await client.query('SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status IN (\'assigned\', \'pending_approval\', \'completed\')', [req.body.userId, bundleId]); if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר ביצעת או ביקשת אתגר זה' }); await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'pending_approval')`, [req.body.userId, bundleId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.get('/api/admin/academy-requests', async (req, res) => { try { const r = await client.query(`SELECT ua.id, ua.user_id, ua.bundle_id, u.nickname, qb.title, qb.reward, qb.age_group FROM user_assignments ua JOIN users u ON ua.user_id = u.id JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE u.group_id = $1 AND ua.status = 'pending_approval'`, [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/academy/approve-request', async (req, res) => { try { const { assignmentId, reward, days } = req.body; const deadline = days ? new Date(Date.now() + days * 86400000) : null; await client.query(`UPDATE user_assignments SET status='assigned', custom_reward=$1, deadline=$2 WHERE id=$3`, [reward, deadline, assignmentId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
@@ -298,7 +303,6 @@ app.get('/api/budget/filter', async (req, res) => { try { const budgets = await 
 app.post('/api/budget/update', async (req, res) => { await client.query(`UPDATE budgets SET limit_amount=$1 WHERE group_id=$2 AND category=$3 AND ${req.body.targetUserId==='all'?'user_id IS NULL':'user_id='+req.body.targetUserId}`, [req.body.limit, req.body.groupId, req.body.category]); res.json({ success: true }); });
 app.post('/api/goals', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id = $1', [req.body.userId]); await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [req.body.targetUserId || req.body.userId, u.rows[0].group_id, req.body.title, req.body.target]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/goals/deposit', async (req, res) => { try { await client.query('BEGIN'); await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [req.body.amount, req.body.userId]); await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [req.body.amount, req.body.goalId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [req.body.userId, req.body.amount, 'הפקדה לחיסכון']); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.post('/api/admin/update-settings', async (req, res) => { try { await client.query(`UPDATE users SET allowance_amount = $1, interest_rate = $2 WHERE id = $3`, [req.body.allowance, req.body.interest, req.body.userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/loans/request', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); await client.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, 'pending')`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.reason]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/loans/handle', async (req, res) => { try { await client.query('BEGIN'); const l = (await client.query('SELECT * FROM loans WHERE id=$1', [req.body.loanId])).rows[0]; if(req.body.status === 'active') { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'loans', 'income', FALSE)`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]); } await client.query('UPDATE loans SET status = $1 WHERE id = $2', [req.body.status, req.body.loanId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 
