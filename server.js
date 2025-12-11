@@ -31,9 +31,7 @@ const getAgeGroup = (age) => {
     return 'other';
 };
 
-// --- CONTENT FACTORY (GENERATORS) ---
-
-// 1. Math Generator
+// --- CONTENT GENERATORS ---
 const generateMath = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 15; i++) { 
@@ -58,7 +56,6 @@ const generateMath = (ageGroup) => {
     return questions;
 };
 
-// 2. English Generator
 const generateEnglish = (ageGroup) => {
     const questions = [];
     const vocab = {
@@ -68,15 +65,12 @@ const generateEnglish = (ageGroup) => {
         '13-15': [['Environment', 'סביבה'], ['Development', 'התפתחות'], ['Responsibility', 'אחריות'], ['Government', 'ממשלה']],
         '15-18': [['Investment', 'השקעה'], ['Economy', 'כלכלה'], ['Opportunity', 'הזדמנות'], ['Challenge', 'אתגר']]
     };
-
     const pool = vocab[ageGroup] || vocab['15-18']; 
-
     for (let i = 0; i < 15; i++) {
         const pair = pool[Math.floor(Math.random() * pool.length)];
         const isEngToHeb = Math.random() > 0.5;
         const q = isEngToHeb ? `מה הפירוש של "${pair[0]}"?` : `איך אומרים "${pair[1]}" באנגלית?`;
         const correct = isEngToHeb ? pair[1] : pair[0];
-        
         const wrong = [];
         while(wrong.length < 3) {
             const randomPair = pool[Math.floor(Math.random() * pool.length)];
@@ -89,7 +83,6 @@ const generateEnglish = (ageGroup) => {
     return questions;
 };
 
-// 3. Text Generators (Templates)
 const getTextContent = (type, age, variant) => {
     if (type === 'reading') {
         const topics = ['החלל', 'הים', 'היער', 'בית הספר', 'המשפחה'];
@@ -105,7 +98,7 @@ const getTextContent = (type, age, variant) => {
                 {q: `למה חשוב לשמור על ${topic}?`, options: ['כדי ליהנות ממנו', 'כי זה יקר', 'לא חשוב', 'כדי ללכת הביתה'], correct: 0}
             ]
         };
-    } else { // Financial
+    } else { 
         const concepts = ['חיסכון', 'ריבית', 'תקציב', 'מניות', 'הלוואות'];
         const concept = concepts[variant % concepts.length];
         return {
@@ -122,10 +115,13 @@ const getTextContent = (type, age, variant) => {
     }
 };
 
-// --- SEEDING LOGIC ---
 const seedQuizzes = async () => {
     try {
-        console.log('🔄 Force Seeding Database with 480 Challenges...');
+        console.log('🔄 Checking Content Pool...');
+        const check = await client.query('SELECT count(*) FROM quiz_bundles');
+        if (parseInt(check.rows[0].count) > 400) return; 
+
+        console.log('🚀 Generating Massive Content (20 items per category per age)...');
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18', '18+'];
@@ -133,37 +129,24 @@ const seedQuizzes = async () => {
 
         for (const age of ages) {
             for (const cat of categories) {
-                // Generate 20 items per category per age = 20 * 4 * 6 = 480 Bundles
                 for (let i = 1; i <= 20; i++) {
                     let title, questions, textContent, threshold, reward;
-
                     if (cat === 'math') {
                         title = `חשבון (${age}) - אתגר ${i}`;
                         questions = JSON.stringify(generateMath(age));
-                        threshold = 85;
-                        reward = 0.5;
-                        textContent = null;
-                    } 
-                    else if (cat === 'english') {
-                        title = `אנגלית (${age}) - מילים ודקדוק ${i}`;
+                        threshold = 85; reward = 0.5; textContent = null;
+                    } else if (cat === 'english') {
+                        title = `אנגלית (${age}) - מילים ${i}`;
                         questions = JSON.stringify(generateEnglish(age));
-                        threshold = 85;
-                        reward = 0.5;
-                        textContent = null;
-                    }
-                    else { // Reading & Financial
+                        threshold = 85; reward = 0.5; textContent = null;
+                    } else { 
                         const content = getTextContent(cat, age, i);
                         title = content.title;
                         questions = JSON.stringify(content.questions);
                         textContent = content.text;
-                        threshold = 95;
-                        reward = 1.0;
+                        threshold = 95; reward = 1.0;
                     }
-
-                    await client.query(
-                        `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, 'SYSTEM')`,
-                        [title, cat, age, reward, threshold, textContent, questions]
-                    );
+                    await client.query(`INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, 'SYSTEM')`, [title, cat, age, reward, threshold, textContent, questions]);
                 }
             }
         }
@@ -176,7 +159,6 @@ app.get('/setup-db', async (req, res) => {
   try {
     const tables = ['user_assignments', 'quiz_bundles', 'shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
     for (const t of tables) { try { await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`); } catch(e){} }
-
     await client.query(`CREATE TABLE groups (id SERIAL PRIMARY KEY, name VARCHAR(100), admin_email VARCHAR(255) UNIQUE, type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(255), role VARCHAR(20), status VARCHAR(20) DEFAULT 'PENDING', birth_year INTEGER, balance DECIMAL(10, 2) DEFAULT 0, allowance_amount DECIMAL(10, 2) DEFAULT 0, interest_rate DECIMAL(5, 2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(group_id, nickname))`);
     await client.query(`CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, amount DECIMAL(10, 2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), is_manual BOOLEAN DEFAULT TRUE, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
@@ -188,14 +170,10 @@ app.get('/setup-db', async (req, res) => {
     await client.query(`CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INTEGER REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER, price_per_unit DECIMAL(10, 2))`);
     await client.query(`CREATE TABLE product_prices (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), store_name VARCHAR(100), price DECIMAL(10, 2), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    
-    // Updated Quiz Bundle Table
     await client.query(`CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, title VARCHAR(150), type VARCHAR(50), age_group VARCHAR(50), reward DECIMAL(10,2), threshold INTEGER, text_content TEXT, questions JSONB, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    
     await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), deadline TIMESTAMP, date_completed TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-
     await seedQuizzes();
-    res.send('<h1>Oneflow Life System Ready 🚀</h1><p>Database Reset & 480+ Challenges Seeded!</p><a href="/">Go Home</a>');
+    res.send('<h1>Oneflow Life System Ready 🚀</h1><a href="/">Go Home</a>');
   } catch (err) { res.status(500).send(`Error: ${err.message}`); }
 });
 
@@ -203,13 +181,11 @@ const initBudgets = async (groupId, userId = null) => {
   const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
   for (const c of cats) {
     const check = await client.query(`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND (user_id=$3 OR ($3::int IS NULL AND user_id IS NULL))`, [groupId, c, userId]);
-    if (check.rows.length === 0) {
-        await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)`, [groupId, userId, c]);
-    }
+    if (check.rows.length === 0) { await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)`, [groupId, userId, c]); }
   }
 };
 
-// --- AUTH & USER ---
+// --- AUTH ---
 app.post('/api/groups', async (req, res) => {
   let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
   if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
@@ -262,37 +238,63 @@ app.post('/api/shopping/checkout', async (req, res) => { try { await client.quer
 app.get('/api/shopping/history', async (req, res) => { try { const trips = await client.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.user_id=u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 20`, [req.query.groupId]); const data = []; for(const t of trips.rows) { const items = await client.query(`SELECT * FROM shopping_trip_items WHERE trip_id=$1`, [t.id]); data.push({ ...t, items: items.rows }); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/copy', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); const items = await client.query('SELECT item_name, quantity, price_per_unit FROM shopping_trip_items WHERE trip_id=$1', [req.body.tripId]); for(const i of items.rows) await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [i.item_name, i.quantity, i.price_per_unit, req.body.userId, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// --- DATA FETCH (OPTIMIZED FOR PERFORMANCE) ---
+// --- TRANSACTIONS & DATA ---
+app.get('/api/transactions', async (req, res) => {
+    // FIX: Show All for Admin or filtered, Show Only Self for Child
+    try {
+        const { groupId, userId, targetUserId } = req.query;
+        let query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1`;
+        const params = [groupId];
+        
+        // If specific target user is requested (for filtering)
+        if (targetUserId && targetUserId !== 'all') {
+            query += ` AND t.user_id = $2`;
+            params.push(targetUserId);
+        } else if (userId) {
+            // Check role
+            const u = await client.query('SELECT role FROM users WHERE id=$1', [userId]);
+            if (u.rows[0] && u.rows[0].role !== 'ADMIN') {
+                 // If not admin, FORCE filter by their own ID
+                 query += ` AND t.user_id = $${params.length + 1}`;
+                 params.push(userId);
+            }
+        }
+        
+        query += ` ORDER BY t.date DESC LIMIT 50`;
+        const r = await client.query(query, params);
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const user = (await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId])).rows[0];
         if (!user) return res.status(404).json({error:'User not found'});
         const gid = user.group_id;
-        const [tasks, shop, loans, goals, trans, myAssignments] = await Promise.all([
+        const [tasks, shop, loans, goals, myAssignments] = await Promise.all([
             client.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [gid]),
             client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]),
             client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
             client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
-            client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]),
             client.query(`SELECT ua.*, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, qb.questions FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status='assigned'`, [user.id])
         ]);
         
-        // OPTIMIZATION: Send ONLY metadata (no questions/text) for the library
-        // This solves the "heavy" load issue.
+        // Calculate weekly stats separately
+        const trans = await client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]);
+        
+        // Return ALL bundles for Library View
         const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold, created_by FROM quiz_bundles ORDER BY age_group, type, title');
 
         res.json({
             user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
             quiz_bundles: myAssignments.rows,
-            all_bundles: allBundles.rows, // Light version
+            all_bundles: allBundles.rows,
             weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- ACADEMY ENDPOINTS ---
-
-// Fetch specific bundle (Full Content) only when starting
 app.get('/api/academy/bundle/:id', async (req, res) => {
     try {
         const r = await client.query('SELECT * FROM quiz_bundles WHERE id=$1', [req.params.id]);
@@ -303,7 +305,6 @@ app.get('/api/academy/bundle/:id', async (req, res) => {
 
 app.get('/api/academy/bundles', async (req, res) => { try { const r = await client.query('SELECT id, title, type, age_group, reward FROM quiz_bundles ORDER BY age_group, title'); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
 
-// Admin Create Bundle
 app.post('/api/academy/create-bundle', async (req, res) => {
     try {
         const { title, type, ageGroup, reward, threshold, textContent, questions, creatorName } = req.body;
@@ -332,7 +333,6 @@ app.post('/api/academy/request-challenge', async (req, res) => {
         
         let bundleId = req.body.bundleId;
 
-        // Random logic if no ID provided
         if (!bundleId) {
             const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [req.body.userId])).rows[0]; 
             const age = calculateAge(user.birth_year); 
@@ -379,10 +379,8 @@ app.post('/api/academy/submit', async (req, res) => {
     } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } 
 });
 
-// --- OTHERS ---
 app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/tasks/update', async (req, res) => { try { await client.query('BEGIN'); let final = req.body.status; const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0]; if(req.body.status==='done' && (t.reward==0 || t.reward==null)) final='approved'; else if(req.body.status==='completed_self') final='approved'; await client.query('UPDATE tasks SET status=$1 WHERE id=$2', [final, req.body.taskId]); if(final==='approved' && t.reward>0 && t.status!=='approved') { await client.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`, [t.reward, t.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]); } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.get('/api/transactions', async (req, res) => { const r = await client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${req.query.userId ? 'AND t.user_id='+req.query.userId : ''} ORDER BY t.date DESC LIMIT 20`, [req.query.groupId]); res.json(r.rows); });
 app.post('/api/transaction', async (req, res) => { try { await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`, [req.body.userId, req.body.amount, req.body.description, req.body.category, req.body.type]); await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [req.body.type==='income'?req.body.amount:-req.body.amount, req.body.userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.get('/api/budget/filter', async (req, res) => { try { const budgets = await client.query(`SELECT * FROM budgets WHERE group_id=$1 AND ${req.query.targetUserId==='all' ? 'user_id IS NULL' : 'user_id='+req.query.targetUserId}`, [req.query.groupId]); const data = []; if(req.query.targetUserId === 'all') { const alloc = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND u.role!='ADMIN' AND t.type='income' AND t.category IN ('allowance','salary','bonus') AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId]); data.push({category: 'allocations', limit: 0, spent: alloc.rows[0].total||0}); } for(const b of budgets.rows) { const s = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND t.category=$2 AND t.type='expense' ${req.query.targetUserId!=='all'?'AND t.user_id='+req.query.targetUserId:''} AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId, b.category]); data.push({category: b.category, limit: b.limit_amount, spent: s.rows[0].total||0}); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/budget/update', async (req, res) => { await client.query(`UPDATE budgets SET limit_amount=$1 WHERE group_id=$2 AND category=$3 AND ${req.body.targetUserId==='all'?'user_id IS NULL':'user_id='+req.body.targetUserId}`, [req.body.limit, req.body.groupId, req.body.category]); res.json({ success: true }); });
