@@ -57,7 +57,7 @@ const generateMath = (ageGroup) => {
     return questions;
 };
 
-// 2. Static Content (Reading & Financial) - FULL DATABASE
+// 2. Static Content (Reading & Financial & ENGLISH - NEW) - FULL DATABASE
 const STATIC_CONTENT = [
     // Reading 6-8
     { type: 'reading', age: '6-8', title: 'הכלב של דני', text: 'לדני יש כלב חמוד ושמו חומי. חומי אוהב לרוץ בגינה ולשחק בכדור אדום. דני נותן לחומי אוכל ומים בכל יום.', questions: [
@@ -67,6 +67,14 @@ const STATIC_CONTENT = [
         {q: 'מה דני נותן לחומי?', options: ['סוכריות', 'אוכל ומים', 'בגדים', 'צעצועים'], correct: 1},
         {q: 'מי הבעלים של חומי?', options: ['יוסי', 'דני', 'אבא', 'סבא'], correct: 1}
     ]},
+    // English 6-8 (NEW)
+    { type: 'english', age: '6-8', title: 'Animals', text: 'The cat says meow. The dog says woof. A big elephant lives in the zoo. The bird can fly very high.', questions: [
+        {q: 'What animal says "woof"?', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 1},
+        {q: 'Where does the elephant live?', options: ['House', 'Farm', 'Zoo', 'Tree'], correct: 2},
+        {q: 'What is the color of the sky?', options: ['Red', 'Green', 'Blue', 'Yellow'], correct: 2},
+        {q: 'How many legs does a dog have?', options: ['Two', 'Three', 'Four', 'Five'], correct: 2},
+        {q: 'The word for "אני" is...', options: ['He', 'She', 'I', 'You'], correct: 2}
+    ]},
     // Reading 8-10
     { type: 'reading', age: '8-10', title: 'הטיול לירושלים', text: 'כיתה ג יצאה לטיול בירושלים. הם ביקרו בכותל המערבי וראו את חומות העיר העתיקה. המדריך הסביר להם על ההיסטוריה של העיר. בסוף היום הם אכלו פלאפל בשוק.', questions: [
         {q: 'לאן נסעה הכיתה?', options: ['תל אביב', 'חיפה', 'ירושלים', 'אילת'], correct: 2},
@@ -74,6 +82,14 @@ const STATIC_CONTENT = [
         {q: 'מי הסביר להם?', options: ['המורה', 'הנהג', 'המדריך', 'השומר'], correct: 2},
         {q: 'מה אכלו בסוף?', options: ['פיצה', 'פלאפל', 'גלידה', 'סלט'], correct: 1},
         {q: 'איזו כיתה יצאה לטיול?', options: ['א', 'ב', 'ג', 'ד'], correct: 2}
+    ]},
+    // English 8-10 (NEW)
+    { type: 'english', age: '8-10', title: 'Past and Future', text: 'Yesterday, I walked to the park. Today, I am reading a book. Tomorrow, I will play with my friend. It is important to know if something happened already (past) or if it is going to happen (future).', questions: [
+        {q: 'What did the narrator do yesterday?', options: ['Read a book', 'Walked to the park', 'Played with a friend', 'Ate pizza'], correct: 1},
+        {q: 'The word "will" means it is in the...', options: ['Past', 'Present', 'Future', 'Always'], correct: 2},
+        {q: 'Choose the Past Tense verb:', options: ['Run', 'Jump', 'Eat', 'Ate'], correct: 3},
+        {q: 'The word for "הם/הן" is...', options: ['We', 'They', 'It', 'She'], correct: 1},
+        {q: 'If I "am eating" now, it is the...', options: ['Past', 'Present', 'Future', 'Never'], correct: 1}
     ]},
     // Financial 8-10
     { type: 'financial', age: '8-10', title: 'מהו חיסכון?', text: 'חיסכון הוא כסף שאנחנו לא מבזבזים מיד, אלא שומרים למשהו חשוב בעתיד. אפשר לשמור כסף בקופת חיסכון בבית או בבנק. כשיש לנו סבלנות, הסכום גדל ואפשר לקנות דברים יקרים יותר.', questions: [
@@ -91,6 +107,14 @@ const STATIC_CONTENT = [
         {q: 'דמי כיס הם דוגמה ל...', options: ['הוצאה', 'הכנסה', 'חוב', 'קנס'], correct: 1},
         {q: 'מה המטרה בניהול תקציב?', options: ['להוציא יותר ממה שיש', 'שההוצאות יהיו קטנות מההכנסות', 'לא לקנות כלום', 'לזרוק כסף'], correct: 1}
     ]},
+    // English 10-13 (NEW)
+    { type: 'english', age: '10-13', title: 'Comparatives', text: 'We use comparative adjectives to compare two things. For example, "A dog is **faster** than a turtle." We usually add "-er" to the adjective. For longer words, we use "more," like "This lesson is **more interesting** than the last one."', questions: [
+        {q: 'What is the comparative form of "big"?', options: ['Bigly', 'Bigger', 'More big', 'Bigst'], correct: 1},
+        {q: 'Which word uses "more"?', options: ['Taller', 'Smarter', 'Expensive', 'Faster'], correct: 2},
+        {q: 'Complete: Math is _______ than English.', options: ['Harder', 'More hard', 'Hardest', 'Hardest'], correct: 0},
+        {q: 'The word for "יותר" is...', options: ['Less', 'Also', 'More', 'Too'], correct: 2},
+        {q: 'The opposite of 'fast' is...', options: ['Quick', 'Slow', 'Rapid', 'Speed'], correct: 1}
+    ]},
     // Financial 13-15
     { type: 'financial', age: '13-15', title: 'ריבית דריבית', text: 'ריבית דריבית היא כוח חזק מאוד בעולם ההשקעות. כאשר מפקידים כסף וצוברים ריבית, בשנה הבאה הריבית מחושבת גם על הקרן המקורית וגם על הריבית שכבר הצטברה. זה גורם לכסף לגדול בצורה מהירה יותר (אקספוננציאלית) לאורך זמן.', questions: [
         {q: 'מהי ריבית דריבית?', options: ['ריבית רגילה', 'ריבית על ריבית', 'קנס בבנק', 'דמי ניהול'], correct: 1},
@@ -99,6 +123,14 @@ const STATIC_CONTENT = [
         {q: 'מה משפיע לטובה על ריבית דריבית?', options: ['זמן ארוך', 'זמן קצר', 'משיכת הכסף', 'ריבית נמוכה'], correct: 0},
         {q: 'למי זה טוב?', options: ['למי שחוסך לטווח ארוך', 'למי שמבזבז', 'לאף אחד', 'רק לבנק'], correct: 0}
     ]},
+    // English 13-15 (NEW)
+    { type: 'english', age: '13-15', title: 'Passive Voice', text: 'In Passive Voice, the subject receives the action. Example: "The ball was kicked by the boy." (Passive) vs. "The boy kicked the ball." (Active). We use Passive Voice when the action is more important than who did it, or if the agent is unknown.', questions: [
+        {q: 'Which sentence is in Passive Voice?', options: ['I ate the apple.', 'The report was written.', 'She bought a car.', 'He reads books.'], correct: 1},
+        {q: 'The Passive Voice is formed using the verb "to be" + ________', options: ['Present Participle', 'Base Form', 'Past Participle', 'Infinitive'], correct: 2},
+        {q: 'Change "The company built the school" to Passive:', options: ['The school was built by the company.', 'The company was built by the school.', 'The school builds the company.', 'The company builds the school.'], correct: 0},
+        {q: 'What word is used to introduce the agent in Passive Voice?', options: ['By', 'With', 'From', 'To'], correct: 0},
+        {q: 'The opposite of 'strong' is...', options: ['Great', 'Smart', 'Weak', 'Mighty'], correct: 2}
+    ]},
     // Financial 15-18
     { type: 'financial', age: '15-18', title: 'שוק ההון ומניות', text: 'מניה היא חלק מבעלות בחברה. כשאתה קונה מניה, אתה הופך לשותף קטן בחברה. מחיר המניה עולה ויורד לפי הביקוש וההיצע בבורסה ולפי ביצועי החברה. השקעה במניות נחשבת מסוכנת יותר מפיקדון בבנק, אך לטווח ארוך היא עשויה להניב רווחים גבוהים יותר.', questions: [
         {q: 'מה מייצגת מניה?', options: ['הלוואה', 'בעלות חלקית בחברה', 'אישור כניסה', 'הנחה'], correct: 1},
@@ -106,7 +138,15 @@ const STATIC_CONTENT = [
         {q: 'מה הסיכון במניות?', options: ['אין סיכון', 'נמוך מפיקדון', 'גבוה מפיקדון', 'הכסף בטוח תמיד'], correct: 2},
         {q: 'למה אנשים משקיעים במניות?', options: ['כי זה מחייב', 'פוטנציאל לרווח גבוה', 'כדי להפסיד', 'כי אין ברירה'], correct: 1},
         {q: 'איפה נסחרות מניות?', options: ['בסופר', 'בבורסה', 'בבנק', 'ברחוב'], correct: 1}
-    ]}
+    ]},
+    // English 15-18 (NEW)
+    { type: 'english', age: '15-18', title: 'Conditionals', text: 'Conditional sentences express real or unreal situations. The Zero Conditional describes general truths ("If you heat water, it boils"). The First Conditional describes possible future events ("If it rains, I will take an umbrella"). The Second Conditional describes unlikely or hypothetical situations ("If I had a million dollars, I would travel the world.").', questions: [
+        {q: 'Which conditional is used for general truths?', options: ['First', 'Second', 'Zero', 'Third'], correct: 2},
+        {q: 'Complete: If she studied, she _______ the exam.', options: ['would pass', 'will pass', 'pass', 'passed'], correct: 0},
+        {q: 'Which sentence is an example of the First Conditional?', options: ['If I were a bird, I would fly.', 'If you are tired, go to sleep.', 'If he wins, we will celebrate.', 'If he had arrived, we would have started.'], correct: 2},
+        {q: 'The word "Unless" means the same as...', options: ['Only if', 'Therefore', 'Except if', 'So that'], correct: 2},
+        {q: 'The word for "בקושי" is...', options: ['Easily', 'Hardly', 'Softly', 'Rapidly'], correct: 1}
+    ]},
 ];
 
 // --- SEEDING LOGIC (AGGRESSIVE) ---
@@ -126,7 +166,7 @@ const seedQuizzes = async () => {
             }
         }
 
-        // 2. Insert Static Content (Reading/Financial)
+        // 2. Insert Static Content (Reading/Financial/English)
         for (const item of STATIC_CONTENT) {
             await client.query(
                 `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, 1.0, 95, $4, $5, 'SYSTEM')`,
@@ -237,14 +277,21 @@ app.get('/api/data/:userId', async (req, res) => {
         const user = (await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId])).rows[0];
         if (!user) return res.status(404).json({error:'User not found'});
         const gid = user.group_id;
-        const [tasks, shop, loans, goals, trans, myAssignments] = await Promise.all([
+        
+        // Determine which transactions to fetch for the feed: only user's if not admin, all if admin.
+        const feedUserId = user.role === 'ADMIN' ? null : user.id; 
+        const feedWhere = feedUserId ? `AND t.user_id=${feedUserId}` : '';
+
+        const [tasks, shop, loans, goals, trans, myAssignments, feedTrans] = await Promise.all([
             client.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [gid]),
             client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]),
             client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
             client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
             client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]),
             // Fetch ASSIGNED and PENDING_APPROVAL bundles for the user (only metadata needed for list)
-            client.query(`SELECT ua.id, ua.user_id, ua.bundle_id, ua.status, ua.score, ua.custom_reward, ua.deadline, qb.title, qb.type, qb.threshold, qb.reward as default_reward FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status IN ('assigned', 'pending_approval')`, [user.id])
+            client.query(`SELECT ua.id, ua.user_id, ua.bundle_id, ua.status, ua.score, ua.custom_reward, ua.deadline, qb.title, qb.type, qb.threshold, qb.reward as default_reward FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status IN ('assigned', 'pending_approval')`, [user.id]),
+            // Fetch transactions for the main feed (last 5)
+            client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${feedWhere} ORDER BY t.date DESC LIMIT 5`, [gid])
         ]);
         
         // Return ALL bundles (metadata only, including created_by for library view)
@@ -254,10 +301,38 @@ app.get('/api/data/:userId', async (req, res) => {
             user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
             quiz_bundles: myAssignments.rows,
             all_bundles: allBundles.rows, // Sending full library metadata
-            weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) }
+            weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) },
+            recent_transactions: feedTrans.rows // Updated transactions list for feed
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// --- TRANSACTIONS ENDPOINTS ---
+// UPDATED: Allow filtering by user/group for history view.
+app.get('/api/transactions', async (req, res) => { 
+    const { groupId, userId, limit = 50 } = req.query;
+    let whereClause = `u.group_id=$1`;
+    const params = [groupId];
+
+    // Optional filtering by a specific user (used for historical view)
+    if (userId && userId !== 'all') {
+        params.push(userId);
+        whereClause += ` AND t.user_id=$2`;
+    }
+
+    try {
+        const r = await client.query(`
+            SELECT t.*, u.nickname as user_name 
+            FROM transactions t 
+            JOIN users u ON t.user_id = u.id 
+            WHERE ${whereClause} 
+            ORDER BY t.date DESC 
+            LIMIT ${limit}`, 
+            params);
+        res.json(r.rows); 
+    } catch (e) { res.status(500).json({error:e.message}); } 
+});
+
 
 // --- ACADEMY ENDPOINTS (Updated/Replaced) ---
 
@@ -279,7 +354,7 @@ app.get('/api/academy/bundle/:id', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// NEW: 3. Admin Creates New Quiz Bundle
+// 3. Admin Creates New Quiz Bundle
 app.post('/api/academy/create-bundle', async (req, res) => {
     try {
         const { title, type, age_group, threshold, reward, text_content, questions } = req.body;
@@ -426,7 +501,7 @@ app.post('/api/academy/submit', async (req, res) => {
 // --- OTHERS ---
 app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/tasks/update', async (req, res) => { try { await client.query('BEGIN'); let final = req.body.status; const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0]; if(req.body.status==='done' && (t.reward==0 || t.reward==null)) final='approved'; else if(req.body.status==='completed_self') final='approved'; await client.query('UPDATE tasks SET status=$1 WHERE id=$2', [final, req.body.taskId]); if(final==='approved' && t.reward>0 && t.status!=='approved') { await client.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`, [t.reward, t.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]); } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.get('/api/transactions', async (req, res) => { const r = await client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${req.query.userId ? 'AND t.user_id='+req.query.userId : ''} ORDER BY t.date DESC LIMIT 20`, [req.query.groupId]); res.json(r.rows); });
+// app.get('/api/transactions') moved above
 app.post('/api/transaction', async (req, res) => { try { await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`, [req.body.userId, req.body.amount, req.body.description, req.body.category, req.body.type]); await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [req.body.type==='income'?req.body.amount:-req.body.amount, req.body.userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 app.get('/api/budget/filter', async (req, res) => { try { const budgets = await client.query(`SELECT * FROM budgets WHERE group_id=$1 AND ${req.query.targetUserId==='all' ? 'user_id IS NULL' : 'user_id='+req.query.targetUserId}`, [req.query.groupId]); const data = []; if(req.query.targetUserId === 'all') { const alloc = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND u.role!='ADMIN' AND t.type='income' AND t.category IN ('allowance','salary','bonus') AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId]); data.push({category: 'allocations', limit: 0, spent: alloc.rows[0].total||0}); } for(const b of budgets.rows) { const s = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND t.category=$2 AND t.type='expense' ${req.query.targetUserId!=='all'?'AND t.user_id='+req.query.targetUserId:''} AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId, b.category]); data.push({category: b.category, limit: b.limit_amount, spent: s.rows[0].total||0}); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/budget/update', async (req, res) => { await client.query(`UPDATE budgets SET limit_amount=$1 WHERE group_id=$2 AND category=$3 AND ${req.body.targetUserId==='all'?'user_id IS NULL':'user_id='+req.body.targetUserId}`, [req.body.limit, req.body.groupId, req.body.category]); res.json({ success: true }); });
