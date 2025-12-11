@@ -135,6 +135,7 @@ app.post('/api/groups', async (req, res) => {
     try { await client.query('BEGIN');
     const { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
     const g = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail.toLowerCase(), type]);
+    // FIX: Ensure birthYear is int
     const u = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [g.rows[0].id, adminNickname, password, parseInt(birthYear) || 0]);
     await initBudgets(g.rows[0].id, null); await client.query('COMMIT');
     res.json({ success: true, user: u.rows[0], group: { id: g.rows[0].id, name: groupName } }); } catch(e) { await client.query('ROLLBACK'); res.status(500).json({error: e.message}); }
@@ -143,6 +144,7 @@ app.post('/api/join', async (req, res) => {
     try { const { groupEmail, nickname, password, birthYear } = req.body;
     const g = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail.toLowerCase()]);
     if (!g.rows.length) return res.status(404).json({error: 'Group not found'});
+    // FIX: Ensure birthYear is int
     await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [g.rows[0].id, nickname, password, parseInt(birthYear) || 0]);
     res.json({ success: true }); } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -170,7 +172,7 @@ app.post('/api/shopping/checkout', async (req, res) => { try { await client.quer
 app.get('/api/shopping/history', async (req, res) => { try { const trips = await client.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.user_id=u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 20`, [req.query.groupId]); const data = []; for(const t of trips.rows) { const items = await client.query(`SELECT * FROM shopping_trip_items WHERE trip_id=$1`, [t.id]); data.push({ ...t, items: items.rows }); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/shopping/copy', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); const items = await client.query('SELECT item_name, quantity, price_per_unit FROM shopping_trip_items WHERE trip_id=$1', [req.body.tripId]); for(const i of items.rows) await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [i.item_name, i.quantity, i.price_per_unit, req.body.userId, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// --- TRANSACTIONS & HISTORY (UPDATED) ---
+// --- TRANSACTIONS & HISTORY ---
 app.get('/api/transactions', async (req, res) => {
     try {
         const { groupId, userId, targetUserId, month, type } = req.query;
