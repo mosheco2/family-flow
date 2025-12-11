@@ -78,6 +78,7 @@
                         <div class="flex justify-between items-center mb-6 px-2">
                             <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
                             <div class="flex gap-2">
+                                <button onclick="openCreatorModal()" class="bg-indigo-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> צור אתגר</button>
                                 <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-user-plus mr-1"></i> הקצאה</button>
                             </div>
                         </div>
@@ -119,6 +120,61 @@
         <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
         <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
         
+        <div id="quiz-creator-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 class="text-xl font-bold mb-4 text-center">יצירת אתגר חדש 📝</h3>
+                <input type="hidden" id="creator-questions-count" value="0">
+
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100">
+                    <label class="text-xs font-bold text-slate-400 block mb-1">כותרת האתגר:</label>
+                    <input type="text" id="creator-title" class="modern-input py-2 mb-3" placeholder="כותרת קצרה וברורה">
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 block mb-1">קטגוריה:</label>
+                            <select id="creator-category" onchange="toggleTextarea()" class="modern-input py-2 text-xs bg-white h-10">
+                                <option value="math">חשבון 🔢</option>
+                                <option value="reading">קריאה 📖</option>
+                                <option value="financial">פיננסי 📈</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 block mb-1">גיל יעד:</label>
+                            <select id="creator-age" class="modern-input py-2 text-xs bg-white h-10">
+                                <option value="6-8">6-8</option>
+                                <option value="8-10">8-10</option>
+                                <option value="10-13">10-13</option>
+                                <option value="13-15">13-15</option>
+                                <option value="15-18">15-18</option>
+                                <option value="18+">18+</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 block mb-1">ציון עובר (%):</label>
+                            <input type="number" id="creator-threshold" class="modern-input py-2 text-center" value="85" min="1" max="100">
+                        </div>
+                    </div>
+                    
+                    <div id="creator-textarea-container" class="mt-4 hidden">
+                        <label class="text-xs font-bold text-slate-400 block mb-1">תוכן קריאה/לימוד (אופציונלי):</label>
+                        <textarea id="creator-text-content" rows="4" class="modern-input resize-none text-sm" placeholder="הכנס כאן את הטקסט המלווה (לקריאה או שיעור פיננסי)..."></textarea>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-slate-700 mb-3 px-2 text-md flex justify-between items-center">
+                    שאלות (5 שאלות מינימום) 
+                    <button onclick="addQuestionField()" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition"><i class="fa-solid fa-plus"></i> הוסף שאלה</button>
+                </h4>
+                <div id="creator-questions-container" class="space-y-4">
+                    </div>
+                
+                <div class="mt-6 flex gap-3">
+                    <button onclick="document.getElementById('quiz-creator-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="submitNewQuizBundle()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">צור חבילת אתגר</button>
+                </div>
+            </div>
+        </div>
+
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3>
@@ -231,13 +287,13 @@
             const isAdmin = currentUser.role === 'ADMIN';
             if(isAdmin) { 
                 document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
-                fetchPendingUsers(); // Now this function exists!
-                fetchAcademyRequests(); // NEW: Fetch pending academy requests
+                fetchPendingUsers(); 
+                fetchAcademyRequests(); 
                 fetchBundles(); 
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) { fetchPendingUsers(); fetchAcademyRequests(); } }, 10000); // NEW: Poll academy requests
+            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) { fetchPendingUsers(); fetchAcademyRequests(); } }, 10000); 
             fetchMembers(); fetchData();
         }
 
@@ -255,8 +311,8 @@
                 }
                 
                 if (data.all_bundles) {
-                    allBundles = data.all_bundles; // Store all bundles for Library
-                    renderLibrary(); // NEW: Call renderLibrary without arguments to use filters
+                    allBundles = data.all_bundles; 
+                    renderLibrary(); 
                 }
                 
                 renderTasks(data.tasks);
@@ -329,6 +385,149 @@
         }
 
         // --- ACADEMY LOGIC (UPDATED) ---
+        
+        // --- ACADEMY ADMIN CREATOR LOGIC ---
+
+        function openCreatorModal() {
+            document.getElementById('creator-title').value = '';
+            document.getElementById('creator-threshold').value = 85;
+            document.getElementById('creator-questions-container').innerHTML = '';
+            document.getElementById('creator-questions-count').value = 0;
+            
+            // Add 5 initial questions
+            for (let i = 0; i < 5; i++) {
+                addQuestionField();
+            }
+            
+            toggleTextarea();
+            document.getElementById('quiz-creator-modal').classList.remove('hidden');
+        }
+
+        function toggleTextarea() {
+            const cat = document.getElementById('creator-category').value;
+            const container = document.getElementById('creator-textarea-container');
+            if (cat === 'reading' || cat === 'financial') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('creator-text-content').value = ''; // Clear text if hidden
+            }
+        }
+
+        function addQuestionField() {
+            const container = document.getElementById('creator-questions-container');
+            const currentCountEl = document.getElementById('creator-questions-count');
+            let currentCount = parseInt(currentCountEl.value);
+            currentCount++;
+            currentCountEl.value = currentCount;
+
+            const newQuestionHtml = `
+                <div id="question-${currentCount}" class="question-field bg-white p-4 rounded-xl shadow-sm border border-slate-100 fade-in">
+                    <p class="font-bold text-sm mb-2 text-blue-600">שאלה #${currentCount}</p>
+                    <input type="text" id="q-${currentCount}-text" class="modern-input py-2 mb-2" placeholder="נוסח השאלה">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="q-${currentCount}-opt-0" class="modern-input py-2 text-xs" placeholder="תשובה 1 (הנכונה)">
+                        <input type="text" id="q-${currentCount}-opt-1" class="modern-input py-2 text-xs" placeholder="תשובה 2">
+                        <input type="text" id="q-${currentCount}-opt-2" class="modern-input py-2 text-xs" placeholder="תשובה 3">
+                        <input type="text" id="q-${currentCount}-opt-3" class="modern-input py-2 text-xs" placeholder="תשובה 4">
+                    </div>
+                    <div class="mt-3 flex items-center justify-between">
+                        <select id="q-${currentCount}-correct" class="modern-input py-2 text-xs bg-yellow-50 w-full max-w-[180px]">
+                            <option value="0">התשובה הנכונה היא אופציה 1</option>
+                            <option value="1">התשובה הנכונה היא אופציה 2</option>
+                            <option value="2">התשובה הנכונה היא אופציה 3</option>
+                            <option value="3">התשובה הנכונה היא אופציה 4</option>
+                        </select>
+                        <button onclick="removeQuestionField(${currentCount})" class="text-red-400 hover:text-red-600 text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> הסר</button>
+                    </div>
+                </div>`;
+            
+            // Note: Update button visibility is handled by always showing trash, we rely on the submit check for validation
+            container.insertAdjacentHTML('beforeend', newQuestionHtml);
+        }
+
+        function removeQuestionField(id) {
+            const el = document.getElementById(`question-${id}`);
+            if (el) {
+                el.remove();
+                // We rely on the submit logic to count actual questions
+            }
+        }
+
+        async function submitNewQuizBundle() {
+            const title = val('creator-title');
+            const category = val('creator-category');
+            const ageGroup = val('creator-age');
+            const threshold = parseInt(val('creator-threshold'));
+            const textContent = category === 'reading' || category === 'financial' ? val('creator-text-content') : null;
+            
+            if (!title || isNaN(threshold)) {
+                return showToast('error', 'נא למלא כותרת וציון עובר תקין');
+            }
+            
+            const questions = [];
+            const fields = document.querySelectorAll('#creator-questions-container .question-field');
+            
+            if (fields.length < 5) {
+                return showToast('error', `חייבים לפחות 5 שאלות, יש לך רק ${fields.length}`);
+            }
+
+            fields.forEach((field, index) => {
+                const id = field.id.replace('question-', '');
+                const qText = val(`q-${id}-text`);
+                const qCorrectIndex = parseInt(val(`q-${id}-correct`));
+
+                const options = [
+                    val(`q-${id}-opt-0`),
+                    val(`q-${id}-opt-1`),
+                    val(`q-${id}-opt-2`),
+                    val(`q-${id}-opt-3`)
+                ];
+                
+                // Ensure all fields are filled for this question
+                if (qText && options.every(opt => opt)) {
+                    questions.push({
+                        q: qText,
+                        options: options,
+                        correct: qCorrectIndex
+                    });
+                }
+            });
+
+            if (questions.length < 5) {
+                return showToast('error', `חייבים למלא את כל השדות עבור 5 שאלות לפחות. מולאו רק ${questions.length} שאלות.`);
+            }
+
+            const reward = 1.0; 
+
+            try {
+                const res = await fetch(`${API}/academy/create-bundle`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title,
+                        type: category,
+                        age_group: ageGroup,
+                        threshold,
+                        reward,
+                        text_content: textContent,
+                        questions
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast('success', 'חבילת האתגר נוצרה בהצלחה!');
+                    document.getElementById('quiz-creator-modal').classList.add('hidden');
+                    fetchBundles(); 
+                } else {
+                    showToast('error', data.error);
+                }
+
+            } catch (e) {
+                showToast('error', 'שגיאה ביצירת האתגר');
+            }
+        }
         
         // Admin functions to fetch and handle pending requests
         async function fetchAcademyRequests() {
@@ -523,8 +722,8 @@
 
         // 2. Library (Browse All)
         function renderLibrary() {
-            const ageFilter = document.getElementById('lib-age-filter').value;
-            const catFilter = document.getElementById('lib-cat-filter').value;
+            const ageFilter = val('lib-age-filter');
+            const catFilter = val('lib-cat-filter');
             const libList = document.getElementById('library-list');
             const countDisplay = document.getElementById('lib-count');
 
@@ -579,26 +778,20 @@
         }
 
         async function requestChallenge(bundleId = null) {
-            const btn = document.querySelector('#academy-user-view button.bg-white'); // Target the quick challenge button or the specific list button
+            const btn = document.querySelector('#academy-user-view button.bg-white'); // Target the quick challenge button
             if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
             
             try {
-                // Fetch full bundle content for metadata (title, reward, etc)
                 let bundleMetaData = {};
                 if (bundleId) {
-                    const fullBundleRes = await fetch(`${API}/academy/bundle/${bundleId}`);
-                    if (fullBundleRes.ok) {
-                         bundleMetaData = await fullBundleRes.json();
-                    } else {
-                        throw new Error('שגיאה בטעינת פרטי האתגר');
-                    }
+                    const bundle = allBundles.find(b => b.id == bundleId);
+                    if (!bundle) throw new Error('האתגר לא נמצא בספרייה.');
+                    bundleMetaData = { title: bundle.title, default_reward: bundle.reward };
                 } else {
-                    // For random, we don't have metadata yet, rely on server response
                     bundleMetaData.title = 'אתגר אקראי';
-                    bundleMetaData.default_reward = 'לא ידוע';
+                    bundleMetaData.default_reward = 'מערכת';
                 }
                 
-                // Confirm dialog with metadata (reward, title)
                 if (!confirm(`האם לאשר את הבקשה לאתגר "${bundleMetaData.title}"? פרס משוער: ₪${bundleMetaData.default_reward || 'מערכת'}`)) {
                     return;
                 }
