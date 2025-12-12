@@ -58,6 +58,8 @@ const generateMath = (ageGroup) => {
 };
 
 // 2. Static Content (Reading & Financial & ENGLISH) - FULL DATABASE
+// Note: This block now holds only 1 entry per category/age combination, 
+// and the Seeding function handles the duplication to reach 30 copies.
 const STATIC_CONTENT = [
     // Reading 6-8
     { type: 'reading', age: '6-8', title: 'הכלב של דני', text: 'לדני יש כלב חמוד ושמו חומי. חומי אוהב לרוץ בגינה ולשחק בכדור אדום. דני נותן לחומי אוכל ומים בכל יום.', questions: [
@@ -155,11 +157,12 @@ const seedQuizzes = async () => {
         console.log('🔄 Force Seeding Database...');
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
-        // 1. Insert Math Bundles (15 sets per age group - INCREASED COUNT)
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18'];
+        const COUNT_PER_CATEGORY = 30; // Target 30 bundles per category/age
+
+        // 1. Insert Math Bundles (30 sets per age group)
         for (const age of ages) {
-            // Increased iteration from 3 to 15
-            for (let i = 1; i <= 15; i++) { 
+            for (let i = 1; i <= COUNT_PER_CATEGORY; i++) { 
                 await client.query(
                     `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions, created_by) VALUES ($1, 'math', $2, 0.5, 85, $3, 'SYSTEM')`,
                     [`חשבון (${age}) - סט ${i}`, age, JSON.stringify(generateMath(age))]
@@ -167,15 +170,19 @@ const seedQuizzes = async () => {
             }
         }
 
-        // 2. Insert Static Content (Reading/Financial/English)
-        for (const item of STATIC_CONTENT) {
-            await client.query(
-                `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, 1.0, 95, $4, $5, 'SYSTEM')`,
-                [item.title, item.type, item.age, item.text, JSON.stringify(item.questions)]
-            );
+        // 2. Insert Static Content (Reading/Financial/English) - Replicate 30 times
+        for (let i = 1; i <= COUNT_PER_CATEGORY; i++) {
+            for (const item of STATIC_CONTENT) {
+                // Ensure the title is unique by adding the iteration number
+                const uniqueTitle = `${item.title} (עותק ${i})`; 
+                await client.query(
+                    `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, 1.0, 95, $4, $5, 'SYSTEM')`,
+                    [uniqueTitle, item.type, item.age, item.text, JSON.stringify(item.questions)]
+                );
+            }
         }
         
-        console.log('✅ Seeding Complete! All content loaded.');
+        console.log(`✅ Seeding Complete! Loaded ${ages.length * COUNT_PER_CATEGORY * 4} total content items.`);
     } catch(e) { console.error('❌ Seed Error:', e); }
 };
 
