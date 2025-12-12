@@ -155,10 +155,11 @@ const seedQuizzes = async () => {
         console.log('🔄 Force Seeding Database...');
         await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
 
-        // 1. Insert Math Bundles (3 sets per age group)
+        // 1. Insert Math Bundles (15 sets per age group - INCREASED COUNT)
         const ages = ['6-8', '8-10', '10-13', '13-15', '15-18'];
         for (const age of ages) {
-            for (let i = 1; i <= 3; i++) {
+            // Increased iteration from 3 to 15
+            for (let i = 1; i <= 15; i++) { 
                 await client.query(
                     `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions, created_by) VALUES ($1, 'math', $2, 0.5, 85, $3, 'SYSTEM')`,
                     [`חשבון (${age}) - סט ${i}`, age, JSON.stringify(generateMath(age))]
@@ -351,7 +352,7 @@ app.get('/api/academy/bundle/:id', async (req, res) => {
         const r = await client.query('SELECT questions, text_content, title, threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [req.params.id]);
         if(r.rows.length === 0) return res.status(404).json({error: 'Not found'});
         res.json(r.rows[0]); // Returns questions and text content
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: e.message }); }
 });
 
 // 3. Admin Creates New Quiz Bundle
