@@ -400,6 +400,8 @@
             
             const listId = 'transactions-history-list';
             const list = document.getElementById(listId);
+            if (!list) return; // Safety check
+            
             list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">טוען היסטוריה...</p>';
 
             const userIdParam = filterUserId !== 'all' ? `&userId=${filterUserId}` : '';
@@ -699,7 +701,7 @@
             
             if(filtered.length > 0) { 
                 filtered.forEach(b => { 
-                    const icon = b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈');
+                    const icon = b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : (b.type === 'english' ? '🔤' : '📈'));
                     select.innerHTML += `<option value="${b.id}">[${icon} ${b.age_group}] ${b.title}</option>`; 
                 }); 
                 updateAssignDetails(); 
@@ -1225,7 +1227,7 @@
         
         function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
         async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
-        async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
+        async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         
         // --- HELPERS ---
         function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
