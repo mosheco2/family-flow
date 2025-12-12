@@ -111,7 +111,7 @@
                         <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
                             <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
                             <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
+                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                         </div>
                         
                         <div id="trans-history-user">
@@ -276,6 +276,7 @@
         let wisdomCache = {};
         let bundlesCache = [];
         let allBundles = [];
+        let bundlesLoaded = false; // NEW: Flag to track if allBundles are loaded
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
         const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
@@ -339,10 +340,16 @@
             document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
             document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
             const isAdmin = currentUser.role === 'ADMIN';
+            
+            // NEW: Load all bundles only once on dashboard load for better performance
+            if (!bundlesLoaded) {
+                 fetchBundles();
+            }
+
             if(isAdmin) { 
                 document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
                 fetchPendingUsers(); // Now this function exists!
-                fetchBundles(); 
+                fetchAcademyRequests(); 
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
@@ -353,6 +360,7 @@
         async function fetchData() {
             try {
                 if (document.activeElement.classList.contains('price-input')) return;
+                // Removed the request for all_bundles from /api/data/:userId to improve performance
                 const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
                 
                 currentUser.balance = data.user.balance; 
@@ -363,9 +371,9 @@
                     renderMyAssignments(data.quiz_bundles);
                 }
                 
-                if (data.all_bundles) {
-                    allBundles = data.all_bundles; // Store all bundles for Library
-                    renderLibrary('all'); // Render Library initially
+                // We rely on bundlesLoaded/fetchBundles() called in loadDashboard now.
+                if (bundlesLoaded) { 
+                    renderLibrary(); 
                 }
                 
                 renderTasks(data.tasks);
@@ -438,11 +446,207 @@
         }
 
         // --- ACADEMY LOGIC ---
+        
+        // NEW: Load all bundles only once, not on every fetchData call
         async function fetchBundles() {
+            if (bundlesLoaded) return;
             try {
                 const res = await fetch(`${API}/academy/bundles`);
                 allBundles = await res.json();
+                bundlesLoaded = true;
+                renderLibrary(); // Initial render after data is loaded
             } catch(e) {}
+        }
+        
+        // --- ACADEMY ADMIN CREATOR LOGIC ---
+
+        function openCreatorModal() {
+            document.getElementById('creator-title').value = '';
+            document.getElementById('creator-threshold').value = 85;
+            document.getElementById('creator-questions-container').innerHTML = '';
+            document.getElementById('creator-questions-count').value = 0;
+            
+            // Add 5 initial questions
+            for (let i = 0; i < 5; i++) {
+                addQuestionField();
+            }
+            
+            toggleTextarea();
+            document.getElementById('quiz-creator-modal').classList.remove('hidden');
+        }
+
+        function toggleTextarea() {
+            const cat = val('creator-category');
+            const container = document.getElementById('creator-textarea-container');
+            if (cat === 'reading' || cat === 'financial' || cat === 'english') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('creator-text-content').value = ''; // Clear text if hidden
+            }
+        }
+
+        function addQuestionField() {
+            const container = document.getElementById('creator-questions-container');
+            const currentCountEl = document.getElementById('creator-questions-count');
+            let currentCount = parseInt(currentCountEl.value);
+            currentCount++;
+            currentCountEl.value = currentCount;
+
+            const newQuestionHtml = `
+                <div id="question-${currentCount}" class="question-field bg-white p-4 rounded-xl shadow-sm border border-slate-100 fade-in">
+                    <p class="font-bold text-sm mb-2 text-blue-600">שאלה #${currentCount}</p>
+                    <input type="text" id="q-${currentCount}-text" class="modern-input py-2 mb-2" placeholder="נוסח השאלה">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="q-${currentCount}-opt-0" class="modern-input py-2 text-xs" placeholder="תשובה 1 (הנכונה)">
+                        <input type="text" id="q-${currentCount}-opt-1" class="modern-input py-2 text-xs" placeholder="תשובה 2">
+                        <input type="text" id="q-${currentCount}-opt-2" class="modern-input py-2 text-xs" placeholder="תשובה 3">
+                        <input type="text" id="q-${currentCount}-opt-3" class="modern-input py-2 text-xs" placeholder="תשובה 4">
+                    </div>
+                    <div class="mt-3 flex items-center justify-between">
+                        <select id="q-${currentCount}-correct" class="modern-input py-2 text-xs bg-yellow-50 w-full max-w-[180px]">
+                            <option value="0">התשובה הנכונה היא אופציה 1</option>
+                            <option value="1">התשובה הנכונה היא אופציה 2</option>
+                            <option value="2">התשובה הנכונה היא אופציה 3</option>
+                            <option value="3">התשובה הנכונה היא אופציה 4</option>
+                        </select>
+                        <button onclick="removeQuestionField(${currentCount})" class="text-red-400 hover:text-red-600 text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> הסר</button>
+                    </div>
+                </div>`;
+            
+            container.insertAdjacentHTML('beforeend', newQuestionHtml);
+        }
+
+        function removeQuestionField(id) {
+            const el = document.getElementById(`question-${id}`);
+            if (el) {
+                el.remove();
+            }
+        }
+
+        async function submitNewQuizBundle() {
+            const title = val('creator-title');
+            const category = val('creator-category');
+            const ageGroup = val('creator-age');
+            const threshold = parseInt(val('creator-threshold'));
+            const textContent = val('creator-textarea-container').classList.contains('hidden') ? null : val('creator-text-content');
+            
+            if (!title || isNaN(threshold)) {
+                return showToast('error', 'נא למלא כותרת וציון עובר תקין');
+            }
+            
+            const questions = [];
+            const fields = document.querySelectorAll('#creator-questions-container .question-field');
+            
+            if (fields.length < 5) {
+                return showToast('error', `חייבים לפחות 5 שאלות, יש לך רק ${fields.length}`);
+            }
+
+            fields.forEach((field, index) => {
+                const id = field.id.replace('question-', '');
+                const qText = val(`q-${id}-text`);
+                const qCorrectIndex = parseInt(val(`q-${id}-correct`));
+
+                const options = [
+                    val(`q-${id}-opt-0`),
+                    val(`q-${id}-opt-1`),
+                    val(`q-${id}-opt-2`),
+                    val(`q-${id}-opt-3`)
+                ];
+                
+                if (qText && options.every(opt => opt)) {
+                    questions.push({
+                        q: qText,
+                        options: options,
+                        correct: qCorrectIndex
+                    });
+                }
+            });
+
+            if (questions.length < 5) {
+                return showToast('error', `חייבים למלא את כל השדות עבור 5 שאלות לפחות. מולאו רק ${questions.length} שאלות.`);
+            }
+
+            const reward = 1.0; 
+
+            try {
+                const res = await fetch(`${API}/academy/create-bundle`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title,
+                        type: category,
+                        age_group: ageGroup,
+                        threshold,
+                        reward,
+                        text_content: textContent,
+                        questions
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast('success', 'חבילת האתגר נוצרה בהצלחה!');
+                    document.getElementById('quiz-creator-modal').classList.add('hidden');
+                    fetchBundles(); 
+                } else {
+                    showToast('error', data.error);
+                }
+
+            } catch (e) {
+                showToast('error', 'שגיאה ביצירת האתגר');
+            }
+        }
+        
+        // Admin functions to fetch and handle pending requests
+        async function fetchAcademyRequests() {
+            try {
+                const res = await fetch(`${API}/admin/academy-requests?groupId=${currentGroup.id}`);
+                const reqs = await res.json();
+                const container = document.getElementById('academy-pending-container');
+                const list = document.getElementById('academy-pending-list');
+                
+                if (reqs.length > 0) {
+                    container.classList.remove('hidden');
+                    list.innerHTML = '';
+                    reqs.forEach(r => { 
+                        const reward = parseFloat(r.reward) || 0.0;
+                        list.innerHTML += `
+                        <div class="bg-white p-3 rounded-xl flex justify-between items-center shadow-sm border border-orange-200">
+                            <div>
+                                <span class="font-bold text-slate-800 text-sm">${r.nickname}</span>
+                                <br><span class="text-xs text-slate-500">${r.title} (₪${reward})</span>
+                            </div>
+                            <button onclick="openApproveModal(${r.id}, '${r.nickname}', '${r.title}', ${reward})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-600">אשר</button>
+                        </div>`; 
+                    });
+                } else { container.classList.add('hidden'); }
+            } catch(e) {}
+        }
+        
+        function openApproveModal(reqId, name, title, reward) {
+            document.getElementById('appr-req-id').value = reqId;
+            document.getElementById('appr-req-subtitle').innerText = `${name} רוצה לבצע: ${title}`;
+            document.getElementById('appr-reward').value = reward;
+            document.getElementById('appr-days').value = ''; // Reset days
+            document.getElementById('approve-req-modal').classList.remove('hidden');
+        }
+        
+        async function submitApproveRequest(isApproved) {
+            const id = document.getElementById('appr-req-id').value;
+            const reward = isApproved ? document.getElementById('appr-reward').value : 0;
+            const days = isApproved ? document.getElementById('appr-days').value : null;
+            
+            await fetch(`${API}/academy/approve-request`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ assignmentId: id, reward, days, status: isApproved ? 'assigned' : 'failed' })
+            });
+            
+            document.getElementById('approve-req-modal').classList.add('hidden');
+            if (isApproved) { showToast('success', 'האתגר הוקצה בהצלחה!'); } else { showToast('info', 'הבקשה נדחתה.'); }
+            fetchAcademyRequests();
+            fetchData(); 
         }
 
         function updateAssignDetails() {
@@ -451,7 +655,25 @@
             const bundle = allBundles.find(b => b.id == bundleId);
             if(bundle) {
                 document.getElementById('assign-reward').value = bundle.reward;
+                document.getElementById('assign-days').value = '';
             }
+        }
+        
+        function filterAssignBundles() {
+            const age = val('assign-filter-age');
+            const cat = val('assign-filter-cat');
+            const select = document.getElementById('assign-bundle-select');
+            select.innerHTML = '';
+            
+            const filtered = allBundles.filter(b => (age === 'all' || b.age_group === age) && (cat === 'all' || b.type === cat));
+            
+            if(filtered.length > 0) { 
+                filtered.forEach(b => { 
+                    const icon = b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : (b.type === 'english' ? '🔤' : '📈'));
+                    select.innerHTML += `<option value="${b.id}">[${icon} ${b.age_group}] ${b.title}</option>`; 
+                }); 
+                updateAssignDetails(); 
+            } else { select.innerHTML = '<option disabled>אין תוצאות</option>'; }
         }
 
         function openAssignModal() {
@@ -461,31 +683,25 @@
                 if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
             });
             
-            const bSelect = document.getElementById('assign-bundle-select');
-            bSelect.innerHTML = '';
-            
-            // SORTED BUNDLE LIST FOR ADMIN
-            if (allBundles.length > 0) {
-                let currentCat = '';
-                // Sort by type then age then title
-                const sorted = [...allBundles].sort((a,b) => a.type.localeCompare(b.type) || a.age_group.localeCompare(b.age_group));
-                
-                sorted.forEach(b => {
-                    bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${b.title} (${b.age_group})</option>`;
-                });
-                updateAssignDetails();
+            const firstChild = membersCache.find(m => m.role !== 'ADMIN');
+            if(firstChild) {
+                const age = new Date().getFullYear() - (firstChild.birth_year || new Date().getFullYear());
+                const ageGroup = getAgeGroup(age); 
+                document.getElementById('assign-filter-age').value = ageGroup in ['6-8', '8-10', '10-13', '13-15', '15-18'] ? ageGroup : 'all';
             } else {
-                bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>';
+                 document.getElementById('assign-filter-age').value = 'all';
             }
 
+            document.getElementById('assign-filter-cat').value = 'all';
+            filterAssignBundles();
             document.getElementById('assign-quiz-modal').classList.remove('hidden');
         }
 
         async function submitAssignQuiz() {
-            const childId = document.getElementById('assign-child-select').value;
-            const bundleId = document.getElementById('assign-bundle-select').value;
-            const reward = document.getElementById('assign-reward').value;
-            const days = document.getElementById('assign-days').value;
+            const childId = val('assign-child-select');
+            const bundleId = val('assign-bundle-select');
+            const reward = val('assign-reward');
+            const days = val('assign-days');
             
             if(!childId || !bundleId) return;
 
@@ -497,6 +713,7 @@
             
             document.getElementById('assign-quiz-modal').classList.add('hidden');
             showToast('success', 'הוקצה בהצלחה');
+            fetchData();
         }
 
         // 1. My Assignments (Active & History)
@@ -509,18 +726,36 @@
             historyList.innerHTML = '';
             
             const activeBundles = bundles.filter(b => b.status === 'assigned');
+            const pendingBundles = bundles.filter(b => b.status === 'pending_approval');
             const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
 
-            if (activeBundles.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בחר מהספרייה למטה!</p>';
+            if (activeBundles.length === 0 && pendingBundles.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בחר מהספרייה למטה!</p>';
+            }
 
             const getIcon = (type) => {
                 if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
                 if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
+                if (type === 'english') return '<i class="fa-solid fa-language"></i>';
                 return '<i class="fa-solid fa-chart-line"></i>';
             };
 
+            // Display Pending Requests
+            pendingBundles.forEach(b => {
+                 list.innerHTML += `
+                    <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="text-orange-400 text-lg"><i class="fa-solid fa-hourglass"></i></div>
+                            <div>
+                                <h4 class="font-bold text-slate-800">${b.title}</h4>
+                                <p class="text-xs text-slate-500">ממתין לאישור הורה (₪${b.reward || b.default_reward})</p>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            // Display Active Assignments
             activeBundles.forEach(b => {
-                // Show deadline if exists
                 let deadlineMsg = "";
                 if (b.deadline) {
                     const d = new Date(b.deadline);
@@ -529,7 +764,6 @@
                     deadlineMsg = diff > 0 ? `<span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : `<span class="text-red-500 ml-1">פג תוקף!</span>`;
                 }
 
-                // Show Custom Reward or Default
                 const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
 
                 list.innerHTML += `
@@ -562,60 +796,82 @@
 
         // 2. Library (Browse All)
         function renderLibrary(category) {
+            const ageFilter = val('lib-age-filter');
+            const catFilter = val('lib-cat-filter');
             const libList = document.getElementById('library-list');
+            const countDisplay = document.getElementById('lib-count');
+
             if (!libList) return;
             libList.innerHTML = '';
 
-            // Update filter buttons visual
-            const btns = document.querySelectorAll('#lib-filters button');
-            btns.forEach(btn => {
-                if (btn.getAttribute('onclick').includes(`'${category}'`)) {
-                    btn.className = "bg-slate-800 text-white px-4 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition";
-                } else {
-                    btn.className = "bg-white text-slate-600 border border-slate-200 px-4 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition hover:bg-slate-50";
-                }
-            });
-
             // Filter bundles
-            const filtered = category === 'all' ? allBundles : allBundles.filter(b => b.type === category);
+            const filtered = allBundles.filter(b => { 
+                const matchAge = ageFilter === 'all' || b.age_group === ageFilter; 
+                const matchCat = catFilter === 'all' || b.type === catFilter; 
+                return matchAge && matchCat; 
+            });
+            
+            countDisplay.innerText = filtered.length;
 
             if (filtered.length === 0) {
-                libList.innerHTML = '<p class="text-center text-slate-400 text-xs">אין מבחנים בקטגוריה זו</p>';
+                libList.innerHTML = '<p class="text-center text-slate-400 text-xs">אין מבחנים התואמים את הסינון</p>';
                 return;
             }
 
             const getIcon = (type) => {
                 if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
                 if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
+                if (type === 'english') return '<i class="fa-solid fa-language"></i>';
                 return '<i class="fa-solid fa-chart-line"></i>';
             };
 
-            filtered.forEach(b => {
-                // Check if already assigned (client-side check for visual, server checks too)
-                const isAssigned = bundlesCache.some(ua => ua.bundle_id === b.id && ua.status === 'assigned');
-                const btnHtml = isAssigned 
-                    ? `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> משויך</span>`
-                    : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
+            const displayList = filtered.slice(0, 20);
+
+            displayList.forEach(b => {
+                // Check status from current assignments cache
+                const assignment = bundlesCache.find(ua => ua.bundle_id === b.id);
+                const isAssigned = assignment && ua.status === 'assigned';
+                const isPending = assignment && ua.status === 'pending_approval';
+
+                let btnHtml;
+                if (isAssigned) btnHtml = `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> עכשיו</span>`;
+                else if (isPending) btnHtml = `<span class="text-xs font-bold text-orange-500"><i class="fa-solid fa-clock"></i> ממתין</span>`;
+                else btnHtml = `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
 
                 libList.innerHTML += `
                 <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                         <div>
-                            <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward}</p>
+                            <h4 class="font-bold text-slate-700 text-sm">${b.title} (${b.age_group})</h4>
+                            <p class="text-[10px] text-slate-400">פרס: ₪${b.reward}</p>
                         </div>
                     </div>
                     ${btnHtml}
                 </div>`;
             });
+            if (filtered.length > 20) { libList.innerHTML += `<p class="text-center text-slate-400 text-[10px] mt-2">ועוד ${filtered.length - 20} תוצאות...</p>`; }
         }
 
         async function requestChallenge(bundleId = null) {
-            const btn = document.querySelector('#academy-user-view button');
+            const btn = document.querySelector('#academy-user-view button.bg-white'); // Target the quick challenge button
             if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
             
             try {
+                let bundleMetaData = {};
+                if (bundleId) {
+                    const bundle = allBundles.find(b => b.id == bundleId);
+                    if (!bundle) throw new Error('האתגר לא נמצא בספרייה.');
+                    bundleMetaData = { title: bundle.title, default_reward: bundle.reward };
+                } else {
+                    bundleMetaData.title = 'אתגר אקראי';
+                    bundleMetaData.default_reward = 'מערכת';
+                }
+                
+                if (!confirm(`האם לאשר את הבקשה לאתגר "${bundleMetaData.title}"? פרס משוער: ₪${bundleMetaData.default_reward || 'מערכת'}`)) {
+                    return;
+                }
+
                 const res = await fetch(`${API}/academy/request-challenge`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -625,38 +881,53 @@
                 
                 if (data.success) {
                     triggerConfetti();
-                    showToast('success', 'המבחן נוסף בהצלחה!');
+                    showToast('success', 'בקשתך נשלחה לאישור ההורה.');
                     fetchData();
                 } else {
                     showToast('error', data.error);
                 }
             } catch(e) {
-                showToast('error', 'שגיאה בתקשורת');
+                showToast('error', e.message || 'שגיאה בתקשורת');
             } finally {
                 if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; }
             }
         }
-
+        
         async function startQuiz(bundleId) {
-            const bundle = bundlesCache.find(b => b.bundle_id === bundleId);
-            if(!bundle) return;
+            const fullBundleRes = await fetch(`${API}/academy/bundle/${bundleId}`);
+            if (!fullBundleRes.ok) return showToast('error', 'שגיאה בטעינת תוכן המבחן');
+            const fullBundle = await fullBundleRes.json();
             
-            currentQuizData = bundle;
+            const assignment = bundlesCache.find(b => b.bundle_id === bundleId);
+            if(!assignment) return;
+            
+            currentQuizData = {...assignment, ...fullBundle}; 
             currentQuestionIndex = 0;
             quizScore = 0;
             
-            document.getElementById('quiz-title').innerText = bundle.title;
+            document.getElementById('quiz-title').innerText = currentQuizData.title;
             
-            // Handle Text Content (Reading/Financial)
             const textContainer = document.getElementById('quiz-text-container');
-            if (bundle.text_content) {
-                textContainer.innerHTML = `<p>${bundle.text_content}</p>`;
+            const questionContainer = document.getElementById('question-container');
+            
+            if (currentQuizData.text_content) {
+                textContainer.innerHTML = `<p>${currentQuizData.text_content}</p>`;
                 textContainer.classList.remove('hidden');
+                questionContainer.classList.add('hidden');
+                
+                textContainer.innerHTML += `<button onclick="revealQuestions()" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל לענות על השאלות</button>`;
             } else {
                 textContainer.classList.add('hidden');
+                questionContainer.classList.remove('hidden');
             }
 
             document.getElementById('quiz-runner-modal').classList.remove('hidden');
+            if (!currentQuizData.text_content) renderQuestion(); 
+        }
+
+        function revealQuestions() {
+            document.getElementById('quiz-text-container').classList.add('hidden');
+            document.getElementById('question-container').classList.remove('hidden');
             renderQuestion();
         }
 
@@ -680,17 +951,18 @@
             const q = currentQuizData.questions[currentQuestionIndex];
             const isCorrect = selectedIdx === q.correct;
             
-            // Visual Feedback
+            document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
+
             const btns = document.querySelectorAll('.quiz-option');
             btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
             if(!isCorrect) btns[q.correct].classList.add('correct');
             
             if(isCorrect) quizScore++;
             
-            // Delay next question
             setTimeout(async () => {
                 currentQuestionIndex++;
                 if (currentQuestionIndex < currentQuizData.questions.length) {
+                    document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = false);
                     renderQuestion();
                 } else {
                     finishQuiz();
@@ -702,16 +974,17 @@
             const total = currentQuizData.questions.length;
             const finalScore = Math.round((quizScore / total) * 100);
             
-            // Use the specific threshold from the bundle (85 or 95)
             const passed = finalScore >= currentQuizData.threshold;
             
             document.getElementById('question-container').classList.add('hidden');
-            document.getElementById('quiz-text-container').classList.add('hidden'); // Hide text on result
+            document.getElementById('quiz-text-container').classList.add('hidden'); 
             document.getElementById('quiz-result').classList.remove('hidden');
             
+            const rewardAmount = currentQuizData.custom_reward !== null ? parseFloat(currentQuizData.custom_reward) : parseFloat(currentQuizData.default_reward);
+
             document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚';
             document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...';
-            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
+            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${rewardAmount.toFixed(2)}` : `צריך ${currentQuizData.threshold}% כדי לעבור. המשימה נמחקה כדי לאפשר ניסיון חוזר.`;
             document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
             
             if (passed) triggerConfetti();
@@ -721,13 +994,14 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore })
             });
-            fetchData(); // Refresh balance and list
+            fetchData(); 
         }
         
         function closeQuiz() { 
             document.getElementById('quiz-runner-modal').classList.add('hidden'); 
             document.getElementById('question-container').classList.remove('hidden');
             document.getElementById('quiz-result').classList.add('hidden');
+            document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = false);
         }
 
         // --- SHOP & MISC ---
