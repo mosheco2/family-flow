@@ -61,7 +61,7 @@
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
             <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
                 <div class="relative z-10">
-                    <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain">
+                    <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain" style="filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));">
                     <p class="text-blue-100 text-sm font-light">ניהול פיננסי חכם למשפחה</p>
                 </div>
             </div>
@@ -75,7 +75,16 @@
             <div class="relative px-2 mb-6 group"><div class="slider-container"><button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button><div class="slider-scroll" id="slider-scroll"><button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button><button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button><button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button><button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button><button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button><button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button><button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button></div><button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button></div></div>
 
             <div class="px-2">
-                <div id="content-feed"><div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]"><p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p><h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1><div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div></div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3><div id="transactions-list" class="space-y-3"></div></div>
+                <div id="content-feed">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
+                        <img src="logo.png" alt="Logo" class="w-32 h-auto mb-4 object-contain" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));">
+                        <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
+                        <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
+                        <div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div>
+                    </div>
+                    <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3>
+                    <div id="transactions-list" class="space-y-3"></div>
+                </div>
                 <div id="content-bank" class="hidden">
                     <div id="bank-admin-view" class="hidden space-y-6">
                         <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
