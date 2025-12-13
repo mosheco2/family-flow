@@ -65,34 +65,37 @@
             justify-content: space-between;
         }
 
-        /* שבב צהוב מרובע דמה (כמו בתמונה המעודכנת) */
+        /* שבב צהוב מרובע דמה - מיקום מחדש כדי למנוע חפיפה */
         .credit-chip-square {
             width: 35px;
             height: 25px;
             background-color: #fcd34d; /* צהוב */
             border-radius: 4px;
             position: absolute;
-            top: 20px;
-            left: 20px; /* מיקום בצד שמאל עליון */
+            top: 60px; /* הורדנו אותו כדי לתת מקום ללוגו הדמות */
+            left: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 5;
         }
 
-        /* מיקום הדמות על הכרטיס (חותם מותג) */
-        .mascot-on-card {
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-            z-index: 10;
-        }
-        
-        /* מיקום חדש לדמות המלאה כאלמנט עיצובי במרכז שמאל */
+        /* מיקום הדמות על הכרטיס (חותם מותג) - שמאל למעלה, מנוע חפיפה */
         .mascot-image-container {
              position: absolute;
-             top: 10px; /* מרחק קטן מהשבב והצד */
-             left: 15px; 
-             width: 80px; /* גודל מתאים לדמות כאלמנט מלווה */
-             height: 80px; 
-             z-index: 2;
+             top: 10px; 
+             left: 10px; 
+             width: 80px; 
+             height: 60px; 
+             z-index: 10; /* מעל השבב והרקע */
              opacity: 0.9;
+        }
+        
+        .mascot-image-container img {
+             /* מוודאים שקובץ הלוגו הרחב עם הדמות מתאים לגבולות */
+             width: 100%;
+             height: auto;
+             object-fit: contain;
+             /* כדי שהדמות עצמה תיראה, נתאים אותה למיקום עליון */
+             transform: translateY(-5px); 
         }
         
     </style>
