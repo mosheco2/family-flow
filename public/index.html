@@ -84,6 +84,17 @@
             z-index: 10;
         }
         
+        /* מיקום חדש לדמות המלאה כאלמנט עיצובי במרכז שמאל */
+        .mascot-image-container {
+             position: absolute;
+             top: 10px; /* מרחק קטן מהשבב והצד */
+             left: 15px; 
+             width: 80px; /* גודל מתאים לדמות כאלמנט מלווה */
+             height: 80px; 
+             z-index: 2;
+             opacity: 0.9;
+        }
+        
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -111,8 +122,8 @@
                         <p class="text-[10px] font-light opacity-75 mt-1 tracking-widest leading-none">FINANCIAL FLOW SIMPLIFIED</p>
                     </div>
                     
-                    <div class="absolute" style="bottom: 50px; left: 15px; width: 60px; height: 60px; overflow: hidden; border-radius: 4px;">
-                        <img src="logo.png" alt="Mascot Logo" class="w-full h-full object-cover">
+                    <div class="mascot-image-container">
+                        <img src="logo.png" alt="Mascot Logo" class="w-full h-full object-contain mascot-on-card">
                     </div>
 
 
