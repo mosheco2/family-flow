@@ -50,7 +50,7 @@
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
 
-        /* 🎨 CSS חדש עבור מראה ה"כרטיס" הריאליסטי בדף ההתחברות */
+        /* 🎨 CSS מעודכן עבור מראה ה"כרטיס" הריאליסטי בדף ההתחברות */
         .credit-card-onboarding {
             /* רקע כחול עמוק/נייבי */
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
@@ -65,30 +65,17 @@
             justify-content: space-between;
         }
 
-        /* שבב אשראי דמה */
-        .credit-chip {
+        /* שבב צהוב מרובע דמה (כמו בתמונה המעודכנת) */
+        .credit-chip-square {
             width: 35px;
-            height: 30px;
-            background-color: #fcd34d; /* זהב/צהוב בהיר */
-            border-radius: 6px;
+            height: 25px;
+            background-color: #fcd34d; /* צהוב */
+            border-radius: 4px;
             position: absolute;
             top: 20px;
             left: 20px; /* מיקום בצד שמאל עליון */
-            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
-            border: 1px solid #eab308;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 5;
-        }
-
-        /* פס מגנטי דמה */
-        .magnetic-strip {
-            position: absolute;
-            top: 15px;
-            left: 0;
-            width: 100%;
-            height: 35px;
-            background-color: rgba(0, 0, 0, 0.15); /* רצועה שחורה עדינה */
-            opacity: 0.1;
-            z-index: 1;
         }
 
         /* מיקום הדמות על הכרטיס (חותם מותג) */
@@ -111,9 +98,7 @@
             <div class="p-8 text-center relative overflow-hidden rounded-b-[3rem] shadow-xl pt-8 pb-10 bg-slate-50">
                 <div class="credit-card-onboarding p-6 text-white shadow-2xl mx-auto w-full max-w-xs -mt-2 mb-6">
                     
-                    <div class="magnetic-strip"></div>
-                    
-                    <div class="credit-chip"></div>
+                    <div class="credit-chip-square"></div>
                     
                     <div class="absolute top-6 right-6 text-xl opacity-60">
                         <i class="fa-solid fa-wifi text-xl opacity-80"></i>
@@ -126,7 +111,9 @@
                         <p class="text-[10px] font-light opacity-75 mt-1 tracking-widest leading-none">FINANCIAL FLOW SIMPLIFIED</p>
                     </div>
                     
-                    <img src="logo.jpg" alt="Mascot Logo" class="mascot-on-card absolute w-16 h-auto" style="bottom: 15px; left: 15px;">
+                    <div class="absolute" style="bottom: 50px; left: 15px; width: 60px; height: 60px; overflow: hidden; border-radius: 4px;">
+                        <img src="logo.png" alt="Mascot Logo" class="w-full h-full object-cover">
+                    </div>
 
 
                     <div class="flex justify-between items-end text-right text-xs opacity-80 mt-8 pt-4">
