@@ -65,39 +65,38 @@
             justify-content: space-between;
         }
 
-        /* שבב צהוב מרובע דמה - מיקום מתוקן */
+        /* שבב/רקע צהוב מרובע - מיקום מתוקן */
         .credit-chip-square {
-            width: 35px;
-            height: 25px;
+            width: 40px;
+            height: 30px;
             background-color: #fcd34d; /* צהוב */
             border-radius: 4px;
             position: absolute;
-            top: 70px; /* מרווח מהלוגו */
-            left: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            top: 15px; /* מיקום בפינה העליונה */
+            left: 15px;
             z-index: 5;
+            /* שיפוע קטן שמתאים לכרטיס */
+            transform: rotate(-10deg);
         }
 
-        /* מיקום הדמות על הכרטיס (שמאל למעלה) */
+        /* מיקום הדמות על הכרטיס (שמאל למעלה, מנוע חפיפה) */
         .mascot-image-container {
              position: absolute;
-             top: 10px; 
-             left: 10px; 
-             width: 80px; 
-             height: 60px; 
-             z-index: 10;
-             opacity: 0.9;
-             /* מוסיף רקע עגול לדמות כדי להפריד אותה מהרקע הכהה */
-             /* כדי שתיראה נקי יותר - מוותרים על זה ומסתמכים על שקיפות הקובץ */
+             top: 0px; 
+             left: 0px; 
+             width: 120px; /* גודל גדול יותר לדמות, כפי שמוצג בתמונה המעודכנת */
+             height: auto; 
+             z-index: 10; /* מעל השבב והכותרת כדי להבליט את הדמות */
+             opacity: 1;
+             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); /* הדגשה קלה */
         }
         
         .mascot-image-container img {
              width: 100%;
              height: auto;
              object-fit: contain;
-             /* הזזה קלה למטה כדי להתאים לטקסט */
-             transform: translateY(-5px); 
-             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); /* הדגשה קלה */
+             /* הזזה קלה למעלה כדי לא לחתוך את הקרניים */
+             transform: translateY(-20px); 
         }
         
         /* תיקון סדר הכותרת והדגשת LIFE בצהוב */
@@ -106,6 +105,7 @@
             font-weight: 900; /* font-black */
             letter-spacing: -0.05em; /* tracking-tight */
             line-height: 0.9;
+            margin-top: 10px; /* הזזת הכותרת למטה */
         }
         
         .card-title .life-highlight {
@@ -139,7 +139,7 @@
                         <i class="fa-solid fa-wifi text-xl opacity-80"></i>
                     </div>
 
-                    <div class="flex flex-col items-end justify-start mt-2">
+                    <div class="flex flex-col items-end justify-start">
                         <h1 class="card-title" style="font-family: 'Rubik', sans-serif;">
                             ONEFLOW <span class="life-highlight">LIFE</span>
                         </h1>
@@ -1138,7 +1138,7 @@
         }
 
         // --- SHOP & MISC ---
-        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
+        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
         
         async function submitShopItem() { 
             const itemInput = document.getElementById('shop-item');
