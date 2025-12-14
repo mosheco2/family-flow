@@ -72,40 +72,45 @@
             background-color: #fcd34d; /* צהוב */
             border-radius: 4px;
             position: absolute;
-            top: 15px; /* מיקום בפינה העליונה */
-            left: 15px;
+            top: 25px; 
+            left: 15px; /* שמאל עליון */
             z-index: 5;
-            /* שיפוע קטן שמתאים לכרטיס */
-            transform: rotate(-10deg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            /* הסרת רוטציה כדי להתאים לתמונה המקורית */
+            transform: none; 
         }
 
-        /* מיקום הדמות על הכרטיס (שמאל למעלה, מנוע חפיפה) */
+        /* מיקום הדמות על הכרטיס (שמאל למעלה) */
         .mascot-image-container {
              position: absolute;
              top: 0px; 
              left: 0px; 
-             width: 120px; /* גודל גדול יותר לדמות, כפי שמוצג בתמונה המעודכנת */
+             width: 80px; /* גודל המותאם למסגרת */
              height: auto; 
              z-index: 10; /* מעל השבב והכותרת כדי להבליט את הדמות */
              opacity: 1;
-             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); /* הדגשה קלה */
+             /* הזזה פיזית של הדמות ימינה ולמטה כדי להתאים ל-image_b2dddb.png */
+             transform: translate(10px, 15px);
         }
         
         .mascot-image-container img {
              width: 100%;
              height: auto;
              object-fit: contain;
-             /* הזזה קלה למעלה כדי לא לחתוך את הקרניים */
-             transform: translateY(-20px); 
+             /* הדמות עצמה היא חלק מהלוגו הרחב, לכן נשתמש בפילטר */
+             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
         }
         
         /* תיקון סדר הכותרת והדגשת LIFE בצהוב */
         .card-title {
+            /* ONEFLOW LIFE */
             font-size: 2.25rem; /* text-3xl */
             font-weight: 900; /* font-black */
             letter-spacing: -0.05em; /* tracking-tight */
             line-height: 0.9;
-            margin-top: 10px; /* הזזת הכותרת למטה */
+            margin-top: 15px; /* מרווח מהקצה העליון */
+            padding-right: 15px; /* מרווח מצד ימין */
+            text-align: right; /* יישור לימין */
         }
         
         .card-title .life-highlight {
@@ -117,6 +122,14 @@
             padding-top: 0.125rem;
             padding-bottom: 0.125rem;
             display: inline-block;
+        }
+
+        /* תיקון הסלוגן כדי שלא יחפוף את הלוגו */
+        .card-slogan {
+             position: absolute;
+             top: 60px; /* מיקום מתחת לכותרת */
+             right: 25px; /* מרווח מצד ימין */
+             z-index: 10;
         }
         
     </style>
@@ -140,10 +153,10 @@
                     </div>
 
                     <div class="flex flex-col items-end justify-start">
-                        <h1 class="card-title" style="font-family: 'Rubik', sans-serif;">
+                        <h1 class="card-title text-white" style="font-family: 'Rubik', sans-serif;">
                             ONEFLOW <span class="life-highlight">LIFE</span>
                         </h1>
-                        <p class="text-[10px] font-light opacity-75 mt-1 tracking-widest leading-none">FINANCIAL FLOW SIMPLIFIED</p>
+                        <p class="text-[10px] card-slogan font-light opacity-75 tracking-widest leading-none">FINANCIAL FLOW SIMPLIFIED</p>
                     </div>
                     
                     <div class="mascot-image-container">
@@ -293,9 +306,7 @@
                                 <option value="8-10">8-10</option>
                                 <option value="10-13">10-13</option>
                                 <option value="13-15">13-15</option>
-                                <option value="15-18">15-18</option>
-                                <option value="18+">18+</option>
-                            </select>
+                                <option value="15-18">15-18</option><option value="18+">18+</option></select>
                         </div>
                         <div>
                             <label class="text-[10px] font-bold text-slate-400 block mb-1">ציון עובר (%):</label>
