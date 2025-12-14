@@ -65,37 +65,58 @@
             justify-content: space-between;
         }
 
-        /* שבב צהוב מרובע דמה - מיקום מחדש כדי למנוע חפיפה */
+        /* שבב צהוב מרובע דמה - מיקום מתוקן */
         .credit-chip-square {
             width: 35px;
             height: 25px;
             background-color: #fcd34d; /* צהוב */
             border-radius: 4px;
             position: absolute;
-            top: 60px; /* הורדנו אותו כדי לתת מקום ללוגו הדמות */
+            top: 70px; /* מרווח מהלוגו */
             left: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 5;
         }
 
-        /* מיקום הדמות על הכרטיס (חותם מותג) - שמאל למעלה, מנוע חפיפה */
+        /* מיקום הדמות על הכרטיס (שמאל למעלה) */
         .mascot-image-container {
              position: absolute;
              top: 10px; 
              left: 10px; 
              width: 80px; 
              height: 60px; 
-             z-index: 10; /* מעל השבב והרקע */
+             z-index: 10;
              opacity: 0.9;
+             /* מוסיף רקע עגול לדמות כדי להפריד אותה מהרקע הכהה */
+             /* כדי שתיראה נקי יותר - מוותרים על זה ומסתמכים על שקיפות הקובץ */
         }
         
         .mascot-image-container img {
-             /* מוודאים שקובץ הלוגו הרחב עם הדמות מתאים לגבולות */
              width: 100%;
              height: auto;
              object-fit: contain;
-             /* כדי שהדמות עצמה תיראה, נתאים אותה למיקום עליון */
+             /* הזזה קלה למטה כדי להתאים לטקסט */
              transform: translateY(-5px); 
+             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); /* הדגשה קלה */
+        }
+        
+        /* תיקון סדר הכותרת והדגשת LIFE בצהוב */
+        .card-title {
+            font-size: 2.25rem; /* text-3xl */
+            font-weight: 900; /* font-black */
+            letter-spacing: -0.05em; /* tracking-tight */
+            line-height: 0.9;
+        }
+        
+        .card-title .life-highlight {
+            background-color: #fcd34d; /* yellow-400 */
+            color: #1e293b; /* slate-900 */
+            padding: 0 0.25rem; /* px-1 */
+            border-radius: 0.125rem; /* rounded-sm */
+            font-size: 1.25rem; /* text-lg */
+            padding-top: 0.125rem;
+            padding-bottom: 0.125rem;
+            display: inline-block;
         }
         
     </style>
@@ -119,8 +140,8 @@
                     </div>
 
                     <div class="flex flex-col items-end justify-start mt-2">
-                        <h1 class="text-3xl font-black tracking-widest leading-none" style="font-family: 'Rubik', sans-serif;">
-                            ONEFLOW <span class="bg-yellow-400 text-slate-900 px-1 rounded-sm text-lg py-0.5 inline-block">LIFE</span>
+                        <h1 class="card-title" style="font-family: 'Rubik', sans-serif;">
+                            ONEFLOW <span class="life-highlight">LIFE</span>
                         </h1>
                         <p class="text-[10px] font-light opacity-75 mt-1 tracking-widest leading-none">FINANCIAL FLOW SIMPLIFIED</p>
                     </div>
@@ -1117,7 +1138,7 @@
         }
 
         // --- SHOP & MISC ---
-        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
+        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
         
         async function submitShopItem() { 
             const itemInput = document.getElementById('shop-item');
