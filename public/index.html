@@ -6,7 +6,7 @@
     <title>Oneflow Life</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -49,85 +49,6 @@
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-
-        /* 🎨 CSS מעודכן עבור מראה ה"כרטיס" הריאליסטי בדף ההתחברות */
-        .credit-card-onboarding {
-            /* רקע כחול עמוק/נייבי */
-            background: linear-gradient(135deg, #1e3a8a, #0f172a); 
-            border-radius: 1.5rem; 
-            position: relative; 
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            text-align: right;
-            aspect-ratio: 1.6 / 1; 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        /* הסרנו את השבב הנפרד כדי למנוע חפיפה, נשתמש רק בדמות */
-        .credit-chip-square {
-            display: none;
-        }
-
-        /* מיקום הדמות על הכרטיס (שמאל למעלה) */
-        .mascot-image-container {
-             position: absolute;
-             top: -20px; /* הזזה קלה למעלה כדי להתאים לתמונה */
-             left: 0px; 
-             width: 130px; /* גודל המותאם לתמונה */
-             height: auto; 
-             z-index: 10;
-             opacity: 1;
-             /* הסרנו את הטרנסלייט Y מכיוון שמשנים את ה-TOP */
-        }
-        
-        .mascot-image-container img {
-             width: 100%;
-             height: auto;
-             object-fit: contain;
-             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-        }
-        
-        /* תיקון סדר הכותרת והדגשת LIFE בצהוב */
-        .card-titles-group {
-             /* עוטף את הכותרת והסלוגן */
-             position: absolute;
-             top: 25px; 
-             right: 25px;
-             text-align: right; 
-             z-index: 10;
-        }
-        
-        .card-title {
-            font-size: 2.25rem; /* text-3xl */
-            font-weight: 900; /* font-black */
-            letter-spacing: -0.05em; /* tracking-tight */
-            line-height: 0.9;
-            color: white;
-            white-space: nowrap;
-        }
-        
-        .card-title .life-highlight {
-            background-color: #fcd34d; /* yellow-400 */
-            color: #1e293b; /* slate-900 */
-            padding: 0 0.25rem; /* px-1 */
-            border-radius: 0.125rem; /* rounded-sm */
-            font-size: 1.25rem; /* text-lg */
-            padding-top: 0.125rem;
-            padding-bottom: 0.125rem;
-            display: inline-block;
-        }
-
-        /* תיקון הסלוגן כדי שלא יחפוף את הלוגו */
-        .card-slogan {
-             font-size: 0.6rem; /* text-[10px] */
-             font-weight: 300; /* font-light */
-             opacity: 0.75;
-             margin-top: 5px;
-             white-space: nowrap;
-        }
-        
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -138,36 +59,12 @@
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-            
-            <div class="p-8 text-center relative overflow-hidden rounded-b-[3rem] shadow-xl pt-8 pb-10 bg-slate-50">
-                <div class="credit-card-onboarding p-6 text-white shadow-2xl mx-auto w-full max-w-xs -mt-2 mb-6">
-                    
-                    <div class="absolute top-6 right-6 text-xl opacity-60 z-20">
-                        <i class="fa-solid fa-wifi text-xl opacity-80"></i>
-                    </div>
-
-                    <div class="card-titles-group">
-                        <h1 class="card-title" style="font-family: 'Rubik', sans-serif;">
-                            ONEFLOW <span class="life-highlight">LIFE</span>
-                        </h1>
-                        <p class="card-slogan">FINANCIAL FLOW SIMPLIFIED</p>
-                    </div>
-                    
-                    <div class="mascot-image-container">
-                        <img src="logo.png" alt="Mascot Logo" class="w-full h-full object-contain mascot-on-card">
-                    </div>
-
-
-                    <div class="flex justify-between items-end text-right text-xs opacity-80 mt-8 pt-4">
-                        <span class="font-mono tracking-widest text-xs">01/29</span>
-                        <span class="font-mono text-xs">FAMILY ACCOUNT</span>
-                    </div>
+            <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
+                <div class="relative z-10">
+                    <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain" style="filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));">
+                    <p class="text-blue-100 text-sm font-light">ניהול פיננסי חכם למשפחה</p>
                 </div>
-                
-                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-2">ברוכים הבאים</h2>
-                <p class="text-slate-500 text-sm">התחבר או צור קבוצה חדשה</p>
             </div>
-            
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center"><form onsubmit="handleLogin(event)" class="space-y-5"><input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי"><input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי"><input type="password" id="login-password" required class="modern-input" placeholder="סיסמה"><button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg"><span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div></button></form><div class="mt-8 text-center text-sm space-y-3"><button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button><button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button></div></div>
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2><form onsubmit="handleCreate(event)" class="space-y-4"><div class="flex gap-3 mb-2"><button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button><button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button></div><input type="hidden" id="create-type" value="FAMILY"><input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input"><input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input"><div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div><input type="password" id="create-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
             <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2><form onsubmit="handleJoin(event)" class="space-y-4"><input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input"><input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input"><input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input"><input type="password" id="join-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
@@ -210,10 +107,45 @@
                     
                     <div id="bank-child-view" class="hidden space-y-6">
                         <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                            <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                            <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
+                            <div class="flex justify-between items-start mb-8">
+                                <div class="flex items-start gap-2">
+                                    <div class="w-10 h-10 bg-cyan-400 rounded-full flex items-center justify-center flex-shrink-0 text-3xl font-bold" style="background: url('monster.png') center/cover;"></div> <div>
+                                        <p class="font-mono text-xl font-bold tracking-widest leading-none">ONEFLOW <span class="text-sm font-light block tracking-normal opacity-80 mt-1">FINANCE SIMPLIFIED</span></p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <i class="fa-solid fa-wifi text-2xl opacity-50"></i>
+                                    <span class="font-mono text-[8px] opacity-70 mt-1">ONEFLOW LIFE</span>
+                                </div>
+                            </div>
+                            <div class="mb-6">
+                                <p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p>
+                                <div class="flex gap-6">
+                                    <div>
+                                        <span class="block text-xl font-bold" id="card-allowance">₪0</span>
+                                        <span class="text-[10px] opacity-70">דמי כיס</span>
+                                    </div>
+                                    <div>
+                                        <span class="block text-xl font-bold text-green-400" id="card-interest">0%</span>
+                                        <span class="text-[10px] opacity-70">ריבית</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-white/10">
+                                <div class="flex justify-between text-[10px] opacity-80 mb-1">
+                                    <span>בזבוזים השבוע (מגבלת 20%)</span>
+                                    <span id="card-spend-status">0 / 0</span>
+                                </div>
+                                <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
+                                    <div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                                <p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p>
+                            </div>
+                            <div class="flex justify-between items-end mt-4">
+                                <span class="font-mono tracking-widest text-lg" id="card-name">NAME</span>
+                                <span class="font-mono text-xs opacity-70">01/29</span> </div>
                         </div>
+
                         
                         <div id="trans-history-user">
                              <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היסטוריית פעולות שלי</h3>
@@ -782,7 +714,7 @@
             await fetch(`${API}/academy/approve-request`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ assignmentId: id, reward, days, status: newStatus === 'assigned' ? 'assigned' : 'failed' })
+                body: JSON.stringify({ assignmentId: id, reward, days, status: isApproved ? 'assigned' : 'failed' })
             });
             
             document.getElementById('approve-req-modal').classList.add('hidden');
