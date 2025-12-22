@@ -28,29 +28,29 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 1.5rem;
-            min-height: 200px;
+            padding: 1.25rem;
+            min-height: 190px;
         }
 
-        /* השבב הצהוב המעוצב */
+        /* השבב הצהוב המעוצב - מיקום מדויק */
         .credit-chip-square {
-            width: 45px;
-            height: 35px;
+            width: 42px;
+            height: 32px;
             background: linear-gradient(135deg, #fcd34d, #f59e0b);
             border-radius: 6px;
             position: absolute;
-            top: 30px; 
-            left: 25px;
+            top: 25px; 
+            left: 20px;
             z-index: 5;
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* לוגו הדמות (public/logo.png) */
+        /* לוגו הדמות - ממוקם מעל השבב ללא חסימת טקסט */
         .mascot-image-container {
              position: absolute;
              top: 5px; 
              left: 10px; 
-             width: 100px; 
+             width: 95px; 
              height: auto; 
              z-index: 10;
              pointer-events: none;
@@ -63,19 +63,19 @@
              filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
         }
         
-        /* כותרות ONEFLOW LIFE */
+        /* כותרות ONEFLOW LIFE - דחופות לימין כדי למנוע חפיפה */
         .card-titles-group {
-             padding-top: 10px;
+             padding-top: 5px;
              z-index: 15;
              text-align: right;
              margin-right: 5px;
         }
         
         .card-title {
-            font-size: 1.8rem;
+            font-size: 1.7rem;
             font-weight: 900;
             color: white;
-            line-height: 1;
+            line-height: 1.1;
             display: flex;
             align-items: center;
             justify-content: flex-end;
@@ -87,15 +87,15 @@
             color: #1e293b;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 900;
         }
 
         .card-slogan {
-             font-size: 0.6rem;
+             font-size: 0.55rem;
              font-weight: 400;
              opacity: 0.7;
-             margin-top: 6px;
+             margin-top: 4px;
              letter-spacing: 0.05em;
              color: #bfdbfe;
         }
@@ -112,7 +112,7 @@
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -160,7 +160,7 @@
                     <input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי">
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex justify-center gap-2 text-lg">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex justify-center gap-2">
                         <span id="btn-login-text">כניסה</span>
                         <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
                     </button>
@@ -175,8 +175,8 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
+                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition">משפחה</button>
+                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition">שותפים</button>
                     </div>
                     <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
@@ -223,23 +223,6 @@
             document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`;
         }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') });
-        }
-
-        async function handleCreate(e) {
-            e.preventDefault();
-            authAction('groups', { 
-                type: val('create-type'), 
-                groupName: val('create-group-name'), 
-                adminEmail: val('create-email'), 
-                adminNickname: val('create-nickname'), 
-                birthYear: val('create-year'), 
-                password: val('create-password') 
-            });
-        }
-
         async function authAction(endpoint, body) {
             toggleLoader('login', true);
             try {
@@ -253,23 +236,31 @@
             finally { toggleLoader('login', false); }
         }
 
+        async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
+        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
-        function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
+        function toggleLoader(a,s) { const ldr = document.getElementById(`btn-${a}-loader`); const txt = document.getElementById(`btn-${a}-text`); if(ldr) ldr.classList.toggle('hidden', !s); if(txt) txt.classList.toggle('hidden', s); }
 
         window.onload = () => {
             const saved = localStorage.getItem('ofl_session');
             if(saved) {
                 try {
                     const session = JSON.parse(saved);
-                    currentUser = session.user; currentGroup = session.group;
-                    document.getElementById('auth-container').classList.add('hidden');
-                    document.getElementById('dashboard-container').classList.remove('hidden');
-                    // כאן קוראים לפונקציות הטעינה (loadDashboard, fetchData וכו')
+                    if(session.user && session.group) {
+                        currentUser = session.user; currentGroup = session.group;
+                        document.getElementById('auth-container').classList.add('hidden');
+                        document.getElementById('dashboard-container').classList.remove('hidden');
+                    } else {
+                        // אם הסשן לא תקין, מוודאים שהלוגין גלוי
+                        document.getElementById('auth-container').classList.remove('hidden');
+                    }
                 } catch(e) {
                     document.getElementById('auth-container').classList.remove('hidden');
                 }
             } else {
+                // מצב ברירת מחדל - אין סשן, מציגים לוגין
                 document.getElementById('auth-container').classList.remove('hidden');
             }
         };
