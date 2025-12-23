@@ -16,7 +16,7 @@
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* 💳 עיצוב כרטיס אשראי ריאליסטי - גרסה סופית ללא חפיפה */
+        /* 💳 עיצוב כרטיס אשראי ריאליסטי - לוגו בצד שמאל */
         .credit-card-onboarding {
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
             border-radius: 1.5rem; 
@@ -33,50 +33,26 @@
             user-select: none;
         }
 
-        /* השבב הצהוב בפינה השמאלית העליונה עם הכיתוב LIFE */
-        .card-chip-header {
-            position: absolute;
-            top: 25px;
-            left: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            z-index: 20;
-        }
-
-        .credit-chip-container {
-            width: 50px;
-            height: 38px;
+        /* השבב הצהוב בפינה השמאלית העליונה */
+        .credit-chip {
+            width: 42px;
+            height: 32px;
             background: linear-gradient(135deg, #fcd34d, #f59e0b);
             border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3);
+            position: absolute;
+            top: 20px; 
+            left: 20px;
+            z-index: 5;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        .chip-life-text {
-            color: #1e293b;
-            font-weight: 900;
-            font-size: 0.9rem;
-            letter-spacing: 0.05em;
-        }
-
-        .header-oneflow-text {
-            font-size: 2.2rem;
-            font-weight: 900;
-            letter-spacing: -0.02em;
-            color: white;
-            line-height: 1;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        /* לוגו הדמות - ממוקם נמוך ובצד ימין למניעת חפיפה עם הכותרת */
+        /* לוגו הדמות - ממוקם במרכז הכרטיס בצד שמאל */
         .mascot-container {
              position: absolute;
-             bottom: 45px; 
-             right: 20px; 
-             width: 70px; 
+             top: 55%; /* מרכז הכרטיס */
+             left: 20px; /* צד שמאל */
+             transform: translateY(-50%);
+             width: 75px; /* גודל מוקטן כפי שביקשת */
              height: auto; 
              z-index: 10;
              pointer-events: none;
@@ -89,23 +65,47 @@
              filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         }
 
-        .card-slogan-layer {
-            position: absolute;
-            top: 75px;
-            left: 85px; /* מיושר אחרי השבב */
-            font-size: 0.55rem;
-            font-weight: 400;
-            opacity: 0.7;
-            letter-spacing: 0.1em;
-            color: #bfdbfe;
+        /* כותרת ONEFLOW LIFE */
+        .card-titles-group {
+             padding-top: 5px;
+             z-index: 15;
+             text-align: right;
+        }
+        
+        .card-brand-main {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+        
+        .life-tag-highlight {
+            background-color: #fcd34d;
+            color: #1e293b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: 900;
         }
 
-        /* שאר רכיבי ה-UI */
+        .card-slogan-text {
+             font-size: 0.55rem;
+             font-weight: 400;
+             opacity: 0.7;
+             margin-top: 6px;
+             letter-spacing: 0.05em;
+             color: #bfdbfe;
+        }
+
+        /* רכיבי UI קיימים */
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -121,14 +121,7 @@
             <div class="p-8 text-center bg-slate-50 rounded-b-[3rem] shadow-sm">
                 <div class="credit-card-onboarding mx-auto w-full max-w-xs mb-4">
                     
-                    <div class="card-chip-header">
-                        <div class="credit-chip-container">
-                            <span class="chip-life-text">LIFE</span>
-                        </div>
-                        <h1 class="header-oneflow-text">ONEFLOW</h1>
-                    </div>
-                    
-                    <p class="card-slogan-layer">FINANCIAL FLOW SIMPLIFIED</p>
+                    <div class="credit-chip"></div>
                     
                     <div class="mascot-container">
                         <img src="logo.png" alt="Mascot">
@@ -136,6 +129,13 @@
                     
                     <div class="absolute top-6 right-6 opacity-30">
                         <i class="fa-solid fa-wifi text-xl transform rotate-90"></i>
+                    </div>
+
+                    <div class="card-titles-group">
+                        <h1 class="card-brand-main">
+                            ONEFLOW <span class="life-tag-highlight">LIFE</span>
+                        </h1>
+                        <p class="card-slogan-text">FINANCIAL FLOW SIMPLIFIED</p>
                     </div>
 
                     <div class="flex justify-between items-end text-[10px] opacity-60 font-mono mt-auto border-t border-white/10 pt-2">
@@ -167,11 +167,6 @@
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
-                    <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition">משפחה</button>
-                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition">שותפים</button>
-                    </div>
-                    <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל" class="modern-input">
                     <div class="flex gap-3">
@@ -197,8 +192,7 @@
             </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative">
-            </div>
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative"></div>
     </div>
 
     <script>
@@ -208,12 +202,6 @@
         function switchView(view) {
             ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${view}`).classList.remove('hidden');
-        }
-
-        function selectType(t) {
-            document.getElementById('create-type').value=t;
-            document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`;
-            document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`;
         }
 
         async function authAction(endpoint, body) {
@@ -230,7 +218,7 @@
         }
 
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: 'FAMILY', groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
 
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -247,10 +235,7 @@
                         document.getElementById('dashboard-container').classList.remove('hidden');
                     } else { document.getElementById('auth-container').classList.remove('hidden'); }
                 } catch(e) { document.getElementById('auth-container').classList.remove('hidden'); }
-            } else {
-                // הבטחת הצגת מסך ההתחברות אם אין נתונים
-                document.getElementById('auth-container').classList.remove('hidden');
-            }
+            } else { document.getElementById('auth-container').classList.remove('hidden'); }
         };
     </script>
 </body>
