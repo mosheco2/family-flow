@@ -13,10 +13,8 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
-        .slide-up { animation: slideUp 0.3s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* 💳 עיצוב כרטיס אשראי - החלפת מיקומי מילים ומניעת חפיפה */
+        /* 💳 עיצוב כרטיס אשראי - התאמת כותרת בין שבב ל-WiFi */
         .credit-card-onboarding {
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
             border-radius: 1.5rem; 
@@ -33,7 +31,7 @@
             user-select: none;
         }
 
-        /* השבב הצהוב בפינה השמאלית העליונה */
+        /* השבב הצהוב בשמאל עליון */
         .credit-chip {
             width: 42px;
             height: 32px;
@@ -44,6 +42,15 @@
             left: 20px;
             z-index: 5;
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        /* סמל WiFi בימין עליון */
+        .wifi-icon-card {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            opacity: 0.4;
+            z-index: 5;
         }
 
         /* לוגו הדמות במרכז צד שמאל */
@@ -65,57 +72,49 @@
              filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         }
 
-        /* כותרת LIFE ONEFLOW - מיושרת לימין עם מרווח מה-WiFi */
+        /* כותרת מוקטנת הממוקמת בדיוק בין השבב ל-WiFi */
         .card-titles-group {
-             padding-top: 15px; /* מרווח מלמעלה כדי לא לחסום את ה-WiFi */
-             padding-right: 10px;
+             padding-top: 15px;
+             padding-left: 70px; /* מרווח מהשבב בשמאל */
+             padding-right: 50px; /* מרווח מה-WiFi בימין */
              z-index: 15;
-             text-align: right;
+             text-align: center;
         }
         
         .card-brand-main {
-            font-size: 1.8rem;
+            font-size: 1.4rem; /* הקטנת הגופן להתאמה במרווח */
             font-weight: 900;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.01em;
             line-height: 1.2;
             color: white;
             display: flex;
             align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
         }
         
         .life-tag-highlight {
             background-color: #fcd34d;
             color: #1e293b;
-            padding: 2px 8px;
+            padding: 1px 6px;
             border-radius: 4px;
-            font-size: 1.1rem;
+            font-size: 0.9rem;
             font-weight: 900;
         }
 
         .card-slogan-text {
-             font-size: 0.55rem;
+             font-size: 0.5rem;
              font-weight: 400;
-             opacity: 0.7;
-             margin-top: 4px;
+             opacity: 0.6;
+             margin-top: 2px;
              letter-spacing: 0.05em;
              color: #bfdbfe;
         }
 
-        /* סמל WiFi ממוקם בפינה הימנית העליונה */
-        .wifi-icon-card {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            opacity: 0.3;
-            z-index: 20;
-        }
-
-        /* רכיבי UI קיימים */
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
+        .modern-input:focus { border-color: #3b82f6; background: white; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -133,24 +132,24 @@
                     
                     <div class="credit-chip"></div>
                     
-                    <div class="mascot-container">
-                        <img src="logo.png" alt="Mascot">
-                    </div>
-                    
                     <div class="wifi-icon-card">
                         <i class="fa-solid fa-wifi text-xl transform rotate-90"></i>
                     </div>
 
+                    <div class="mascot-container">
+                        <img src="logo.png" alt="Mascot">
+                    </div>
+
                     <div class="card-titles-group">
                         <h1 class="card-brand-main">
-                            <span class="life-tag-highlight">LIFE</span> ONEFLOW
+                            ONEFLOW <span class="life-tag-highlight">LIFE</span>
                         </h1>
-                        <p class="card-slogan-text">FINANCIAL FLOW SIMPLIFIED</p>
+                        <p class="card-slogan-text uppercase">Financial Flow Simplified</p>
                     </div>
 
                     <div class="flex justify-between items-end text-[10px] opacity-60 font-mono mt-auto border-t border-white/10 pt-2">
-                        <span>01/29</span>
                         <span>FAMILY ACCOUNT</span>
+                        <span>01/29</span>
                     </div>
                 </div>
                 
@@ -165,17 +164,17 @@
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
                     <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex justify-center gap-2">
                         <span id="btn-login-text">כניסה למערכת</span>
-                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                        <div id="btn-login-loader" class="loader hidden"></div>
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full transition hover:bg-blue-100">פתיחת בנק משפחתי</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium hover:text-slate-600 transition">הצטרפות למשפחה</button>
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button>
                 </div>
             </div>
 
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
+                <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל" class="modern-input">
@@ -186,19 +185,7 @@
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">סיום והרשמה</button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזרה</button>
-            </div>
-
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
-                <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="email" id="join-email" required placeholder="מייל מנהל" class="modern-input">
-                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
-                    <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
-                    <input type="password" id="join-password" required placeholder="סיסמה" class="modern-input">
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">שלח בקשה</button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזרה</button>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">חזרה</button>
             </div>
         </div>
 
@@ -210,7 +197,7 @@
         let currentUser = null, currentGroup = null;
 
         function switchView(view) {
-            ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            ['login','create'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${view}`).classList.remove('hidden');
         }
 
@@ -228,7 +215,7 @@
         }
 
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: 'FAMILY', groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+        async function handleCreate(e) { e.preventDefault(); authAction('groups', { groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
 
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -245,7 +232,9 @@
                         document.getElementById('dashboard-container').classList.remove('hidden');
                     } else { document.getElementById('auth-container').classList.remove('hidden'); }
                 } catch(e) { document.getElementById('auth-container').classList.remove('hidden'); }
-            } else { document.getElementById('auth-container').classList.remove('hidden'); }
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+            }
         };
     </script>
 </body>
