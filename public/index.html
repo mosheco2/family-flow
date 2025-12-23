@@ -14,7 +14,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
 
-        /* 💳 עיצוב כרטיס אשראי - התאמת כותרת בין שבב ל-WiFi */
+        /* 💳 עיצוב כרטיס אשראי - מיקום כותרת LIFE ONEFLOW */
         .credit-card-onboarding {
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
             border-radius: 1.5rem; 
@@ -31,7 +31,7 @@
             user-select: none;
         }
 
-        /* השבב הצהוב בשמאל עליון */
+        /* השבב הצהוב הגדול בשמאל עליון */
         .credit-chip {
             width: 42px;
             height: 32px;
@@ -53,7 +53,7 @@
             z-index: 5;
         }
 
-        /* לוגו הדמות במרכז צד שמאל */
+        /* לוגו הדמות מתחת לשבב בשמאל */
         .mascot-container {
              position: absolute;
              top: 55%; 
@@ -72,17 +72,17 @@
              filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         }
 
-        /* כותרת מוקטנת הממוקמת בדיוק בין השבב ל-WiFi */
+        /* כותרת LIFE ONEFLOW - ממוקמת במרכז העליון */
         .card-titles-group {
              padding-top: 15px;
-             padding-left: 70px; /* מרווח מהשבב בשמאל */
-             padding-right: 50px; /* מרווח מה-WiFi בימין */
+             padding-left: 65px; /* מרווח מהשבב */
+             padding-right: 45px; /* מרווח מה-WiFi */
              z-index: 15;
              text-align: center;
         }
         
         .card-brand-main {
-            font-size: 1.4rem; /* הקטנת הגופן להתאמה במרווח */
+            font-size: 1.3rem; 
             font-weight: 900;
             letter-spacing: -0.01em;
             line-height: 1.2;
@@ -94,12 +94,13 @@
             white-space: nowrap;
         }
         
+        /* עיצוב המילה LIFE בתוך השבב הקטן */
         .life-tag-highlight {
             background-color: #fcd34d;
             color: #1e293b;
             padding: 1px 6px;
             border-radius: 4px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 900;
         }
 
@@ -110,9 +111,10 @@
              margin-top: 2px;
              letter-spacing: 0.05em;
              color: #bfdbfe;
+             text-transform: uppercase;
         }
 
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; text-align: right; }
         .modern-input:focus { border-color: #3b82f6; background: white; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -142,19 +144,19 @@
 
                     <div class="card-titles-group">
                         <h1 class="card-brand-main">
-                            ONEFLOW <span class="life-tag-highlight">LIFE</span>
+                            <span class="life-tag-highlight">LIFE</span> ONEFLOW
                         </h1>
-                        <p class="card-slogan-text uppercase">Financial Flow Simplified</p>
+                        <p class="card-slogan-text">Financial Flow Simplified</p>
                     </div>
 
                     <div class="flex justify-between items-end text-[10px] opacity-60 font-mono mt-auto border-t border-white/10 pt-2">
-                        <span>FAMILY ACCOUNT</span>
                         <span>01/29</span>
+                        <span>FAMILY ACCOUNT</span>
                     </div>
                 </div>
                 
-                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-1">ברוכים הבאים</h2>
-                <p class="text-slate-500 text-xs px-6">התחבר או צור קבוצה חדשה לניהול הכסף</p>
+                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-1 text-center">ברוכים הבאים</h2>
+                <p class="text-slate-500 text-xs px-6 text-center">התחבר או צור קבוצה חדשה לניהול הכסף</p>
             </div>
             
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
@@ -197,8 +199,12 @@
         let currentUser = null, currentGroup = null;
 
         function switchView(view) {
-            ['login','create'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-            document.getElementById(`view-${view}`).classList.remove('hidden');
+            ['login','create'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(`view-${view}`);
+            if (target) target.classList.remove('hidden');
         }
 
         async function authAction(endpoint, body) {
