@@ -6,7 +6,7 @@
     <title>Oneflow Life</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -15,40 +15,94 @@
         .hidden { display: none !important; }
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* 💳 עיצוב כרטיס אשראי ריאליסטי לדף ההתחברות */
+        .credit-card-onboarding {
+            background: linear-gradient(135deg, #1e3a8a, #0f172a); 
+            border-radius: 1.5rem; 
+            position: relative; 
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            text-align: right;
+            aspect-ratio: 1.6 / 1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.5rem;
+            color: white;
+        }
+
+        .credit-chip {
+            width: 45px;
+            height: 35px;
+            background: linear-gradient(135deg, #fcd34d, #f59e0b);
+            border-radius: 6px;
+            position: absolute;
+            top: 25px; 
+            left: 25px;
+            z-index: 5;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        .mascot-preview {
+             position: absolute;
+             top: 5px; 
+             left: 15px; 
+             width: 100px; 
+             height: auto; 
+             z-index: 10;
+             pointer-events: none;
+        }
+        
+        .mascot-preview img {
+             width: 100%;
+             height: auto;
+             object-fit: contain;
+             filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        .card-brand {
+            font-size: 1.8rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            line-height: 1;
+        }
+
+        .life-tag {
+            background-color: #fcd34d;
+            color: #1e293b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 1.2rem;
+        }
+
+        .card-slogan {
+             font-size: 0.6rem;
+             opacity: 0.7;
+             margin-top: 4px;
+             letter-spacing: 0.05em;
+        }
+
+        /* רכיבי UI נוספים */
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
+        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
         .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
         .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
-        .scroll-btn.left { left: 0; }
-        .scroll-btn.right { right: 0; }
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
-        .shop-row { transition: background-color 0.2s; }
-        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
-        .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
-        .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
-        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
-        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
-        .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
-        .wisdom-alert { animation: slideDown 0.3s ease-out; }
-        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
-        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
-        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
-        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
-        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .fab-open #fab-icon { transform: rotate(45deg); }
-        .fab-lifted { transform: translateY(-80px) !important; }
         .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -59,25 +113,88 @@
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-            <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
-                <div class="relative z-10">
-                    <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain" style="filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));">
-                    <p class="text-blue-100 text-sm font-light">ניהול פיננסי חכם למשפחה</p>
+            
+            <div class="p-8 text-center bg-slate-50 rounded-b-[3rem] shadow-sm">
+                <div class="credit-card-onboarding mx-auto w-full max-w-xs mb-4">
+                    <div class="credit-chip"></div>
+                    <div class="mascot-preview">
+                        <img src="logo.png" alt="Logo">
+                    </div>
+                    <div class="absolute top-6 right-6 opacity-30">
+                        <i class="fa-solid fa-wifi text-xl"></i>
+                    </div>
+
+                    <div class="mt-2">
+                        <div class="card-brand">
+                            ONEFLOW <span class="life-tag">LIFE</span>
+                        </div>
+                        <p class="card-slogan">FINANCIAL FLOW SIMPLIFIED</p>
+                    </div>
+
+                    <div class="flex justify-between items-end text-[10px] opacity-60 font-mono mt-auto border-t border-white/10 pt-2">
+                        <span>01/29</span>
+                        <span>FAMILY ACCOUNT</span>
+                    </div>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-1">ברוכים הבאים</h2>
+                <p class="text-slate-500 text-xs px-6">התחבר או צור קבוצה חדשה לניהול הכסף</p>
+            </div>
+            
+            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
+                <form onsubmit="handleLogin(event)" class="space-y-5">
+                    <input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי">
+                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי">
+                    <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex justify-center gap-2">
+                        <span id="btn-login-text">כניסה</span>
+                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                    </button>
+                </form>
+                <div class="mt-8 text-center text-sm space-y-3">
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full transition hover:bg-blue-100">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium hover:text-slate-600 transition">הצטרפות למשפחה</button>
                 </div>
             </div>
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center"><form onsubmit="handleLogin(event)" class="space-y-5"><input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי"><input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי"><input type="password" id="login-password" required class="modern-input" placeholder="סיסמה"><button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg"><span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div></button></form><div class="mt-8 text-center text-sm space-y-3"><button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button><button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button></div></div>
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2><form onsubmit="handleCreate(event)" class="space-y-4"><div class="flex gap-3 mb-2"><button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button><button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button></div><input type="hidden" id="create-type" value="FAMILY"><input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input"><input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input"><div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div><input type="password" id="create-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2><form onsubmit="handleJoin(event)" class="space-y-4"><input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input"><input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input"><input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input"><input type="password" id="join-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
+
+            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
+                <form onsubmit="handleCreate(event)" class="space-y-4">
+                    <div class="flex gap-3 mb-2">
+                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition">משפחה</button>
+                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition">שותפים</button>
+                    </div>
+                    <input type="hidden" id="create-type" value="FAMILY">
+                    <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="create-nickname" required placeholder="שם שלך" class="modern-input">
+                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    </div>
+                    <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">סיום והרשמה</button>
+                </form>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+            </div>
+
+            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
+                <form onsubmit="handleJoin(event)" class="space-y-4">
+                    <input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input">
+                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
+                    <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
+                    <input type="password" id="join-password" required placeholder="סיסמה" class="modern-input">
+                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">שלח בקשה</button>
+                </form>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+            </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative">
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div><div><h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2><p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p></div></div><button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button></header>
             <div class="relative px-2 mb-6 group"><div class="slider-container"><button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button><div class="slider-scroll" id="slider-scroll"><button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button><button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button><button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button><button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button><button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button><button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button><button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button></div><button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button></div></div>
-
-            <div class="px-2">
+            <div class="px-2" id="dash-content-area">
                 <div id="content-feed">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
-                        <img src="logo.png" alt="Logo" class="w-32 h-auto mb-4 object-contain" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div>
@@ -85,1277 +202,62 @@
                     <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3>
                     <div id="transactions-list" class="space-y-3"></div>
                 </div>
-                <div id="content-bank" class="hidden">
-                    <div id="bank-admin-view" class="hidden space-y-6">
-                        <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                            <div class="relative z-10">
-                                <h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3>
-                                <p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p>
-                                <button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button>
-                            </div>
-                            <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
-                        </div>
-                        
-                        <div id="trans-history-admin">
-                             <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היסטוריית פעולות</h3>
-                             <select id="transactions-filter-user" onchange="fetchTransactionsHistory()" class="modern-input text-xs bg-white mb-3"></select>
-                             <div id="transactions-history-list" class="space-y-3"></div>
-                        </div>
-
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
-                    </div>
-                    
-                    <div id="bank-child-view" class="hidden space-y-6">
-                        <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                            <div class="flex justify-between items-start mb-8">
-                                <div class="flex items-start gap-2">
-                                    <div class="w-10 h-10 bg-cyan-400 rounded-full flex items-center justify-center flex-shrink-0 text-3xl font-bold" style="background: url('monster.png') center/cover;"></div> <div>
-                                        <p class="font-mono text-xl font-bold tracking-widest leading-none">ONEFLOW <span class="text-sm font-light block tracking-normal opacity-80 mt-1">FINANCE SIMPLIFIED</span></p>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col items-end">
-                                    <i class="fa-solid fa-wifi text-2xl opacity-50"></i>
-                                    <span class="font-mono text-[8px] opacity-70 mt-1">ONEFLOW LIFE</span>
-                                </div>
-                            </div>
-                            <div class="mb-6">
-                                <p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p>
-                                <div class="flex gap-6">
-                                    <div>
-                                        <span class="block text-xl font-bold" id="card-allowance">₪0</span>
-                                        <span class="text-[10px] opacity-70">דמי כיס</span>
-                                    </div>
-                                    <div>
-                                        <span class="block text-xl font-bold text-green-400" id="card-interest">0%</span>
-                                        <span class="text-[10px] opacity-70">ריבית</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-4 pt-3 border-t border-white/10">
-                                <div class="flex justify-between text-[10px] opacity-80 mb-1">
-                                    <span>בזבוזים השבוע (מגבלת 20%)</span>
-                                    <span id="card-spend-status">0 / 0</span>
-                                </div>
-                                <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden">
-                                    <div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                                </div>
-                                <p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p>
-                            </div>
-                            <div class="flex justify-between items-end mt-4">
-                                <span class="font-mono tracking-widest text-lg" id="card-name">NAME</span>
-                                <span class="font-mono text-xs opacity-70">01/29</span> </div>
-                        </div>
-
-                        
-                        <div id="trans-history-user">
-                             <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היסטוריית פעולות שלי</h3>
-                             <div id="transactions-history-list" class="space-y-3"></div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
-                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
-                    </div>
                 </div>
-                <div id="content-shop" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3><div class="flex gap-2"><button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div></div><div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div><div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm"><h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4><div id="shop-requests-list" class="space-y-2"></div></div><div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div></div>
-                
-                <div id="content-academy" class="hidden">
-                    <div id="academy-admin-view" class="hidden">
-                        <div class="flex justify-between items-center mb-6 px-2">
-                            <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
-                            <div class="flex gap-2">
-                                <button onclick="openCreatorModal()" class="bg-indigo-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> צור אתגר</button>
-                                <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-user-plus mr-1"></i> הקצאה</button>
-                            </div>
-                        </div>
-                        <div id="academy-pending-container" class="hidden mb-6 bg-orange-50 p-4 rounded-2xl border border-orange-100"><h4 class="text-sm font-bold text-orange-700 mb-2">בקשות לאישור</h4><div id="academy-pending-list" class="space-y-2"></div></div>
-                        <div id="admin-assignments-list" class="space-y-3"></div>
-                    </div>
-                    <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ הגרל אתגר מהיר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div>
-                        
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-8 border-t border-slate-200 pt-6">📚 ספריית המבחנים</h3>
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                            <div class="flex gap-3 mb-3">
-                                <select id="lib-age-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הגילאים</option><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option><option value="18+">18+</option></select>
-                                <select id="lib-cat-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="reading">קריאה</option><option value="financial">פיננסי</option></select>
-                            </div>
-                            <p class="text-[10px] text-slate-400 text-center">מציג <span id="lib-count">0</span> אתגרים</p>
-                        </div>
-                        <div id="library-list" class="space-y-3 pb-20"></div>
-                    </div>
-                </div>
-                <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
-                <div id="content-tasks" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3><div class="flex gap-2"><button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button><button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button></div></div><div id="tasks-list" class="space-y-3 pb-20"></div></div>
-                <div id="content-members" class="hidden space-y-6"><div class="card-modern overflow-hidden"><div class="p-4 border-b border-slate-50 bg-slate-50/50"><h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3></div><div id="members-list" class="divide-y divide-slate-50 p-2"></div></div><div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden"><div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div><div id="pending-list" class="space-y-2 p-2"></div></div></div>
-            </div>
-        </div>
-        
-        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up"><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div><button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button></div>
-        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
-        <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
-        <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
-        <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div></div>
-        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div></div>
-        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div></div>
-        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3><p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id"><input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי"><div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div></div></div>
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
-        <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
-        
-        <div id="quiz-creator-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                <h3 class="text-xl font-bold mb-4 text-center">יצירת אתגר חדש 📝</h3>
-                <input type="hidden" id="creator-questions-count" value="0">
-
-                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100">
-                    <label class="text-xs font-bold text-slate-400 block mb-1">כותרת האתגר:</label>
-                    <input type="text" id="creator-title" class="modern-input py-2 mb-3" placeholder="כותרת קצרה וברורה">
-
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 block mb-1">קטגוריה:</label>
-                            <select id="creator-category" onchange="toggleTextarea()" class="modern-input py-2 text-xs bg-white h-10">
-                                <option value="math">חשבון 🔢</option>
-                                <option value="english">אנגלית 🔤</option>
-                                <option value="reading">קריאה 📖</option>
-                                <option value="financial">פיננסי 📈</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 block mb-1">גיל יעד:</label>
-                            <select id="creator-age" class="modern-input py-2 text-xs bg-white h-10">
-                                <option value="6-8">6-8</option>
-                                <option value="8-10">8-10</option>
-                                <option value="10-13">10-13</option>
-                                <option value="13-15">13-15</option>
-                                <option value="15-18">15-18</option>
-                                <option value="18+">18+</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 block mb-1">ציון עובר (%):</label>
-                            <input type="number" id="creator-threshold" class="modern-input py-2 text-center" value="85" min="1" max="100">
-                        </div>
-                    </div>
-                    
-                    <div id="creator-textarea-container" class="mt-4 hidden">
-                        <label class="text-xs font-bold text-slate-400 block mb-1">תוכן קריאה/לימוד (אופציונלי):</label>
-                        <textarea id="creator-text-content" rows="4" class="modern-input resize-none text-sm" placeholder="הכנס כאן את הטקסט המלווה (לקריאה או שיעור פיננסי)..."></textarea>
-                    </div>
-                </div>
-
-                <h4 class="font-bold text-slate-700 mb-3 px-2 text-md flex justify-between items-center">
-                    שאלות (5 שאלות מינימום) 
-                    <button onclick="addQuestionField()" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 transition"><i class="fa-solid fa-plus"></i> הוסף שאלה</button>
-                </h4>
-                <div id="creator-questions-container" class="space-y-4">
-                    </div>
-                
-                <div class="mt-6 flex gap-3">
-                    <button onclick="document.getElementById('quiz-creator-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="submitNewQuizBundle()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">צור חבילת אתגר</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3>
-                <label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select>
-                <div class="flex gap-2 mb-3">
-                    <select id="assign-filter-age" onchange="filterAssignBundles()" class="modern-input py-2 text-xs bg-white flex-1"><option value="all">כל גיל</option><option value="6-8">6-8</option><option value="8-10">8-10</option><option value="10-13">10-13</option><option value="13-15">13-15</option><option value="15-18">15-18</option></select>
-                    <select id="assign-filter-cat" onchange="filterAssignBundles()" class="modern-input py-2 text-xs bg-white flex-1"><option value="all">כל סוג</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="reading">קריאה</option><option value="financial">פיננסי</option></select>
-                </div>
-                <label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white" onchange="updateAssignDetails()"></select>
-                <div class="flex gap-2 mb-6">
-                    <div class="flex-1"><label class="text-[10px] font-bold text-slate-400 block mb-1">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center"></div>
-                    <div class="flex-1"><label class="text-[10px] font-bold text-slate-400 block mb-1">תוקף (ימים):</label><input type="number" id="assign-days" class="modern-input text-center" placeholder="ללא"></div>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצאה</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="approve-req-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-2 text-center">אישור אתגר</h3>
-                <p id="appr-req-subtitle" class="text-center text-slate-500 mb-6 text-sm"></p>
-                <input type="hidden" id="appr-req-id">
-                <div class="flex gap-2 mb-6">
-                    <div class="flex-1"><label class="text-[10px] font-bold text-slate-400 block mb-1">בונוס (₪):</label><input type="number" id="appr-reward" class="modern-input text-center"></div>
-                    <div class="flex-1"><label class="text-[10px] font-bold text-slate-400 block mb-1">תוקף (ימים):</label><input type="number" id="appr-days" class="modern-input text-center" placeholder="ללא"></div>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="submitApproveRequest(false)" class="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold">דחה בקשה</button>
-                    <button onclick="submitApproveRequest(true)" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">אשר והקצה</button>
-                </div>
-            </div>
         </div>
     </div>
 
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        let currentUser = null;
-        let currentGroup = null;
-        let pollInterval = null;
-        let membersCache = [];
-        let shoppingListCache = [];
-        let wisdomCache = {};
-        let bundlesCache = [];
-        let allBundles = [];
-        const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
-        const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
-        const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
-        const PRODUCT_DB = { "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"], "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"], "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"], "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"], "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"], "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"], "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"] };
-        const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
+        let currentUser = null, currentGroup = null, membersCache = [];
 
-        let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0;
+        function switchView(view) {
+            ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+        }
 
-        window.onload = async () => { const saved = localStorage.getItem('ofl_session'); if(saved) { try { const session = JSON.parse(saved); if(session && session.user && session.user.id) { const res = await fetch(`${API}/users/${session.user.id}`); if(res.ok) { currentUser = await res.json(); currentGroup = session.group; localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); loadDashboard(); } else { logout(); } } else { logout(); } } catch(e) { logout(); } } };
+        function selectType(t) {
+            document.getElementById('create-type').value=t;
+            document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 font-bold transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600':'border-slate-100 text-slate-400'}`;
+            document.getElementById('type-group').className=`flex-1 p-4 rounded-2xl border-2 font-bold transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600':'border-slate-100 text-slate-400'}`;
+        }
 
-        function getAgeGroup(age) {
-            if (age >= 6 && age < 8) return '6-8';
-            if (age >= 8 && age < 10) return '8-10';
-            if (age >= 10 && age < 13) return '10-13';
-            if (age >= 13 && age < 15) return '13-15';
-            if (age >= 15 && age < 18) return '15-18';
-            if (age >= 18) return '18+';
-            return 'other';
-        };
+        async function authAction(endpoint, body) {
+            toggleLoader('login', true);
+            try {
+                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                const data = await res.json();
+                if(data.success) {
+                    localStorage.setItem('ofl_session', JSON.stringify({user:data.user, group:data.group}));
+                    location.reload(); 
+                } else showToast('error', data.error);
+            } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+            finally { toggleLoader('login', false); }
+        }
 
-        function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
-        function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
         async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
-        async function handleJoin(e) { e.preventDefault(); const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); d.success ? (showToast('success', 'נשלח!'), switchView('login')) : showToast('error', d.error); }
-        async function authAction(endpoint, body) { toggleLoader('login', true); try { const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const data = await res.json(); if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); loadDashboard(); } else showToast('error', data.error); } catch(e) { showToast('error', 'שגיאה'); } finally { toggleLoader('login', false); } }
-        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
-        function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
-        
-        function switchTab(t) { 
-            // Hide everything first
-            ['feed','tasks','shop','bank','academy','members','budget'].forEach(x => { 
-                const el = document.getElementById(`content-${x}`); 
-                if(el) el.classList.add('hidden'); 
-                const btn = document.getElementById(`tab-${x}`); 
-                if(btn) btn.classList.remove('tab-active'); 
-            }); 
-            
-            // Show selected tab
-            document.getElementById(`content-${t}`).classList.remove('hidden'); 
-            document.getElementById(`tab-${t}`).classList.add('tab-active'); 
-            
-            // Special handling for Shop Footer
-            if (t !== 'shop') {
-                const footer = document.getElementById('cart-footer');
-                if (footer) footer.classList.add('hidden');
-                document.getElementById('fab-container').classList.remove('fab-lifted');
-            } else {
-                // If returning to shop, re-render to check if footer should show
-                renderShopList();
-            }
 
-            if(t==='tasks') { 
-                const s = document.getElementById('task-assignee'); 
-                s.innerHTML=''; 
-                membersCache.forEach(m => s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`); 
-            } 
-            
-            if(t==='bank') {
-                fetchTransactionsHistory();
-            }
-        }
-
-        function loadDashboard() {
-            document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); 
-            // FAB is initially hidden in HTML, needs to be shown after auth
-            document.getElementById('fab-container').classList.remove('hidden'); 
-
-            document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-            const isAdmin = currentUser.role === 'ADMIN';
-            
-            // Populate Transactions Filter for Admin (Bank Tab)
-            const transFilter = document.getElementById('transactions-filter-user');
-            if (isAdmin && transFilter) {
-                 transFilter.innerHTML = '<option value="all">כל המשתמשים</option>'; 
-                 membersCache.forEach(m => transFilter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
-            }
-            
-            if(isAdmin) { 
-                document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
-                fetchPendingUsers(); 
-                fetchAcademyRequests(); 
-                fetchBundles(); 
-            } else { 
-                document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-            }
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) { fetchPendingUsers(); fetchAcademyRequests(); } }, 10000); 
-            fetchMembers(); fetchData();
-        }
-
-        async function fetchData() {
-            try {
-                if (document.activeElement.classList.contains('price-input')) return;
-                const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-                
-                currentUser.balance = data.user.balance; 
-                document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-                
-                if(data.quiz_bundles) {
-                    bundlesCache = data.quiz_bundles;
-                    renderMyAssignments(data.quiz_bundles);
-                }
-                
-                if (data.all_bundles) {
-                    allBundles = data.all_bundles; 
-                    renderLibrary(); 
-                }
-                
-                renderTasks(data.tasks);
-                shoppingListCache = data.shopping_list; renderShopList(); fetchBudget();
-                
-                // RENDER MAIN FEED (RECENT TRANSACTIONS)
-                const tList = document.getElementById('transactions-list'); 
-                const recentT = data.recent_transactions || [];
-                if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
-                else {
-                    let tHtml = ''; 
-                    recentT.forEach(t => { 
-                        const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; 
-                        const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; 
-                        tHtml += `<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; 
-                    }); 
-                    tList.innerHTML = tHtml;
-                }
-
-                const accList = document.getElementById('bank-accounts-list'); 
-                if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); }
-                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
-                
-                if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
-            } catch(e) {}
-        }
-        
-        // --- TRANSACTIONS HISTORY LOGIC ---
-        async function fetchTransactionsHistory() {
-            const isUserView = currentUser.role !== 'ADMIN';
-            const filterUserId = isUserView ? currentUser.id : val('transactions-filter-user');
-            
-            const listId = 'transactions-history-list';
-            const list = document.getElementById(listId);
-            if (!list) return; // Safety check
-            
-            list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">טוען היסטוריה...</p>';
-
-            const userIdParam = filterUserId !== 'all' ? `&userId=${filterUserId}` : '';
-            const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}${userIdParam}&limit=100`);
-            const historyT = await res.json();
-            
-            list.innerHTML = '';
-            if(historyT.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעולות היסטוריות להצגה</p>'; return; }
-
-            let tHtml = ''; 
-            historyT.forEach(t => { 
-                const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; 
-                const userNameDisplay = isUserView ? '' : `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>`; 
-                const dateDisplay = new Date(t.date).toLocaleDateString();
-                
-                tHtml += `
-                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div>
-                        ${userNameDisplay}
-                        <p class="font-bold text-slate-800 leading-tight">${t.description}</p>
-                        <p class="text-[10px] text-slate-400 mt-1">${dateDisplay}</p>
-                    </div>
-                    <span class="font-bold text-base ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span>
-                </div>`; 
-            }); 
-            list.innerHTML = tHtml;
-        }
-
-        // --- TASKS LOGIC ---
-        function renderTasks(tasks) {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
-            if(tasks.length === 0) { list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; return; }
-            
-            tasks.forEach(t => {
-                const isMyTask = t.assigned_to == currentUser.id;
-                const isAdmin = currentUser.role === 'ADMIN';
-                if (!isMyTask && !isAdmin) return;
-
-                let statusColor = 'bg-white border-slate-50'; // Default
-                let statusBadge = '';
-                let actionBtn = '';
-
-                if (t.status === 'pending') {
-                    if (isMyTask) actionBtn = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי</button>`;
-                    else statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
-                } 
-                else if (t.status === 'done') {
-                    statusColor = 'bg-yellow-50 border-yellow-100';
-                    if (isAdmin) actionBtn = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`;
-                    else statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
-                }
-                else if (t.status === 'approved') {
-                    statusColor = 'bg-green-50 border-green-100';
-                    statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`;
-                }
-
-                const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
-
-                list.innerHTML += `
-                <div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
-                    <div>
-                        <p class="font-bold text-slate-800">${t.title}</p>
-                        <div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}</div>
-                    </div>
-                    <div class="flex flex-col items-end gap-1">
-                        ${actionBtn}
-                        ${statusBadge}
-                    </div>
-                </div>`;
-            });
-        }
-        
-        async function updateTask(id, s) { 
-            if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); 
-            await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); 
-            fetchData(); 
-        }
-
-        // --- ACADEMY LOGIC (UPDATED) ---
-        
-        // --- ACADEMY ADMIN CREATOR LOGIC ---
-
-        function openCreatorModal() {
-            document.getElementById('creator-title').value = '';
-            document.getElementById('creator-threshold').value = 85;
-            document.getElementById('creator-questions-container').innerHTML = '';
-            document.getElementById('creator-questions-count').value = 0;
-            
-            // Add 5 initial questions
-            for (let i = 0; i < 5; i++) {
-                addQuestionField();
-            }
-            
-            toggleTextarea();
-            document.getElementById('quiz-creator-modal').classList.remove('hidden');
-        }
-
-        function toggleTextarea() {
-            const cat = val('creator-category');
-            const container = document.getElementById('creator-textarea-container');
-            if (cat === 'reading' || cat === 'financial' || cat === 'english') {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-                document.getElementById('creator-text-content').value = ''; // Clear text if hidden
-            }
-        }
-
-        function addQuestionField() {
-            const container = document.getElementById('creator-questions-container');
-            const currentCountEl = document.getElementById('creator-questions-count');
-            let currentCount = parseInt(currentCountEl.value);
-            currentCount++;
-            currentCountEl.value = currentCount;
-
-            const newQuestionHtml = `
-                <div id="question-${currentCount}" class="question-field bg-white p-4 rounded-xl shadow-sm border border-slate-100 fade-in">
-                    <p class="font-bold text-sm mb-2 text-blue-600">שאלה #${currentCount}</p>
-                    <input type="text" id="q-${currentCount}-text" class="modern-input py-2 mb-2" placeholder="נוסח השאלה">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="q-${currentCount}-opt-0" class="modern-input py-2 text-xs" placeholder="תשובה 1 (הנכונה)">
-                        <input type="text" id="q-${currentCount}-opt-1" class="modern-input py-2 text-xs" placeholder="תשובה 2">
-                        <input type="text" id="q-${currentCount}-opt-2" class="modern-input py-2 text-xs" placeholder="תשובה 3">
-                        <input type="text" id="q-${currentCount}-opt-3" class="modern-input py-2 text-xs" placeholder="תשובה 4">
-                    </div>
-                    <div class="mt-3 flex items-center justify-between">
-                        <select id="q-${currentCount}-correct" class="modern-input py-2 text-xs bg-yellow-50 w-full max-w-[180px]">
-                            <option value="0">התשובה הנכונה היא אופציה 1</option>
-                            <option value="1">התשובה הנכונה היא אופציה 2</option>
-                            <option value="2">התשובה הנכונה היא אופציה 3</option>
-                            <option value="3">התשובה הנכונה היא אופציה 4</option>
-                        </select>
-                        <button onclick="removeQuestionField(${currentCount})" class="text-red-400 hover:text-red-600 text-xs font-bold"><i class="fa-solid fa-trash mr-1"></i> הסר</button>
-                    </div>
-                </div>`;
-            
-            container.insertAdjacentHTML('beforeend', newQuestionHtml);
-        }
-
-        function removeQuestionField(id) {
-            const el = document.getElementById(`question-${id}`);
-            if (el) {
-                el.remove();
-            }
-        }
-
-        async function submitNewQuizBundle() {
-            const title = val('creator-title');
-            const category = val('creator-category');
-            const ageGroup = val('creator-age');
-            const threshold = parseInt(val('creator-threshold'));
-            const textContent = val('creator-textarea-container').classList.contains('hidden') ? null : val('creator-text-content');
-            
-            if (!title || isNaN(threshold)) {
-                return showToast('error', 'נא למלא כותרת וציון עובר תקין');
-            }
-            
-            const questions = [];
-            const fields = document.querySelectorAll('#creator-questions-container .question-field');
-            
-            if (fields.length < 5) {
-                return showToast('error', `חייבים לפחות 5 שאלות, יש לך רק ${fields.length}`);
-            }
-
-            fields.forEach((field, index) => {
-                const id = field.id.replace('question-', '');
-                const qText = val(`q-${id}-text`);
-                const qCorrectIndex = parseInt(val(`q-${id}-correct`));
-
-                const options = [
-                    val(`q-${id}-opt-0`),
-                    val(`q-${id}-opt-1`),
-                    val(`q-${id}-opt-2`),
-                    val(`q-${id}-opt-3`)
-                ];
-                
-                if (qText && options.every(opt => opt)) {
-                    questions.push({
-                        q: qText,
-                        options: options,
-                        correct: qCorrectIndex
-                    });
-                }
-            });
-
-            if (questions.length < 5) {
-                return showToast('error', `חייבים למלא את כל השדות עבור 5 שאלות לפחות. מולאו רק ${questions.length} שאלות.`);
-            }
-
-            const reward = 1.0; 
-
-            try {
-                const res = await fetch(`${API}/academy/create-bundle`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        title,
-                        type: category,
-                        age_group: ageGroup,
-                        threshold,
-                        reward,
-                        text_content: textContent,
-                        questions
-                    })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    showToast('success', 'חבילת האתגר נוצרה בהצלחה!');
-                    document.getElementById('quiz-creator-modal').classList.add('hidden');
-                    fetchBundles(); 
-                } else {
-                    showToast('error', data.error);
-                }
-
-            } catch (e) {
-                showToast('error', 'שגיאה ביצירת האתגר');
-            }
-        }
-        
-        // Admin functions to fetch and handle pending requests
-        async function fetchAcademyRequests() {
-            try {
-                const res = await fetch(`${API}/admin/academy-requests?groupId=${currentGroup.id}`);
-                const reqs = await res.json();
-                const container = document.getElementById('academy-pending-container');
-                const list = document.getElementById('academy-pending-list');
-                
-                if (reqs.length > 0) {
-                    container.classList.remove('hidden');
-                    list.innerHTML = '';
-                    reqs.forEach(r => { 
-                        const reward = parseFloat(r.reward) || 0.0;
-                        list.innerHTML += `
-                        <div class="bg-white p-3 rounded-xl flex justify-between items-center shadow-sm border border-orange-200">
-                            <div>
-                                <span class="font-bold text-slate-800 text-sm">${r.nickname}</span>
-                                <br><span class="text-xs text-slate-500">${r.title} (₪${reward})</span>
-                            </div>
-                            <button onclick="openApproveModal(${r.id}, '${r.nickname}', '${r.title}', ${reward})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-600">אשר</button>
-                        </div>`; 
-                    });
-                } else { container.classList.add('hidden'); }
-            } catch(e) {}
-        }
-        
-        function openApproveModal(reqId, name, title, reward) {
-            document.getElementById('appr-req-id').value = reqId;
-            document.getElementById('appr-req-subtitle').innerText = `${name} רוצה לבצע: ${title}`;
-            document.getElementById('appr-reward').value = reward;
-            document.getElementById('appr-days').value = ''; // Reset days
-            document.getElementById('approve-req-modal').classList.remove('hidden');
-        }
-        
-        async function submitApproveRequest(isApproved) {
-            const id = document.getElementById('appr-req-id').value;
-            const reward = isApproved ? document.getElementById('appr-reward').value : 0;
-            const days = isApproved ? document.getElementById('appr-days').value : null;
-            
-            await fetch(`${API}/academy/approve-request`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ assignmentId: id, reward, days, status: isApproved ? 'assigned' : 'failed' })
-            });
-            
-            document.getElementById('approve-req-modal').classList.add('hidden');
-            if (isApproved) { showToast('success', 'האתגר הוקצה בהצלחה!'); } else { showToast('info', 'הבקשה נדחתה.'); }
-            fetchAcademyRequests();
-            fetchData(); 
-        }
-
-        async function fetchBundles() {
-            try {
-                const res = await fetch(`${API}/academy/bundles`);
-                allBundles = await res.json();
-            } catch(e) {}
-        }
-
-        function updateAssignDetails() {
-            const select = document.getElementById('assign-bundle-select');
-            const bundleId = select.value;
-            const bundle = allBundles.find(b => b.id == bundleId);
-            if(bundle) {
-                document.getElementById('assign-reward').value = bundle.reward;
-                document.getElementById('assign-days').value = '';
-            }
-        }
-        
-        function filterAssignBundles() {
-            const age = val('assign-filter-age');
-            const cat = val('assign-filter-cat');
-            const select = document.getElementById('assign-bundle-select');
-            select.innerHTML = '';
-            
-            const filtered = allBundles.filter(b => (age === 'all' || b.age_group === age) && (cat === 'all' || b.type === cat));
-            
-            if(filtered.length > 0) { 
-                filtered.forEach(b => { 
-                    const icon = b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : (b.type === 'english' ? '🔤' : '📈'));
-                    select.innerHTML += `<option value="${b.id}">[${icon} ${b.age_group}] ${b.title}</option>`; 
-                }); 
-                updateAssignDetails(); 
-            } else { select.innerHTML = '<option disabled>אין תוצאות</option>'; }
-        }
-
-        function openAssignModal() {
-            const cSelect = document.getElementById('assign-child-select');
-            cSelect.innerHTML = '';
-            membersCache.forEach(m => {
-                if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
-            });
-            
-            const firstChild = membersCache.find(m => m.role !== 'ADMIN');
-            if(firstChild) {
-                const age = new Date().getFullYear() - (firstChild.birth_year || new Date().getFullYear());
-                const ageGroup = getAgeGroup(age); 
-                document.getElementById('assign-filter-age').value = ageGroup in ['6-8', '8-10', '10-13', '13-15', '15-18'] ? ageGroup : 'all';
-            } else {
-                 document.getElementById('assign-filter-age').value = 'all';
-            }
-
-            document.getElementById('assign-filter-cat').value = 'all';
-            filterAssignBundles();
-            document.getElementById('assign-quiz-modal').classList.remove('hidden');
-        }
-
-        async function submitAssignQuiz() {
-            const childId = val('assign-child-select');
-            const bundleId = val('assign-bundle-select');
-            const reward = val('assign-reward');
-            const days = val('assign-days');
-            
-            if(!childId || !bundleId) return;
-
-            await fetch(`${API}/academy/assign`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days })
-            });
-            
-            document.getElementById('assign-quiz-modal').classList.add('hidden');
-            showToast('success', 'הוקצה בהצלחה');
-            fetchData();
-        }
-
-        // 1. My Assignments (Active, Pending & History)
-        function renderMyAssignments(bundles) {
-            const list = document.getElementById('my-assignments-list');
-            if(!list) return;
-            
-            list.innerHTML = ''; 
-            
-            const activeBundles = bundles.filter(b => b.status === 'assigned');
-            const pendingBundles = bundles.filter(b => b.status === 'pending_approval');
-
-            if (activeBundles.length === 0 && pendingBundles.length === 0) {
-                list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בחר מהספרייה למטה!</p>';
-            }
-
-            const getIcon = (type) => {
-                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
-                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
-                if (type === 'english') return '<i class="fa-solid fa-language"></i>';
-                return '<i class="fa-solid fa-chart-line"></i>';
-            };
-
-            // Display Pending Requests
-            pendingBundles.forEach(b => {
-                 list.innerHTML += `
-                    <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm flex justify-between items-center mb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="text-orange-400 text-lg"><i class="fa-solid fa-hourglass"></i></div>
-                            <div>
-                                <h4 class="font-bold text-slate-800">${b.title}</h4>
-                                <p class="text-xs text-slate-500">ממתין לאישור הורה (₪${b.reward || b.default_reward})</p>
-                            </div>
-                        </div>
-                    </div>`;
-            });
-
-            // Display Active Assignments
-            activeBundles.forEach(b => {
-                let deadlineMsg = "";
-                if (b.deadline) {
-                    const d = new Date(b.deadline);
-                    const now = new Date();
-                    const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
-                    deadlineMsg = diff > 0 ? `<span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : `<span class="text-red-500 ml-1">פג תוקף!</span>`;
-                }
-
-                const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
-
-                list.innerHTML += `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01]">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div>
-                        <div>
-                            <h4 class="font-bold text-slate-800">${b.title}</h4>
-                            <p class="text-xs text-slate-500">פרס: ₪${reward} • ציון עובר: ${b.threshold}% ${deadlineMsg}</p>
-                        </div>
-                    </div>
-                    <button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
-                </div>`;
-            });
-        }
-
-        // 2. Library (Browse All)
-        function renderLibrary() {
-            const ageFilter = val('lib-age-filter');
-            const catFilter = val('lib-cat-filter');
-            const libList = document.getElementById('library-list');
-            const countDisplay = document.getElementById('lib-count');
-
-            if (!libList) return;
-            libList.innerHTML = '';
-
-            const filtered = allBundles.filter(b => { 
-                const matchAge = ageFilter === 'all' || b.age_group === ageFilter; 
-                const matchCat = catFilter === 'all' || b.type === catFilter; 
-                return matchAge && matchCat; 
-            });
-            
-            countDisplay.innerText = filtered.length;
-
-            if (filtered.length === 0) {
-                libList.innerHTML = '<p class="text-center text-slate-400 text-xs">אין מבחנים התואמים את הסינון</p>';
-                return;
-            }
-
-            const getIcon = (type) => {
-                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
-                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
-                if (type === 'english') return '<i class="fa-solid fa-language"></i>';
-                return '<i class="fa-solid fa-chart-line"></i>';
-            };
-
-            const displayList = filtered.slice(0, 20);
-
-            displayList.forEach(b => {
-                // Check status from current assignments cache
-                const assignment = bundlesCache.find(ua => ua.bundle_id === b.id);
-                const isAssigned = assignment && assignment.status === 'assigned';
-                const isPending = assignment && assignment.status === 'pending_approval';
-
-                let btnHtml;
-                if (isAssigned) btnHtml = `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> עכשיו</span>`;
-                else if (isPending) btnHtml = `<span class="text-xs font-bold text-orange-500"><i class="fa-solid fa-clock"></i> ממתין</span>`;
-                else btnHtml = `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
-
-                libList.innerHTML += `
-                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
-                        <div>
-                            <h4 class="font-bold text-slate-700 text-sm">${b.title} (${b.age_group})</h4>
-                            <p class="text-[10px] text-slate-400">פרס: ₪${b.reward}</p>
-                        </div>
-                    </div>
-                    ${btnHtml}
-                </div>`;
-            });
-            if (filtered.length > 20) { libList.innerHTML += `<p class="text-center text-slate-400 text-[10px] mt-2">ועוד ${filtered.length - 20} תוצאות...</p>`; }
-        }
-
-        async function requestChallenge(bundleId = null) {
-            const btn = document.querySelector('#academy-user-view button.bg-white'); // Target the quick challenge button
-            if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
-            
-            try {
-                let bundleMetaData = {};
-                if (bundleId) {
-                    const bundle = allBundles.find(b => b.id == bundleId);
-                    if (!bundle) throw new Error('האתגר לא נמצא בספרייה.');
-                    bundleMetaData = { title: bundle.title, default_reward: bundle.reward };
-                } else {
-                    bundleMetaData.title = 'אתגר אקראי';
-                    bundleMetaData.default_reward = 'מערכת';
-                }
-                
-                if (!confirm(`האם לאשר את הבקשה לאתגר "${bundleMetaData.title}"? פרס משוער: ₪${bundleMetaData.default_reward || 'מערכת'}`)) {
-                    return;
-                }
-
-                const res = await fetch(`${API}/academy/request-challenge`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId })
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    triggerConfetti();
-                    showToast('success', 'בקשתך נשלחה לאישור ההורה.');
-                    fetchData();
-                } else {
-                    showToast('error', data.error);
-                }
-            } catch(e) {
-                showToast('error', e.message || 'שגיאה בתקשורת');
-            } finally {
-                if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; }
-            }
-        }
-        
-        async function startQuiz(bundleId) {
-            // New logic: Fetch full content lazily on click
-            const fullBundleRes = await fetch(`${API}/academy/bundle/${bundleId}`);
-            if (!fullBundleRes.ok) return showToast('error', 'שגיאה בטעינת תוכן המבחן');
-            const fullBundle = await fullBundleRes.json();
-            
-            const assignment = bundlesCache.find(b => b.bundle_id === bundleId);
-            if(!assignment) return;
-            
-            currentQuizData = {...assignment, ...fullBundle}; // Combine assignment data (like custom_reward) with bundle content
-            currentQuestionIndex = 0;
-            quizScore = 0;
-            
-            document.getElementById('quiz-title').innerText = currentQuizData.title;
-            
-            // Handle Text Content (Reading/Financial)
-            const textContainer = document.getElementById('quiz-text-container');
-            const questionContainer = document.getElementById('question-container');
-            
-            if (currentQuizData.text_content) {
-                textContainer.innerHTML = `<p>${currentQuizData.text_content}</p>`;
-                textContainer.classList.remove('hidden');
-                questionContainer.classList.add('hidden');
-                
-                // Show a 'Start' button to reveal the questions
-                textContainer.innerHTML += `<button onclick="revealQuestions()" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל לענות על השאלות</button>`;
-            } else {
-                textContainer.classList.add('hidden');
-                questionContainer.classList.remove('hidden');
-            }
-
-            document.getElementById('quiz-runner-modal').classList.remove('hidden');
-            if (!currentQuizData.text_content) renderQuestion(); // Only render if no reading material
-        }
-
-        function revealQuestions() {
-            document.getElementById('quiz-text-container').classList.add('hidden');
-            document.getElementById('question-container').classList.remove('hidden');
-            renderQuestion();
-        }
-
-        function renderQuestion() {
-            const q = currentQuizData.questions[currentQuestionIndex];
-            document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`;
-            document.getElementById('q-text').innerText = q.q;
-            
-            const optsContainer = document.getElementById('q-options');
-            optsContainer.innerHTML = '';
-            
-            q.options.forEach((opt, idx) => {
-                optsContainer.innerHTML += `
-                <button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">
-                    ${opt}
-                </button>`;
-            });
-        }
-
-        async function submitAnswer(selectedIdx) {
-            const q = currentQuizData.questions[currentQuestionIndex];
-            const isCorrect = selectedIdx === q.correct;
-            
-            // Disable all buttons to prevent double click
-            document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = true);
-
-            // Visual Feedback
-            const btns = document.querySelectorAll('.quiz-option');
-            btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
-            if(!isCorrect) btns[q.correct].classList.add('correct');
-            
-            if(isCorrect) quizScore++;
-            
-            // Delay next question
-            setTimeout(async () => {
-                currentQuestionIndex++;
-                if (currentQuestionIndex < currentQuizData.questions.length) {
-                    // Re-enable buttons for next question
-                    document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = false);
-                    renderQuestion();
-                } else {
-                    finishQuiz();
-                }
-            }, 1000);
-        }
-
-        async function finishQuiz() {
-            const total = currentQuizData.questions.length;
-            const finalScore = Math.round((quizScore / total) * 100);
-            
-            // Use the specific threshold from the bundle
-            const passed = finalScore >= currentQuizData.threshold;
-            
-            document.getElementById('question-container').classList.add('hidden');
-            document.getElementById('quiz-text-container').classList.add('hidden'); // Hide text on result
-            document.getElementById('quiz-result').classList.remove('hidden');
-            
-            const rewardAmount = currentQuizData.custom_reward !== null ? parseFloat(currentQuizData.custom_reward) : parseFloat(currentQuizData.default_reward);
-
-            document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚';
-            document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...';
-            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${rewardAmount.toFixed(2)}` : `צריך ${currentQuizData.threshold}% כדי לעבור. המשימה נמחקה כדי לאפשר ניסיון חוזר.`;
-            document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
-            
-            if (passed) triggerConfetti();
-            
-            await fetch(`${API}/academy/submit`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore })
-            });
-            fetchData(); // Refresh balance and list
-        }
-        
-        function closeQuiz() { 
-            document.getElementById('quiz-runner-modal').classList.add('hidden'); 
-            document.getElementById('question-container').classList.remove('hidden');
-            document.getElementById('quiz-result').classList.add('hidden');
-            // Re-enable buttons if accidentally closed during quiz
-            document.querySelectorAll('.quiz-option').forEach(btn => btn.disabled = false);
-        }
-
-        // --- SHOP & MISC ---
-        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
-        
-        async function submitShopItem() { 
-            const itemInput = document.getElementById('shop-item');
-            const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
-            
-            const item = itemInput.value;
-            const qty = val('shop-quantity');
-            const est = val('shop-est-price');
-            
-            if(!item) return;
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.innerText = 'מוסיף...';
-
-            try {
-                const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, estimatedPrice: est, userId: currentUser.id}) }); 
-                const data = await res.json(); 
-                
-                if (data.success) { 
-                    document.getElementById('shop-modal').classList.add('hidden'); 
-                    itemInput.value = ''; 
-                    document.getElementById('shop-est-price').value = ''; 
-                    document.getElementById('shop-quantity').value = 1; 
-                    document.getElementById('suggestions').classList.add('hidden'); 
-                    
-                    if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
-                    
-                    showToast('success', 'נוסף לרשימה'); 
-                    fetchData(); 
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'הוסף';
-            }
-        }
-        
-        async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
-        function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
-        
-        // FIXED SHOP REQUESTS RENDERING & CALCULATION FIX
-        function renderShopList() {
-            if (document.activeElement.classList.contains('price-input')) return;
-            
-            const list = document.getElementById('shop-list');
-            const reqList = document.getElementById('shop-requests-list');
-            const reqContainer = document.getElementById('shop-requests-container');
-            
-            list.innerHTML = '';
-            reqList.innerHTML = '';
-            
-            const activeItems = [];
-            const requestedItems = [];
-            
-            shoppingListCache.forEach(i => {
-                if(i.status === 'requested') requestedItems.push(i);
-                else activeItems.push(i);
-            });
-            
-            if (currentUser.role === 'ADMIN' && requestedItems.length > 0) {
-                reqContainer.classList.remove('hidden');
-                requestedItems.forEach(i => {
-                    reqList.innerHTML += `
-                    <div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200">
-                        <div>
-                            <span class="font-bold text-slate-700">${i.item_name}</span>
-                            <span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button>
-                            <button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>`;
-                });
-            } else {
-                reqContainer.classList.add('hidden');
-            }
-
-            if(activeItems.length === 0) { 
-                list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
-                document.getElementById('cart-footer').classList.add('hidden'); 
-                document.getElementById('fab-container').classList.remove('fab-lifted');
-                return; 
-            }
-            
-            document.getElementById('cart-footer').classList.remove('hidden');
-            // Lift FAB when checkout banner is visible
-            document.getElementById('fab-container').classList.add('fab-lifted');
-            
-            const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
-            activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
-            
-            let currentCat = '';
-            activeItems.forEach(i => {
-                const cat = getCatScore(i.item_name);
-                if(cat !== currentCat) { list.innerHTML += `<div class="category-header">${cat}</div>`; currentCat = cat; }
-                const isChecked = i.status === 'in_cart';
-                const val = i.estimated_price > 0 ? i.estimated_price : '';
-                const savedWisdom = wisdomCache[i.id];
-                const showWisdom = savedWisdom && savedWisdom.length > 0;
-                
-                // New Calculation Display Logic
-                const unitPrice = parseFloat(i.estimated_price) || 0;
-                const totalRowPrice = unitPrice * i.quantity;
-                
-                list.innerHTML += `
-                <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
-                        <div class="flex-1">
-                            <div class="flex justify-between items-start">
-                                <span class="text-slate-700 font-medium item-name">${i.item_name}</span>
-                                <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                            <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all">
-                                <i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-2 items-center pl-0 mt-1">
-                         <div class="relative w-24">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span>
-                            <input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center">
-                        </div>
-                        <div class="flex flex-col items-center leading-none">
-                             <span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span>
-                             <span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span>
-                        </div>
-                        <div class="flex flex-col items-center leading-none ml-auto">
-                            <span class="text-[9px] text-slate-400 mb-0.5">כמות</span>
-                            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span>
-                        </div>
-                        <button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button>
-                    </div>
-                </div>`;
-            });
-            calcRunningTotal();
-        }
-
-        async function updateRow(id, type, value) {
-            if (type === 'approve_request') {
-                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})});
-            }
-            else if (type === 'check') { 
-                const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); 
-                if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } 
-                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); 
-            } 
-            else if (type === 'price_calc') {
-                // Just update the UI calculation, don't save yet
-                const item = shoppingListCache.find(i => i.id == id);
-                if(item) {
-                    const unitPrice = parseFloat(value) || 0;
-                    const total = unitPrice * item.quantity;
-                    const totalEl = document.getElementById(`row-total-${id}`);
-                    if(totalEl) totalEl.innerText = `₪${total.toFixed(0)}`;
-                }
-                calcRunningTotal(); // Update footer total immediately
-                return; // Don't save to DB on every keystroke
-            }
-            else if (type === 'price_save') { 
-                // Save to DB on change/blur
-                const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); 
-                const data = await res.json(); 
-                const freshWisdomDiv = document.getElementById(`wisdom-${id}`); 
-                if(freshWisdomDiv) { 
-                    if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } 
-                    else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } 
-                } 
-                const cachedItem = shoppingListCache.find(i => i.id == id); 
-                if(cachedItem) cachedItem.estimated_price = value; 
-            } 
-            if(type === 'approve_request') fetchData();
-            else calcRunningTotal(); 
-        }
-
-        function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
-        
-        function calcRunningTotal() { 
-            let total = 0; 
-            document.querySelectorAll('.shop-row').forEach(row => { 
-                const isChecked = row.querySelector('input[type="checkbox"]').checked; 
-                const isMissing = row.classList.contains('missing'); 
-                if (isChecked && !isMissing) { 
-                    // Calculate Total: Unit Price from Input * Quantity from Cache
-                    const id = row.id.replace('row-', '');
-                    const itemData = shoppingListCache.find(i => i.id == id);
-                    const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; 
-                    const qty = itemData ? itemData.quantity : 1;
-                    total += (unitPrice * qty); 
-                } 
-            }); 
-            document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
-        }
-        
-        function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
-        async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
-        async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
-        
-        // --- HELPERS ---
-        function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
         function val(id) { return document.getElementById(id).value; }
-        function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
-        function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
-        function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
-        async function fetchMembers() { 
-            const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); membersCache = await res.json(); 
-            
-            // Populate Transactions Filter for Admin (Bank Tab - only when members are available)
-            const isAdmin = currentUser.role === 'ADMIN';
-            const transFilter = document.getElementById('transactions-filter-user');
-            if (isAdmin && transFilter) {
-                 transFilter.innerHTML = '<option value="all">כל המשתמשים</option>'; 
-                 membersCache.forEach(m => transFilter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
+        function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
+        function toggleLoader(a,s) { const ldr = document.getElementById(`btn-${a}-loader`); const txt = document.getElementById(`btn-${a}-text`); if(ldr) ldr.classList.toggle('hidden', !s); if(txt) txt.classList.toggle('hidden', s); }
+        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
+
+        window.onload = () => {
+            const saved = localStorage.getItem('ofl_session');
+            if(saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    if(session.user && session.group) {
+                        currentUser = session.user; currentGroup = session.group;
+                        document.getElementById('auth-container').classList.add('hidden');
+                        document.getElementById('dashboard-container').classList.remove('hidden');
+                        // קריאה לפונקציות הטעינה המקוריות כאן
+                    } else { document.getElementById('auth-container').classList.remove('hidden'); }
+                } catch(e) { document.getElementById('auth-container').classList.remove('hidden'); }
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
             }
-            
-            if(currentUser.role === 'ADMIN') { const filter = document.getElementById('budget-filter'); if (filter.options.length <= 1) { filter.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => filter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); } } 
-            const container = document.getElementById('members-list'); container.innerHTML = ''; membersCache.forEach(m => { container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); const accList = document.getElementById('bank-accounts-list'); if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); } }
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button></div></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
-        function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-        async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-        async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-        function openGoalModal() { document.getElementById('goal-modal').classList.remove('hidden'); }
-        function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-        async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
-        async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-        async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
-        async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
-        async function updateTask(id, s) { if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
-        function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
-        function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-        async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        
-        async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
-        function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
-        async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
-
-        // --- ADMIN USERS ---
-        async function fetchPendingUsers() {
-            try {
-                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const users = await res.json();
-                const list = document.getElementById('pending-list');
-                const container = document.getElementById('admin-panel');
-                
-                if (users.length > 0) {
-                    container.classList.remove('hidden');
-                    list.innerHTML = '';
-                    users.forEach(u => {
-                        const age = new Date().getFullYear() - u.birth_year;
-                        list.innerHTML += `
-                        <div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm">
-                            <span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span>
-                            <div class="flex gap-2">
-                                <button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
-                            </div>
-                        </div>`;
-                    });
-                } else {
-                    container.classList.add('hidden');
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        async function approveUser(id) {
-            await fetch(`${API}/admin/approve-user`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: id })
-            });
-            showToast('success', 'משתמש אושר!');
-            fetchPendingUsers();
-            fetchMembers();
-        }
+        };
     </script>
 </body>
 </html>
