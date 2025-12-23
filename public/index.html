@@ -45,7 +45,7 @@
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* לוגו הדמות (logo.png) */
+        /* לוגו הדמות - ממוקם בפינה השמאלית העליונה */
         .mascot-image-container {
              position: absolute;
              top: 5px; 
@@ -104,7 +104,6 @@
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* סליידר וטאבים - שאר ה-CSS מהקובץ המקורי */
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
@@ -160,8 +159,8 @@
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium transition hover:text-slate-600">הצטרפות למשפחה</button>
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full transition hover:bg-blue-100">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium hover:text-slate-600 transition">הצטרפות למשפחה</button>
                 </div>
             </div>
 
@@ -175,19 +174,19 @@
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">סיום והרשמה</button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזור</button>
             </div>
 
             <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input">
+                    <input type="email" id="join-email" required placeholder="מייל מנהל" class="modern-input">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="join-password" required placeholder="סיסמה" class="modern-input">
                     <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">שלח בקשה</button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזור</button>
             </div>
         </div>
 
@@ -217,7 +216,7 @@
         }
 
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: 'FAMILY', groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
 
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
