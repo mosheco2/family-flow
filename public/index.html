@@ -13,8 +13,10 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        /* 💳 עיצוב כרטיס אשראי - מיקום כותרת LIFE ONEFLOW */
+        /* 💳 עיצוב כרטיס אשראי - דף כניסה */
         .credit-card-onboarding {
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
             border-radius: 1.5rem; 
@@ -31,7 +33,6 @@
             user-select: none;
         }
 
-        /* השבב הצהוב הגדול בשמאל עליון */
         .credit-chip {
             width: 42px;
             height: 32px;
@@ -44,7 +45,6 @@
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* סמל WiFi בימין עליון */
         .wifi-icon-card {
             position: absolute;
             top: 20px;
@@ -53,7 +53,6 @@
             z-index: 5;
         }
 
-        /* לוגו הדמות מתחת לשבב בשמאל */
         .mascot-container {
              position: absolute;
              top: 55%; 
@@ -65,18 +64,12 @@
              pointer-events: none;
         }
         
-        .mascot-container img {
-             width: 100%;
-             height: auto;
-             object-fit: contain;
-             filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
-        }
+        .mascot-container img { width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5)); }
 
-        /* כותרת LIFE ONEFLOW - ממוקמת במרכז העליון */
         .card-titles-group {
              padding-top: 15px;
-             padding-left: 65px; /* מרווח מהשבב */
-             padding-right: 45px; /* מרווח מה-WiFi */
+             padding-left: 65px; 
+             padding-right: 45px; 
              z-index: 15;
              text-align: center;
         }
@@ -94,28 +87,19 @@
             white-space: nowrap;
         }
         
-        /* עיצוב המילה LIFE בתוך השבב הקטן */
-        .life-tag-highlight {
-            background-color: #fcd34d;
-            color: #1e293b;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: 900;
-        }
+        .life-tag-highlight { background-color: #fcd34d; color: #1e293b; padding: 1px 6px; border-radius: 4px; font-size: 0.85rem; font-weight: 900; }
+        .card-slogan-text { font-size: 0.5rem; font-weight: 400; opacity: 0.6; margin-top: 2px; letter-spacing: 0.05em; color: #bfdbfe; text-transform: uppercase; }
 
-        .card-slogan-text {
-             font-size: 0.5rem;
-             font-weight: 400;
-             opacity: 0.6;
-             margin-top: 2px;
-             letter-spacing: 0.05em;
-             color: #bfdbfe;
-             text-transform: uppercase;
-        }
-
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; text-align: right; }
-        .modern-input:focus { border-color: #3b82f6; background: white; }
+        /* רכיבי דשבורד */
+        .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
+        .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
+        .slider-scroll::-webkit-scrollbar { display: none; }
+        .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
+        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
+        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -128,35 +112,21 @@
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-            
             <div class="p-8 text-center bg-slate-50 rounded-b-[3rem] shadow-sm">
                 <div class="credit-card-onboarding mx-auto w-full max-w-xs mb-4">
-                    
                     <div class="credit-chip"></div>
-                    
-                    <div class="wifi-icon-card">
-                        <i class="fa-solid fa-wifi text-xl transform rotate-90"></i>
-                    </div>
-
-                    <div class="mascot-container">
-                        <img src="logo.png" alt="Mascot">
-                    </div>
-
+                    <div class="wifi-icon-card"><i class="fa-solid fa-wifi text-xl transform rotate-90"></i></div>
+                    <div class="mascot-container"><img src="logo.png" alt="Mascot"></div>
                     <div class="card-titles-group">
-                        <h1 class="card-brand-main">
-                            <span class="life-tag-highlight">LIFE</span> ONEFLOW
-                        </h1>
+                        <h1 class="card-brand-main"><span class="life-tag-highlight">LIFE</span> ONEFLOW</h1>
                         <p class="card-slogan-text">Financial Flow Simplified</p>
                     </div>
-
                     <div class="flex justify-between items-end text-[10px] opacity-60 font-mono mt-auto border-t border-white/10 pt-2">
-                        <span>01/29</span>
-                        <span>FAMILY ACCOUNT</span>
+                        <span>01/29</span><span>FAMILY ACCOUNT</span>
                     </div>
                 </div>
-                
-                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-1 text-center">ברוכים הבאים</h2>
-                <p class="text-slate-500 text-xs px-6 text-center">התחבר או צור קבוצה חדשה לניהול הכסף</p>
+                <h2 class="text-2xl font-bold text-slate-800 mt-4 mb-1">ברוכים הבאים</h2>
+                <p class="text-slate-500 text-xs px-6">התחבר או צור קבוצה חדשה לניהול הכסף</p>
             </div>
             
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
@@ -166,12 +136,12 @@
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
                     <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex justify-center gap-2">
                         <span id="btn-login-text">כניסה למערכת</span>
-                        <div id="btn-login-loader" class="loader hidden"></div>
+                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button>
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full transition">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium transition">הצטרפות למשפחה</button>
                 </div>
             </div>
 
@@ -180,10 +150,7 @@
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל" class="modern-input">
-                    <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="השם שלך" class="modern-input">
-                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
-                    </div>
+                    <div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="השם שלך" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">סיום והרשמה</button>
                 </form>
@@ -191,26 +158,105 @@
             </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative"></div>
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative">
+            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div>
+                    <div><h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2><p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p></div>
+                </div>
+                <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </header>
+            
+            <div class="relative px-2 mb-6 group">
+                <div class="slider-container">
+                    <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
+                    <div class="slider-scroll" id="slider-scroll">
+                        <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
+                        <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
+                        <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
+                        <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
+                    </div>
+                    <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
+                </div>
+            </div>
+
+            <div class="px-2" id="dash-content-area">
+                <div id="content-feed">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+                        <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
+                        <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
+                        <div class="absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"><i class="fa-solid fa-wallet"></i></div>
+                    </div>
+                    <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פעילות אחרונה</h3>
+                    <div id="transactions-list" class="space-y-3"></div>
+                </div>
+                </div>
+        </div>
     </div>
 
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let currentUser = null, currentGroup = null;
 
-        function switchView(view) {
-            ['login','create'].forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                if (el) el.classList.add('hidden');
-            });
-            const target = document.getElementById(`view-${view}`);
-            if (target) target.classList.remove('hidden');
+        window.onload = async () => {
+            const saved = localStorage.getItem('ofl_session');
+            if(saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    if(session.user && session.user.id) {
+                        const res = await fetch(`${API}/users/${session.user.id}`);
+                        if(res.ok) {
+                            currentUser = await res.json();
+                            currentGroup = session.group;
+                            loadDashboard();
+                            return;
+                        }
+                    }
+                } catch(e) { logout(); }
+            }
+            document.getElementById('auth-container').classList.remove('hidden');
+        };
+
+        function loadDashboard() {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('dashboard-container').classList.remove('hidden');
+            document.getElementById('dash-group-name').innerText = currentGroup.name;
+            document.getElementById('dash-nickname').innerText = currentUser.nickname;
+            fetchData();
         }
 
-        async function authAction(endpoint, body) {
-            toggleLoader('login', true);
+        async function fetchData() {
             try {
-                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                const res = await fetch(`${API}/data/${currentUser.id}`);
+                const data = await res.json();
+                currentUser.balance = data.user.balance;
+                document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+                renderTransactions(data.recent_transactions);
+            } catch(e) { console.error("Data fetch failed", e); }
+        }
+
+        function renderTransactions(transactions) {
+            const list = document.getElementById('transactions-list');
+            list.innerHTML = transactions && transactions.length > 0 ? '' : '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>';
+            if(transactions) transactions.forEach(t => {
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex justify-between items-center transform transition hover:scale-[1.01]">
+                    <div><p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div>
+                    <span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span>
+                </div>`;
+            });
+        }
+
+        function switchView(view) {
+            ['login','create'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            toggleLoader('login', true);
+            const body = { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') };
+            try {
+                const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
                 const data = await res.json();
                 if(data.success) {
                     localStorage.setItem('ofl_session', JSON.stringify({user:data.user, group:data.group}));
@@ -220,28 +266,11 @@
             finally { toggleLoader('login', false); }
         }
 
-        async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
-
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
         function toggleLoader(a,s) { const ldr = document.getElementById(`btn-${a}-loader`); const txt = document.getElementById(`btn-${a}-text`); if(ldr) ldr.classList.toggle('hidden', !s); if(txt) txt.classList.toggle('hidden', s); }
-
-        window.onload = () => {
-            const saved = localStorage.getItem('ofl_session');
-            if(saved) {
-                try {
-                    const session = JSON.parse(saved);
-                    if(session.user && session.group) {
-                        currentUser = session.user; currentGroup = session.group;
-                        document.getElementById('auth-container').classList.add('hidden');
-                        document.getElementById('dashboard-container').classList.remove('hidden');
-                    } else { document.getElementById('auth-container').classList.remove('hidden'); }
-                } catch(e) { document.getElementById('auth-container').classList.remove('hidden'); }
-            } else {
-                document.getElementById('auth-container').classList.remove('hidden');
-            }
-        };
+        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
+        function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
     </script>
 </body>
 </html>
