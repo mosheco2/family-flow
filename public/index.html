@@ -15,7 +15,7 @@
         .hidden { display: none !important; }
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
+        
         /* 💳 עיצוב כרטיס אשראי ריאליסטי לדף ההתחברות */
         .credit-card-onboarding {
             background: linear-gradient(135deg, #1e3a8a, #0f172a); 
@@ -32,26 +32,25 @@
             color: white;
         }
 
-        /* השבב הצהוב בפינה השמאלית העליונה */
         .credit-chip {
-            width: 45px;
-            height: 35px;
+            width: 40px;
+            height: 30px;
             background: linear-gradient(135deg, #fcd34d, #f59e0b);
             border-radius: 6px;
             position: absolute;
-            top: 25px; 
-            left: 25px;
+            top: 20px; 
+            left: 20px;
             z-index: 5;
             box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
         }
 
-        /* לוגו הדמות - ממוקם במרכז הכרטיס בצד ימין */
+        /* לוגו מוקטן, מוזז למרכז ימין ומורד למטה למניעת חפיפה */
         .mascot-container {
              position: absolute;
-             top: 50%; 
-             right: 20px; 
+             top: 60%; /* הורדה למטה */
+             right: 15px; /* הצמדה לימין */
              transform: translateY(-50%);
-             width: 100px; 
+             width: 75px; /* הקטנה */
              height: auto; 
              z-index: 10;
              pointer-events: none;
@@ -64,12 +63,11 @@
              filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
         }
 
-        /* כותרת ONEFLOW LIFE - מיושרת לשמאל למניעת חפיפה עם הלוגו מימין */
+        /* כותרת ONEFLOW LIFE */
         .card-titles-group {
-             padding-top: 10px;
-             padding-left: 10px;
+             padding-top: 5px;
              z-index: 15;
-             text-align: left; /* יישור לשמאל בגלל שהלוגו מימין */
+             text-align: right;
         }
         
         .card-brand-main {
@@ -80,7 +78,7 @@
             color: white;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: flex-end;
             gap: 6px;
         }
         
@@ -94,7 +92,7 @@
         }
 
         .card-slogan-text {
-             font-size: 0.6rem;
+             font-size: 0.55rem;
              font-weight: 400;
              opacity: 0.7;
              margin-top: 6px;
@@ -168,8 +166,8 @@
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button>
+                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full transition hover:bg-blue-100">פתיחת בנק משפחתי</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium hover:text-slate-600 transition">הצטרפות למשפחה</button>
                 </div>
             </div>
 
@@ -254,9 +252,12 @@
                         currentUser = session.user; currentGroup = session.group;
                         document.getElementById('auth-container').classList.add('hidden');
                         document.getElementById('dashboard-container').classList.remove('hidden');
-                        // קריאה ל-loadDashboard ו-fetchData מהקוד המקורי תבוא כאן
-                    } else { document.getElementById('auth-container').classList.remove('hidden'); }
-                } catch(e) { document.getElementById('auth-container').classList.remove('hidden'); }
+                    } else {
+                        document.getElementById('auth-container').classList.remove('hidden');
+                    }
+                } catch(e) {
+                    document.getElementById('auth-container').classList.remove('hidden');
+                }
             } else {
                 document.getElementById('auth-container').classList.remove('hidden');
             }
