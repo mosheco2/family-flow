@@ -99,6 +99,7 @@
              color: #bfdbfe;
         }
 
+        /* רכיבי UI קיימים */
         .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
@@ -113,6 +114,7 @@
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -167,10 +169,17 @@
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
+                    <div class="flex gap-3 mb-2">
+                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition">משפחה</button>
+                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition">שותפים</button>
+                    </div>
+                    <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל" class="modern-input">
-                    <input type="text" id="create-nickname" required placeholder="השם שלך" class="modern-input">
-                    <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="create-nickname" required placeholder="השם שלך" class="modern-input">
+                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg mt-2 text-lg">סיום והרשמה</button>
                 </form>
@@ -190,7 +199,8 @@
             </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative"></div>
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative">
+             </div>
     </div>
 
     <script>
@@ -200,6 +210,12 @@
         function switchView(view) {
             ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
             document.getElementById(`view-${view}`).classList.remove('hidden');
+        }
+
+        function selectType(t) {
+            document.getElementById('create-type').value=t;
+            document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`;
+            document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`;
         }
 
         async function authAction(endpoint, body) {
@@ -216,7 +232,7 @@
         }
 
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: 'FAMILY', groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
 
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); document.getElementById('toast-message').innerText=m; el.classList.remove('hidden'); setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -231,6 +247,7 @@
                         currentUser = session.user; currentGroup = session.group;
                         document.getElementById('auth-container').classList.add('hidden');
                         document.getElementById('dashboard-container').classList.remove('hidden');
+                        // כאן מפעילים את פונקציות הטעינה (loadDashboard, fetchData וכו')
                     } else {
                         document.getElementById('auth-container').classList.remove('hidden');
                     }
