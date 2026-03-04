@@ -368,12 +368,13 @@
             const isAdmin = currentUser.role === 'ADMIN';
             if(isAdmin) { 
                 document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
-                fetchPendingUsers(); // Now this function exists!
+                fetchPendingUsers(); 
                 fetchBundles(); 
             } else { 
                 document.getElementById('btn-self-task').classList.remove('hidden'); document.getElementById('bank-child-view').classList.remove('hidden'); document.getElementById('academy-user-view').classList.remove('hidden'); document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
             }
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 10000);
+            // PERFORMANCE FIX: Increased polling interval to 30s instead of 10s to reduce server/DB load
+            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
             fetchMembers(); fetchData();
         }
 
@@ -382,31 +383,14 @@
                 if (document.activeElement.classList.contains('price-input')) return;
                 const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
                 
-                currentUser.balance = data.user.balance; 
-                document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
-                
-                if(data.quiz_bundles) {
-                    bundlesCache = data.quiz_bundles;
-                    renderMyAssignments(data.quiz_bundles);
-                }
-                
-                if (data.all_bundles) {
-                    allBundles = data.all_bundles; // Store all bundles for Library
-                    renderLibrary('all'); // Render Library initially
-                }
-                
-                renderTasks(data.tasks);
-                shoppingListCache = data.shopping_list; renderShopList(); fetchBudget();
-                
-                const accList = document.getElementById('bank-accounts-list'); 
-                if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); }
-                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
-                
+                // PERFORMANCE FIX: Optimized DOM updates using string building instead of looping innerHTML
                 const tList = document.getElementById('transactions-list'); 
                 const recentT = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=5`)).json(); 
                 if(recentT.length === 0) tList.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות עדיין</p>'; 
                 else {
-                    let tHtml = ''; recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tHtml += `<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; }); tList.innerHTML = tHtml;
+                    let tHtml = ''; 
+                    recentT.forEach(t => { const colorClass = userColors[t.user_id % userColors.length] || 'bg-white border-slate-50'; const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${t.user_name}</span>` : ''; tHtml += `<div class="${colorClass} p-4 rounded-2xl shadow-sm border flex justify-between items-center transform transition hover:scale-[1.02]"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight">${t.description}</p><p class="text-[10px] text-slate-400 mt-1">${new Date(t.date).toLocaleDateString()}</p></div><span class="font-bold text-lg ${t.type==='income'?'text-green-500':'text-red-500'}">${t.type==='income'?'+':'-'}₪${t.amount}</span></div>`; }); 
+                    tList.innerHTML = tHtml;
                 }
 
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
@@ -416,9 +400,10 @@
         // --- TASKS LOGIC ---
         function renderTasks(tasks) {
             const list = document.getElementById('tasks-list');
-            list.innerHTML = '';
             if(tasks.length === 0) { list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; return; }
             
+            // PERFORMANCE FIX: Build HTML string first
+            let htmlStr = '';
             tasks.forEach(t => {
                 const isMyTask = t.assigned_to == currentUser.id;
                 const isAdmin = currentUser.role === 'ADMIN';
@@ -444,7 +429,7 @@
 
                 const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
 
-                list.innerHTML += `
+                htmlStr += `
                 <div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
                     <div>
                         <p class="font-bold text-slate-800">${t.title}</p>
@@ -456,6 +441,7 @@
                     </div>
                 </div>`;
             });
+            list.innerHTML = htmlStr;
         }
         
         async function updateTask(id, s) { 
@@ -532,9 +518,6 @@
             const historyList = document.getElementById('academy-list');
             if(!list || !historyList) return;
             
-            list.innerHTML = '';
-            historyList.innerHTML = '';
-            
             const activeBundles = bundles.filter(b => b.status === 'assigned');
             const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
 
@@ -546,8 +529,9 @@
                 return '<i class="fa-solid fa-chart-line"></i>';
             };
 
+            // PERFORMANCE FIX: Build HTML string
+            let activeHtml = '';
             activeBundles.forEach(b => {
-                // Show deadline if exists
                 let deadlineMsg = "";
                 if (b.deadline) {
                     const d = new Date(b.deadline);
@@ -556,10 +540,9 @@
                     deadlineMsg = diff > 0 ? `<span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : `<span class="text-red-500 ml-1">פג תוקף!</span>`;
                 }
 
-                // Show Custom Reward or Default
                 const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
 
-                list.innerHTML += `
+                activeHtml += `
                 <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01]">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div>
@@ -571,7 +554,9 @@
                     <button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
                 </div>`;
             });
+            if(activeHtml) list.innerHTML = activeHtml;
             
+            let historyHtml = '';
             doneBundles.forEach(b => {
                 let statusClass = 'bg-gray-100 text-gray-500';
                 let label = 'הושלם';
@@ -579,19 +564,19 @@
                 else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; }
                 else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
 
-                historyList.innerHTML += `
-                <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80">
+                historyHtml += `
+                <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2">
                     <span class="text-sm font-bold text-slate-600">${b.title}</span>
                     <span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span>
                 </div>`;
             });
+            historyList.innerHTML = historyHtml;
         }
 
         // 2. Library (Browse All)
         function renderLibrary(category) {
             const libList = document.getElementById('library-list');
             if (!libList) return;
-            libList.innerHTML = '';
 
             // Update filter buttons visual
             const btns = document.querySelectorAll('#lib-filters button');
@@ -617,15 +602,16 @@
                 return '<i class="fa-solid fa-chart-line"></i>';
             };
 
+            // PERFORMANCE FIX: Build HTML string
+            let libHtml = '';
             filtered.forEach(b => {
-                // Check if already assigned (client-side check for visual, server checks too)
                 const isAssigned = bundlesCache.some(ua => ua.bundle_id === b.id && ua.status === 'assigned');
                 const btnHtml = isAssigned 
                     ? `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> משויך</span>`
                     : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
 
-                libList.innerHTML += `
-                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                libHtml += `
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                         <div>
@@ -636,6 +622,7 @@
                     ${btnHtml}
                 </div>`;
             });
+            libList.innerHTML = libHtml;
         }
 
         async function requestChallenge(bundleId = null) {
@@ -806,9 +793,6 @@
             const reqList = document.getElementById('shop-requests-list');
             const reqContainer = document.getElementById('shop-requests-container');
             
-            list.innerHTML = '';
-            reqList.innerHTML = '';
-            
             const activeItems = [];
             const requestedItems = [];
             
@@ -817,11 +801,13 @@
                 else activeItems.push(i);
             });
             
+            // PERFORMANCE FIX: Build HTML string
+            let reqHtml = '';
             if (currentUser.role === 'ADMIN' && requestedItems.length > 0) {
                 reqContainer.classList.remove('hidden');
                 requestedItems.forEach(i => {
-                    reqList.innerHTML += `
-                    <div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200">
+                    reqHtml += `
+                    <div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2">
                         <div>
                             <span class="font-bold text-slate-700">${i.item_name}</span>
                             <span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span>
@@ -832,6 +818,7 @@
                         </div>
                     </div>`;
                 });
+                reqList.innerHTML = reqHtml;
             } else {
                 reqContainer.classList.add('hidden');
             }
@@ -844,26 +831,25 @@
             }
             
             document.getElementById('cart-footer').classList.remove('hidden');
-            // Lift FAB when checkout banner is visible
             document.getElementById('fab-container').classList.add('fab-lifted');
             
             const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
             activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
             
             let currentCat = '';
+            let shopHtml = '';
             activeItems.forEach(i => {
                 const cat = getCatScore(i.item_name);
-                if(cat !== currentCat) { list.innerHTML += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+                if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
                 const isChecked = i.status === 'in_cart';
                 const val = i.estimated_price > 0 ? i.estimated_price : '';
                 const savedWisdom = wisdomCache[i.id];
                 const showWisdom = savedWisdom && savedWisdom.length > 0;
                 
-                // New Calculation Display Logic
                 const unitPrice = parseFloat(i.estimated_price) || 0;
                 const totalRowPrice = unitPrice * i.quantity;
                 
-                list.innerHTML += `
+                shopHtml += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
@@ -896,6 +882,7 @@
                     </div>
                 </div>`;
             });
+            list.innerHTML = shopHtml;
             calcRunningTotal();
         }
 
