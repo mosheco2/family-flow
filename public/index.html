@@ -509,15 +509,15 @@
                 });
             }
 
-            // 3. Quizzes (For Child right now, Admin needs server update for this part)
+            // 3. Quizzes
             if(bundlesCache) {
                 bundlesCache.forEach(b => {
                      if (b.assigned_at) {
                          feedCache.push({
                              type: 'quiz',
-                             id: `quiz_${b.bundle_id}`,
-                             user_id: currentUser.id,
-                             user_name: currentUser.nickname,
+                             id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
+                             user_id: b.assigned_to_user || currentUser.id,
+                             user_name: b.assignee_name || currentUser.nickname,
                              date: new Date(b.assigned_at),
                              title: `אתגר: ${b.title}`,
                              amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
