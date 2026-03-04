@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg'); // Changed from Client to Pool for better performance
+const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const app = express();
@@ -9,11 +9,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Use Pool to handle multiple concurrent connections
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20, // Max number of concurrent connections
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
@@ -22,7 +21,6 @@ pool.connect()
   .then(() => console.log('✅ Connected to DB (Pool)'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- HELPERS (For Age, Grouping and Code Generation) ---
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 
 const getAgeGroup = (age) => {
@@ -35,7 +33,6 @@ const getAgeGroup = (age) => {
     return 'other';
 };
 
-// Generate a random 6-character alphanumeric code
 const generateGroupCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -46,8 +43,6 @@ const generateGroupCode = () => {
 };
 
 // --- CONTENT GENERATORS ---
-
-// 1. Math Generator (Auto-generated)
 const generateMath = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 5; i++) {
@@ -84,7 +79,6 @@ const generateMath = (ageGroup) => {
     return questions;
 };
 
-// 2. Reading Comprehension (Hebrew)
 const readingContent = [
     {
         age_group: '6-8',
@@ -108,7 +102,6 @@ const readingContent = [
     }
 ];
 
-// 3. English (Vocabulary/Grammar)
 const englishContent = [
     { age_group: '6-8', title: "Animals", questions: [{ q: "איך אומרים כלב באנגלית?", options: ["Cat", "Dog", "Bird", "Fish"], correct: 1 }, { q: "איך אומרים חתול?", options: ["Dog", "Cat", "Cow", "Pig"], correct: 1 }] },
     { age_group: '8-10', title: "Present & Past", questions: [{ q: "What is the past tense of 'Go'?", options: ["Goes", "Going", "Went", "Gone"], correct: 2 }, { q: "She ___ to the store yesterday.", options: ["go", "went", "goes", "going"], correct: 1 }] },
@@ -117,7 +110,6 @@ const englishContent = [
     { age_group: '15-18', title: "Conditionals", questions: [{ q: "If I had money, I ___ a car.", options: ["will buy", "would buy", "bought", "buy"], correct: 1 }, { q: "Unless you ___, you will fail.", options: ["study", "will study", "studied", "would study"], correct: 0 }] }
 ];
 
-// 4. Financial Education (Hebrew)
 const financialContent = [
     {
         age_group: '8-10',
@@ -157,14 +149,12 @@ const financialContent = [
     }
 ];
 
-// --- SEEDING FUNCTION ---
 async function seedDatabase() {
     console.log("Seeding initial data...");
     try {
         await pool.query("DELETE FROM quiz_questions");
         await pool.query("DELETE FROM quiz_bundles");
 
-        // Seed dynamically and explicitly
         const insertBundle = async (type, age_group, title, text_content) => {
             const res = await pool.query(
                 `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 85, 10.0) RETURNING id`,
@@ -203,13 +193,11 @@ async function seedDatabase() {
             }
         }
         console.log("Seeding complete: Created ~600 quiz bundles!");
-
     } catch (e) {
         console.error("Seeding error:", e);
     }
 }
 
-// SETUP ROUTE (RESET DB)
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`
@@ -321,7 +309,6 @@ app.get('/setup-db', async (req, res) => {
                 price_per_unit DECIMAL(10,2)
             );
             
-            -- ACADEMY TABLES
             CREATE TABLE quiz_bundles (
                 id SERIAL PRIMARY KEY,
                 type VARCHAR(20), 
@@ -350,16 +337,12 @@ app.get('/setup-db', async (req, res) => {
                 assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-
         await seedDatabase();
-
         res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables reset and created. Academy seeded.</p><a href="/">Go to App</a>');
     } catch (e) {
         res.status(500).send(e.message);
     }
 });
-
-// --- API ROUTES ---
 
 // Auth
 app.post('/api/groups', async (req, res) => {
@@ -434,14 +417,13 @@ app.get('/api/users/:id', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Dash Data - MASSIVELY OPTIMIZED WITH PROMISE.ALL
+// Dash Data
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        // Run all independent queries in parallel
         const [tasksRes, shopRes, allBRes] = await Promise.all([
             pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]),
             pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]),
@@ -450,12 +432,9 @@ app.get('/api/data/:userId', async (req, res) => {
 
         let goalsRes, weeklyStats = null, userBundles = [];
 
-        // Admin vs Member specific queries
         if(user.role === 'ADMIN') {
             const [gRes, ubRes] = await Promise.all([
                 pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]),
-                
-                // ADMIN NEEDS TO SEE ALL ASSIGNMENTS FOR THE UNIFIED FEED
                 pool.query(`
                     SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user,
                            qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content,
@@ -468,7 +447,7 @@ app.get('/api/data/:userId', async (req, res) => {
                 `, [user.group_id])
             ]);
             goalsRes = gRes;
-            userBundles = ubRes.rows; // Feed will use this to show what kids are doing
+            userBundles = ubRes.rows;
         } else {
             const [gRes, spentRes, limitRes, ubRes] = await Promise.all([
                 pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]),
@@ -489,7 +468,6 @@ app.get('/api/data/:userId', async (req, res) => {
             weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
             userBundles = ubRes.rows;
 
-            // Fix N+1 query problem for quiz questions
             const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
             if (activeBundleIds.length > 0) {
                 const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
@@ -513,7 +491,7 @@ app.get('/api/data/:userId', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Admin Panel (Pending Users)
+// Admin Panel
 app.get('/api/admin/pending-users', async (req, res) => {
     try {
         const { groupId } = req.query;
@@ -627,12 +605,14 @@ app.get('/api/transactions', async (req, res) => {
 
 // Tasks
 app.post('/api/tasks', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        const u = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
-        await pool.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
-            [u.rows[0].group_id, req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
+        const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
+        // FIX: Insert task with createdBy from the payload (or default to assignedTo if self task)
+        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
+            [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 app.post('/api/tasks/update', async (req, res) => {
