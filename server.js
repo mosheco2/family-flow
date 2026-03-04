@@ -1,5 +1,5 @@
 const express = require('express');
-const { Client } = require('pg');
+const { Pool } = require('pg'); // Changed from Client to Pool for better performance
 const cors = require('cors');
 const path = require('path');
 const app = express();
@@ -9,13 +9,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-const client = new Client({
+// Use Pool to handle multiple concurrent connections
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  max: 20, // Max number of concurrent connections
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-client.connect()
-  .then(() => console.log('✅ Connected to DB'))
+pool.connect()
+  .then(() => console.log('✅ Connected to DB (Pool)'))
   .catch(err => console.error('Connection Error', err.stack));
 
 // --- HELPERS (For Age, Grouping and Code Generation) ---
@@ -157,12 +161,12 @@ const financialContent = [
 async function seedDatabase() {
     console.log("Seeding initial data...");
     try {
-        await client.query("DELETE FROM quiz_questions");
-        await client.query("DELETE FROM quiz_bundles");
+        await pool.query("DELETE FROM quiz_questions");
+        await pool.query("DELETE FROM quiz_bundles");
 
         // Seed dynamically and explicitly
         const insertBundle = async (type, age_group, title, text_content) => {
-            const res = await client.query(
+            const res = await pool.query(
                 `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 85, 10.0) RETURNING id`,
                 [type, age_group, title, text_content]
             );
@@ -171,7 +175,7 @@ async function seedDatabase() {
 
         const insertQuestions = async (bundleId, questions) => {
             for (const q of questions) {
-                await client.query(
+                await pool.query(
                     `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
                     [bundleId, q.q, JSON.stringify(q.options), q.correct]
                 );
@@ -180,24 +184,19 @@ async function seedDatabase() {
 
         const ageGroups = ['6-8', '8-10', '10-13', '13-15', '15-18'];
 
-        // Generate 30 bundles for each age group for each type!
         for (let i = 1; i <= 30; i++) {
             for (const age of ageGroups) {
-                // 1. Math
                 const mathId = await insertBundle('math', age, `אתגר חשבון ${i}`, null);
                 await insertQuestions(mathId, generateMath(age));
 
-                // 2. Reading
                 const readBase = readingContent.find(c => c.age_group === age) || readingContent[0];
                 const readId = await insertBundle('reading', age, `${readBase.title} - חלק ${i}`, readBase.text);
                 await insertQuestions(readId, readBase.questions);
 
-                // 3. English
                 const engBase = englishContent.find(c => c.age_group === age) || englishContent[0];
                 const engId = await insertBundle('english', age, `English Test ${i} (${engBase.title})`, null);
                 await insertQuestions(engId, engBase.questions);
 
-                // 4. Financial
                 const finBase = financialContent.find(c => c.age_group === age) || financialContent[0];
                 const finId = await insertBundle('financial', age, `פיננסי: ${finBase.title} (${i})`, finBase.text);
                 await insertQuestions(finId, finBase.questions);
@@ -213,7 +212,7 @@ async function seedDatabase() {
 // SETUP ROUTE (RESET DB)
 app.get('/setup-db', async (req, res) => {
     try {
-        await client.query(`
+        await pool.query(`
             DROP TABLE IF EXISTS user_assignments CASCADE;
             DROP TABLE IF EXISTS quiz_questions CASCADE;
             DROP TABLE IF EXISTS quiz_bundles CASCADE;
@@ -325,10 +324,10 @@ app.get('/setup-db', async (req, res) => {
             -- ACADEMY TABLES
             CREATE TABLE quiz_bundles (
                 id SERIAL PRIMARY KEY,
-                type VARCHAR(20), -- 'math', 'english', 'reading', 'financial'
+                type VARCHAR(20), 
                 age_group VARCHAR(10),
                 title VARCHAR(255),
-                text_content TEXT, -- For reading/financial
+                text_content TEXT, 
                 threshold INT DEFAULT 85,
                 reward DECIMAL(10,2) DEFAULT 10.00,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -344,7 +343,7 @@ app.get('/setup-db', async (req, res) => {
                 id SERIAL PRIMARY KEY,
                 user_id INT REFERENCES users(id) ON DELETE CASCADE,
                 bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE,
-                status VARCHAR(20) DEFAULT 'assigned', -- assigned, completed, failed, expired
+                status VARCHAR(20) DEFAULT 'assigned', 
                 score INT,
                 custom_reward DECIMAL(10,2),
                 deadline TIMESTAMP,
@@ -352,7 +351,6 @@ app.get('/setup-db', async (req, res) => {
             );
         `);
 
-        // Run seed function
         await seedDatabase();
 
         res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables reset and created. Academy seeded.</p><a href="/">Go to App</a>');
@@ -365,44 +363,46 @@ app.get('/setup-db', async (req, res) => {
 
 // Auth
 app.post('/api/groups', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
+        await dbClient.query('BEGIN');
         
         let code = generateGroupCode();
-        // Check if code exists just to be safe (very rare collision)
-        let codeCheck = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
+        let codeCheck = await dbClient.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
         while(codeCheck.rows.length > 0) {
             code = generateGroupCode();
-            codeCheck = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
+            codeCheck = await dbClient.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
         }
 
-        const gRes = await client.query(
+        const gRes = await dbClient.query(
             `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`,
             [req.body.type, req.body.groupName, req.body.adminEmail, code]
         );
         const group = gRes.rows[0];
-        const uRes = await client.query(
+        const uRes = await dbClient.query(
             `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`,
             [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]
         );
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true, user: uRes.rows[0], group: group });
     } catch (e) {
-        await client.query('ROLLBACK');
+        await dbClient.query('ROLLBACK');
         res.status(500).json({ error: e.message });
+    } finally {
+        dbClient.release();
     }
 });
 
 app.post('/api/join', async (req, res) => {
     try {
         const { groupCode, nickname, birthYear, password, role } = req.body;
-        const gRes = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
         
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
 
-        await client.query(
+        await pool.query(
             `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`,
             [group.id, nickname, birthYear, password, reqRole]
         );
@@ -414,11 +414,11 @@ app.post('/api/join', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
-        const gRes = await client.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה שגוי' });
         const group = gRes.rows[0];
         
-        const uRes = await client.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
+        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
         if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
         if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
         res.json({ success: true, user: uRes.rows[0], group: group });
@@ -429,91 +429,68 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/users/:id', async (req, res) => {
     try {
-        const u = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+        const u = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
         if (u.rows.length > 0) res.json(u.rows[0]); else res.status(404).json({error: 'Not found'});
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Dash Data
+// Dash Data - MASSIVELY OPTIMIZED WITH PROMISE.ALL
 app.get('/api/data/:userId', async (req, res) => {
     try {
-        const uRes = await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
+        const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        // Fetch Tasks
-        const tasks = await client.query(`
-            SELECT t.*, u.nickname as assignee_name 
-            FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id 
-            WHERE t.group_id=$1 
-            ORDER BY t.created_at DESC`, [user.group_id]
-        );
-        
-        // Fetch Shopping
-        const shop = await client.query(`
-            SELECT s.*, u.nickname as requester_name 
-            FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id 
-            WHERE s.group_id=$1 
-            ORDER BY s.added_at DESC`, [user.group_id]
-        );
+        // Run all independent queries in parallel
+        const [tasksRes, shopRes, allBRes] = await Promise.all([
+            pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]),
+            pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]),
+            pool.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY type, age_group`)
+        ]);
 
-        // Fetch Goals
-        let goals;
+        let goalsRes, weeklyStats = null, userBundles = [];
+
+        // Admin vs Member specific parallel queries
         if(user.role === 'ADMIN') {
-            goals = await client.query(`
-                SELECT g.*, u.nickname as owner_name 
-                FROM goals g LEFT JOIN users u ON g.target_user_id = u.id 
-                WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]
-            );
+            goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]);
         } else {
-            goals = await client.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]);
-        }
-
-        // Fetch Academy data
-        let userBundles = [];
-        let allBundles = [];
-        
-        // Always fetch library for both users and admins
-        const allB = await client.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY type, age_group`);
-        allBundles = allB.rows;
-
-        if (user.role !== 'ADMIN') {
-            const ageGroup = getAgeGroup(calculateAge(user.birth_year));
-            const ubRes = await client.query(`
-                SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, 
-                       qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content
-                FROM user_assignments ua 
-                JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-                WHERE ua.user_id = $1
-                ORDER BY ua.assigned_at DESC
-            `, [user.id]);
-            
+            const [gRes, spentRes, limitRes, ubRes] = await Promise.all([
+                pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]),
+                pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]),
+                pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]),
+                pool.query(`
+                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, 
+                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content
+                    FROM user_assignments ua 
+                    JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+                    WHERE ua.user_id = $1
+                    ORDER BY ua.assigned_at DESC
+                `, [user.id])
+            ]);
+            goalsRes = gRes;
+            weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
             userBundles = ubRes.rows;
-            
-            for (let b of userBundles) {
-                if (b.status === 'assigned') {
-                    const qRes = await client.query(`SELECT id, q, options, correct FROM quiz_questions WHERE bundle_id = $1`, [b.bundle_id]);
-                    b.questions = qRes.rows;
-                }
-            }
-        }
 
-        // Fetch Weekly Stats for child
-        let weeklyStats = null;
-        if (user.role !== 'ADMIN') {
-            const spent = await client.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]);
-            const limit = await client.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]);
-            weeklyStats = { spent: spent.rows[0].spent, limit: limit.rows.length > 0 ? limit.rows[0].limit : user.allowance_amount * 0.2 };
+            // Fix N+1 query problem for quiz questions
+            const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
+            if (activeBundleIds.length > 0) {
+                const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
+                userBundles.forEach(b => {
+                    if (b.status === 'assigned') {
+                        b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
+                    }
+                });
+            }
         }
 
         res.json({
             user: user,
-            tasks: tasks.rows,
-            shopping_list: shop.rows,
-            goals: goals.rows,
+            tasks: tasksRes.rows,
+            shopping_list: shopRes.rows,
+            goals: goalsRes ? goalsRes.rows : [],
             weekly_stats: weeklyStats,
             quiz_bundles: userBundles,
-            all_bundles: allBundles
+            all_bundles: allBRes.rows
         });
     } catch (e) { res.status(500).json({error: e.message}); }
 });
@@ -522,14 +499,14 @@ app.get('/api/data/:userId', async (req, res) => {
 app.get('/api/admin/pending-users', async (req, res) => {
     try {
         const { groupId } = req.query;
-        const users = await client.query(`SELECT * FROM users WHERE group_id = $1 AND status = 'pending'`, [groupId]);
+        const users = await pool.query(`SELECT * FROM users WHERE group_id = $1 AND status = 'pending'`, [groupId]);
         res.json(users.rows);
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
 app.post('/api/admin/approve-user', async (req, res) => {
     try {
-        await client.query(`UPDATE users SET status = 'active' WHERE id = $1`, [req.body.userId]);
+        await pool.query(`UPDATE users SET status = 'active' WHERE id = $1`, [req.body.userId]);
         res.json({success: true});
     } catch (e) { res.status(500).json({error: e.message}); }
 });
@@ -537,9 +514,9 @@ app.post('/api/admin/approve-user', async (req, res) => {
 // Group Members
 app.get('/api/group/members', async (req, res) => {
     try {
-        const uReq = await client.query('SELECT role FROM users WHERE id=$1', [req.query.requesterId]);
+        const uReq = await pool.query('SELECT role FROM users WHERE id=$1', [req.query.requesterId]);
         const isAdmin = uReq.rows[0].role === 'ADMIN';
-        const members = await client.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [req.query.groupId, 'active']);
+        const members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [req.query.groupId, 'active']);
         if(isAdmin) res.json(members.rows);
         else res.json(members.rows.map(m => ({id: m.id, nickname: m.nickname, role: m.role, birth_year: m.birth_year, balance: m.id == req.query.requesterId ? m.balance : null})));
     } catch (e) { res.status(500).json({error: e.message}); }
@@ -547,25 +524,25 @@ app.get('/api/group/members', async (req, res) => {
 
 app.post('/api/admin/update-settings', async (req, res) => {
     try {
-        await client.query(`UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3`, [req.body.allowance || 0, req.body.interest || 0, req.body.userId]);
+        await pool.query(`UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3`, [req.body.allowance || 0, req.body.interest || 0, req.body.userId]);
         res.json({success: true});
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
 app.post('/api/admin/payday', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
-        const children = await client.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND role='MEMBER' AND status='active'`, [req.body.groupId]);
+        await dbClient.query('BEGIN');
+        const children = await dbClient.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND role='MEMBER' AND status='active'`, [req.body.groupId]);
         let totalDistributed = 0;
         
         for(let child of children.rows) {
             const allowance = parseFloat(child.allowance_amount) || 0;
             let interest = 0;
             
-            // Calculate penalty/bonus based on spending
-            const spentRes = await client.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE - INTERVAL '7 days') AND date < date_trunc('week', CURRENT_DATE)`, [child.id]);
+            const spentRes = await dbClient.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE - INTERVAL '7 days') AND date < date_trunc('week', CURRENT_DATE)`, [child.id]);
             const spent = parseFloat(spentRes.rows[0].spent);
-            const limit = allowance * 0.2; // 20% limit logic
+            const limit = allowance * 0.2; 
             
             if (spent <= limit && parseFloat(child.balance) > 0) {
                  interest = parseFloat(child.balance) * ((parseFloat(child.interest_rate)||0) / 100);
@@ -573,43 +550,39 @@ app.post('/api/admin/payday', async (req, res) => {
             
             const totalAdded = allowance + interest;
             if(totalAdded > 0) {
-                await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [totalAdded, child.id]);
-                await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, 
+                await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [totalAdded, child.id]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, 
                     [child.id, req.body.groupId, totalAdded, `יום תשלום: ${allowance} דמי כיס + ${interest.toFixed(2)} ריבית`]
                 );
                 totalDistributed += totalAdded;
             }
         }
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({success: true, totalDistributed});
     } catch (e) {
-        await client.query('ROLLBACK');
+        await dbClient.query('ROLLBACK');
         res.status(500).json({error: e.message});
-    }
+    } finally { dbClient.release(); }
 });
 
 // Transactions
 app.post('/api/transaction', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
-        await client.query('BEGIN');
-        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`,
+        const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
+        await dbClient.query('BEGIN');
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`,
             [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type]);
         const op = req.body.type === 'income' ? '+' : '-';
-        await client.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
         
-        // Update Budget
         if (req.body.type === 'expense') {
-            await client.query(`
-                INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) 
-                VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, 
-                [u.rows[0].group_id, req.body.category, req.body.userId]
-            );
+            await dbClient.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, [u.rows[0].group_id, req.body.category, req.body.userId]);
         }
         
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true });
-    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 app.get('/api/transactions', async (req, res) => {
@@ -617,7 +590,7 @@ app.get('/api/transactions', async (req, res) => {
         const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
         const { groupId, userId } = req.query;
         
-        const uReq = await client.query('SELECT role FROM users WHERE id=$1', [userId]);
+        const uReq = await pool.query('SELECT role FROM users WHERE id=$1', [userId]);
         const isAdmin = uReq.rows[0].role === 'ADMIN';
 
         let query, params;
@@ -629,7 +602,7 @@ app.get('/api/transactions', async (req, res) => {
              params = [userId];
         }
 
-        const t = await client.query(query, params);
+        const t = await pool.query(query, params);
         res.json(t.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -637,32 +610,33 @@ app.get('/api/transactions', async (req, res) => {
 // Tasks
 app.post('/api/tasks', async (req, res) => {
     try {
-        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
-        await client.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
+        const u = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
+        await pool.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
             [u.rows[0].group_id, req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/tasks/update', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
-        const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0];
+        await dbClient.query('BEGIN');
+        const t = (await dbClient.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0];
         
         if (req.body.status === 'completed_self') {
-            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
         }
         else if (req.body.status === 'approved' && t.reward > 0) {
-            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
-            await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`,
+            await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
+            await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`,
                 [t.assigned_to, t.group_id, t.reward, `תגמול משימה: ${t.title}`]);
-            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
         } else {
-            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [req.body.status, req.body.taskId]);
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', [req.body.status, req.body.taskId]);
         }
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true });
-    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 // Goals
@@ -670,54 +644,51 @@ app.post('/api/goals', async (req, res) => {
     try {
         const { userId, targetUserId, title, target } = req.body;
         const finalTargetId = targetUserId || userId;
-        await client.query(`INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)`,
+        await pool.query(`INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)`,
             [userId, finalTargetId, title, target]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/goals/deposit', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
+        await dbClient.query('BEGIN');
         const { userId, goalId, amount } = req.body;
-        const g = (await client.query('SELECT target_user_id, title FROM goals WHERE id=$1', [goalId])).rows[0];
-        const u = (await client.query('SELECT balance, group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const g = (await dbClient.query('SELECT target_user_id, title FROM goals WHERE id=$1', [goalId])).rows[0];
+        const u = (await dbClient.query('SELECT balance, group_id FROM users WHERE id=$1', [userId])).rows[0];
         
         if (parseFloat(u.balance) < parseFloat(amount)) {
-            await client.query('ROLLBACK');
+            await dbClient.query('ROLLBACK');
             return res.status(400).json({ error: 'אין מספיק יתרה' });
         }
 
-        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
-        await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
-        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`,
+        await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+        await dbClient.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`,
                 [userId, u.group_id, amount, `הפקדה ליעד: ${g.title}`]);
         
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true });
-    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 // Shopping
 app.post('/api/shopping/add', async (req, res) => {
     try {
-        const uRes = await client.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
+        const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
         const user = uRes.rows[0];
         const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
         
-        const iRes = await client.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
             [user.group_id, req.body.userId, req.body.itemName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
         
-        // Supermarket Logic Alert
         let alert = null;
         const itemLower = req.body.itemName.toLowerCase();
-        if (itemLower.includes('קוקה קולה') || itemLower.includes('קולה')) {
-             alert = { type: 'brand', msg: 'טיפ צרכנות: קריסטל או RC קולה זולים משמעותית. נסה?' };
-        } else if (itemLower.includes('במבה') && !itemLower.includes('אסם')) {
-             alert = { type: 'brand', msg: 'שוש עולה כ-25% פחות. שווה בדיקה!' };
-        } else if (itemLower.includes('מילקי')) {
-             alert = { type: 'brand', msg: 'מעדן שוקולד קצפת של טרה/תנובה לרוב זול יותר ממילקי.' };
-        }
+        if (itemLower.includes('קוקה קולה') || itemLower.includes('קולה')) alert = { type: 'brand', msg: 'טיפ צרכנות: קריסטל או RC קולה זולים משמעותית. נסה?' };
+        else if (itemLower.includes('במבה') && !itemLower.includes('אסם')) alert = { type: 'brand', msg: 'שוש עולה כ-25% פחות. שווה בדיקה!' };
+        else if (itemLower.includes('מילקי')) alert = { type: 'brand', msg: 'מעדן שוקולד קצפת של טרה/תנובה לרוב זול יותר ממילקי.' };
+        
         res.json({ success: true, id: iRes.rows[0].id, alert });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -727,16 +698,13 @@ app.post('/api/shopping/update', async (req, res) => {
         const { itemId, status, estimatedPrice } = req.body;
         let alert = null;
 
-        if (status) {
-            await client.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
-        }
+        if (status) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
         if (estimatedPrice !== undefined) {
-             await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
-             const itemRes = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
+             await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+             const itemRes = await pool.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
              if (itemRes.rows.length > 0) {
                  const name = itemRes.rows[0].item_name;
                  const price = parseFloat(estimatedPrice);
-                 // Logic alerts
                  if (name.includes('חלב') && price > 6.2) alert = { msg: 'שים לב: מחיר חלב בפיקוח הוא כ-6.23 ש"ח.' };
                  if (name.includes('לחם אחיד') && price > 7.1) alert = { msg: 'שים לב: מחיר לחם אחיד בפיקוח הוא כ-7.10 ש"ח.' };
              }
@@ -746,47 +714,42 @@ app.post('/api/shopping/update', async (req, res) => {
 });
 
 app.delete('/api/shopping/delete/:id', async (req, res) => {
-    try { await client.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
     catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/shopping/checkout', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
+        await dbClient.query('BEGIN');
         const { userId, totalAmount, storeName, branchName, boughtItems, missingItems } = req.body;
-        const u = (await client.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const u = (await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
         
-        const tripRes = await client.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
             [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
         const tripId = tripRes.rows[0].id;
 
         for (let item of boughtItems) {
-            await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`,
-                [tripId, item.name, item.quantity, item.price]);
-            await client.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [tripId, item.name, item.quantity, item.price]);
+            await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
-        
         for (let item of missingItems) {
-            await client.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]);
+            await dbClient.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]);
         }
 
-        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'groceries', 'expense', FALSE)`,
-            [userId, u.group_id, totalAmount, `קניות בסופר: ${storeName}`]);
-        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'groceries', 'expense', FALSE)`, [userId, u.group_id, totalAmount, `קניות בסופר: ${storeName}`]);
+        await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
         
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true });
-    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 app.get('/api/shopping/history', async (req, res) => {
     try {
-        const trips = await client.query(`
-            SELECT st.*, u.nickname 
-            FROM shopping_trips st JOIN users u ON st.buyer_id = u.id 
-            WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 10`, [req.query.groupId]);
+        const trips = await pool.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 10`, [req.query.groupId]);
         for (let t of trips.rows) {
-            const items = await client.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
+            const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
             t.items = items.rows;
         }
         res.json(trips.rows);
@@ -796,12 +759,10 @@ app.get('/api/shopping/history', async (req, res) => {
 app.post('/api/shopping/copy', async (req, res) => {
     try {
         const { tripId, userId } = req.body;
-        const u = (await client.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
-        const items = await client.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
-        
+        const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
         for(let i of items.rows) {
-            await client.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`,
-                [u.group_id, userId, i.item_name, i.quantity]);
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [u.group_id, userId, i.item_name, i.quantity]);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -816,17 +777,15 @@ app.get('/api/budget/filter', async (req, res) => {
         let limitParams = [groupId];
 
         if (targetUserId && targetUserId !== 'all') {
-            expenses = await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId, targetUserId]);
+            expenses = await pool.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId, targetUserId]);
             limitsQuery += ` AND target_user_id=$2`;
             limitParams.push(targetUserId);
         } else {
-            expenses = await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId]);
-            // Aggregate limits for 'all'
+            expenses = await pool.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId]);
             limitsQuery = `SELECT category, SUM(amount_limit) as limit FROM budget_allocations WHERE group_id=$1 GROUP BY category`;
         }
 
-        const limits = await client.query(limitsQuery, limitParams);
-        
+        const limits = await pool.query(limitsQuery, limitParams);
         const result = [];
         const cats = new Set([...expenses.rows.map(r=>r.category), ...limits.rows.map(r=>r.category)]);
         
@@ -836,12 +795,9 @@ app.get('/api/budget/filter', async (req, res) => {
             result.push({ category: c, spent: parseFloat(spent), limit: parseFloat(limit) });
         });
 
-        // Add special pseudo-category for parent's view (Allocations to children)
         if (targetUserId === 'all') {
-             const allocations = await client.query(`SELECT SUM(amount) as spent FROM transactions WHERE group_id=$1 AND category='allowance' AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
-             if (allocations.rows[0].spent > 0) {
-                 result.push({ category: 'allocations', spent: parseFloat(allocations.rows[0].spent), limit: 0 });
-             }
+             const allocations = await pool.query(`SELECT SUM(amount) as spent FROM transactions WHERE group_id=$1 AND category='allowance' AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
+             if (allocations.rows[0].spent > 0) result.push({ category: 'allocations', spent: parseFloat(allocations.rows[0].spent), limit: 0 });
         }
 
         res.json(result);
@@ -852,26 +808,17 @@ app.post('/api/budget/update', async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
         const target = targetUserId === 'all' ? null : targetUserId;
-        
-        const exists = await client.query(`SELECT id FROM budget_allocations WHERE group_id=$1 AND category=$2 AND (target_user_id=$3 OR ($3 IS NULL AND target_user_id IS NULL))`, [groupId, category, target]);
-        
-        if (exists.rows.length > 0) {
-            await client.query(`UPDATE budget_allocations SET amount_limit=$1 WHERE id=$2`, [limit || 0, exists.rows[0].id]);
-        } else {
-            await client.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4)`, [groupId, category, target, limit || 0]);
-        }
+        const exists = await pool.query(`SELECT id FROM budget_allocations WHERE group_id=$1 AND category=$2 AND (target_user_id=$3 OR ($3 IS NULL AND target_user_id IS NULL))`, [groupId, category, target]);
+        if (exists.rows.length > 0) await pool.query(`UPDATE budget_allocations SET amount_limit=$1 WHERE id=$2`, [limit || 0, exists.rows[0].id]);
+        else await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4)`, [groupId, category, target, limit || 0]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Loans
-app.post('/api/loans/request', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); await client.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, 'pending')`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.reason]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/loans/handle', async (req, res) => { try { await client.query('BEGIN'); const l = (await client.query('SELECT * FROM loans WHERE id=$1', [req.body.loanId])).rows[0]; if(req.body.status === 'active') { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'loans', 'income', FALSE)`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]); } await client.query('UPDATE loans SET status = $1 WHERE id = $2', [req.body.status, req.body.loanId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-
 // Academy
 app.get('/api/academy/bundles', async (req, res) => {
     try {
-        const bundles = await client.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY type, age_group`);
+        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY type, age_group`);
         res.json(bundles.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -885,15 +832,10 @@ app.post('/api/academy/assign', async (req, res) => {
             deadline.setDate(deadline.getDate() + parseInt(days));
         }
 
-        // Check if already assigned and not completed
-        const existing = await client.query(`SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned'`, [userId, bundleId]);
+        const existing = await pool.query(`SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned'`, [userId, bundleId]);
         if (existing.rows.length > 0) return res.status(400).json({ error: 'מבחן זה כבר משויך לילד' });
 
-        await client.query(`
-            INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) 
-            VALUES ($1, $2, $3, $4)
-        `, [userId, bundleId, reward || null, deadline]);
-        
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)`, [userId, bundleId, reward || null, deadline]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -901,41 +843,30 @@ app.post('/api/academy/assign', async (req, res) => {
 app.post('/api/academy/request-challenge', async (req, res) => {
     try {
         const { userId, bundleId } = req.body;
-        
-        const user = await client.query(`SELECT birth_year FROM users WHERE id=$1`, [userId]);
+        const user = await pool.query(`SELECT birth_year FROM users WHERE id=$1`, [userId]);
         const age = calculateAge(user.rows[0].birth_year);
         const ageGroup = getAgeGroup(age);
 
         let targetBundleId = bundleId;
 
-        // If no specific bundle requested, find a random unassigned one appropriate for age
         if (!targetBundleId) {
-            const available = await client.query(`
-                SELECT id FROM quiz_bundles 
-                WHERE age_group = $1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2)
-            `, [ageGroup, userId]);
-            
+            const available = await pool.query(`SELECT id FROM quiz_bundles WHERE age_group = $1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2)`, [ageGroup, userId]);
             if (available.rows.length === 0) return res.status(404).json({ error: 'לא מצאנו אתגרים חדשים לגיל שלך כרגע.' });
-            
-            // Pick random
             targetBundleId = available.rows[Math.floor(Math.random() * available.rows.length)].id;
         }
 
-        await client.query(`
-            INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)
-        `, [userId, targetBundleId]);
-
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, targetBundleId]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/academy/submit', async (req, res) => {
+    const dbClient = await pool.connect();
     try {
-        await client.query('BEGIN');
+        await dbClient.query('BEGIN');
         const { userId, bundleId, score } = req.body;
         
-        // Find Assignment
-        const assignment = await client.query(`
+        const assignment = await dbClient.query(`
             SELECT ua.id, ua.custom_reward, qb.reward as default_reward, qb.threshold, qb.title
             FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id
             WHERE ua.user_id = $1 AND ua.bundle_id = $2 AND ua.status = 'assigned'
@@ -943,7 +874,7 @@ app.post('/api/academy/submit', async (req, res) => {
         `, [userId, bundleId]);
 
         if (assignment.rows.length === 0) {
-            await client.query('ROLLBACK');
+            await dbClient.query('ROLLBACK');
             return res.status(400).json({ error: 'Assignment not found or already completed.' });
         }
 
@@ -951,26 +882,25 @@ app.post('/api/academy/submit', async (req, res) => {
         const passed = score >= a.threshold;
         const status = passed ? 'completed' : 'failed';
         
-        await client.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3`, [status, score, a.id]);
+        await dbClient.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3`, [status, score, a.id]);
 
         if (passed) {
             const reward = a.custom_reward !== null ? parseFloat(a.custom_reward) : parseFloat(a.default_reward);
             if (reward > 0) {
-                const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-                await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [reward, userId]);
-                await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
+                const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+                await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [reward, userId]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
                     [userId, u.rows[0].group_id, reward, `בונוס אקדמיה: ${a.title}`]);
             }
         }
 
-        await client.query('COMMIT');
+        await dbClient.query('COMMIT');
         res.json({ success: true, passed });
     } catch (e) {
-        await client.query('ROLLBACK');
+        await dbClient.query('ROLLBACK');
         res.status(500).json({ error: e.message });
-    }
+    } finally { dbClient.release(); }
 });
-
 
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
