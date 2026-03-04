@@ -66,13 +66,45 @@
                     <p class="text-blue-100 text-sm font-light">ניהול פיננסי חכם למשפחה</p>
                 </div>
             </div>
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center"><form onsubmit="handleLogin(event)" class="space-y-5"><input type="email" id="login-email" required class="modern-input" placeholder="מייל הורה ראשי"><input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי"><input type="password" id="login-password" required class="modern-input" placeholder="סיסמה"><button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg"><span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div></button></form><div class="mt-8 text-center text-sm space-y-3"><button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי</button><button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה</button></div></div>
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2><form onsubmit="handleCreate(event)" class="space-y-4"><div class="flex gap-3 mb-2"><button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button><button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button></div><input type="hidden" id="create-type" value="FAMILY"><input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input"><input type="email" id="create-email" required placeholder="מייל הורה מנהל" class="modern-input"><div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div><input type="password" id="create-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto"><h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2><form onsubmit="handleJoin(event)" class="space-y-4"><input type="email" id="join-email" required placeholder="מייל הורה מנהל" class="modern-input"><input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input"><input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input"><input type="password" id="join-password" required placeholder="סיסמה" class="modern-input"><button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה</button></form><button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button></div>
+            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
+                <form onsubmit="handleLogin(event)" class="space-y-5">
+                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
+                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
+                    <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg"><span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div></button>
+                </form>
+                <div class="mt-8 text-center text-sm space-y-3"><button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי חדש</button><button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה קיימת</button></div>
+            </div>
+            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
+                <form onsubmit="handleCreate(event)" class="space-y-4">
+                    <div class="flex gap-3 mb-2"><button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button><button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button></div>
+                    <input type="hidden" id="create-type" value="FAMILY">
+                    <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל שלך (לשחזור וגיבוי)" class="modern-input">
+                    <div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div>
+                    <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
+                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד משפחה ייחודי עבורכם.</p>
+                </form>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+            </div>
+            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
+                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
+                <form onsubmit="handleJoin(event)" class="space-y-4">
+                    <input type="hidden" id="join-role" value="MEMBER">
+                    <input type="text" id="join-code" required placeholder="קוד משפחה (ממי שהזמין אותך)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
+                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
+                    <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
+                    <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
+                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה להצטרף</button>
+                </form>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+            </div>
         </div>
 
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
-            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div><div><h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2><p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p></div></div><button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button></header>
+            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div><div><h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2><p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p></div></div><button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button></header>
             <div class="relative px-2 mb-6 group"><div class="slider-container"><button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button><div class="slider-scroll" id="slider-scroll"><button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button><button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button><button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button><button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button><button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button><button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button><button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button></div><button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button></div></div>
 
             <div class="px-2">
@@ -157,7 +189,7 @@
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
                             <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3>
-                            <button onclick="shareInviteWhatsApp()" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                            <button onclick="openInviteModal()" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5">
                                 <i class="fa-brands fa-whatsapp text-sm"></i> הזמן
                             </button>
                         </div>
@@ -170,6 +202,20 @@
         
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up"><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div><button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button></div>
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
+        
+        <!-- Invite Modal -->
+        <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+                <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
+                <p class="text-sm text-slate-500 mb-6">קוד המשפחה שלכם: <span id="display-group-code" class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded tracking-widest">---</span></p>
+                <div class="space-y-3">
+                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 py-3.5 rounded-xl font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-tie"></i> הורה / בן זוג (מנהל)</button>
+                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-green-50 border border-green-100 text-green-700 py-3.5 rounded-xl font-bold hover:bg-green-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-child"></i> ילד / בת (רגיל)</button>
+                </div>
+                <button onclick="document.getElementById('invite-modal').classList.add('hidden')" class="mt-6 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול וסגירה</button>
+            </div>
+        </div>
+
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
@@ -203,14 +249,81 @@
 
         let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0;
 
-        window.onload = async () => { const saved = localStorage.getItem('ofl_session'); if(saved) { try { const session = JSON.parse(saved); if(session && session.user && session.user.id) { const res = await fetch(`${API}/users/${session.user.id}`); if(res.ok) { currentUser = await res.json(); currentGroup = session.group; localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); loadDashboard(); } else { logout(); } } else { logout(); } } catch(e) { logout(); } } };
+        window.onload = async () => { 
+            // 1. Check for incoming WhatsApp link parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const inviteCode = urlParams.get('code');
+            const inviteRole = urlParams.get('role');
+            
+            if (inviteCode) {
+                document.getElementById('join-code').value = inviteCode;
+                if(inviteRole) document.getElementById('join-role').value = inviteRole;
+                switchView('join');
+            }
+
+            // 2. Standard login flow
+            const saved = localStorage.getItem('ofl_session'); 
+            if(saved) { 
+                try { 
+                    const session = JSON.parse(saved); 
+                    if(session && session.user && session.user.id) { 
+                        const res = await fetch(`${API}/users/${session.user.id}`); 
+                        if(res.ok) { 
+                            currentUser = await res.json(); 
+                            currentGroup = session.group; 
+                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
+                            loadDashboard(); 
+                        } else { logout(); } 
+                    } else { logout(); } 
+                } catch(e) { logout(); } 
+            } 
+        };
 
         function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
         function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
-        async function handleLogin(e) { e.preventDefault(); authAction('login', { groupEmail: val('login-email'), nickname: val('login-nickname'), password: val('login-password') }); }
-        async function handleCreate(e) { e.preventDefault(); authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
-        async function handleJoin(e) { e.preventDefault(); const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupEmail: val('join-email'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); d.success ? (showToast('success', 'נשלח!'), switchView('login')) : showToast('error', d.error); }
-        async function authAction(endpoint, body) { toggleLoader('login', true); try { const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const data = await res.json(); if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); loadDashboard(); } else showToast('error', data.error); } catch(e) { showToast('error', 'שגיאה'); } finally { toggleLoader('login', false); } }
+        
+        async function handleLogin(e) { 
+            e.preventDefault(); 
+            authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); 
+        }
+        
+        async function handleCreate(e) { 
+            e.preventDefault(); 
+            authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); 
+        }
+        
+        async function handleJoin(e) { 
+            e.preventDefault(); 
+            const res = await fetch(`${API}/join`, { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) 
+            }); 
+            const d=await res.json(); 
+            if(d.success) {
+                showToast('success', 'נשלח בהצלחה!');
+                // Clear URL parameters so they don't get stuck on refresh
+                window.history.replaceState({}, document.title, window.location.pathname);
+                switchView('login');
+            } else {
+                showToast('error', d.error);
+            }
+        }
+
+        async function authAction(endpoint, body) { 
+            toggleLoader('login', true); 
+            try { 
+                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
+                const data = await res.json(); 
+                if(data.success) { 
+                    currentUser = data.user; 
+                    currentGroup = data.group; 
+                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+                    loadDashboard(); 
+                } else showToast('error', data.error); 
+            } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+        }
+        
         function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
         function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
         
@@ -246,7 +359,12 @@
 
         function loadDashboard() {
             document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
-            document.getElementById('dash-group-name').innerText = currentGroup.name; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
+            
+            // Update Header with Group Code if exists
+            const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+            document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`;
+            
+            document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
             const isAdmin = currentUser.role === 'ADMIN';
             if(isAdmin) { 
                 document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('btn-add-task').classList.remove('hidden'); document.getElementById('budget-filter').classList.remove('hidden'); document.getElementById('bank-admin-view').classList.remove('hidden'); document.getElementById('academy-admin-view').classList.remove('hidden'); 
@@ -841,13 +959,36 @@
         async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         
-        // --- WHATSAPP SHARE ---
-        function shareInviteWhatsApp() {
+        // --- WHATSAPP SHARE & INVITES ---
+        function openInviteModal() {
+            const codeSpan = document.getElementById('display-group-code');
+            if (currentGroup && currentGroup.group_code) {
+                codeSpan.innerText = currentGroup.group_code;
+            } else {
+                codeSpan.innerText = 'שגיאה: חסר קוד';
+            }
+            document.getElementById('invite-modal').classList.remove('hidden');
+        }
+
+        function sendWhatsAppInvite(role) {
+            if (!currentGroup || !currentGroup.group_code) {
+                showToast('error', 'קוד משפחה לא זמין כרגע');
+                return;
+            }
+            
             const url = window.location.origin;
-            const email = currentGroup.adminEmail || currentGroup.admin_email || '';
-            const text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחצו על הקישור, בחרו ב-"הצטרפות למשפחה", והזינו את המייל הזה:\n📧 ${email}\n\nכניסה לאפליקציה:\n🔗 ${url}`;
+            const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`;
+            
+            let text = '';
+            if (role === 'ADMIN') {
+                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}`;
+            } else {
+                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`;
+            }
+            
             const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
             window.open(whatsappUrl, '_blank');
+            document.getElementById('invite-modal').classList.add('hidden');
         }
 
         // --- HELPERS ---
