@@ -450,19 +450,37 @@ app.get('/api/data/:userId', async (req, res) => {
 
         let goalsRes, weeklyStats = null, userBundles = [];
 
-        // Admin vs Member specific parallel queries
+        // Admin vs Member specific queries
         if(user.role === 'ADMIN') {
-            goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]);
+            const [gRes, ubRes] = await Promise.all([
+                pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]),
+                
+                // ADMIN NEEDS TO SEE ALL ASSIGNMENTS FOR THE UNIFIED FEED
+                pool.query(`
+                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user,
+                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content,
+                           u.nickname as assignee_name
+                    FROM user_assignments ua 
+                    JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+                    JOIN users u ON ua.user_id = u.id
+                    WHERE u.group_id = $1
+                    ORDER BY ua.assigned_at DESC
+                `, [user.group_id])
+            ]);
+            goalsRes = gRes;
+            userBundles = ubRes.rows; // Feed will use this to show what kids are doing
         } else {
             const [gRes, spentRes, limitRes, ubRes] = await Promise.all([
                 pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]),
                 pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]),
                 pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]),
                 pool.query(`
-                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, 
-                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content
+                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user,
+                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content,
+                           u.nickname as assignee_name
                     FROM user_assignments ua 
                     JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+                    JOIN users u ON ua.user_id = u.id
                     WHERE ua.user_id = $1
                     ORDER BY ua.assigned_at DESC
                 `, [user.id])
