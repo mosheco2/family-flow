@@ -18,7 +18,7 @@ client.connect()
   .then(() => console.log('✅ Connected to DB'))
   .catch(err => console.error('Connection Error', err.stack));
 
-// --- HELPERS (For Age and Grouping) ---
+// --- HELPERS (For Age, Grouping and Code Generation) ---
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 
 const getAgeGroup = (age) => {
@@ -31,495 +31,947 @@ const getAgeGroup = (age) => {
     return 'other';
 };
 
+// Generate a random 6-character alphanumeric code
+const generateGroupCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
+
 // --- CONTENT GENERATORS ---
 
 // 1. Math Generator (Auto-generated)
 const generateMath = (ageGroup) => {
     const questions = [];
-    for (let i = 0; i < 10; i++) { 
-        let q, a;
+    for (let i = 0; i < 5; i++) {
+        let q, ans, opts = [];
         if (ageGroup === '6-8') {
-            const n1 = Math.floor(Math.random() * 10) + 1; const n2 = Math.floor(Math.random() * 10) + 1;
-            q = `${n1} + ${n2} = ?`; a = n1 + n2;
+            const a = Math.floor(Math.random() * 10) + 1;
+            const b = Math.floor(Math.random() * 10) + 1;
+            q = `כמה זה ${a} + ${b}?`;
+            ans = a + b;
         } else if (ageGroup === '8-10') {
-            const n1 = Math.floor(Math.random() * 20) + 5; const n2 = Math.floor(Math.random() * 15) + 5;
-            q = `${n1} x ${n2} = ?`; a = n1 * n2;
+            const a = Math.floor(Math.random() * 10) + 2;
+            const b = Math.floor(Math.random() * 10) + 2;
+            q = `כמה זה ${a} × ${b}?`;
+            ans = a * b;
         } else if (ageGroup === '10-13') {
-            const n1 = Math.floor(Math.random() * 50) + 10; const n2 = Math.floor(Math.random() * 10) + 2;
-            q = `${n1} x ${n2} + 5 = ?`; a = n1 * n2 + 5;
+            const a = Math.floor(Math.random() * 50) + 10;
+            const b = Math.floor(Math.random() * 10) + 2;
+            q = `כמה זה ${a} × ${b}?`;
+            ans = a * b;
         } else {
-            const n1 = Math.floor(Math.random() * 20);
-            q = `${n1} בריבוע = ?`; a = n1 * n1;
+            const a = Math.floor(Math.random() * 12) + 2;
+            q = `כמה זה ${a} בחזקת 2?`;
+            ans = a * a;
         }
-        const opts = [a, a+1, a-1, a+2].sort(() => Math.random() - 0.5);
-        questions.push({ q, options: opts.map(String), correct: opts.indexOf(a) });
+        
+        opts.push(ans.toString());
+        while(opts.length < 4) {
+            const fakeAns = ans + (Math.floor(Math.random() * 10) - 5);
+            if (fakeAns !== ans && fakeAns > 0 && !opts.includes(fakeAns.toString())) opts.push(fakeAns.toString());
+        }
+        opts = opts.sort(() => Math.random() - 0.5);
+        questions.push({ q, options: opts, correct: opts.indexOf(ans.toString()) });
     }
     return questions;
 };
 
-// 2. Static Content (Reading & Financial & ENGLISH) - FULL DATABASE
-// Note: This block now holds only 1 entry per category/age combination, 
-// and the Seeding function handles the duplication to reach 30 copies.
-const STATIC_CONTENT = [
-    // Reading 6-8
-    { type: 'reading', age: '6-8', title: 'הכלב של דני', text: 'לדני יש כלב חמוד ושמו חומי. חומי אוהב לרוץ בגינה ולשחק בכדור אדום. דני נותן לחומי אוכל ומים בכל יום.', questions: [
-        {q: 'איך קוראים לכלב?', options: ['בובי', 'חומי', 'שחורי', 'לביא'], correct: 1},
-        {q: 'במה חומי משחק?', options: ['בובה', 'כדור אדום', 'מקל', 'חתול'], correct: 1},
-        {q: 'איפה חומי רץ?', options: ['בבית', 'בגינה', 'ברחוב', 'בגג'], correct: 1},
-        {q: 'מה דני נותן לחומי?', options: ['סוכריות', 'אוכל ומים', 'בגדים', 'צעצועים'], correct: 1},
-        {q: 'מי הבעלים של חומי?', options: ['יוסי', 'דני', 'אבא', 'סבא'], correct: 1}
-    ]},
-    // English 6-8 (NEW)
-    { type: 'english', age: '6-8', title: 'Animals', text: 'The cat says meow. The dog says woof. A big elephant lives in the zoo. The bird can fly very high.', questions: [
-        {q: 'What animal says "woof"?', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 1},
-        {q: 'Where does the elephant live?', options: ['House', 'Farm', 'Zoo', 'Tree'], correct: 2},
-        {q: 'What is the color of the sky?', options: ['Red', 'Green', 'Blue', 'Yellow'], correct: 2},
-        {q: 'How many legs does a dog have?', options: ['Two', 'Three', 'Four', 'Five'], correct: 2},
-        {q: 'The word for "אני" is...', options: ['He', 'She', 'I', 'You'], correct: 2}
-    ]},
-    // Reading 8-10
-    { type: 'reading', age: '8-10', title: 'הטיול לירושלים', text: 'כיתה ג יצאה לטיול בירושלים. הם ביקרו בכותל המערבי וראו את חומות העיר העתיקה. המדריך הסביר להם על ההיסטוריה של העיר. בסוף היום הם אכלו פלאפל בשוק.', questions: [
-        {q: 'לאן נסעה הכיתה?', options: ['תל אביב', 'חיפה', 'ירושלים', 'אילת'], correct: 2},
-        {q: 'מה הם ראו?', options: ['ים', 'חומות העיר', 'קניון', 'מטוסים'], correct: 1},
-        {q: 'מי הסביר להם?', options: ['המורה', 'הנהג', 'המדריך', 'השומר'], correct: 2},
-        {q: 'מה אכלו בסוף?', options: ['פיצה', 'פלאפל', 'גלידה', 'סלט'], correct: 1},
-        {q: 'איזו כיתה יצאה לטיול?', options: ['א', 'ב', 'ג', 'ד'], correct: 2}
-    ]},
-    // English 8-10 (NEW)
-    { type: 'english', age: '8-10', title: 'Past and Future', text: 'Yesterday, I walked to the park. Today, I am reading a book. Tomorrow, I will play with my friend. It is important to know if something happened already (past) or if it is going to happen (future).', questions: [
-        {q: 'What did the narrator do yesterday?', options: ['Read a book', 'Walked to the park', 'Played with a friend', 'Ate pizza'], correct: 1},
-        {q: 'The word "will" means it is in the...', options: ['Past', 'Present', 'Future', 'Always'], correct: 2},
-        {q: 'Choose the Past Tense verb:', options: ['Run', 'Jump', 'Eat', 'Ate'], correct: 3},
-        {q: 'The word for "הם/הן" is...', options: ['We', 'They', 'It', 'She'], correct: 1},
-        {q: 'If I "am eating" now, it is the...', options: ['Past', 'Present', 'Future', 'Never'], correct: 1}
-    ]},
-    // Financial 8-10
-    { type: 'financial', age: '8-10', title: 'מהו חיסכון?', text: 'חיסכון הוא כסף שאנחנו לא מבזבזים מיד, אלא שומרים למשהו חשוב בעתיד. אפשר לשמור כסף בקופת חיסכון בבית או בבנק. כשיש לנו סבלנות, הסכום גדל ואפשר לקנות דברים יקרים יותר.', questions: [
-        {q: 'מה זה חיסכון?', options: ['לבזבז הכל', 'לשמור כסף לעתיד', 'לקנות ממתקים', 'לאבד כסף'], correct: 1},
-        {q: 'איפה אפשר לשמור כסף?', options: ['בפח', 'בבנק או בקופה', 'בנעליים', 'בחול'], correct: 1},
-        {q: 'למה כדאי לחסוך?', options: ['כדי לקנות דברים יקרים', 'סתם ככה', 'כדי שהכסף יעלם', 'לא כדאי'], correct: 0},
-        {q: 'מה צריך כדי לחסוך?', options: ['כוח', 'מהירות', 'סבלנות', 'מזל'], correct: 2},
-        {q: 'מה קורה לכסף בחיסכון?', options: ['הוא נעלם', 'הוא נשמר/גדל', 'הוא הופך לנייר', 'כלום'], correct: 1}
-    ]},
-    // Financial 10-13
-    { type: 'financial', age: '10-13', title: 'הכנסות והוצאות', text: 'כדי לנהל כסף צריך להבין שני מושגים: הכנסות והוצאות. הכנסה היא כסף שנכנס אלינו (משכורת, דמי כיס). הוצאה היא כסף שאנחנו משלמים (קניות, חשבונות). כדי לא להיכנס למינוס (חוב), ההוצאות חייבות להיות קטנות מההכנסות.', questions: [
-        {q: 'מהי הכנסה?', options: ['כסף שיוצא', 'כסף שנכנס', 'חוב', 'מיסים'], correct: 1},
-        {q: 'מהי הוצאה?', options: ['כסף שמקבלים', 'כסף שמשלמים', 'חיסכון', 'מתנה'], correct: 1},
-        {q: 'מה קורה אם ההוצאות גדולות מההכנסות?', options: ['נהיים עשירים', 'נכנסים למינוס', 'הכל בסדר', 'מקבלים פרס'], correct: 1},
-        {q: 'דמי כיס הם דוגמה ל...', options: ['הוצאה', 'הכנסה', 'חוב', 'קנס'], correct: 1},
-        {q: 'מה המטרה בניהול תקציב?', options: ['להוציא יותר ממה שיש', 'שההוצאות יהיו קטנות מההכנסות', 'לא לקנות כלום', 'לזרוק כסף'], correct: 1}
-    ]},
-    // English 10-13 (NEW)
-    { type: 'english', age: '10-13', title: 'Comparatives', text: 'We use comparative adjectives to compare two things. For example, "A dog is faster than a turtle." We usually add "-er" to the adjective. For longer words, we use "more," like "This lesson is more interesting than the last one."', questions: [
-        {q: 'What is the comparative form of "big"?', options: ['Bigly', 'Bigger', 'More big', 'Bigst'], correct: 1},
-        {q: 'Which word uses "more"?', options: ['Taller', 'Smarter', 'Expensive', 'Faster'], correct: 2},
-        {q: 'Complete: Math is harder _______ than English.', options: ['Harder', 'More hard', 'Hardest', 'Hardest'], correct: 0},
-        {q: 'The word for "יותר" is...', options: ['Less', 'Also', 'More', 'Too'], correct: 2},
-        {q: 'The opposite of "fast" is...', options: ['Quick', 'Slow', 'Rapid', 'Speed'], correct: 1}
-    ]},
-    // Financial 13-15
-    { type: 'financial', age: '13-15', title: 'ריבית דריבית', text: 'ריבית דריבית היא כוח חזק מאוד בעולם ההשקעות. כאשר מפקידים כסף וצוברים ריבית, בשנה הבאה הריבית מחושבת גם על הקרן המקורית וגם על הריבית שכבר הצטברה. זה גורם לכסף לגדול בצורה מהירה יותר (אקספוננציאלית) לאורך זמן.', questions: [
-        {q: 'מהי ריבית דריבית?', options: ['ריבית רגילה', 'ריבית על ריבית', 'קנס בבנק', 'דמי ניהול'], correct: 1},
-        {q: 'איך הכסף גדל בריבית דריבית?', options: ['לאט', 'לינארית', 'אקספוננציאלית (מהר)', 'הוא קטן'], correct: 2},
-        {q: 'על מה מחושבת הריבית בשנה השנייה?', options: ['רק על הקרן', 'על הקרן + הריבית שנצברה', 'רק על הריבית', 'לא מחושבת'], correct: 1},
-        {q: 'מה משפיע לטובה על ריבית דריבית?', options: ['זמן ארוך', 'זמן קצר', 'משיכת הכסף', 'ריבית נמוכה'], correct: 0},
-        {q: 'למי זה טוב?', options: ['למי שחוסך לטווח ארוך', 'למי שמבזבז', 'לאף אחד', 'רק לבנק'], correct: 0}
-    ]},
-    // English 13-15 (NEW)
-    { type: 'english', age: '13-15', title: 'Passive Voice', text: 'In Passive Voice, the subject receives the action. Example: "The ball was kicked by the boy." (Passive) vs. "The boy kicked the ball." (Active). We use Passive Voice when the action is more important than who did it, or if the agent is unknown.', questions: [
-        {q: 'Which sentence is in Passive Voice?', options: ['I ate the apple.', 'The report was written.', 'She bought a car.', 'He reads books.'], correct: 1},
-        {q: 'The Passive Voice is formed using the verb "to be" + "Past Participle"', options: ['Present Participle', 'Base Form', 'Past Participle', 'Infinitive'], correct: 2},
-        {q: 'Change "The company built the school" to Passive:', options: ['The school was built by the company.', 'The company was built by the school.', 'The school builds the company.', 'The company builds the school.'], correct: 0},
-        {q: 'What word is used to introduce the agent in Passive Voice?', options: ['By', 'With', 'From', 'To'], correct: 0},
-        {q: 'The opposite of "strong" is...', options: ['Great', 'Smart', 'Weak', 'Mighty'], correct: 2}
-    ]},
-    // Financial 15-18
-    { type: 'financial', age: '15-18', title: 'שוק ההון ומניות', text: 'מניה היא חלק מבעלות בחברה. כשאתה קונה מניה, אתה הופך לשותף קטן בחברה. מחיר המניה עולה ויורד לפי הביקוש וההיצע בבורסה ולפי ביצועי החברה. השקעה במניות נחשבת מסוכנת יותר מפיקדון בבנק, אך לטווח ארוך היא עשויה להניב רווחים גבוהים יותר.', questions: [
-        {q: 'מה מייצגת מניה?', options: ['הלוואה', 'בעלות חלקית בחברה', 'אישור כניסה', 'הנחה'], correct: 1},
-        {q: 'מה קובע את מחיר המניה?', options: ['הממשלה', 'היצע וביקוש', 'מזג האוויר', 'המנכ"ל'], correct: 1},
-        {q: 'מה הסיכון במניות?', options: ['אין סיכון', 'נמוך מפיקדון', 'גבוה מפיקדון', 'הכסף בטוח תמיד'], correct: 2},
-        {q: 'למה אנשים משקיעים במניות?', options: ['כי זה מחייב', 'פוטנציאל לרווח גבוה', 'כדי להפסיד', 'כי אין ברירה'], correct: 1},
-        {q: 'איפה נסחרות מניות?', options: ['בסופר', 'בבורסה', 'בבנק', 'ברחוב'], correct: 1}
-    ]},
-    // English 15-18 (NEW)
-    { type: 'english', age: '15-18', title: 'Conditionals', text: 'Conditional sentences express real or unreal situations. The Zero Conditional describes general truths ("If you heat water, it boils"). The First Conditional describes possible future events ("If it rains, I will take an umbrella"). The Second Conditional describes unlikely or hypothetical situations ("If I had a million dollars, I would travel the world.").', questions: [
-        {q: 'Which conditional is used for general truths?', options: ['First', 'Second', 'Zero', 'Third'], correct: 2},
-        {q: 'Complete: If she studied, she "would pass" the exam.', options: ['would pass', 'will pass', 'pass', 'passed'], correct: 0},
-        {q: 'Which sentence is an example of the First Conditional?', options: ['If I were a bird, I would fly.', 'If you are tired, go to sleep.', 'If he wins, we will celebrate.', 'If he had arrived, we would have started.'], correct: 2},
-        {q: 'The word "Unless" means the same as...', options: ['Only if', 'Therefore', 'Except if', 'So that'], correct: 2},
-        {q: 'The word for "בקושי" is...', options: ['Easily', 'Hardly', 'Softly', 'Rapidly'], correct: 1}
-    ]},
+// 2. Reading Comprehension (Hebrew)
+const readingContent = [
+    {
+        age_group: '6-8',
+        title: "הכלב של דני",
+        text: "לדני יש כלב קטן וחמוד. קוראים לו רקסי. רקסי אוהב לשחק בכדור צהוב בגינה. כל יום אחרי בית הספר, דני רץ לגינה וזורק לרקסי את הכדור.",
+        questions: [
+            { q: "איך קוראים לכלב של דני?", options: ["רקסי", "בובי", "שוקו", "מיצי"], correct: 0 },
+            { q: "באיזה צבע הכדור של רקסי?", options: ["אדום", "כחול", "צהוב", "ירוק"], correct: 2 },
+            { q: "מתי דני משחק עם רקסי?", options: ["בבוקר", "אחרי בית הספר", "בלילה", "לפני השינה"], correct: 1 }
+        ]
+    },
+    {
+        age_group: '8-10',
+        title: "הטיול לירושלים",
+        text: "ביום שלישי נסעה כיתה ד' לטיול בירושלים. הם ביקרו בשוק מחנה יהודה, אכלו פלאפל טעים וראו את חומות העיר העתיקה. דנה קנתה לאמא שלה מתנה קטנה בשוק - שרשרת יפה.",
+        questions: [
+            { q: "לאן נסעה כיתה ד'?", options: ["לתל אביב", "לחיפה", "לירושלים", "לאילת"], correct: 2 },
+            { q: "מה הם אכלו בשוק?", options: ["פיצה", "פלאפל", "המבורגר", "שווארמה"], correct: 1 },
+            { q: "מה דנה קנתה לאמא שלה?", options: ["צמיד", "עגילים", "טבעת", "שרשרת"], correct: 3 }
+        ]
+    }
 ];
 
-// --- SEEDING LOGIC (AGGRESSIVE) ---
-const seedQuizzes = async () => {
+// 3. English (Vocabulary/Grammar)
+const englishContent = [
+    { age_group: '6-8', title: "Animals", questions: [{ q: "איך אומרים כלב באנגלית?", options: ["Cat", "Dog", "Bird", "Fish"], correct: 1 }, { q: "איך אומרים חתול?", options: ["Dog", "Cat", "Cow", "Pig"], correct: 1 }] },
+    { age_group: '8-10', title: "Present & Past", questions: [{ q: "What is the past tense of 'Go'?", options: ["Goes", "Going", "Went", "Gone"], correct: 2 }, { q: "She ___ to the store yesterday.", options: ["go", "went", "goes", "going"], correct: 1 }] },
+    { age_group: '10-13', title: "Comparatives", questions: [{ q: "An elephant is ___ than a dog.", options: ["big", "biggest", "bigger", "more big"], correct: 2 }, { q: "This is the ___ book I have ever read.", options: ["good", "better", "best", "most good"], correct: 2 }] },
+    { age_group: '13-15', title: "Passive Voice", questions: [{ q: "The book ___ by Mark Twain.", options: ["wrote", "was written", "writes", "is write"], correct: 1 }, { q: "The window ___ yesterday.", options: ["broke", "was broken", "breaks", "is break"], correct: 1 }] },
+    { age_group: '15-18', title: "Conditionals", questions: [{ q: "If I had money, I ___ a car.", options: ["will buy", "would buy", "bought", "buy"], correct: 1 }, { q: "Unless you ___, you will fail.", options: ["study", "will study", "studied", "would study"], correct: 0 }] }
+];
+
+// 4. Financial Education (Hebrew)
+const financialContent = [
+    {
+        age_group: '8-10',
+        title: "מהו חיסכון?",
+        text: "חיסכון אומר שאנחנו לא מבזבזים את כל הכסף שיש לנו עכשיו, אלא שומרים חלק ממנו לעתיד. אם נשמור קצת כסף כל שבוע, נוכל לקנות משהו גדול ויקר יותר בהמשך.",
+        questions: [
+            { q: "מה זה חיסכון?", options: ["לבזבז הכל עכשיו", "לשמור כסף לעתיד", "לבקש הלוואה", "לתת מתנות"], correct: 1 },
+            { q: "למה כדאי לחסוך?", options: ["כדי שייגמר הכסף", "כדי לקנות משהו גדול בעתיד", "כי זה משעמם", "כדי לאבד את הכסף"], correct: 1 }
+        ]
+    },
+    {
+        age_group: '10-13',
+        title: "הכנסות והוצאות",
+        text: "הכנסה היא כסף שנכנס אלינו (כמו דמי כיס או משכורת). הוצאה היא כסף שאנחנו משלמים על דברים (כמו קניית משחק או אוכל). תקציב מאוזן הוא מצב שבו ההוצאות לא גדולות מההכנסות.",
+        questions: [
+            { q: "מהי הוצאה?", options: ["דמי כיס שאני מקבל", "כסף שאני משלם בחנות", "מתנה מסבתא", "משכורת"], correct: 1 },
+            { q: "מתי התקציב שלנו מאוזן?", options: ["כשההוצאות גדולות מההכנסות", "כשאנחנו קונים כל מה שבא לנו", "כשההוצאות לא גדולות מההכנסות", "כשאנחנו לוקחים הלוואות"], correct: 2 }
+        ]
+    },
+    {
+        age_group: '13-15',
+        title: "ריבית דריבית - פלא הכלכלה",
+        text: "ריבית היא תשלום שאנחנו מקבלים על כך שאנחנו נותנים לבנק לשמור על הכסף שלנו. 'ריבית דריבית' (Compound Interest) אומרת שהריבית שאנחנו מרוויחים מצטרפת לסכום המקורי, ובפעם הבאה נרוויח ריבית גם על הריבית שכבר קיבלנו! כך הכסף גדל מהר יותר.",
+        questions: [
+            { q: "מהי ריבית על חיסכון?", options: ["קנס שאנחנו משלמים", "תשלום שהבנק נותן לנו על שמירת הכסף", "מס לממשלה", "דמי ניהול חשבון"], correct: 1 },
+            { q: "למה 'ריבית דריבית' נחשבת טובה לחוסכים?", options: ["כי מרוויחים ריבית גם על הריבית שנצברה", "כי היא מקטינה את הכסף", "כי הריבית תמיד נשארת אותו דבר", "כי הבנק לוקח לנו עמלה"], correct: 0 }
+        ]
+    },
+    {
+        age_group: '15-18',
+        title: "שוק ההון ומניות - הבסיס",
+        text: "מניה היא חלק קטן מבעלות על חברה. כשאתה קונה מניה, אתה בעצם הופך לשותף קטן בחברה (כמו אפל או גוגל). אם החברה מצליחה ומרוויחה, ערך המניה בדרך כלל עולה, ואתה מרוויח. אם החברה מפסידה, ערך המניה יכול לרדת.",
+        questions: [
+            { q: "מה זה בעצם מניה?", options: ["הלוואה מהבנק", "חלק מבעלות על חברה", "סוג של כסף מזומן", "ביטוח חיים"], correct: 1 },
+            { q: "מה קורה לערך המניה אם החברה מצליחה מאוד?", options: ["הוא בדרך כלל יורד", "הוא נשאר בדיוק אותו דבר", "הוא בדרך כלל עולה", "המניה נמחקת"], correct: 2 }
+        ]
+    }
+];
+
+// --- SEEDING FUNCTION ---
+async function seedDatabase() {
+    console.log("Seeding initial data...");
     try {
-        console.log('🔄 Force Seeding Database...');
-        await client.query('TRUNCATE TABLE quiz_bundles CASCADE');
+        await client.query("DELETE FROM quiz_questions");
+        await client.query("DELETE FROM quiz_bundles");
 
-        const ages = ['6-8', '8-10', '10-13', '13-15', '15-18'];
-        const COUNT_PER_CATEGORY = 30; // Target 30 bundles per category/age
+        // Seed dynamically and explicitly
+        const insertBundle = async (type, age_group, title, text_content) => {
+            const res = await client.query(
+                `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 85, 10.0) RETURNING id`,
+                [type, age_group, title, text_content]
+            );
+            return res.rows[0].id;
+        };
 
-        // 1. Insert Math Bundles (30 sets per age group)
-        for (const age of ages) {
-            for (let i = 1; i <= COUNT_PER_CATEGORY; i++) { 
+        const insertQuestions = async (bundleId, questions) => {
+            for (const q of questions) {
                 await client.query(
-                    `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, questions, created_by) VALUES ($1, 'math', $2, 0.5, 85, $3, 'SYSTEM')`,
-                    [`חשבון (${age}) - סט ${i}`, age, JSON.stringify(generateMath(age))]
+                    `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
+                    [bundleId, q.q, JSON.stringify(q.options), q.correct]
                 );
             }
-        }
+        };
 
-        // 2. Insert Static Content (Reading/Financial/English) - Replicate 30 times
-        for (let i = 1; i <= COUNT_PER_CATEGORY; i++) {
-            for (const item of STATIC_CONTENT) {
-                // Ensure the title is unique by adding the iteration number
-                const uniqueTitle = `${item.title} (עותק ${i})`; 
-                await client.query(
-                    `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) VALUES ($1, $2, $3, 1.0, 95, $4, $5, 'SYSTEM')`,
-                    [uniqueTitle, item.type, item.age, item.text, JSON.stringify(item.questions)]
-                );
+        const ageGroups = ['6-8', '8-10', '10-13', '13-15', '15-18'];
+
+        // Generate 30 bundles for each age group for each type!
+        for (let i = 1; i <= 30; i++) {
+            for (const age of ageGroups) {
+                // 1. Math
+                const mathId = await insertBundle('math', age, `אתגר חשבון ${i}`, null);
+                await insertQuestions(mathId, generateMath(age));
+
+                // 2. Reading
+                const readBase = readingContent.find(c => c.age_group === age) || readingContent[0];
+                const readId = await insertBundle('reading', age, `${readBase.title} - חלק ${i}`, readBase.text);
+                await insertQuestions(readId, readBase.questions);
+
+                // 3. English
+                const engBase = englishContent.find(c => c.age_group === age) || englishContent[0];
+                const engId = await insertBundle('english', age, `English Test ${i} (${engBase.title})`, null);
+                await insertQuestions(engId, engBase.questions);
+
+                // 4. Financial
+                const finBase = financialContent.find(c => c.age_group === age) || financialContent[0];
+                const finId = await insertBundle('financial', age, `פיננסי: ${finBase.title} (${i})`, finBase.text);
+                await insertQuestions(finId, finBase.questions);
             }
         }
-        
-        console.log(`✅ Seeding Complete! Loaded ${ages.length * COUNT_PER_CATEGORY * 4} total content items.`);
-    } catch(e) { console.error('❌ Seed Error:', e); }
-};
+        console.log("Seeding complete: Created ~600 quiz bundles!");
 
-// --- SETUP ROUTE ---
+    } catch (e) {
+        console.error("Seeding error:", e);
+    }
+}
+
+// SETUP ROUTE (RESET DB)
 app.get('/setup-db', async (req, res) => {
-  try {
-    const tables = ['user_assignments', 'quiz_bundles', 'shopping_trip_items', 'shopping_trips', 'product_prices', 'transactions', 'tasks', 'shopping_list', 'goals', 'loans', 'budgets', 'users', 'groups'];
-    for (const t of tables) { try { await client.query(`DROP TABLE IF EXISTS ${t} CASCADE`); } catch(e){} }
+    try {
+        await client.query(`
+            DROP TABLE IF EXISTS user_assignments CASCADE;
+            DROP TABLE IF EXISTS quiz_questions CASCADE;
+            DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE;
+            DROP TABLE IF EXISTS goals CASCADE;
+            DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE;
+            DROP TABLE IF EXISTS transactions CASCADE;
+            DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE;
+            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS family_groups CASCADE;
 
-    await client.query(`CREATE TABLE groups (id SERIAL PRIMARY KEY, name VARCHAR(100), admin_email VARCHAR(255) UNIQUE, type VARCHAR(20), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(255), role VARCHAR(20), status VARCHAR(20) DEFAULT 'PENDING', birth_year INTEGER, balance DECIMAL(10, 2) DEFAULT 0, allowance_amount DECIMAL(10, 2) DEFAULT 0, interest_rate DECIMAL(5, 2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(group_id, nickname))`);
-    await client.query(`CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, amount DECIMAL(10, 2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), is_manual BOOLEAN DEFAULT TRUE, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(100), target_amount DECIMAL(10, 2), current_amount DECIMAL(10, 2) DEFAULT 0, status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE budgets (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL(10, 2))`);
-    await client.query(`CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, title VARCHAR(255), reward DECIMAL(10, 2), status VARCHAR(20) DEFAULT 'pending', assigned_to INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER DEFAULT 1, estimated_price DECIMAL(10, 2) DEFAULT 0, requested_by INTEGER REFERENCES users(id), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10, 2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INTEGER REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(255), quantity INTEGER, price_per_unit DECIMAL(10, 2))`);
-    await client.query(`CREATE TABLE product_prices (id SERIAL PRIMARY KEY, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, item_name VARCHAR(255), store_name VARCHAR(100), price DECIMAL(10, 2), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    await client.query(`CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE, original_amount DECIMAL(10, 2), remaining_amount DECIMAL(10, 2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-    // Added created_by to quiz_bundles
-    await client.query(`CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, title VARCHAR(150), type VARCHAR(50), age_group VARCHAR(50), reward DECIMAL(10,2), threshold INTEGER, text_content TEXT, questions JSONB, created_by VARCHAR(50) DEFAULT 'ADMIN')`);
-    // Added status 'pending_approval' to user_assignments
-    await client.query(`CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, bundle_id INTEGER REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INTEGER, custom_reward DECIMAL(10,2), deadline TIMESTAMP, date_completed TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+            CREATE TABLE family_groups (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100),
+                type VARCHAR(20) DEFAULT 'FAMILY',
+                admin_email VARCHAR(100) UNIQUE,
+                group_code VARCHAR(10) UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                nickname VARCHAR(50),
+                birth_year INT,
+                password_hash VARCHAR(100),
+                role VARCHAR(20) DEFAULT 'MEMBER',
+                status VARCHAR(20) DEFAULT 'pending',
+                balance DECIMAL(10,2) DEFAULT 0.00,
+                allowance_amount DECIMAL(10,2) DEFAULT 0.00,
+                interest_rate DECIMAL(5,2) DEFAULT 0.00
+            );
+            CREATE TABLE transactions (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                amount DECIMAL(10,2),
+                description VARCHAR(255),
+                category VARCHAR(50),
+                type VARCHAR(20),
+                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_manual BOOLEAN DEFAULT TRUE
+            );
+            CREATE TABLE tasks (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                created_by INT REFERENCES users(id),
+                assigned_to INT REFERENCES users(id),
+                title VARCHAR(255),
+                reward DECIMAL(10,2) DEFAULT 0.00,
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE budget_allocations (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                category VARCHAR(50),
+                target_user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                amount_limit DECIMAL(10,2) DEFAULT 0.00
+            );
+            CREATE TABLE goals (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                target_user_id INT REFERENCES users(id) ON DELETE SET NULL,
+                title VARCHAR(255),
+                target_amount DECIMAL(10,2),
+                current_amount DECIMAL(10,2) DEFAULT 0.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE loans (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                original_amount DECIMAL(10,2),
+                remaining_amount DECIMAL(10,2),
+                reason VARCHAR(255),
+                status VARCHAR(20) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE shopping_list (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                requester_id INT REFERENCES users(id),
+                item_name VARCHAR(100),
+                quantity INT DEFAULT 1,
+                estimated_price DECIMAL(10,2) DEFAULT 0.00,
+                status VARCHAR(20) DEFAULT 'pending',
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE shopping_trips (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                buyer_id INT REFERENCES users(id),
+                store_name VARCHAR(100),
+                branch_name VARCHAR(100),
+                total_amount DECIMAL(10,2),
+                trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE shopping_trip_items (
+                id SERIAL PRIMARY KEY,
+                trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE,
+                item_name VARCHAR(100),
+                quantity INT,
+                price_per_unit DECIMAL(10,2)
+            );
+            
+            -- ACADEMY TABLES
+            CREATE TABLE quiz_bundles (
+                id SERIAL PRIMARY KEY,
+                type VARCHAR(20), -- 'math', 'english', 'reading', 'financial'
+                age_group VARCHAR(10),
+                title VARCHAR(255),
+                text_content TEXT, -- For reading/financial
+                threshold INT DEFAULT 85,
+                reward DECIMAL(10,2) DEFAULT 10.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE quiz_questions (
+                id SERIAL PRIMARY KEY,
+                bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE,
+                q TEXT,
+                options JSONB,
+                correct INT
+            );
+            CREATE TABLE user_assignments (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE,
+                status VARCHAR(20) DEFAULT 'assigned', -- assigned, completed, failed, expired
+                score INT,
+                custom_reward DECIMAL(10,2),
+                deadline TIMESTAMP,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
 
-    await seedQuizzes();
-    res.send('<h1>Oneflow Life System Ready 🚀</h1><p>Database Reset & Full Content Seeded!</p><a href="/">Go Home</a>');
-  } catch (err) { res.status(500).send(`Error: ${err.message}`); }
+        // Run seed function
+        await seedDatabase();
+
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables reset and created. Academy seeded.</p><a href="/">Go to App</a>');
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
 });
 
-const initBudgets = async (groupId, userId = null) => {
-  const cats = ['food', 'groceries', 'transport', 'bills', 'fun', 'clothes', 'health', 'education', 'other'];
-  for (const c of cats) {
-    const check = await client.query(`SELECT id FROM budgets WHERE group_id=$1 AND category=$2 AND (user_id=$3 OR ($3::int IS NULL AND user_id IS NULL))`, [groupId, c, userId]);
-    if (check.rows.length === 0) {
-        await client.query(`INSERT INTO budgets (group_id, user_id, category, limit_amount) VALUES ($1, $2, $3, 0)`, [groupId, userId, c]);
-    }
-  }
-};
+// --- API ROUTES ---
 
-// --- API ENDPOINTS (Other sections omitted for brevity) ---
-
-// AUTH
+// Auth
 app.post('/api/groups', async (req, res) => {
-  let { groupName, adminEmail, type, adminNickname, password, birthYear } = req.body;
-  if(adminEmail) adminEmail = adminEmail.trim().toLowerCase();
-  try {
-    await client.query('BEGIN');
-    const check = await client.query('SELECT id FROM groups WHERE admin_email = $1', [adminEmail]);
-    if (check.rows.length > 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Email exists' }); }
-    const g = await client.query('INSERT INTO groups (name, admin_email, type) VALUES ($1, $2, $3) RETURNING id', [groupName, adminEmail, type]);
-    const u = await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'ADMIN', 'ACTIVE', $4, 0) RETURNING *`, [g.rows[0].id, adminNickname, password, parseInt(birthYear)||0]);
-    await initBudgets(g.rows[0].id, null);
-    await client.query('COMMIT');
-    res.json({ success: true, user: u.rows[0], group: { id: g.rows[0].id, name: groupName, type, adminEmail } });
-  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+    try {
+        await client.query('BEGIN');
+        
+        let code = generateGroupCode();
+        // Check if code exists just to be safe (very rare collision)
+        let codeCheck = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
+        while(codeCheck.rows.length > 0) {
+            code = generateGroupCode();
+            codeCheck = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [code]);
+        }
+
+        const gRes = await client.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`,
+            [req.body.type, req.body.groupName, req.body.adminEmail, code]
+        );
+        const group = gRes.rows[0];
+        const uRes = await client.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`,
+            [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]
+        );
+        await client.query('COMMIT');
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/join', async (req, res) => {
-  let { groupEmail, nickname, password, birthYear } = req.body;
-  try {
-    const g = await client.query('SELECT id FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);
-    if (g.rows.length === 0) return res.status(404).json({ error: 'Group not found' });
-    const check = await client.query('SELECT id FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname.trim()]);
-    if (check.rows.length > 0) return res.status(400).json({ error: 'Nickname taken' });
-    await client.query(`INSERT INTO users (group_id, nickname, password, role, status, birth_year, balance) VALUES ($1, $2, $3, 'MEMBER', 'PENDING', $4, 0)`, [g.rows[0].id, nickname, password, parseInt(birthYear)||0]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    try {
+        const { groupCode, nickname, birthYear, password, role } = req.body;
+        const gRes = await client.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
+        
+        const group = gRes.rows[0];
+        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+
+        await client.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`,
+            [group.id, nickname, birthYear, password, reqRole]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/login', async (req, res) => {
-  let { groupEmail, nickname, password } = req.body;
-  try {
-    const g = await client.query('SELECT * FROM groups WHERE admin_email = $1', [groupEmail.trim().toLowerCase()]);
-    if (g.rows.length === 0) return res.status(401).json({ error: 'Group not found' });
-    const u = await client.query('SELECT * FROM users WHERE group_id = $1 AND LOWER(nickname) = LOWER($2)', [g.rows[0].id, nickname.trim()]);
-    if (u.rows.length === 0 || u.rows[0].password !== password) return res.status(401).json({ error: 'Invalid credentials' });
-    if (u.rows[0].status !== 'ACTIVE') return res.status(403).json({ error: 'Account pending' });
-    res.json({ success: true, user: u.rows[0], group: g.rows[0] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    try {
+        const gRes = await client.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה שגוי' });
+        const group = gRes.rows[0];
+        
+        const uRes = await client.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
+        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-app.get('/api/users/:id', async (req, res) => { try { const r = await client.query('SELECT * FROM users WHERE id=$1', [req.params.id]); res.json(r.rows[0]); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get('/api/admin/pending-users', async (req, res) => { try { const r = await client.query("SELECT id, nickname, birth_year FROM users WHERE group_id = $1 AND status = 'PENDING'", [req.query.groupId]); res.json(r.rows); } catch (e) { res.status(500).json({error:e.message}); } });
-app.post('/api/admin/approve-user', async (req, res) => { try { await client.query("UPDATE users SET status = 'ACTIVE' WHERE id = $1", [req.body.userId]); const u = await client.query("SELECT group_id FROM users WHERE id=$1", [req.body.userId]); await initBudgets(u.rows[0].group_id, req.body.userId); res.json({success:true}); } catch (e) { res.status(500).json({error:e.message}); } });
-app.get('/api/group/members', async (req, res) => { const { groupId, requesterId } = req.query; try { const u = await client.query('SELECT role FROM users WHERE id = $1', [requesterId]); const isAdmin = u.rows.length > 0 && u.rows[0].role === 'ADMIN'; const r = await client.query("SELECT id, nickname, role, balance, birth_year, allowance_amount, interest_rate FROM users WHERE group_id = $1 AND status = 'ACTIVE' ORDER BY role, nickname", [groupId]); const members = r.rows.map(m => ({ ...m, balance: (isAdmin || m.id == requesterId) ? m.balance : null, allowance_amount: (isAdmin || m.id == requesterId) ? m.allowance_amount : null, interest_rate: (isAdmin || m.id == requesterId) ? m.interest_rate : null })); res.json(members); } catch (e) { res.status(500).json({error:e.message}); } });
+app.get('/api/users/:id', async (req, res) => {
+    try {
+        const u = await client.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+        if (u.rows.length > 0) res.json(u.rows[0]); else res.status(404).json({error: 'Not found'});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-// SHOPPING
-app.post('/api/shopping/add', async (req, res) => { try { const uRes = await client.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]); const user = uRes.rows[0]; const status = user.role === 'ADMIN' ? 'pending' : 'requested'; const r = await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, [req.body.itemName, req.body.quantity, req.body.estimatedPrice||0, req.body.userId, user.group_id, status]); let alert = null; if(req.body.estimatedPrice > 0) { const h = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name))=LOWER(TRIM($1)) AND price<$2 ORDER BY price ASC LIMIT 1`, [req.body.itemName, parseFloat(req.body.estimatedPrice)]); if(h.rows.length) { const d = new Date(h.rows[0].date).toLocaleDateString('he-IL'); alert = { msg: `נמצא זול יותר: ₪${h.rows[0].price} ב-${h.rows[0].store_name} (${d})`, price: h.rows[0].price }; } } res.json({ success: true, alert, id: r.rows[0].id, status }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.delete('/api/shopping/delete/:id', async (req, res) => { try { await client.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/shopping/update', async (req, res) => { try { if(req.body.status) await client.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [req.body.status, req.body.itemId]); if(req.body.quantity) await client.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [req.body.quantity, req.body.itemId]); let alert = null; if(req.body.estimatedPrice !== undefined) { await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [req.body.estimatedPrice, req.body.itemId]); const i = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [req.body.itemId]); if(i.rows.length && req.body.estimatedPrice > 0) { const h = await client.query(`SELECT price, store_name, date FROM product_prices WHERE LOWER(TRIM(item_name))=LOWER(TRIM($1)) AND price<$2 ORDER BY price ASC LIMIT 1`, [i.rows[0].item_name, req.body.estimatedPrice]); if(h.rows.length) { const d = new Date(h.rows[0].date).toLocaleDateString('he-IL'); alert = { msg: `נמצא זול יותר: ₪${h.rows[0].price} ב-${h.rows[0].store_name} (${d})`, price: h.rows[0].price }; } } } res.json({ success: true, alert }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/shopping/checkout', async (req, res) => { try { await client.query('BEGIN'); const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); const trip = await client.query(`INSERT INTO shopping_trips (group_id, user_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.rows[0].group_id, req.body.userId, req.body.storeName, req.body.branchName, req.body.totalAmount]); for(const i of req.body.boughtItems) { await client.query("UPDATE shopping_list SET status='bought' WHERE id=$1", [i.id]); await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [trip.rows[0].id, i.name, i.quantity, i.price]); if(i.price > 0) await client.query(`INSERT INTO product_prices (group_id, item_name, store_name, price) VALUES ($1, $2, $3, $4)`, [u.rows[0].group_id, i.name, req.body.storeName, i.price]); } for(const i of req.body.missingItems) await client.query("UPDATE shopping_list SET status='pending' WHERE id=$1", [i.id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'groceries', 'expense', TRUE)`, [req.body.userId, req.body.totalAmount, `קניות: ${req.body.storeName}`]); await client.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [req.body.totalAmount, req.body.userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.get('/api/shopping/history', async (req, res) => { try { const trips = await client.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.user_id=u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 20`, [req.query.groupId]); const data = []; for(const t of trips.rows) { const items = await client.query(`SELECT * FROM shopping_trip_items WHERE trip_id=$1`, [t.id]); data.push({ ...t, items: items.rows }); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/shopping/copy', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); const items = await client.query('SELECT item_name, quantity, price_per_unit FROM shopping_trip_items WHERE trip_id=$1', [req.body.tripId]); for(const i of items.rows) await client.query(`INSERT INTO shopping_list (item_name, quantity, estimated_price, requested_by, group_id, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [i.item_name, i.quantity, i.price_per_unit, req.body.userId, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-
-
-// --- DATA FETCH ---
+// Dash Data
 app.get('/api/data/:userId', async (req, res) => {
     try {
-        const user = (await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId])).rows[0];
-        if (!user) return res.status(404).json({error:'User not found'});
-        const gid = user.group_id;
+        const uRes = await client.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
+        if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
+        const user = uRes.rows[0];
+
+        // Fetch Tasks
+        const tasks = await client.query(`
+            SELECT t.*, u.nickname as assignee_name 
+            FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id 
+            WHERE t.group_id=$1 
+            ORDER BY t.created_at DESC`, [user.group_id]
+        );
         
-        // Determine which transactions to fetch for the feed: only user's if not admin, all if admin.
-        const feedUserId = user.role === 'ADMIN' ? null : user.id; 
-        const feedWhere = feedUserId ? `AND t.user_id=${feedUserId}` : '';
-
-        const [tasks, shop, loans, goals, trans, myAssignments, feedTrans] = await Promise.all([
-            client.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [gid]),
-            client.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requested_by = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.status DESC, s.created_at DESC`, [gid]),
-            client.query(`SELECT * FROM loans WHERE group_id=$1`, [gid]),
-            client.query(`SELECT g.*, u.nickname as owner_name FROM goals g JOIN users u ON g.user_id = u.id WHERE g.group_id=$1`, [gid]),
-            client.query(`SELECT SUM(amount) as total FROM transactions WHERE user_id=$1 AND type='expense' AND date > NOW() - INTERVAL '7 days'`, [user.id]),
-            // Fetch ASSIGNED and PENDING_APPROVAL bundles for the user (only metadata needed for list)
-            client.query(`SELECT ua.id, ua.user_id, ua.bundle_id, ua.status, ua.score, ua.custom_reward, ua.deadline, qb.title, qb.type, qb.threshold, qb.reward as default_reward FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.status IN ('assigned', 'pending_approval')`, [user.id]),
-            // Fetch transactions for the main feed (last 5)
-            client.query(`SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE u.group_id=$1 ${feedWhere} ORDER BY t.date DESC LIMIT 5`, [gid])
-        ]);
-        
-        // Return ALL bundles (metadata only, including created_by for library view)
-        const allBundles = await client.query('SELECT id, title, type, age_group, reward, threshold, created_by FROM quiz_bundles ORDER BY age_group, type, title');
-
-        res.json({
-            user, tasks: tasks.rows, shopping_list: shop.rows, loans: loans.rows, goals: goals.rows,
-            quiz_bundles: myAssignments.rows,
-            all_bundles: allBundles.rows, // Sending full library metadata
-            weekly_stats: { spent: trans.rows[0].total || 0, limit: (parseFloat(user.balance) * 0.2) },
-            recent_transactions: feedTrans.rows // Updated transactions list for feed
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- TRANSACTIONS ENDPOINTS ---
-// UPDATED: Allow filtering by user/group for history view.
-app.get('/api/transactions', async (req, res) => { 
-    const { groupId, userId, limit = 100 } = req.query;
-    let whereClause = `u.group_id=$1`;
-    const params = [groupId];
-
-    // Optional filtering by a specific user (used for historical view)
-    if (userId && userId !== 'all') {
-        params.push(userId);
-        whereClause += ` AND t.user_id=$2`;
-    }
-
-    try {
-        const r = await client.query(`
-            SELECT t.*, u.nickname as user_name 
-            FROM transactions t 
-            JOIN users u ON t.user_id = u.id 
-            WHERE ${whereClause} 
-            ORDER BY t.date DESC 
-            LIMIT ${limit}`, 
-            params);
-        res.json(r.rows); 
-    } catch (e) { res.status(500).json({error:e.message}); } 
-});
-
-
-// --- ACADEMY ENDPOINTS (Updated/Replaced) ---
-
-// 1. Get Bundles (Metadata only for fast library display)
-app.get('/api/academy/bundles', async (req, res) => { 
-    try { 
-        const r = await client.query('SELECT id, title, type, age_group, reward, threshold, created_by FROM quiz_bundles ORDER BY age_group, type, title'); 
-        res.json(r.rows); 
-    } catch (e) { res.status(500).json({error:e.message}); } 
-});
-
-// 2. Get Single Bundle (Full Content - Lazy Load)
-app.get('/api/academy/bundle/:id', async (req, res) => {
-    try {
-        // Fetch only questions and text_content
-        const r = await client.query('SELECT questions, text_content, title, threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [req.params.id]);
-        if(r.rows.length === 0) return res.status(404).json({error: 'Not found'});
-        res.json(r.rows[0]); // Returns questions and text content
-    } catch(e) { res.status(500).json({error: e.message }); }
-});
-
-// 3. Admin Creates New Quiz Bundle
-app.post('/api/academy/create-bundle', async (req, res) => {
-    try {
-        const { title, type, age_group, threshold, reward, text_content, questions } = req.body;
-        
-        if (!title || !type || !age_group || !threshold || !questions || questions.length < 5) {
-             return res.status(400).json({ success: false, error: 'יש למלא את כל השדות ולפחות 5 שאלות.' });
-        }
-        
-        const finalReward = parseFloat(reward) || 1.0; 
-        
-        await client.query(
-            `INSERT INTO quiz_bundles (title, type, age_group, reward, threshold, text_content, questions, created_by) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [title, type, age_group, finalReward, threshold, text_content, JSON.stringify(questions), 'ADMIN']
+        // Fetch Shopping
+        const shop = await client.query(`
+            SELECT s.*, u.nickname as requester_name 
+            FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id 
+            WHERE s.group_id=$1 
+            ORDER BY s.added_at DESC`, [user.group_id]
         );
 
-        res.json({ success: true });
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
+        // Fetch Goals
+        let goals;
+        if(user.role === 'ADMIN') {
+            goals = await client.query(`
+                SELECT g.*, u.nickname as owner_name 
+                FROM goals g LEFT JOIN users u ON g.target_user_id = u.id 
+                WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]
+            );
+        } else {
+            goals = await client.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]);
+        }
+
+        // Fetch Academy data
+        let userBundles = [];
+        let allBundles = [];
+        
+        // Always fetch library for both users and admins
+        const allB = await client.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY type, age_group`);
+        allBundles = allB.rows;
+
+        if (user.role !== 'ADMIN') {
+            const ageGroup = getAgeGroup(calculateAge(user.birth_year));
+            const ubRes = await client.query(`
+                SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, 
+                       qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content
+                FROM user_assignments ua 
+                JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+                WHERE ua.user_id = $1
+                ORDER BY ua.assigned_at DESC
+            `, [user.id]);
+            
+            userBundles = ubRes.rows;
+            
+            for (let b of userBundles) {
+                if (b.status === 'assigned') {
+                    const qRes = await client.query(`SELECT id, q, options, correct FROM quiz_questions WHERE bundle_id = $1`, [b.bundle_id]);
+                    b.questions = qRes.rows;
+                }
+            }
+        }
+
+        // Fetch Weekly Stats for child
+        let weeklyStats = null;
+        if (user.role !== 'ADMIN') {
+            const spent = await client.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]);
+            const limit = await client.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]);
+            weeklyStats = { spent: spent.rows[0].spent, limit: limit.rows.length > 0 ? limit.rows[0].limit : user.allowance_amount * 0.2 };
+        }
+
+        res.json({
+            user: user,
+            tasks: tasks.rows,
+            shopping_list: shop.rows,
+            goals: goals.rows,
+            weekly_stats: weeklyStats,
+            quiz_bundles: userBundles,
+            all_bundles: allBundles
+        });
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+// Admin Panel (Pending Users)
+app.get('/api/admin/pending-users', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const users = await client.query(`SELECT * FROM users WHERE group_id = $1 AND status = 'pending'`, [groupId]);
+        res.json(users.rows);
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/approve-user', async (req, res) => {
+    try {
+        await client.query(`UPDATE users SET status = 'active' WHERE id = $1`, [req.body.userId]);
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+// Group Members
+app.get('/api/group/members', async (req, res) => {
+    try {
+        const uReq = await client.query('SELECT role FROM users WHERE id=$1', [req.query.requesterId]);
+        const isAdmin = uReq.rows[0].role === 'ADMIN';
+        const members = await client.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [req.query.groupId, 'active']);
+        if(isAdmin) res.json(members.rows);
+        else res.json(members.rows.map(m => ({id: m.id, nickname: m.nickname, role: m.role, birth_year: m.birth_year, balance: m.id == req.query.requesterId ? m.balance : null})));
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/update-settings', async (req, res) => {
+    try {
+        await client.query(`UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3`, [req.body.allowance || 0, req.body.interest || 0, req.body.userId]);
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/payday', async (req, res) => {
+    try {
+        await client.query('BEGIN');
+        const children = await client.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND role='MEMBER' AND status='active'`, [req.body.groupId]);
+        let totalDistributed = 0;
+        
+        for(let child of children.rows) {
+            const allowance = parseFloat(child.allowance_amount) || 0;
+            let interest = 0;
+            
+            // Calculate penalty/bonus based on spending
+            const spentRes = await client.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE - INTERVAL '7 days') AND date < date_trunc('week', CURRENT_DATE)`, [child.id]);
+            const spent = parseFloat(spentRes.rows[0].spent);
+            const limit = allowance * 0.2; // 20% limit logic
+            
+            if (spent <= limit && parseFloat(child.balance) > 0) {
+                 interest = parseFloat(child.balance) * ((parseFloat(child.interest_rate)||0) / 100);
+            }
+            
+            const totalAdded = allowance + interest;
+            if(totalAdded > 0) {
+                await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [totalAdded, child.id]);
+                await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, 
+                    [child.id, req.body.groupId, totalAdded, `יום תשלום: ${allowance} דמי כיס + ${interest.toFixed(2)} ריבית`]
+                );
+                totalDistributed += totalAdded;
+            }
+        }
+        await client.query('COMMIT');
+        res.json({success: true, totalDistributed});
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({error: e.message});
     }
 });
 
-
-// 4. Admin Assigns Bundle
-app.post('/api/academy/assign', async (req, res) => {
+// Transactions
+app.post('/api/transaction', async (req, res) => {
     try {
-        const { userId, bundleId, reward, days } = req.body;
-        const deadline = days ? new Date(Date.now() + days * 86400000) : null;
-        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status, custom_reward, deadline) VALUES ($1, $2, 'assigned', $3, $4)`, 
-        [userId, bundleId, reward || null, deadline]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// 5. User Requests Challenge -> PENDING APPROVAL (Handles random if no bundleId is passed)
-app.post('/api/academy/request-challenge', async (req, res) => { 
-    try { 
-        const { userId, bundleId: requestedBundleId } = req.body;
-        let bundleId = requestedBundleId;
-
-        // Daily Limit Check (3 max)
-        const count = await client.query(`SELECT count(*) FROM user_assignments WHERE user_id=$1 AND created_at > CURRENT_DATE`, [userId]); 
-        if(parseInt(count.rows[0].count) >= 3) return res.json({ success: false, error: 'הגעת למגבלה היומית (3 אתגרים)' }); 
-        
-        // Handle Random Challenge Request
-        if (!bundleId) {
-            const user = (await client.query('SELECT birth_year FROM users WHERE id=$1', [userId])).rows[0]; 
-            const age = calculateAge(user.birth_year); 
-            const ageGroup = getAgeGroup(age); 
-            // Select a random bundle for their age group that is NOT currently assigned (assigned or pending) or completed.
-            const available = await client.query(`
-                SELECT id 
-                FROM quiz_bundles 
-                WHERE age_group=$1 
-                AND id NOT IN (
-                    SELECT bundle_id FROM user_assignments WHERE user_id=$2 AND status IN ('assigned', 'pending_approval', 'completed')
-                ) 
-                ORDER BY RANDOM() LIMIT 1`, 
-                [ageGroup, userId]
-            ); 
-            if (available.rows.length === 0) return res.json({ success: false, error: 'אין אתגרים אקראיים זמינים/חדשים לגילך' }); 
-            bundleId = available.rows[0].id;
-        }
-
-        // Check if already assigned (pending or active)
-        const exists = await client.query('SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status IN (\'assigned\', \'pending_approval\')', [userId, bundleId]);
-        if (exists.rows.length > 0) return res.json({ success: false, error: 'כבר הוגשה בקשה או שהוקצה לך מבחן זה' });
-        
-        // Insert with 'pending_approval'
-        await client.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'pending_approval')`, [userId, bundleId]); 
-        res.json({ success: true }); 
-    } catch (e) { res.status(500).json({ error: e.message }); } 
-});
-
-// 6. Admin Gets Pending Requests
-app.get('/api/admin/academy-requests', async (req, res) => {
-    try {
-        const r = await client.query(`
-            SELECT ua.id, ua.user_id, ua.bundle_id, u.nickname, qb.title, qb.reward, qb.age_group
-            FROM user_assignments ua 
-            JOIN users u ON ua.user_id = u.id 
-            JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-            WHERE u.group_id = $1 AND ua.status = 'pending_approval' ORDER BY ua.created_at DESC`, 
-            [req.query.groupId]);
-        res.json(r.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// 7. Admin Approves/Rejects Request (Sets Reward/Deadline/Status)
-app.post('/api/academy/approve-request', async (req, res) => {
-    try {
-        const { assignmentId, reward, days, status: newStatus } = req.body;
-        
-        if (newStatus === 'assigned') {
-            const deadline = days ? new Date(Date.now() + days * 86400000) : null;
-            await client.query(
-                `UPDATE user_assignments SET status='assigned', custom_reward=$1, deadline=$2 WHERE id=$3`, 
-                [reward, deadline, assignmentId]
-            );
-        } else if (newStatus === 'failed') { // Reject/Cancel
-             await client.query(`DELETE FROM user_assignments WHERE id=$1`, [assignmentId]); 
-        } else {
-            throw new Error('Invalid status action');
-        }
-
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// 8. Submit Quiz (Checks Score and Pays)
-app.post('/api/academy/submit', async (req, res) => { 
-    try { 
+        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
         await client.query('BEGIN');
-        // Fetch the assignment that is currently 'assigned' (prevents submitting a pending/completed one)
-        const ua = (await client.query(`SELECT ua.*, qb.threshold, qb.reward as default_reward, qb.title FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id WHERE ua.user_id=$1 AND ua.bundle_id=$2 AND ua.status='assigned'`, [req.body.userId, req.body.bundleId])).rows[0];
-        if(!ua) throw new Error('Assignment not found or not active');
-
-        // Check for deadline
-        if (ua.deadline && new Date() > new Date(ua.deadline)) {
-            await client.query(`UPDATE user_assignments SET status='expired', date_completed=NOW() WHERE id=$1`, [ua.id]);
-            await client.query('COMMIT');
-            return res.json({ success: true, passed: false, expired: true });
+        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`,
+            [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type]);
+        const op = req.body.type === 'income' ? '+' : '-';
+        await client.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
+        
+        // Update Budget
+        if (req.body.type === 'expense') {
+            await client.query(`
+                INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) 
+                VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, 
+                [u.rows[0].group_id, req.body.category, req.body.userId]
+            );
         }
-
-        const passed = req.body.score >= ua.threshold;
-        const reward = passed ? (ua.custom_reward !== null ? parseFloat(ua.custom_reward) : parseFloat(ua.default_reward)) : 0;
-        const status = passed ? 'completed' : 'failed'; 
-
-        await client.query(`UPDATE user_assignments SET status=$1, score=$2, date_completed=NOW() WHERE id=$3`, [status, req.body.score, ua.id]);
         
-        if(passed) { 
-            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [reward, req.body.userId]); 
-            await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [req.body.userId, reward, `בונוס אקדמיה: ${ua.title}`]); 
-        } 
-        
-        // If failed, delete the assignment (to allow a retry/new request for the same bundle)
-        if(!passed) { await client.query(`DELETE FROM user_assignments WHERE id=$1`, [ua.id]); } 
-        await client.query('COMMIT'); 
-        res.json({ success: true, passed, reward }); 
-    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } 
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
+        const { groupId, userId } = req.query;
+        
+        const uReq = await client.query('SELECT role FROM users WHERE id=$1', [userId]);
+        const isAdmin = uReq.rows[0].role === 'ADMIN';
 
-// --- OTHERS ---
-app.post('/api/tasks', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]); await client.query(`INSERT INTO tasks (title, reward, assigned_to, group_id, status) VALUES ($1, $2, $3, $4, 'pending')`, [req.body.title, req.body.reward, req.body.assignedTo, u.rows[0].group_id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/tasks/update', async (req, res) => { try { await client.query('BEGIN'); let final = req.body.status; const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0]; if(req.body.status==='done' && (t.reward==0 || t.reward==null)) final='approved'; else if(req.body.status==='completed_self') final='approved'; await client.query('UPDATE tasks SET status=$1 WHERE id=$2', [final, req.body.taskId]); if(final==='approved' && t.reward>0 && t.status!=='approved') { await client.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`, [t.reward, t.assigned_to]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'salary', 'income', FALSE)`, [t.assigned_to, t.reward, `בוצע: ${t.title}`]); } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-// app.get('/api/transactions') is above
-app.post('/api/transaction', async (req, res) => { try { await client.query('BEGIN'); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5)`, [req.body.userId, req.body.amount, req.body.description, req.body.category, req.body.type]); await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [req.body.type==='income'?req.body.amount:-req.body.amount, req.body.userId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.get('/api/budget/filter', async (req, res) => { try { const budgets = await client.query(`SELECT * FROM budgets WHERE group_id=$1 AND ${req.query.targetUserId==='all' ? 'user_id IS NULL' : 'user_id='+req.query.targetUserId}`, [req.query.groupId]); const data = []; if(req.query.targetUserId === 'all') { const alloc = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND u.role!='ADMIN' AND t.type='income' AND t.category IN ('allowance','salary','bonus') AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId]); data.push({category: 'allocations', limit: 0, spent: alloc.rows[0].total||0}); } for(const b of budgets.rows) { const s = await client.query(`SELECT SUM(amount) as total FROM transactions t JOIN users u ON t.user_id=u.id WHERE u.group_id=$1 AND t.category=$2 AND t.type='expense' ${req.query.targetUserId!=='all'?'AND t.user_id='+req.query.targetUserId:''} AND date_trunc('month', t.date)=date_trunc('month', CURRENT_DATE)`, [req.query.groupId, b.category]); data.push({category: b.category, limit: b.limit_amount, spent: s.rows[0].total||0}); } res.json(data); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/budget/update', async (req, res) => { await client.query(`UPDATE budgets SET limit_amount=$1 WHERE group_id=$2 AND category=$3 AND ${req.body.targetUserId==='all'?'user_id IS NULL':'user_id='+req.body.targetUserId}`, [req.body.limit, req.body.groupId, req.body.category]); res.json({ success: true }); });
-app.post('/api/admin/payday', async (req, res) => { try { await client.query('BEGIN'); const members = await client.query(`SELECT * FROM users WHERE group_id=$1 AND role='MEMBER' AND status='ACTIVE'`, [req.body.groupId]); for (const user of members.rows) { if (user.allowance_amount > 0) { await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'allowance', 'income', FALSE)`, [user.id, user.allowance_amount, 'דמי כיס שבועיים']); await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [user.allowance_amount, user.id]); } } await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.post('/api/goals', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id = $1', [req.body.userId]); await client.query(`INSERT INTO goals (user_id, group_id, title, target_amount, current_amount, status) VALUES ($1, $2, $3, $4, 0, 'active')`, [req.body.targetUserId || req.body.userId, u.rows[0].group_id, req.body.title, req.body.target]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.post('/api/goals/deposit', async (req, res) => { try { await client.query('BEGIN'); await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [req.body.amount, req.body.userId]); await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [req.body.amount, req.body.goalId]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'savings', 'transfer_out', FALSE)`, [req.body.userId, req.body.amount, 'הפקדה לחיסכון']); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
-app.post('/api/admin/update-settings', async (req, res) => { try { await client.query(`UPDATE users SET allowance_amount = $1, interest_rate = $2 WHERE id = $3`, [req.body.allowance, req.body.interest, req.body.userId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
+        let query, params;
+        if(isAdmin) {
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.date DESC ${limit}`;
+             params = [groupId];
+        } else {
+             query = `SELECT t.* FROM transactions t WHERE t.user_id=$1 ORDER BY t.date DESC ${limit}`;
+             params = [userId];
+        }
+
+        const t = await client.query(query, params);
+        res.json(t.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Tasks
+app.post('/api/tasks', async (req, res) => {
+    try {
+        const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
+        await client.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
+            [u.rows[0].group_id, req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tasks/update', async (req, res) => {
+    try {
+        await client.query('BEGIN');
+        const t = (await client.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0];
+        
+        if (req.body.status === 'completed_self') {
+            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+        }
+        else if (req.body.status === 'approved' && t.reward > 0) {
+            await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
+            await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`,
+                [t.assigned_to, t.group_id, t.reward, `תגמול משימה: ${t.title}`]);
+            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+        } else {
+            await client.query('UPDATE tasks SET status = $1 WHERE id = $2', [req.body.status, req.body.taskId]);
+        }
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+// Goals
+app.post('/api/goals', async (req, res) => {
+    try {
+        const { userId, targetUserId, title, target } = req.body;
+        const finalTargetId = targetUserId || userId;
+        await client.query(`INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)`,
+            [userId, finalTargetId, title, target]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/goals/deposit', async (req, res) => {
+    try {
+        await client.query('BEGIN');
+        const { userId, goalId, amount } = req.body;
+        const g = (await client.query('SELECT target_user_id, title FROM goals WHERE id=$1', [goalId])).rows[0];
+        const u = (await client.query('SELECT balance, group_id FROM users WHERE id=$1', [userId])).rows[0];
+        
+        if (parseFloat(u.balance) < parseFloat(amount)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'אין מספיק יתרה' });
+        }
+
+        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+        await client.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
+        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`,
+                [userId, u.group_id, amount, `הפקדה ליעד: ${g.title}`]);
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+// Shopping
+app.post('/api/shopping/add', async (req, res) => {
+    try {
+        const uRes = await client.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
+        const user = uRes.rows[0];
+        const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
+        
+        const iRes = await client.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [user.group_id, req.body.userId, req.body.itemName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
+        
+        // Supermarket Logic Alert
+        let alert = null;
+        const itemLower = req.body.itemName.toLowerCase();
+        if (itemLower.includes('קוקה קולה') || itemLower.includes('קולה')) {
+             alert = { type: 'brand', msg: 'טיפ צרכנות: קריסטל או RC קולה זולים משמעותית. נסה?' };
+        } else if (itemLower.includes('במבה') && !itemLower.includes('אסם')) {
+             alert = { type: 'brand', msg: 'שוש עולה כ-25% פחות. שווה בדיקה!' };
+        } else if (itemLower.includes('מילקי')) {
+             alert = { type: 'brand', msg: 'מעדן שוקולד קצפת של טרה/תנובה לרוב זול יותר ממילקי.' };
+        }
+        res.json({ success: true, id: iRes.rows[0].id, alert });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/update', async (req, res) => {
+    try {
+        const { itemId, status, estimatedPrice } = req.body;
+        let alert = null;
+
+        if (status) {
+            await client.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        }
+        if (estimatedPrice !== undefined) {
+             await client.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+             const itemRes = await client.query('SELECT item_name FROM shopping_list WHERE id=$1', [itemId]);
+             if (itemRes.rows.length > 0) {
+                 const name = itemRes.rows[0].item_name;
+                 const price = parseFloat(estimatedPrice);
+                 // Logic alerts
+                 if (name.includes('חלב') && price > 6.2) alert = { msg: 'שים לב: מחיר חלב בפיקוח הוא כ-6.23 ש"ח.' };
+                 if (name.includes('לחם אחיד') && price > 7.1) alert = { msg: 'שים לב: מחיר לחם אחיד בפיקוח הוא כ-7.10 ש"ח.' };
+             }
+        }
+        res.json({ success: true, alert });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try { await client.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/checkout', async (req, res) => {
+    try {
+        await client.query('BEGIN');
+        const { userId, totalAmount, storeName, branchName, boughtItems, missingItems } = req.body;
+        const u = (await client.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        
+        const tripRes = await client.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
+        const tripId = tripRes.rows[0].id;
+
+        for (let item of boughtItems) {
+            await client.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`,
+                [tripId, item.name, item.quantity, item.price]);
+            await client.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+        }
+        
+        for (let item of missingItems) {
+            await client.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]);
+        }
+
+        await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'groceries', 'expense', FALSE)`,
+            [userId, u.group_id, totalAmount, `קניות בסופר: ${storeName}`]);
+        await client.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/shopping/history', async (req, res) => {
+    try {
+        const trips = await client.query(`
+            SELECT st.*, u.nickname 
+            FROM shopping_trips st JOIN users u ON st.buyer_id = u.id 
+            WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 10`, [req.query.groupId]);
+        for (let t of trips.rows) {
+            const items = await client.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
+            t.items = items.rows;
+        }
+        res.json(trips.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/copy', async (req, res) => {
+    try {
+        const { tripId, userId } = req.body;
+        const u = (await client.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const items = await client.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
+        
+        for(let i of items.rows) {
+            await client.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`,
+                [u.group_id, userId, i.item_name, i.quantity]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Budget Filter
+app.get('/api/budget/filter', async (req, res) => {
+    try {
+        const { groupId, targetUserId } = req.query;
+        let expenses;
+        let limitsQuery = `SELECT category, amount_limit as limit FROM budget_allocations WHERE group_id=$1`;
+        let limitParams = [groupId];
+
+        if (targetUserId && targetUserId !== 'all') {
+            expenses = await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId, targetUserId]);
+            limitsQuery += ` AND target_user_id=$2`;
+            limitParams.push(targetUserId);
+        } else {
+            expenses = await client.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId]);
+            // Aggregate limits for 'all'
+            limitsQuery = `SELECT category, SUM(amount_limit) as limit FROM budget_allocations WHERE group_id=$1 GROUP BY category`;
+        }
+
+        const limits = await client.query(limitsQuery, limitParams);
+        
+        const result = [];
+        const cats = new Set([...expenses.rows.map(r=>r.category), ...limits.rows.map(r=>r.category)]);
+        
+        cats.forEach(c => {
+            const spent = expenses.rows.find(r=>r.category === c)?.spent || 0;
+            const limit = limits.rows.find(r=>r.category === c)?.limit || 0;
+            result.push({ category: c, spent: parseFloat(spent), limit: parseFloat(limit) });
+        });
+
+        // Add special pseudo-category for parent's view (Allocations to children)
+        if (targetUserId === 'all') {
+             const allocations = await client.query(`SELECT SUM(amount) as spent FROM transactions WHERE group_id=$1 AND category='allowance' AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
+             if (allocations.rows[0].spent > 0) {
+                 result.push({ category: 'allocations', spent: parseFloat(allocations.rows[0].spent), limit: 0 });
+             }
+        }
+
+        res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/budget/update', async (req, res) => {
+    try {
+        const { groupId, category, limit, targetUserId } = req.body;
+        const target = targetUserId === 'all' ? null : targetUserId;
+        
+        const exists = await client.query(`SELECT id FROM budget_allocations WHERE group_id=$1 AND category=$2 AND (target_user_id=$3 OR ($3 IS NULL AND target_user_id IS NULL))`, [groupId, category, target]);
+        
+        if (exists.rows.length > 0) {
+            await client.query(`UPDATE budget_allocations SET amount_limit=$1 WHERE id=$2`, [limit || 0, exists.rows[0].id]);
+        } else {
+            await client.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4)`, [groupId, category, target, limit || 0]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Loans
 app.post('/api/loans/request', async (req, res) => { try { const u = await client.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]); await client.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, 'pending')`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.reason]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/loans/handle', async (req, res) => { try { await client.query('BEGIN'); const l = (await client.query('SELECT * FROM loans WHERE id=$1', [req.body.loanId])).rows[0]; if(req.body.status === 'active') { await client.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [l.original_amount, l.user_id]); await client.query(`INSERT INTO transactions (user_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, 'loans', 'income', FALSE)`, [l.user_id, l.original_amount, `הלוואה אושרה: ${l.reason}`]); } await client.query('UPDATE loans SET status = $1 WHERE id = $2', [req.body.status, req.body.loanId]); await client.query('COMMIT'); res.json({ success: true }); } catch (e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); } });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// Academy
+app.get('/api/academy/bundles', async (req, res) => {
+    try {
+        const bundles = await client.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY type, age_group`);
+        res.json(bundles.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days } = req.body;
+        let deadline = null;
+        if (days && parseInt(days) > 0) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(days));
+        }
+
+        // Check if already assigned and not completed
+        const existing = await client.query(`SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned'`, [userId, bundleId]);
+        if (existing.rows.length > 0) return res.status(400).json({ error: 'מבחן זה כבר משויך לילד' });
+
+        await client.query(`
+            INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) 
+            VALUES ($1, $2, $3, $4)
+        `, [userId, bundleId, reward || null, deadline]);
+        
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/request-challenge', async (req, res) => {
+    try {
+        const { userId, bundleId } = req.body;
+        
+        const user = await client.query(`SELECT birth_year FROM users WHERE id=$1`, [userId]);
+        const age = calculateAge(user.rows[0].birth_year);
+        const ageGroup = getAgeGroup(age);
+
+        let targetBundleId = bundleId;
+
+        // If no specific bundle requested, find a random unassigned one appropriate for age
+        if (!targetBundleId) {
+            const available = await client.query(`
+                SELECT id FROM quiz_bundles 
+                WHERE age_group = $1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2)
+            `, [ageGroup, userId]);
+            
+            if (available.rows.length === 0) return res.status(404).json({ error: 'לא מצאנו אתגרים חדשים לגיל שלך כרגע.' });
+            
+            // Pick random
+            targetBundleId = available.rows[Math.floor(Math.random() * available.rows.length)].id;
+        }
+
+        await client.query(`
+            INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)
+        `, [userId, targetBundleId]);
+
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/submit', async (req, res) => {
+    try {
+        await client.query('BEGIN');
+        const { userId, bundleId, score } = req.body;
+        
+        // Find Assignment
+        const assignment = await client.query(`
+            SELECT ua.id, ua.custom_reward, qb.reward as default_reward, qb.threshold, qb.title
+            FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id
+            WHERE ua.user_id = $1 AND ua.bundle_id = $2 AND ua.status = 'assigned'
+            ORDER BY ua.assigned_at DESC LIMIT 1
+        `, [userId, bundleId]);
+
+        if (assignment.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Assignment not found or already completed.' });
+        }
+
+        const a = assignment.rows[0];
+        const passed = score >= a.threshold;
+        const status = passed ? 'completed' : 'failed';
+        
+        await client.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3`, [status, score, a.id]);
+
+        if (passed) {
+            const reward = a.custom_reward !== null ? parseFloat(a.custom_reward) : parseFloat(a.default_reward);
+            if (reward > 0) {
+                const u = await client.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+                await client.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [reward, userId]);
+                await client.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
+                    [userId, u.rows[0].group_id, reward, `בונוס אקדמיה: ${a.title}`]);
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, passed });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
+});
