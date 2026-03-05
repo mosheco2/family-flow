@@ -115,13 +115,11 @@
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
                     </div>
                     
-                    <!-- אצל הילד יופיע אזור לביצוע שימשוך תשומת לב -->
                     <div id="child-todo-section" class="hidden mb-8">
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3>
                         <div id="child-todo-list" class="space-y-3"></div>
                     </div>
 
-                    <!-- פיד משולב: פעולות פיננסיות, משימות, ואתגרים -->
                     <div class="flex justify-between items-center mb-3 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
                         <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none">
@@ -170,15 +168,20 @@
                     </div>
                     <div id="academy-user-view" class="hidden">
                         <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ הגרל אתגר מהיר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3><div id="my-assignments-list" class="space-y-3"></div>
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
+                        <div id="my-assignments-list" class="space-y-3"></div>
                         
+                        <div id="academy-history-container" class="mt-6 hidden">
+                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-sm opacity-80">היסטוריית מבחנים</h3>
+                            <div id="academy-history-list" class="space-y-2"></div>
+                        </div>
+
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-8 border-t border-slate-200 pt-6">📚 ספריית המבחנים</h3>
                         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
                             <div class="flex gap-3 mb-3">
                                 <select id="lib-age-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הגילאים</option><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option><option value="18+">18+</option></select>
                                 <select id="lib-cat-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="reading">קריאה</option><option value="financial">פיננסי</option></select>
                             </div>
-                            <p class="text-[10px] text-slate-400 text-center">מציג <span id="lib-count">0</span> אתגרים</p>
                         </div>
                         <div id="library-list" class="space-y-3 pb-20"></div>
                     </div>
@@ -203,7 +206,6 @@
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up"><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div><button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button></div>
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
         
-        <!-- Invite Modal -->
         <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
                 <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
@@ -242,7 +244,6 @@
         let bundlesCache = [];
         let allBundles = [];
         
-        // Feed Caches
         let allTasks = [];
         let allTransactions = [];
         let feedCache = [];
@@ -348,16 +349,6 @@
             } else {
                 renderShopList();
             }
-
-            if(t==='tasks') { 
-                const s = document.getElementById('task-assignee'); 
-                if (s) {
-                    s.innerHTML=''; 
-                    membersCache.forEach(m => {
-                        if (m.role !== 'ADMIN') s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`;
-                    });
-                }
-            } 
         }
 
         function loadDashboard() {
@@ -409,14 +400,13 @@
                 
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
 
-                // Fetch transactions for the Unified Feed
                 const limit = currentUser.role === 'ADMIN' ? 50 : 20;
                 allTransactions = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=${limit}`)).json();
 
                 renderChildTodo();
                 buildAndRenderFeed();
 
-            } catch(e) {}
+            } catch(e) { console.error('fetchData failed:', e); }
         }
 
         // --- UNIFIED FEED LOGIC ---
@@ -433,8 +423,8 @@
             let hasItems = false;
             let htmlStr = '';
 
-            // 1. Pending Tasks
-            const myTasks = allTasks.filter(t => t.assigned_to == currentUser.id && t.status === 'pending');
+            // Using String() to guarantee type matching between DB and frontend
+            const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
             myTasks.forEach(t => {
                 hasItems = true;
                 htmlStr += `
@@ -450,7 +440,6 @@
                     </div>`;
             });
 
-            // 2. Pending Quizzes
             const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
             myQuizzes.forEach(b => {
                 hasItems = true;
@@ -480,7 +469,6 @@
         function buildAndRenderFeed() {
             feedCache = [];
 
-            // 1. Transactions
             if(allTransactions) {
                 allTransactions.forEach(t => {
                     feedCache.push({
@@ -488,7 +476,7 @@
                         id: t.id,
                         user_id: t.user_id,
                         user_name: t.user_name || currentUser.nickname,
-                        date: new Date(t.date),
+                        date: new Date(t.date || Date.now()),
                         title: t.description,
                         amount: t.amount,
                         isIncome: t.type === 'income',
@@ -497,7 +485,6 @@
                 });
             }
 
-            // 2. Tasks
             if(allTasks) {
                 allTasks.forEach(t => {
                     feedCache.push({
@@ -505,7 +492,7 @@
                         id: `task_${t.id}`,
                         user_id: t.assigned_to,
                         user_name: t.assignee_name,
-                        date: new Date(t.created_at),
+                        date: new Date(t.created_at || Date.now()),
                         title: `משימה: ${t.title}`,
                         amount: t.reward,
                         status: t.status
@@ -513,28 +500,23 @@
                 });
             }
 
-            // 3. Quizzes
             if(bundlesCache) {
                 bundlesCache.forEach(b => {
-                     if (b.assigned_at) {
-                         feedCache.push({
-                             type: 'quiz',
-                             id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
-                             user_id: b.assigned_to_user || currentUser.id,
-                             user_name: b.assignee_name || currentUser.nickname,
-                             date: new Date(b.assigned_at),
-                             title: `אתגר: ${b.title}`,
-                             amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
-                             status: b.status
-                         });
-                     }
+                     feedCache.push({
+                         type: 'quiz',
+                         id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
+                         user_id: b.assigned_to_user || currentUser.id,
+                         user_name: b.assignee_name || currentUser.nickname,
+                         date: new Date(b.assigned_at || Date.now()),
+                         title: `אתגר: ${b.title}`,
+                         amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
+                         status: b.status
+                     });
                 });
             }
 
-            // Sort descending by Date
             feedCache.sort((a, b) => b.date - a.date);
             
-            // Show Filter if Admin
             if(currentUser.role === 'ADMIN') {
                 document.getElementById('feed-user-filter').classList.remove('hidden');
             }
@@ -549,10 +531,10 @@
 
             let filtered = feedCache;
             if (filterUserId !== 'all') {
-                filtered = feedCache.filter(item => item.user_id == filterUserId);
+                filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId));
             }
 
-            filtered = filtered.slice(0, 30); // Max 30 items for smooth scrolling
+            filtered = filtered.slice(0, 30); 
 
             if(filtered.length === 0) {
                 list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות להצגה</p>';
@@ -632,12 +614,12 @@
             let count = 0;
 
             tasks.forEach(t => {
-                const isMyTask = t.assigned_to == currentUser.id;
+                const isMyTask = String(t.assigned_to) === String(currentUser.id);
                 const isAdmin = currentUser.role === 'ADMIN';
-                if (!isMyTask && !isAdmin) return; // הסתרת משימות שלא שייכות לילד
+                if (!isMyTask && !isAdmin) return; 
                 
                 count++;
-                let statusColor = 'bg-white border-slate-50'; // Default
+                let statusColor = 'bg-white border-slate-50'; 
                 let statusBadge = '';
                 let actionBtn = '';
 
@@ -700,6 +682,24 @@
             }
         }
 
+        // Modified: Populate the select dropdown directly when the modal opens
+        function openTaskModal(isSelf = false) { 
+            document.getElementById('task-modal').classList.remove('hidden'); 
+            document.getElementById('task-is-self').value = isSelf; 
+            if(isSelf) { 
+                document.getElementById('task-modal-title').innerText = 'משימה אישית'; 
+                document.getElementById('task-reward-group').classList.add('hidden'); 
+            } else { 
+                document.getElementById('task-modal-title').innerText = 'משימה חדשה'; 
+                document.getElementById('task-reward-group').classList.remove('hidden'); 
+                const s = document.getElementById('task-assignee');
+                s.innerHTML = '';
+                membersCache.forEach(m => {
+                    if (m.role !== 'ADMIN') s.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+                });
+            } 
+        }
+
         function openAssignModal() {
             const cSelect = document.getElementById('assign-child-select');
             cSelect.innerHTML = '';
@@ -740,14 +740,15 @@
             document.getElementById('assign-quiz-modal').classList.add('hidden');
             showToast('success', 'הוקצה בהצלחה');
             
-            // חשוב: ריענון המידע כדי שיופיע מיד בפיד של ההורה/ילד
             fetchData();
         }
 
         function renderMyAssignments(bundles) {
             const list = document.getElementById('my-assignments-list');
-            const historyList = document.getElementById('academy-list');
-            if(!list || !historyList) return;
+            const historyContainer = document.getElementById('academy-history-container');
+            const historyList = document.getElementById('academy-history-list');
+            
+            if(!list) return; // Prevent early return bug that crashed the UI
             
             const activeBundles = bundles.filter(b => b.status === 'assigned');
             const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
@@ -788,24 +789,28 @@
                 list.innerHTML = activeHtml;
             }
             
-            if (doneBundles.length === 0) {
-                historyList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין היסטוריית מבחנים</p>';
-            } else {
-                let historyHtml = '';
-                doneBundles.forEach(b => {
-                    let statusClass = 'bg-gray-100 text-gray-500';
-                    let label = 'הושלם';
-                    if(b.status === 'completed') { statusClass = 'bg-green-100 text-green-600'; }
-                    else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; }
-                    else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
+            // Only manipulate history if it exists in HTML
+            if (historyContainer && historyList) {
+                if (doneBundles.length === 0) {
+                    historyContainer.classList.add('hidden');
+                } else {
+                    historyContainer.classList.remove('hidden');
+                    let historyHtml = '';
+                    doneBundles.forEach(b => {
+                        let statusClass = 'bg-gray-100 text-gray-500';
+                        let label = 'הושלם';
+                        if(b.status === 'completed') { statusClass = 'bg-green-100 text-green-600'; }
+                        else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; }
+                        else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
 
-                    historyHtml += `
-                    <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2">
-                        <span class="text-sm font-bold text-slate-600">${b.title}</span>
-                        <span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span>
-                    </div>`;
-                });
-                historyList.innerHTML = historyHtml;
+                        historyHtml += `
+                        <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2">
+                            <span class="text-sm font-bold text-slate-600">${b.title}</span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span>
+                        </div>`;
+                    });
+                    historyList.innerHTML = historyHtml;
+                }
             }
         }
 
@@ -1251,7 +1256,6 @@
         async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
         function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
         async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openTaskModal(isSelf = false) { document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; if(isSelf) { document.getElementById('task-modal-title').innerText = 'משימה אישית'; document.getElementById('task-reward-group').classList.add('hidden'); } else { document.getElementById('task-modal-title').innerText = 'משימה חדשה'; document.getElementById('task-reward-group').classList.remove('hidden'); } }
         async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
