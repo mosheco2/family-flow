@@ -110,9 +110,6 @@
             <div class="px-2">
                 <div id="content-feed">
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
-                        <div class="flex justify-between items-start mb-4">
-                            <img src="logo.png" alt="Logo" class="w-24 h-auto object-contain" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));">
-                        </div>
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
@@ -168,7 +165,7 @@
                             </div>
                         </div>
                         <div id="academy-pending-container" class="hidden mb-6 bg-orange-50 p-4 rounded-2xl border border-orange-100"><h4 class="text-sm font-bold text-orange-700 mb-2">בקשות לאישור</h4><div id="academy-pending-list" class="space-y-2"></div></div>
-                        <div id="admin-assignments-list" class="space-y-3"></div>
+                        <div id="admin-assignments-list" class="space-y-3 pb-20"></div>
                     </div>
                     <div id="academy-user-view" class="hidden">
                         <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ הגרל אתגר מהיר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
@@ -222,7 +219,6 @@
             </div>
         </div>
 
-        <!-- AI Generator Modal -->
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר חכם ✨</h3>
@@ -270,7 +266,6 @@
         let bundlesCache = [];
         let allBundles = [];
         
-        // Feed Caches
         let allTasks = [];
         let allTransactions = [];
         let feedCache = [];
@@ -410,30 +405,50 @@
 
         async function fetchData() {
             try {
+                if (!currentGroup || !currentGroup.id) return;
                 if (document.activeElement.classList.contains('price-input')) return;
-                const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
+                
+                const res = await fetch(`${API}/data/${currentUser.id}`); 
+                const data = await res.json();
                 
                 currentUser.balance = data.user.balance; 
                 document.getElementById('user-balance').innerText = `₪${currentUser.balance}`;
                 
-                if(data.quiz_bundles) {
-                    bundlesCache = data.quiz_bundles;
-                    renderMyAssignments(data.quiz_bundles);
+                allTasks = Array.isArray(data.tasks) ? data.tasks : [];
+                bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : [];
+                allBundles = Array.isArray(data.all_bundles) ? data.all_bundles : [];
+
+                if (currentUser.role === 'ADMIN') {
+                    renderAdminAcademy();
+                } else {
+                    renderMyAssignments(bundlesCache);
                 }
                 
-                if (data.all_bundles) {
-                    allBundles = data.all_bundles; 
-                    renderLibrary('all'); 
-                }
-                
-                allTasks = data.tasks || [];
                 renderTasks(allTasks);
 
-                shoppingListCache = data.shopping_list; renderShopList(); fetchBudget();
+                shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; 
+                renderShopList(); 
+                fetchBudget();
                 
                 const accList = document.getElementById('bank-accounts-list'); 
                 if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); }
-                const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
+                
+                const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
+                const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
+                if (goalsList) { 
+                    goalsList.innerHTML = ''; 
+                    if(data.goals && data.goals.length > 0) { 
+                        if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                        data.goals.forEach(g => { 
+                            const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); 
+                            const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; 
+                            goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; 
+                        }); 
+                    } else { 
+                        if (goalsContainer) { goalsContainer.classList.add('hidden'); } 
+                        goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; 
+                    } 
+                }
                 
                 if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
                     const spent = parseFloat(data.weekly_stats.spent).toFixed(1); 
@@ -449,7 +464,9 @@
 
                 const limit = currentUser.role === 'ADMIN' ? 50 : 20;
                 const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-                allTransactions = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`)).json();
+                const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+                const transData = await transRes.json();
+                allTransactions = Array.isArray(transData) ? transData : [];
 
                 renderChildTodo();
                 buildAndRenderFeed();
@@ -483,7 +500,7 @@
                     document.getElementById('ai-modal').classList.add('hidden');
                     document.getElementById('ai-topic').value = '';
                     await fetchBundles(); 
-                    openAssignModal(); 
+                    openAssignModalSpecific(data.bundleId);
                 } else {
                     showToast('error', data.error || 'שגיאה ביצירת המבחן');
                 }
@@ -554,7 +571,7 @@
         function buildAndRenderFeed() {
             feedCache = [];
 
-            if(allTransactions) {
+            if(Array.isArray(allTransactions)) {
                 allTransactions.forEach(t => {
                     feedCache.push({
                         type: 'transaction',
@@ -570,7 +587,7 @@
                 });
             }
 
-            if(allTasks) {
+            if(Array.isArray(allTasks)) {
                 allTasks.forEach(t => {
                     feedCache.push({
                         type: 'task',
@@ -585,12 +602,12 @@
                 });
             }
 
-            if(bundlesCache) {
+            if(Array.isArray(bundlesCache)) {
                 bundlesCache.forEach(b => {
                      feedCache.push({
                          type: 'quiz',
-                         id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
-                         user_id: b.assigned_to_user || currentUser.id,
+                         id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`,
+                         user_id: b.user_id || b.assigned_to_user || currentUser.id,
                          user_name: b.assignee_name || currentUser.nickname,
                          date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()),
                          title: `אתגר: ${b.title}`,
@@ -603,17 +620,19 @@
             feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
             
             if(currentUser.role === 'ADMIN') {
-                document.getElementById('feed-user-filter').classList.remove('hidden');
+                const filterEl = document.getElementById('feed-user-filter');
+                if (filterEl) filterEl.classList.remove('hidden');
             }
 
             renderUnifiedFeed();
         }
 
         function renderUnifiedFeed() {
-            const filterUserId = document.getElementById('feed-user-filter').value;
+            const filterEl = document.getElementById('feed-user-filter');
             const list = document.getElementById('unified-feed-list');
             if (!list) return;
 
+            const filterUserId = filterEl ? filterEl.value : 'all';
             let filtered = feedCache;
             
             if (currentUser.role !== 'ADMIN') {
@@ -627,7 +646,7 @@
             filtered = filtered.slice(0, 30); 
 
             if(filtered.length === 0) {
-                list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין פעילות להצגה</p>';
+                list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה עדיין</p></div>';
                 return;
             }
 
@@ -759,7 +778,14 @@
         async function fetchBundles() {
             try {
                 const res = await fetch(`${API}/academy/bundles`);
-                allBundles = await res.json();
+                const responseData = await res.json();
+                allBundles = Array.isArray(responseData) ? responseData : [];
+                
+                if (currentUser && currentUser.role === 'ADMIN') {
+                    renderAdminAcademy();
+                } else {
+                    renderLibrary(document.getElementById('lib-cat-filter')?.value || 'all');
+                }
             } catch(e) {}
         }
 
@@ -814,6 +840,17 @@
             document.getElementById('assign-quiz-modal').classList.remove('hidden');
         }
 
+        function openAssignModalSpecific(bundleId) {
+            openAssignModal();
+            setTimeout(() => {
+                const select = document.getElementById('assign-bundle-select');
+                if (select) {
+                    select.value = bundleId;
+                    updateAssignDetails();
+                }
+            }, 50);
+        }
+
         async function submitAssignQuiz() {
             const childId = document.getElementById('assign-child-select').value;
             const bundleId = document.getElementById('assign-bundle-select').value;
@@ -832,6 +869,56 @@
             showToast('success', 'הוקצה בהצלחה');
             
             fetchData();
+        }
+
+        // --- NEW: Render Admin Academy View ---
+        function renderAdminAcademy() {
+            const list = document.getElementById('admin-assignments-list');
+            if(!list || currentUser.role !== 'ADMIN') return;
+            
+            let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
+            if (!allBundles || allBundles.length === 0) {
+                html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר AI" למעלה!</p>';
+            } else {
+                html += '<div class="space-y-2 mb-8">';
+                allBundles.forEach(b => {
+                    const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈');
+                    html += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
+                                <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p>
+                            </div>
+                        </div>
+                        <button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
+            if (!bundlesCache || bundlesCache.length === 0) {
+                html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>';
+            } else {
+                html += '<div class="space-y-2 pb-20">';
+                bundlesCache.forEach(b => {
+                    let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500');
+                    let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין');
+                    html += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-slate-700 text-sm">${b.title}</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span></p>
+                        </div>
+                        <span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            list.innerHTML = html;
         }
 
         function renderMyAssignments(bundles) {
@@ -1304,6 +1391,7 @@
         async function fetchMembers() { 
             const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
             membersCache = await res.json(); 
+            if(!Array.isArray(membersCache)) membersCache = [];
             
             // Populate Filters
             const budgetFilter = document.getElementById('budget-filter'); 
@@ -1322,10 +1410,12 @@
 
             // Render Member List
             const container = document.getElementById('members-list'); 
-            container.innerHTML = ''; 
-            membersCache.forEach(m => { 
-                container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; 
-            }); 
+            if(container) {
+                container.innerHTML = ''; 
+                membersCache.forEach(m => { 
+                    container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${m.nickname[0]}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; 
+                }); 
+            }
             
             const accList = document.getElementById('bank-accounts-list'); 
             if (accList) { 
@@ -1357,12 +1447,13 @@
         // --- ADMIN USERS ---
         async function fetchPendingUsers() {
             try {
+                if(!currentGroup || !currentGroup.id) return;
                 const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
                 const users = await res.json();
                 const list = document.getElementById('pending-list');
                 const container = document.getElementById('admin-panel');
                 
-                if (users.length > 0) {
+                if (users && users.length > 0) {
                     container.classList.remove('hidden');
                     list.innerHTML = '';
                     users.forEach(u => {
@@ -1376,7 +1467,7 @@
                         </div>`;
                     });
                 } else {
-                    container.classList.add('hidden');
+                    if(container) container.classList.add('hidden');
                 }
             } catch(e) { console.error(e); }
         }
