@@ -49,6 +49,8 @@
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        .ai-task-option { border: 1px solid #e2e8f0; transition: all 0.2s; cursor: pointer; }
+        .ai-task-option:hover { border-color: #a855f7; background-color: #faf5ff; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -188,7 +190,16 @@
                     </div>
                 </div>
                 <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
-                <div id="content-tasks" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3><div class="flex gap-2"><button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button><button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button></div></div><div id="tasks-list" class="space-y-3 pb-20"></div></div>
+                <div id="content-tasks" class="hidden">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
+                        <div class="flex gap-2">
+                            <button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button>
+                            <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button>
+                        </div>
+                    </div>
+                    <div id="tasks-list" class="space-y-3 pb-20"></div>
+                </div>
                 <div id="content-members" class="hidden space-y-6">
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
@@ -240,6 +251,27 @@
             </div>
         </div>
 
+        <!-- NEW: AI Task Generator Modal -->
+        <div id="ai-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">הצעות ה-AI למשימות ✨</h3>
+                <p class="text-sm text-slate-500 mb-4 text-center">ספר ל-AI במה אתה צריך עזרה</p>
+                <input type="text" id="ai-task-topic" class="modern-input mb-3" placeholder="למשל: לארגן את הסלון">
+                <div class="flex gap-2 mb-4">
+                    <input type="number" id="ai-task-age" class="modern-input flex-1 text-center" placeholder="גיל הילד (למשל: 10)">
+                    <button onclick="generateAITasks()" id="btn-ai-task-gen" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 rounded-xl font-bold shadow-md"><i class="fa-solid fa-wand-magic-sparkles"></i> חפש</button>
+                </div>
+                
+                <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 border-t border-slate-100 pt-4">
+                    <!-- AI suggestions will appear here -->
+                </div>
+
+                <div class="mt-4">
+                    <button onclick="document.getElementById('ai-task-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500">סגור</button>
+                </div>
+            </div>
+        </div>
+
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
@@ -249,7 +281,15 @@
         <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div></div>
         <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div></div>
         <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3><p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id"><input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי"><div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div></div></div>
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false"><input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
+        <div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center" id="task-modal-title">משימה חדשה</h3><input type="hidden" id="task-is-self" value="false">
+            
+            <div id="task-ai-trigger" class="mb-4">
+                <button type="button" onclick="openAITaskModal()" class="w-full bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 text-purple-700 py-2 rounded-xl text-xs font-bold shadow-sm hover:scale-[1.02] transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> עזור לי להמציא משימות ותמחור
+                </button>
+            </div>
+
+            <input type="text" id="task-title" class="modern-input mb-3" placeholder="מה לעשות?"><div id="task-reward-group"><input type="number" id="task-reward" class="modern-input mb-3" placeholder="תגמול (₪)"><select id="task-assignee" class="modern-input mb-6 bg-white"></select></div><div class="flex gap-3"><button onclick="document.getElementById('task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">צור</button></div></div></div>
         <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
         
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white" onchange="updateAssignDetails()"></select><div class="flex gap-2 mb-6"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">תוקף (ימים):</label><input type="number" id="assign-days" class="modern-input text-center" placeholder="ללא"></div></div><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצאה</button></div></div></div>
@@ -383,7 +423,6 @@
             } 
         }
 
-        // TWEAKED: Await members before fetching data to ensure dropdowns and filters work!
         async function loadDashboard() {
             document.getElementById('auth-container').classList.add('hidden'); 
             document.getElementById('dashboard-container').classList.remove('hidden'); 
@@ -419,7 +458,6 @@
             await fetchData();
         }
 
-        // PROTECTED: Wrapped all logic in try-catch to prevent silent failing
         async function fetchData() {
             try {
                 if (!currentGroup || !currentGroup.id) return;
@@ -493,7 +531,6 @@
                     if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
                 }
 
-                // Fetch transactions wrapped in try-catch to not break the rest of the feed
                 const limit = currentUser.role === 'ADMIN' ? 50 : 20;
                 const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
                 try {
@@ -513,10 +550,8 @@
             } catch(e) { console.error('fetchData failed:', e); }
         }
 
-        // --- AI LOGIC ---
-        function openAIModal() {
-            document.getElementById('ai-modal').classList.remove('hidden');
-        }
+        // --- AI LOGIC (Tasks & Academy) ---
+        function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
         
         async function generateAIQuiz() {
             const btn = document.getElementById('btn-ai-gen');
@@ -549,6 +584,61 @@
                 btn.disabled = false;
                 btn.innerText = 'צור אתגר';
             }
+        }
+
+        function openAITaskModal() {
+            document.getElementById('ai-task-results').classList.add('hidden');
+            document.getElementById('ai-task-results').innerHTML = '';
+            document.getElementById('ai-task-topic').value = '';
+            document.getElementById('ai-task-modal').classList.remove('hidden');
+        }
+
+        async function generateAITasks() {
+            const btn = document.getElementById('btn-ai-task-gen');
+            const age = val('ai-task-age');
+            const topic = val('ai-task-topic');
+            
+            if(!topic || !age) return showToast('error', 'נא להזין גיל ונושא');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            
+            try {
+                const res = await fetch(`${API}/tasks/ai-generate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ age: age, topic: topic })
+                });
+                const data = await res.json();
+                
+                if(data.success && data.tasks.length > 0) {
+                    const resultsContainer = document.getElementById('ai-task-results');
+                    resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקלק על משימה כדי לבחור אותה:</p>';
+                    
+                    data.tasks.forEach(task => {
+                        resultsContainer.innerHTML += `
+                        <div onclick="selectAITask('${task.title}', ${task.reward})" class="ai-task-option p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2">
+                            <span class="text-sm font-bold text-slate-700">${task.title}</span>
+                            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${task.reward}</span>
+                        </div>`;
+                    });
+                    resultsContainer.classList.remove('hidden');
+                    triggerConfetti();
+                } else {
+                    showToast('error', 'ה-AI לא הצליח לייצר משימות. נסה שוב.');
+                }
+            } catch(e) {
+                showToast('error', 'תקלה בתקשורת עם השרת');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפש';
+            }
+        }
+
+        function selectAITask(title, reward) {
+            document.getElementById('task-title').value = title;
+            document.getElementById('task-reward').value = reward;
+            document.getElementById('ai-task-modal').classList.add('hidden');
         }
 
         // --- UNIFIED FEED LOGIC ---
@@ -677,7 +767,6 @@
             if (currentUser.role !== 'ADMIN') {
                 filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id));
             } else {
-                // FIXED: Handle case where filterUserId is somehow empty string
                 if (filterUserId !== 'all' && filterUserId !== '') {
                     filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId));
                 }
@@ -814,6 +903,38 @@
             fetchData(); 
         }
 
+        function openTaskModal(isSelf = false) { 
+            document.getElementById('task-modal').classList.remove('hidden'); 
+            document.getElementById('task-is-self').value = isSelf; 
+            
+            if(isSelf) { 
+                document.getElementById('task-modal-title').innerText = 'משימה אישית'; 
+                document.getElementById('task-reward-group').classList.add('hidden'); 
+                document.getElementById('task-ai-trigger').classList.add('hidden');
+            } else { 
+                document.getElementById('task-modal-title').innerText = 'משימה חדשה'; 
+                document.getElementById('task-reward-group').classList.remove('hidden'); 
+                document.getElementById('task-ai-trigger').classList.remove('hidden');
+                const s = document.getElementById('task-assignee');
+                if(s) {
+                    s.innerHTML = '';
+                    membersCache.forEach(m => {
+                        if (m.role !== 'ADMIN') s.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+                    });
+                }
+            } 
+        }
+
+        async function submitTask() { 
+            const isSelf = document.getElementById('task-is-self').value === 'true'; 
+            const assignee = isSelf ? currentUser.id : val('task-assignee'); 
+            const reward = isSelf ? 0 : val('task-reward'); 
+            await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); 
+            if(isSelf) triggerConfetti(); 
+            document.getElementById('task-modal').classList.add('hidden'); 
+            fetchData(); 
+        }
+
         // --- ACADEMY LOGIC ---
         async function fetchBundles() {
             try {
@@ -838,28 +959,8 @@
             }
         }
 
-        function openTaskModal(isSelf = false) { 
-            document.getElementById('task-modal').classList.remove('hidden'); 
-            document.getElementById('task-is-self').value = isSelf; 
-            if(isSelf) { 
-                document.getElementById('task-modal-title').innerText = 'משימה אישית'; 
-                document.getElementById('task-reward-group').classList.add('hidden'); 
-            } else { 
-                document.getElementById('task-modal-title').innerText = 'משימה חדשה'; 
-                document.getElementById('task-reward-group').classList.remove('hidden'); 
-                const s = document.getElementById('task-assignee');
-                if(s) {
-                    s.innerHTML = '';
-                    membersCache.forEach(m => {
-                        if (m.role !== 'ADMIN') s.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
-                    });
-                }
-            } 
-        }
-
         function openAssignModal() {
             const cSelect = document.getElementById('assign-child-select');
-            // FIXED: Show placeholder if membersCache is empty, otherwise populate it!
             cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
             if(membersCache) {
                 membersCache.forEach(m => {
@@ -871,7 +972,6 @@
             bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
             
             if (allBundles && allBundles.length > 0) {
-                // FIXED: Display the bundles chronologically (so the newest AI is at the top)
                 allBundles.forEach(b => {
                     bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${b.title} (${b.age_group})</option>`;
                 });
@@ -902,7 +1002,6 @@
             const reward = document.getElementById('assign-reward').value;
             const days = document.getElementById('assign-days').value;
             
-            // FIXED: Show error to user instead of silently failing
             if(!childId) { showToast('error', 'אנא בחר ילד להקצאה'); return; }
             if(!bundleId) { showToast('error', 'אנא בחר אתגר להקצאה'); return; }
 
@@ -1474,7 +1573,6 @@
         async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
         function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
         async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        async function submitTask() { const isSelf = document.getElementById('task-is-self').value === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: val('task-title'), reward: reward, assignedTo: assignee })}); if(isSelf) triggerConfetti(); document.getElementById('task-modal').classList.add('hidden'); fetchData(); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
         async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
