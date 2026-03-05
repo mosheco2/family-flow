@@ -244,6 +244,7 @@
         let bundlesCache = [];
         let allBundles = [];
         
+        // Feed Caches
         let allTasks = [];
         let allTransactions = [];
         let feedCache = [];
@@ -423,7 +424,6 @@
             let hasItems = false;
             let htmlStr = '';
 
-            // Using String() to guarantee type matching between DB and frontend
             const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
             myTasks.forEach(t => {
                 hasItems = true;
@@ -476,7 +476,7 @@
                         id: t.id,
                         user_id: t.user_id,
                         user_name: t.user_name || currentUser.nickname,
-                        date: new Date(t.date || Date.now()),
+                        date: t.date ? new Date(t.date) : new Date(),
                         title: t.description,
                         amount: t.amount,
                         isIncome: t.type === 'income',
@@ -491,8 +491,8 @@
                         type: 'task',
                         id: `task_${t.id}`,
                         user_id: t.assigned_to,
-                        user_name: t.assignee_name,
-                        date: new Date(t.created_at || Date.now()),
+                        user_name: t.assignee_name || currentUser.nickname,
+                        date: t.created_at ? new Date(t.created_at) : new Date(),
                         title: `משימה: ${t.title}`,
                         amount: t.reward,
                         status: t.status
@@ -507,7 +507,7 @@
                          id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
                          user_id: b.assigned_to_user || currentUser.id,
                          user_name: b.assignee_name || currentUser.nickname,
-                         date: new Date(b.assigned_at || Date.now()),
+                         date: b.assigned_at ? new Date(b.assigned_at) : new Date(),
                          title: `אתגר: ${b.title}`,
                          amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
                          status: b.status
@@ -530,8 +530,14 @@
             if (!list) return;
 
             let filtered = feedCache;
-            if (filterUserId !== 'all') {
-                filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId));
+            
+            // כאן התיקון: הילד רואה בפיד אך ורק פעולות ששייכות לו אישית!
+            if (currentUser.role !== 'ADMIN') {
+                filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id));
+            } else {
+                if (filterUserId !== 'all') {
+                    filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId));
+                }
             }
 
             filtered = filtered.slice(0, 30); 
@@ -682,7 +688,6 @@
             }
         }
 
-        // Modified: Populate the select dropdown directly when the modal opens
         function openTaskModal(isSelf = false) { 
             document.getElementById('task-modal').classList.remove('hidden'); 
             document.getElementById('task-is-self').value = isSelf; 
@@ -693,10 +698,12 @@
                 document.getElementById('task-modal-title').innerText = 'משימה חדשה'; 
                 document.getElementById('task-reward-group').classList.remove('hidden'); 
                 const s = document.getElementById('task-assignee');
-                s.innerHTML = '';
-                membersCache.forEach(m => {
-                    if (m.role !== 'ADMIN') s.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
-                });
+                if(s) {
+                    s.innerHTML = '';
+                    membersCache.forEach(m => {
+                        if (m.role !== 'ADMIN') s.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+                    });
+                }
             } 
         }
 
@@ -748,7 +755,7 @@
             const historyContainer = document.getElementById('academy-history-container');
             const historyList = document.getElementById('academy-history-list');
             
-            if(!list) return; // Prevent early return bug that crashed the UI
+            if(!list) return; 
             
             const activeBundles = bundles.filter(b => b.status === 'assigned');
             const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
@@ -789,7 +796,6 @@
                 list.innerHTML = activeHtml;
             }
             
-            // Only manipulate history if it exists in HTML
             if (historyContainer && historyList) {
                 if (doneBundles.length === 0) {
                     historyContainer.classList.add('hidden');
