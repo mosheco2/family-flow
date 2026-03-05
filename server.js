@@ -45,14 +45,13 @@ const generateGroupCode = () => {
     return code;
 };
 
-// --- API ENDPOINTS ---
+// --- AI ENDPOINTS ---
 
-// AI Generator Endpoint for Admin
+// AI Generator Endpoint for Academy Quizzes
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
 
-        // הבטחה שה-AI מחזיר JSON נקי בלבד
         const model = genAI.getGenerativeModel({ 
             model: "gemini-2.5-flash",
             generationConfig: { responseMimeType: "application/json" }
@@ -76,13 +75,10 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         }`;
 
         const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
-        
-        // Clean up markdown block if present
-        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const responseText = result.response.text();
         const quizData = JSON.parse(responseText);
 
-        // Save AI Quiz to DB (FIXED: Removed 'created_by' to match existing database schema)
+        // Save AI Quiz to DB
         const bundleRes = await pool.query(
             `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
             [ageGroup, quizData.title, quizData.text_content || '']
@@ -102,6 +98,40 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// AI Task Generator Endpoint
+app.post('/api/tasks/ai-generate', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
+
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const { age, topic } = req.body;
+        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50).
+        Requirements:
+        1. Language MUST be Hebrew.
+        2. Output STRICTLY as a JSON array of objects matching this schema exactly:
+        [
+          {
+            "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)",
+            "reward": 15
+          }
+        ]`;
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const tasks = JSON.parse(responseText);
+
+        res.json({ success: true, tasks });
+    } catch (e) {
+        console.error('AI Task Gen Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 // Setup DB
 app.get('/setup-db', async (req, res) => {
@@ -131,7 +161,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
-            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
