@@ -2,12 +2,18 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
+// Import Google Gen AI SDK
+const { GoogleGenAI } = require('@google/genai');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Initialize Gemini API (Expects GEMINI_API_KEY environment variable)
+const ai = new GoogleGenAI({});
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -21,6 +27,7 @@ pool.connect()
   .then(() => console.log('✅ Connected to DB (Pool)'))
   .catch(err => console.error('Connection Error', err.stack));
 
+// --- HELPERS (For Age, Grouping and Code Generation) ---
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 
 const getAgeGroup = (age) => {
@@ -42,7 +49,57 @@ const generateGroupCode = () => {
     return code;
 };
 
-// --- CONTENT GENERATORS ---
+// --- AI GENERATORS ---
+
+// Function to generate Quiz via Gemini
+async function generateQuizWithAI(type, ageGroup) {
+    let topicDescription = "";
+    if (type === 'math') topicDescription = "שאלות בחשבון ומתמטיקה";
+    else if (type === 'reading') topicDescription = "שאלות הבנת הנקרא, אוצר מילים וקריאה נכונה בעברית";
+    else if (type === 'english') topicDescription = "שאלות באנגלית, אוצר מילים ודקדוק בסיסי";
+    else if (type === 'financial') topicDescription = "מושגי יסוד בכלכלה, חיסכון והתנהלות פיננסית נכונה";
+
+    const prompt = `
+    Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topicDescription}" for children aged ${ageGroup}.
+    
+    Requirements:
+    1. The language MUST be Hebrew (except for English questions where the answers or words might be in English).
+    2. Tone should be encouraging and age-appropriate.
+    3. Output the result strictly as a JSON object matching this exact schema, without any markdown formatting, backticks, or extra text:
+    
+    {
+      "title": "A catchy title for the quiz",
+      "text_content": "An optional short educational text or story to read before answering the questions. Make it engaging. (Leave as null if not needed, like for simple math).",
+      "questions": [
+        {
+          "q": "The question text",
+          "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+          "correct": 0 // The zero-based index of the correct option
+        }
+      ]
+    }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+            }
+        });
+        
+        const responseText = response.text;
+        const quizData = JSON.parse(responseText);
+        return quizData;
+    } catch (error) {
+        console.error("AI Generation Error:", error);
+        return null;
+    }
+}
+
+
+// --- CONTENT GENERATORS (Legacy Fallbacks for Seeding) ---
 const generateMath = (ageGroup) => {
     const questions = [];
     for (let i = 0; i < 5; i++) {
@@ -89,25 +146,11 @@ const readingContent = [
             { q: "באיזה צבע הכדור של רקסי?", options: ["אדום", "כחול", "צהוב", "ירוק"], correct: 2 },
             { q: "מתי דני משחק עם רקסי?", options: ["בבוקר", "אחרי בית הספר", "בלילה", "לפני השינה"], correct: 1 }
         ]
-    },
-    {
-        age_group: '8-10',
-        title: "הטיול לירושלים",
-        text: "ביום שלישי נסעה כיתה ד' לטיול בירושלים. הם ביקרו בשוק מחנה יהודה, אכלו פלאפל טעים וראו את חומות העיר העתיקה. דנה קנתה לאמא שלה מתנה קטנה בשוק - שרשרת יפה.",
-        questions: [
-            { q: "לאן נסעה כיתה ד'?", options: ["לתל אביב", "לחיפה", "לירושלים", "לאילת"], correct: 2 },
-            { q: "מה הם אכלו בשוק?", options: ["פיצה", "פלאפל", "המבורגר", "שווארמה"], correct: 1 },
-            { q: "מה דנה קנתה לאמא שלה?", options: ["צמיד", "עגילים", "טבעת", "שרשרת"], correct: 3 }
-        ]
     }
 ];
 
 const englishContent = [
-    { age_group: '6-8', title: "Animals", questions: [{ q: "איך אומרים כלב באנגלית?", options: ["Cat", "Dog", "Bird", "Fish"], correct: 1 }, { q: "איך אומרים חתול?", options: ["Dog", "Cat", "Cow", "Pig"], correct: 1 }] },
-    { age_group: '8-10', title: "Present & Past", questions: [{ q: "What is the past tense of 'Go'?", options: ["Goes", "Going", "Went", "Gone"], correct: 2 }, { q: "She ___ to the store yesterday.", options: ["go", "went", "goes", "going"], correct: 1 }] },
-    { age_group: '10-13', title: "Comparatives", questions: [{ q: "An elephant is ___ than a dog.", options: ["big", "biggest", "bigger", "more big"], correct: 2 }, { q: "This is the ___ book I have ever read.", options: ["good", "better", "best", "most good"], correct: 2 }] },
-    { age_group: '13-15', title: "Passive Voice", questions: [{ q: "The book ___ by Mark Twain.", options: ["wrote", "was written", "writes", "is write"], correct: 1 }, { q: "The window ___ yesterday.", options: ["broke", "was broken", "breaks", "is break"], correct: 1 }] },
-    { age_group: '15-18', title: "Conditionals", questions: [{ q: "If I had money, I ___ a car.", options: ["will buy", "would buy", "bought", "buy"], correct: 1 }, { q: "Unless you ___, you will fail.", options: ["study", "will study", "studied", "would study"], correct: 0 }] }
+    { age_group: '6-8', title: "Animals", questions: [{ q: "איך אומרים כלב באנגלית?", options: ["Cat", "Dog", "Bird", "Fish"], correct: 1 }, { q: "איך אומרים חתול?", options: ["Dog", "Cat", "Cow", "Pig"], correct: 1 }] }
 ];
 
 const financialContent = [
@@ -118,33 +161,6 @@ const financialContent = [
         questions: [
             { q: "מה זה חיסכון?", options: ["לבזבז הכל עכשיו", "לשמור כסף לעתיד", "לבקש הלוואה", "לתת מתנות"], correct: 1 },
             { q: "למה כדאי לחסוך?", options: ["כדי שייגמר הכסף", "כדי לקנות משהו גדול בעתיד", "כי זה משעמם", "כדי לאבד את הכסף"], correct: 1 }
-        ]
-    },
-    {
-        age_group: '10-13',
-        title: "הכנסות והוצאות",
-        text: "הכנסה היא כסף שנכנס אלינו (כמו דמי כיס או משכורת). הוצאה היא כסף שאנחנו משלמים על דברים (כמו קניית משחק או אוכל). תקציב מאוזן הוא מצב שבו ההוצאות לא גדולות מההכנסות.",
-        questions: [
-            { q: "מהי הוצאה?", options: ["דמי כיס שאני מקבל", "כסף שאני משלם בחנות", "מתנה מסבתא", "משכורת"], correct: 1 },
-            { q: "מתי התקציב שלנו מאוזן?", options: ["כשההוצאות גדולות מההכנסות", "כשאנחנו קונים כל מה שבא לנו", "כשההוצאות לא גדולות מההכנסות", "כשאנחנו לוקחים הלוואות"], correct: 2 }
-        ]
-    },
-    {
-        age_group: '13-15',
-        title: "ריבית דריבית - פלא הכלכלה",
-        text: "ריבית היא תשלום שאנחנו מקבלים על כך שאנחנו נותנים לבנק לשמור על הכסף שלנו. 'ריבית דריבית' (Compound Interest) אומרת שהריבית שאנחנו מרוויחים מצטרפת לסכום המקורי, ובפעם הבאה נרוויח ריבית גם על הריבית שכבר קיבלנו! כך הכסף גדל מהר יותר.",
-        questions: [
-            { q: "מהי ריבית על חיסכון?", options: ["קנס שאנחנו משלמים", "תשלום שהבנק נותן לנו על שמירת הכסף", "מס לממשלה", "דמי ניהול חשבון"], correct: 1 },
-            { q: "למה 'ריבית דריבית' נחשבת טובה לחוסכים?", options: ["כי מרוויחים ריבית גם על הריבית שנצברה", "כי היא מקטינה את הכסף", "כי הריבית תמיד נשארת אותו דבר", "כי הבנק לוקח לנו עמלה"], correct: 0 }
-        ]
-    },
-    {
-        age_group: '15-18',
-        title: "שוק ההון ומניות - הבסיס",
-        text: "מניה היא חלק קטן מבעלות על חברה. כשאתה קונה מניה, אתה בעצם הופך לשותף קטן בחברה (כמו אפל או גוגל). אם החברה מצליחה ומרוויחה, ערך המניה בדרך כלל עולה, ואתה מרוויח. אם החברה מפסידה, ערך המניה יכול לרדת.",
-        questions: [
-            { q: "מה זה בעצם מניה?", options: ["הלוואה מהבנק", "חלק מבעלות על חברה", "סוג של כסף מזומן", "ביטוח חיים"], correct: 1 },
-            { q: "מה קורה לערך המניה אם החברה מצליחה מאוד?", options: ["הוא בדרך כלל יורד", "הוא נשאר בדיוק אותו דבר", "הוא בדרך כלל עולה", "המניה נמחקת"], correct: 2 }
         ]
     }
 ];
@@ -172,27 +188,24 @@ async function seedDatabase() {
             }
         };
 
-        const ageGroups = ['6-8', '8-10', '10-13', '13-15', '15-18'];
+        const ageGroups = ['6-8', '8-10', '10-13'];
 
-        for (let i = 1; i <= 30; i++) {
+        // Seeding a smaller set now since AI handles dynamic requests
+        for (let i = 1; i <= 3; i++) {
             for (const age of ageGroups) {
                 const mathId = await insertBundle('math', age, `אתגר חשבון ${i}`, null);
                 await insertQuestions(mathId, generateMath(age));
 
-                const readBase = readingContent.find(c => c.age_group === age) || readingContent[0];
+                const readBase = readingContent[0];
                 const readId = await insertBundle('reading', age, `${readBase.title} - חלק ${i}`, readBase.text);
                 await insertQuestions(readId, readBase.questions);
-
-                const engBase = englishContent.find(c => c.age_group === age) || englishContent[0];
-                const engId = await insertBundle('english', age, `English Test ${i} (${engBase.title})`, null);
-                await insertQuestions(engId, engBase.questions);
-
-                const finBase = financialContent.find(c => c.age_group === age) || financialContent[0];
+                
+                const finBase = financialContent[0];
                 const finId = await insertBundle('financial', age, `פיננסי: ${finBase.title} (${i})`, finBase.text);
                 await insertQuestions(finId, finBase.questions);
             }
         }
-        console.log("Seeding complete: Created ~600 quiz bundles!");
+        console.log("Seeding complete: Created base quiz bundles!");
     } catch (e) {
         console.error("Seeding error:", e);
     }
@@ -608,7 +621,6 @@ app.post('/api/tasks', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
-        // FIX: Insert task with createdBy from the payload (or default to assignedTo if self task)
         await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`,
             [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
         res.json({ success: true });
@@ -838,23 +850,58 @@ app.post('/api/academy/assign', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// UPDATE: request-challenge using AI
 app.post('/api/academy/request-challenge', async (req, res) => {
     try {
         const { userId, bundleId } = req.body;
+        
+        if (bundleId) {
+            // Assign existing bundle
+            await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, bundleId]);
+            return res.json({ success: true });
+        }
+
+        // Generate AI Quiz dynamically if no specific bundle requested
         const user = await pool.query(`SELECT birth_year FROM users WHERE id=$1`, [userId]);
         const age = calculateAge(user.rows[0].birth_year);
         const ageGroup = getAgeGroup(age);
+        
+        // Randomly pick a category
+        const categories = ['math', 'reading', 'english', 'financial'];
+        const targetType = categories[Math.floor(Math.random() * categories.length)];
 
-        let targetBundleId = bundleId;
+        // Call Gemini AI
+        const aiQuiz = await generateQuizWithAI(targetType, ageGroup);
 
-        if (!targetBundleId) {
+        if (!aiQuiz || !aiQuiz.questions || aiQuiz.questions.length === 0) {
+            // Fallback: Pick an unassigned pre-seeded quiz
             const available = await pool.query(`SELECT id FROM quiz_bundles WHERE age_group = $1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2)`, [ageGroup, userId]);
             if (available.rows.length === 0) return res.status(404).json({ error: 'לא מצאנו אתגרים חדשים לגיל שלך כרגע.' });
-            targetBundleId = available.rows[Math.floor(Math.random() * available.rows.length)].id;
+            
+            const targetBundleId = available.rows[Math.floor(Math.random() * available.rows.length)].id;
+            await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, targetBundleId]);
+            return res.json({ success: true, aiGenerated: false });
         }
 
-        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, targetBundleId]);
-        res.json({ success: true });
+        // Save AI Quiz to DB
+        const bundleRes = await pool.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 80, 10.0) RETURNING id`,
+            [targetType, ageGroup, aiQuiz.title, aiQuiz.text_content || null]
+        );
+        const newBundleId = bundleRes.rows[0].id;
+
+        for (const q of aiQuiz.questions) {
+            await pool.query(
+                `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
+                [newBundleId, q.q, JSON.stringify(q.options), q.correct]
+            );
+        }
+
+        // Assign to user
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, newBundleId]);
+
+        res.json({ success: true, aiGenerated: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
