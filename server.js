@@ -76,12 +76,15 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         }`;
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        let responseText = result.response.text();
+        
+        // Clean up markdown block if present
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const quizData = JSON.parse(responseText);
 
-        // Save AI Quiz to DB
+        // Save AI Quiz to DB (FIXED: Removed 'created_by' to match existing database schema)
         const bundleRes = await pool.query(
-            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ('financial', $1, $2, $3, 80, 10.0, 'AI') RETURNING id`,
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
             [ageGroup, quizData.title, quizData.text_content || '']
         );
         const newBundleId = bundleRes.rows[0].id;
