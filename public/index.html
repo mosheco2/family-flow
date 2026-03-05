@@ -115,13 +115,11 @@
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
                     </div>
                     
-                    <!-- אצל הילד יופיע אזור לביצוע שימשוך תשומת לב -->
                     <div id="child-todo-section" class="hidden mb-8">
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3>
                         <div id="child-todo-list" class="space-y-3"></div>
                     </div>
 
-                    <!-- פיד משולב: פעולות פיננסיות, משימות, ואתגרים -->
                     <div class="flex justify-between items-center mb-3 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
                         <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none">
@@ -148,7 +146,7 @@
                         <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
                             <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
                             <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
+                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                         </div>
                         <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
                         <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
@@ -401,10 +399,23 @@
                 if (accList) { accList.innerHTML = ''; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${m.nickname[0]}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); }
                 const goalsList = currentUser.role === 'ADMIN' ? document.getElementById('admin-goals-list') : document.getElementById('my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; if (goalsList && data.goals) { goalsList.innerHTML = ''; if(data.goals.length > 0) { if(goalsContainer) goalsContainer.classList.remove('hidden'); data.goals.forEach(g => { const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; }); } else if (goalsContainer) { goalsContainer.classList.add('hidden'); } else { goalsList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין יעדים פעילים</p>'; } }
                 
-                if (currentUser.role !== 'ADMIN' && data.weekly_stats) { const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; const bar = document.getElementById('card-spend-bar'); bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; document.getElementById('card-spend-msg').innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; }
+                if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                    const spent = parseFloat(data.weekly_stats.spent).toFixed(1); 
+                    const limit = parseFloat(data.weekly_stats.limit).toFixed(1); 
+                    const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                    document.getElementById('card-spend-status').innerText = `₪${spent} מתוך ₪${limit}`; 
+                    const bar = document.getElementById('card-spend-bar'); 
+                    bar.style.width = `${Math.min(100, pct)}%`; 
+                    bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; 
+                    // תוקן: בדיקה שהאלמנט קיים כדי למנוע קריסה שקטה שעוצרת את המשך הרינדור!
+                    const msgEl = document.getElementById('card-spend-msg');
+                    if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
+                }
 
                 const limit = currentUser.role === 'ADMIN' ? 50 : 20;
-                allTransactions = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${currentUser.id}&limit=${limit}`)).json();
+                // תוקן: האדמין חייב לקבל את *כל* הפעולות ולא רק את שלו.
+                const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+                allTransactions = await (await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`)).json();
 
                 renderChildTodo();
                 buildAndRenderFeed();
@@ -506,10 +517,11 @@
                 bundlesCache.forEach(b => {
                      feedCache.push({
                          type: 'quiz',
-                         id: `quiz_${b.bundle_id}_${b.assigned_to_user || currentUser.id}`,
-                         user_id: b.assigned_to_user || currentUser.id,
+                         id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`,
+                         user_id: b.user_id || b.assigned_to_user || currentUser.id,
                          user_name: b.assignee_name || currentUser.nickname,
-                         date: b.assigned_at ? new Date(b.assigned_at) : new Date(),
+                         // הגנה כפולה על יצירת התאריך כדי שלא יקרוס
+                         date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()),
                          title: `אתגר: ${b.title}`,
                          amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
                          status: b.status
@@ -517,7 +529,8 @@
                 });
             }
 
-            feedCache.sort((a, b) => b.date - a.date);
+            // סידור בטוח למקרה של תאריכים חסרים
+            feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
             
             if(currentUser.role === 'ADMIN') {
                 document.getElementById('feed-user-filter').classList.remove('hidden');
@@ -550,7 +563,7 @@
 
             let html = '';
             filtered.forEach(item => {
-                if(isNaN(item.date.getTime())) return;
+                if(!item.date || isNaN(item.date.getTime())) return;
 
                 const colorClass = userColors[item.user_id % userColors.length] || 'bg-white border-slate-50';
                 const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
