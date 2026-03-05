@@ -353,7 +353,6 @@
                 const s = document.getElementById('task-assignee'); 
                 if (s) {
                     s.innerHTML=''; 
-                    // מסנן: אל תציג את המנהלים (הורים) ברשימת הקצאת המשימות כדי למנוע טעויות
                     membersCache.forEach(m => {
                         if (m.role !== 'ADMIN') s.innerHTML+=`<option value="${m.id}">${m.nickname}</option>`;
                     });
