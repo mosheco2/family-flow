@@ -611,13 +611,14 @@
                 });
                 const data = await res.json();
                 
-                if(data.success && data.tasks.length > 0) {
+                if(data.success && data.tasks && data.tasks.length > 0) {
                     const resultsContainer = document.getElementById('ai-task-results');
                     resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקלק על משימה כדי לבחור אותה:</p>';
                     
                     data.tasks.forEach(task => {
+                        const safeTitle = task.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                         resultsContainer.innerHTML += `
-                        <div onclick="selectAITask('${task.title}', ${task.reward})" class="ai-task-option p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2">
+                        <div onclick="selectAITask('${safeTitle}', ${task.reward})" class="ai-task-option p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-slate-100 hover:border-pink-300">
                             <span class="text-sm font-bold text-slate-700">${task.title}</span>
                             <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${task.reward}</span>
                         </div>`;
