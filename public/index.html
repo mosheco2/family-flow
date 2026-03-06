@@ -259,33 +259,35 @@
             </div>
         </div>
 
-        <!-- NEW: Unified Task Modal (Manual & AI) -->
+        <!-- NEW: Unified Task Modal -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
                 <input type="hidden" id="task-is-self" value="false">
 
                 <!-- Global Task Settings -->
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3" id="task-global-settings">
-                    <div>
+                <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
+                    <div id="task-assignee-container">
                         <label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label>
-                        <select id="task-assignee" class="modern-input bg-white py-2.5 text-sm"></select>
+                        <select id="task-assignee" class="modern-input bg-white py-2 text-sm"></select>
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-500 mb-1 block">תוקף המשימה (ימים):</label>
-                        <input type="number" id="task-days" class="modern-input py-2.5 text-sm" placeholder="ללא תוקף (אופציונלי)">
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">תוקף (ימים - אופציונלי):</label>
+                        <input type="number" id="task-days" class="modern-input py-2 text-sm" placeholder="ללא תוקף">
                     </div>
                 </div>
 
                 <!-- Mode Toggles -->
-                <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl" id="task-mode-toggles">
-                    <button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition">✍️ יצירה עצמית</button>
+                <div id="task-mode-toggles" class="flex gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl">
+                    <button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition">✍️ הזנה ידנית</button>
                     <button onclick="setTaskMode('ai')" id="btn-mode-ai" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition">✨ familAI</button>
                 </div>
 
                 <!-- Manual Mode Input Area -->
-                <div id="task-mode-manual" class="space-y-3">
-                    <input type="text" id="task-title" class="modern-input text-sm" placeholder="מה לעשות? (למשל: לארגן את הסלון)">
+                <div id="task-mode-manual" class="space-y-3 flex-1 flex flex-col justify-end">
+                    <div>
+                        <input type="text" id="task-title" class="modern-input text-sm" placeholder="מה לעשות? (למשל: לארגן את הסלון)">
+                    </div>
                     <div id="task-reward-group">
                         <input type="number" id="task-reward" class="modern-input text-sm" placeholder="תגמול (₪)">
                     </div>
@@ -297,13 +299,13 @@
 
                 <!-- AI Mode Input Area -->
                 <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
-                    <p class="text-[11px] text-slate-500 text-center px-2">ספרו לי במה צריך עזרה, ואציע משימות ותמחור הוגן שמתאים בדיוק לגיל הילד!</p>
+                    <p class="text-xs text-slate-500 text-center px-2 font-medium">ספרו לי במה צריך עזרה, ואציע משימות ותמחור הוגן שמתאים לגיל הילד!</p>
                     <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
                     <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות</button>
                     
                     <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 mt-2 pt-2 border-t border-slate-100"></div>
                     
-                    <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-2">ביטול</button>
+                    <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-auto">ביטול וסגירה</button>
                 </div>
 
             </div>
@@ -710,18 +712,19 @@
             setTaskMode('manual');
             
             const toggles = document.getElementById('task-mode-toggles');
-            const assigneeSelect = document.getElementById('task-assignee');
+            const assigneeContainer = document.getElementById('task-assignee-container');
             const rewardGroup = document.getElementById('task-reward-group');
+            const assigneeSelect = document.getElementById('task-assignee');
 
             if(isSelf) { 
                 document.getElementById('task-modal-title').innerText = 'משימה אישית'; 
                 toggles.classList.add('hidden');
-                assigneeSelect.parentElement.classList.add('hidden');
+                assigneeContainer.classList.add('hidden');
                 rewardGroup.classList.add('hidden'); 
             } else { 
                 document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
                 toggles.classList.remove('hidden');
-                assigneeSelect.parentElement.classList.remove('hidden');
+                assigneeContainer.classList.remove('hidden');
                 rewardGroup.classList.remove('hidden'); 
                 
                 if(membersCache) {
@@ -743,9 +746,9 @@
             if (isSelf) {
                  age = new Date().getFullYear() - currentUser.birth_year;
             } else {
-                 if(!assigneeId) return showToast('error', 'קודם כל בחרו עבור מי המשימה למעלה 👆');
+                 if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור מי המשימה 👆');
                  const child = membersCache.find(m => String(m.id) === String(assigneeId));
-                 if(!child) return;
+                 if(!child) return showToast('error', 'שגיאה במציאת גיל הילד');
                  age = new Date().getFullYear() - child.birth_year;
             }
 
