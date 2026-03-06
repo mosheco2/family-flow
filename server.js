@@ -78,7 +78,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const responseText = result.response.text();
         const quizData = JSON.parse(responseText);
 
-        // Save AI Quiz to DB
+        // Save Quiz to DB
         const bundleRes = await pool.query(
             `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
             [ageGroup, quizData.title, quizData.text_content || '']
@@ -128,6 +128,51 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         res.json({ success: true, tasks });
     } catch (e) {
         console.error('AI Task Gen Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// NEW: familAI Goal Advisor Endpoint
+app.post('/api/goals/familai-advice', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        
+        const { userId, goalId } = req.body;
+
+        // Fetch User and Goal data to give familAI context
+        const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
+        const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
+
+        if (userRes.rows.length === 0 || goalRes.rows.length === 0) {
+            throw new Error('Data not found');
+        }
+
+        const user = userRes.rows[0];
+        const goal = goalRes.rows[0];
+        const age = calculateAge(user.birth_year);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app.
+        A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}".
+        Target amount needed: ${goal.target_amount} ILS.
+        Current saved amount for this goal: ${goal.current_amount} ILS.
+        The child's current free wallet balance is: ${user.balance} ILS.
+        The child's weekly allowance is: ${user.allowance_amount} ILS.
+
+        Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew.
+        1. Tell them they are doing a great job saving.
+        2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers (e.g., save a certain amount from their allowance, do some extra chores from the task board).
+        3. Keep it under 4 sentences.
+        4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis.
+        5. Introduce yourself as 'familAI' at the start or end (e.g., "כאן familAI!").`;
+
+        const result = await model.generateContent(prompt);
+        const advice = result.response.text().trim();
+
+        res.json({ success: true, advice });
+    } catch (e) {
+        console.error('familAI Advice Error:', e);
         res.status(500).json({ error: e.message });
     }
 });
