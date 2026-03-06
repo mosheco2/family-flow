@@ -141,7 +141,16 @@
                             </div>
                             <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                         </div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                        <div>
+                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3>
+                            <div id="bank-accounts-list" class="space-y-3"></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-3 px-2">
+                                <h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3>
+                            </div>
+                            <div id="admin-goals-list" class="space-y-3 pb-20"></div>
+                        </div>
                     </div>
                     
                     <div id="bank-child-view" class="hidden space-y-6">
@@ -162,7 +171,7 @@
                         <div class="flex justify-between items-center mb-6 px-2">
                             <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
                             <div class="flex gap-2">
-                                <button onclick="openAIModal()" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition">✨ יצירת אתגר AI</button>
+                                <button onclick="openAIModal()" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition">✨ יצירת אתגר familAI</button>
                                 <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-user-plus mr-1"></i> הקצאה</button>
                             </div>
                         </div>
@@ -232,8 +241,8 @@
 
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר חכם ✨</h3>
-                <p class="text-sm text-slate-500 mb-4 text-center">ה-AI יבנה מבחן חדש ומותאם אישית!</p>
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
+                <p class="text-sm text-slate-500 mb-4 text-center">אני אבנה מבחן חדש ומותאם אישית!</p>
                 <label class="text-xs font-bold text-slate-400">לאיזה גיל?</label>
                 <select id="ai-age" class="modern-input mb-3 bg-white">
                     <option value="6-8">גיל 6-8</option>
@@ -251,23 +260,47 @@
             </div>
         </div>
 
-        <!-- NEW: AI Task Generator Modal -->
         <div id="ai-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">הצעות ה-AI למשימות ✨</h3>
-                <p class="text-sm text-slate-500 mb-4 text-center">ספר ל-AI במה אתה צריך עזרה</p>
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">ההצעות של familAI ✨</h3>
+                <p class="text-sm text-slate-500 mb-4 text-center">ספר לי במה אתה צריך עזרה</p>
                 <input type="text" id="ai-task-topic" class="modern-input mb-3" placeholder="למשל: לארגן את הסלון">
                 <div class="flex gap-2 mb-4">
                     <input type="number" id="ai-task-age" class="modern-input flex-1 text-center" placeholder="גיל הילד (למשל: 10)">
-                    <button onclick="generateAITasks()" id="btn-ai-task-gen" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 rounded-xl font-bold shadow-md"><i class="fa-solid fa-wand-magic-sparkles"></i> חפש</button>
+                    <button onclick="generateAITasks()" id="btn-ai-task-gen" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 rounded-xl font-bold shadow-md"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי</button>
                 </div>
                 
-                <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 border-t border-slate-100 pt-4">
-                    <!-- AI suggestions will appear here -->
-                </div>
+                <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 border-t border-slate-100 pt-4"></div>
 
                 <div class="mt-4">
                     <button onclick="document.getElementById('ai-task-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500">סגור</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: familAI Goal Advisor Modal -->
+        <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-3xl shadow-lg transform -translate-y-2 border-4 border-white">
+                        🤖
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">היי, אני familAI!</h3>
+                <p class="text-xs text-slate-400 mb-6 text-center">היועצת הפיננסית של המשפחה</p>
+                
+                <div id="familai-advisor-loading" class="text-center py-6">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
+                    <p class="text-sm text-slate-500 font-medium">מנתחת את הנתונים שלך...</p>
+                </div>
+
+                <div id="familai-advisor-content" class="hidden">
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 mb-6 relative">
+                        <i class="fa-solid fa-quote-right absolute top-2 right-3 text-indigo-200 text-2xl"></i>
+                        <p id="familai-advice-text" class="text-sm text-indigo-900 font-medium leading-relaxed relative z-10"></p>
+                    </div>
+                    <button onclick="document.getElementById('familai-advisor-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">הבנתי, תודה!</button>
                 </div>
             </div>
         </div>
@@ -285,7 +318,7 @@
             
             <div id="task-ai-trigger" class="mb-4">
                 <button type="button" onclick="openAITaskModal()" class="w-full bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 text-purple-700 py-2 rounded-xl text-xs font-bold shadow-sm hover:scale-[1.02] transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> עזור לי להמציא משימות ותמחור
+                    <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> familAI, תציעי לי משימות
                 </button>
             </div>
 
@@ -508,7 +541,23 @@
                         data.goals.forEach(g => { 
                             const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); 
                             const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; 
-                            goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center gap-4"><div class="radial-progress flex-shrink-0" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500">₪${g.current_amount} / ₪${g.target_amount}</p></div><button onclick="openDepositModal(${g.id}, '${g.title}')" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100"><i class="fa-solid fa-plus"></i> הפקד</button></div>`; 
+                            
+                            // NEW: Adding familAI Advisor Button to Goals
+                            const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
+
+                            goalsList.innerHTML += `
+                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4">
+                                <div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div>
+                                <div class="flex-1">
+                                    ${ownerBadge}
+                                    <h4 class="font-bold text-slate-800">${g.title}</h4>
+                                    <p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p>
+                                    <div class="flex gap-2">
+                                        <button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>
+                                        ${adviseBtn}
+                                    </div>
+                                </div>
+                            </div>`; 
                         }); 
                     } else { 
                         if (goalsContainer) { goalsContainer.classList.add('hidden'); } 
@@ -550,7 +599,7 @@
             } catch(e) { console.error('fetchData failed:', e); }
         }
 
-        // --- AI LOGIC (Tasks & Academy) ---
+        // --- AI LOGIC (Tasks, Academy & Goals) ---
         function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
         
         async function generateAIQuiz() {
@@ -560,7 +609,7 @@
             if(!topic) return showToast('error', 'נא להזין נושא');
 
             btn.disabled = true;
-            btn.innerText = 'ה-AI מייצר... ⏳';
+            btn.innerText = 'familAI חושבת... ⏳';
             try {
                 const res = await fetch(`${API}/academy/ai-generate`, {
                     method: 'POST',
@@ -626,7 +675,7 @@
                     resultsContainer.classList.remove('hidden');
                     triggerConfetti();
                 } else {
-                    showToast('error', 'ה-AI לא הצליח לייצר משימות. נסה שוב.');
+                    showToast('error', 'familAI לא הצליחה לייצר משימות. נסה שוב.');
                 }
             } catch(e) {
                 showToast('error', 'תקלה בתקשורת עם השרת');
@@ -640,6 +689,35 @@
             document.getElementById('task-title').value = title;
             document.getElementById('task-reward').value = reward;
             document.getElementById('ai-task-modal').classList.add('hidden');
+        }
+
+        async function getFamilAIAdvice(childId, goalId) {
+            document.getElementById('familai-advisor-modal').classList.remove('hidden');
+            document.getElementById('familai-advisor-loading').classList.remove('hidden');
+            document.getElementById('familai-advisor-content').classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API}/goals/familai-advice`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: childId, goalId: goalId })
+                });
+                const data = await res.json();
+                
+                document.getElementById('familai-advisor-loading').classList.add('hidden');
+                
+                if(data.success && data.advice) {
+                    document.getElementById('familai-advice-text').innerText = data.advice;
+                    document.getElementById('familai-advisor-content').classList.remove('hidden');
+                    triggerConfetti();
+                } else {
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    showToast('error', 'מצטערת, לא הצלחתי לייצר עצה כרגע.');
+                }
+            } catch (e) {
+                document.getElementById('familai-advisor-modal').classList.add('hidden');
+                showToast('error', 'תקלה בתקשורת עם השרת');
+            }
         }
 
         // --- UNIFIED FEED LOGIC ---
@@ -1024,7 +1102,7 @@
             
             let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
             if (!allBundles || allBundles.length === 0) {
-                html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר AI" למעלה!</p>';
+                html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>';
             } else {
                 html += '<div class="space-y-2 mb-8">';
                 allBundles.forEach(b => {
