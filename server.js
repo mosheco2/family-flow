@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Initialize Gemini API (Will use GEMINI_API_KEY from Render automatically)
+// Initialize Gemini API
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
@@ -24,7 +24,18 @@ const pool = new Pool({
 });
 
 pool.connect()
-  .then(() => console.log('✅ Connected to DB (Pool)'))
+  .then(async (client) => {
+      console.log('✅ Connected to DB (Pool)');
+      try {
+          // Auto-migrate schema safely
+          await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
+          await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+          console.log('✅ Auto-migration complete');
+      } catch(err) {
+          console.error('Migration error:', err.message);
+      }
+      client.release();
+  })
   .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
@@ -47,38 +58,17 @@ const generateGroupCode = () => {
 
 // --- AI ENDPOINTS ---
 
-// AI Generator Endpoint for Academy Quizzes
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
-
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" }
-        });
-        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { ageGroup, topic } = req.body;
-        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
-        Requirements:
-        1. Language MUST be Hebrew.
-        2. Output strictly as JSON matching this schema exactly:
-        {
-          "title": "A catchy title for the quiz",
-          "text_content": "A short educational text before the questions. Make it engaging.",
-          "questions": [
-            {
-              "q": "The question text",
-              "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"],
-              "correct": 0
-            }
-          ]
-        }`;
+        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}. Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly: { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
         const quizData = JSON.parse(responseText);
 
-        // Save Quiz to DB
         const bundleRes = await pool.query(
             `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
             [ageGroup, quizData.title, quizData.text_content || '']
@@ -91,7 +81,6 @@ app.post('/api/academy/ai-generate', async (req, res) => {
                 [newBundleId, q.q, JSON.stringify(q.options), q.correct]
             );
         }
-
         res.json({ success: true, bundleId: newBundleId });
     } catch (e) {
         console.error('AI Gen Error:', e);
@@ -99,32 +88,16 @@ app.post('/api/academy/ai-generate', async (req, res) => {
     }
 });
 
-// AI Task Generator Endpoint
 app.post('/api/tasks/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
-
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" }
-        });
-
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { age, topic } = req.body;
-        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50).
-        Requirements:
-        1. Language MUST be Hebrew.
-        2. Output STRICTLY as a JSON array of objects matching this schema exactly:
-        [
-          {
-            "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)",
-            "reward": 15
-          }
-        ]`;
+        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50). Requirements: 1. Language MUST be Hebrew. 2. Output STRICTLY as a JSON array of objects matching this schema exactly: [ { "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)", "reward": 15 } ]`;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
         const tasks = JSON.parse(responseText);
-
         res.json({ success: true, tasks });
     } catch (e) {
         console.error('AI Task Gen Error:', e);
@@ -132,51 +105,30 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
     }
 });
 
-// NEW: familAI Goal Advisor Endpoint
 app.post('/api/goals/familai-advice', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        
         const { userId, goalId } = req.body;
-
-        // Fetch User and Goal data to give familAI context
         const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
         const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
 
-        if (userRes.rows.length === 0 || goalRes.rows.length === 0) {
-            throw new Error('Data not found');
-        }
+        if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
 
         const user = userRes.rows[0];
         const goal = goalRes.rows[0];
         const age = calculateAge(user.birth_year);
-
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
-        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app.
-        A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}".
-        Target amount needed: ${goal.target_amount} ILS.
-        Current saved amount for this goal: ${goal.current_amount} ILS.
-        The child's current free wallet balance is: ${user.balance} ILS.
-        The child's weekly allowance is: ${user.allowance_amount} ILS.
-
-        Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew.
-        1. Tell them they are doing a great job saving.
-        2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers (e.g., save a certain amount from their allowance, do some extra chores from the task board).
-        3. Keep it under 4 sentences.
-        4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis.
-        5. Introduce yourself as 'familAI' at the start or end (e.g., "כאן familAI!").`;
+        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target amount needed: ${goal.target_amount} ILS. Current saved amount for this goal: ${goal.current_amount} ILS. The child's current free wallet balance is: ${user.balance} ILS. The child's weekly allowance is: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. 1. Tell them they are doing a great job saving. 2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers. 3. Keep it under 4 sentences. 4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis. 5. Introduce yourself as 'familAI' at the start or end (e.g., "כאן familAI!").`;
 
         const result = await model.generateContent(prompt);
         const advice = result.response.text().trim();
-
         res.json({ success: true, advice });
     } catch (e) {
         console.error('familAI Advice Error:', e);
         res.status(500).json({ error: e.message });
     }
 });
-
 
 // Setup DB
 app.get('/setup-db', async (req, res) => {
@@ -199,7 +151,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
-            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -262,64 +214,44 @@ app.get('/api/users/:id', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Dash Data
+// Dash Data - SECURED WITH TRY/CATCH
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        const [tasksRes, shopRes, allBRes] = await Promise.all([
-            pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]),
-            pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]),
-            pool.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY created_at DESC`)
-        ]);
+        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]};
+        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]); } catch(e){}
+        try { shopRes = await pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]); } catch(e){}
+        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY id DESC`); } catch(e){}
 
-        let goalsRes, weeklyStats = null, userBundles = [];
+        let goalsRes = {rows:[]}, weeklyStats = null, userBundles = [];
 
         if(user.role === 'ADMIN') {
-            const [gRes, ubRes] = await Promise.all([
-                pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]),
-                pool.query(`
-                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user,
-                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content,
-                           u.nickname as assignee_name
-                    FROM user_assignments ua 
-                    JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-                    JOIN users u ON ua.user_id = u.id
-                    WHERE u.group_id = $1
-                    ORDER BY ua.assigned_at DESC
-                `, [user.group_id])
-            ]);
-            goalsRes = gRes;
-            userBundles = ubRes.rows;
+            try { goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]); } catch(e){}
+            try { 
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.assigned_at DESC`, [user.group_id]); 
+                userBundles = ubRes.rows;
+            } catch(e){}
         } else {
-            const [gRes, spentRes, limitRes, ubRes] = await Promise.all([
-                pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]),
-                pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]),
-                pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]),
-                pool.query(`
-                    SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user,
-                           qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content,
-                           u.nickname as assignee_name
-                    FROM user_assignments ua 
-                    JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-                    JOIN users u ON ua.user_id = u.id
-                    WHERE ua.user_id = $1
-                    ORDER BY ua.assigned_at DESC
-                `, [user.id])
-            ]);
-            goalsRes = gRes;
-            weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
-            userBundles = ubRes.rows;
-
-            const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
-            if (activeBundleIds.length > 0) {
-                const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
-                userBundles.forEach(b => {
-                    if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
-                });
-            }
+            try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
+            try { 
+                const spentRes = await pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]);
+                const limitRes = await pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]);
+                weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
+            } catch(e){}
+            try {
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 ORDER BY ua.assigned_at DESC`, [user.id]);
+                userBundles = ubRes.rows;
+                const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
+                if (activeBundleIds.length > 0) {
+                    const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
+                    userBundles.forEach(b => {
+                        if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
+                    });
+                }
+            } catch(e){}
         }
 
         res.json({
@@ -329,7 +261,6 @@ app.get('/api/data/:userId', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Admin Panel
 app.get('/api/admin/pending-users', async (req, res) => {
     try {
         const { groupId } = req.query;
@@ -346,7 +277,6 @@ app.post('/api/admin/approve-user', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Group Members
 app.get('/api/group/members', async (req, res) => {
     try {
         const { requesterId, groupId } = req.query;
@@ -392,7 +322,6 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
 
-// Transactions
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -412,7 +341,6 @@ app.get('/api/transactions', async (req, res) => {
         const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
         const { groupId, userId } = req.query;
         if(!groupId || groupId === 'undefined') return res.json([]);
-        
         let query, params;
         if(userId === 'all') {
              query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.date DESC ${limit}`;
@@ -426,12 +354,17 @@ app.get('/api/transactions', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Tasks
 app.post('/api/tasks', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
-        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward) VALUES ($1, $2, $3, $4, $5)`, [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward]);
+        let deadline = null;
+        if (req.body.days && parseInt(req.body.days) > 0) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(req.body.days));
+        }
+        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, deadline) VALUES ($1, $2, $3, $4, $5, $6)`, 
+            [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward, deadline]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
@@ -454,7 +387,6 @@ app.post('/api/tasks/update', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// Goals
 app.post('/api/goals', async (req, res) => {
     try {
         const { userId, targetUserId, title, target } = req.body;
@@ -480,7 +412,6 @@ app.post('/api/goals/deposit', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// Shopping
 app.post('/api/shopping/add', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
@@ -548,7 +479,6 @@ app.post('/api/shopping/copy', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Budget
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
@@ -590,10 +520,9 @@ app.post('/api/budget/update', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Academy Core
 app.get('/api/academy/bundles', async (req, res) => {
     try {
-        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY created_at DESC`);
+        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY id DESC`);
         res.json(bundles.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
