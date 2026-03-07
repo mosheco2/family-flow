@@ -261,13 +261,12 @@
             </div>
         </div>
 
-        <!-- NEW: Unified Task Modal -->
+        <!-- Unified Task Modal -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
                 <input type="hidden" id="task-is-self" value="false">
 
-                <!-- Global Task Settings -->
                 <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
                     <div id="task-assignee-container">
                         <label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label>
@@ -279,13 +278,11 @@
                     </div>
                 </div>
 
-                <!-- Mode Toggles -->
                 <div id="task-mode-toggles" class="flex gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl">
                     <button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition">✍️ הזנה ידנית</button>
                     <button onclick="setTaskMode('ai')" id="btn-mode-ai" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition">✨ familAI</button>
                 </div>
 
-                <!-- Manual Mode Input Area -->
                 <div id="task-mode-manual" class="space-y-3 flex-1 flex flex-col justify-end">
                     <div>
                         <input type="text" id="task-title" class="modern-input text-sm" placeholder="מה לעשות? (למשל: לארגן את הסלון)">
@@ -299,7 +296,6 @@
                     </div>
                 </div>
 
-                <!-- AI Mode Input Area -->
                 <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
                     <p class="text-xs text-slate-500 text-center px-2 font-medium">ספרו לי במה צריך עזרה, ואציע משימות ותמחור הוגן שמתאים לגיל הילד!</p>
                     <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
@@ -309,10 +305,10 @@
                     
                     <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-auto">ביטול וסגירה</button>
                 </div>
-
             </div>
         </div>
 
+        <!-- familAI Advisor Modal -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -507,7 +503,6 @@
             await fetchData();
         }
 
-        // --- FETCH MEMBERS (ALL CENTRALIZED UI UPDATES FOR USERS) ---
         async function fetchMembers() { 
             try {
                 if(!currentGroup || !currentGroup.id) return;
@@ -515,7 +510,6 @@
                 membersCache = await res.json(); 
                 if(!Array.isArray(membersCache)) membersCache = [];
                 
-                // Update Filters safely
                 if (currentUser.role === 'ADMIN') { 
                     try {
                         const budgetFilter = document.getElementById('budget-filter'); 
@@ -544,7 +538,6 @@
                     } catch(err) { console.error("Filter update err:", err); }
                 } 
 
-                // Update "ניהול" (Members) List safely
                 try {
                     const container = document.getElementById('members-list'); 
                     if(container) {
@@ -556,7 +549,6 @@
                     }
                 } catch(err) { console.error("Members list render err:", err); }
 
-                // Update "בנק" (Bank Accounts) List safely
                 try {
                     const accList = document.getElementById('bank-accounts-list'); 
                     if (accList && currentUser.role === 'ADMIN') { 
@@ -597,8 +589,12 @@
                 allBundles = Array.isArray(data.all_bundles) ? data.all_bundles : [];
 
                 try {
-                    if (currentUser.role === 'ADMIN') renderAdminAcademy();
-                    else renderMyAssignments(bundlesCache);
+                    if (currentUser.role === 'ADMIN') {
+                        renderAdminAcademy();
+                    } else {
+                        renderMyAssignments(bundlesCache);
+                        renderLibrary(); // Fix: Force render child library
+                    }
                 } catch(e) { console.error('Academy render err:', e); }
                 
                 try { renderTasks(allTasks); } catch(e) { console.error('Tasks render err:', e); }
@@ -1289,6 +1285,169 @@
             }
 
             list.innerHTML = html;
+        }
+
+        function renderLibrary() {
+            const libList = document.getElementById('library-list');
+            if (!libList) return;
+
+            const ageFilter = document.getElementById('lib-age-filter')?.value || 'all';
+            const catFilter = document.getElementById('lib-cat-filter')?.value || 'all';
+
+            let filtered = allBundles;
+            
+            if (ageFilter !== 'all') {
+                filtered = filtered.filter(b => b.age_group === ageFilter);
+            }
+            if (catFilter !== 'all') {
+                filtered = filtered.filter(b => b.type === catFilter);
+            }
+
+            if (filtered.length === 0) {
+                libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין מבחנים התואמים לחיפוש הנוכחי.</p>';
+                return;
+            }
+
+            const getIcon = (type) => {
+                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
+                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
+                return '<i class="fa-solid fa-chart-line"></i>';
+            };
+
+            let libHtml = '';
+            filtered.forEach(b => {
+                const isAssigned = bundlesCache.some(ua => ua.bundle_id === b.id && ua.status === 'assigned');
+                const btnHtml = isAssigned 
+                    ? `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> משויך</span>`
+                    : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
+
+                libHtml += `
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
+                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward}</p>
+                        </div>
+                    </div>
+                    ${btnHtml}
+                </div>`;
+            });
+            libList.innerHTML = libHtml;
+        }
+
+        async function requestChallenge(bundleId = null) {
+            const btn = document.querySelector('#academy-user-view button');
+            if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
+            
+            try {
+                const res = await fetch(`${API}/academy/request-challenge`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    triggerConfetti();
+                    showToast('success', 'המבחן נוסף בהצלחה!');
+                    fetchData();
+                } else {
+                    showToast('error', data.error);
+                }
+            } catch(e) {
+                showToast('error', 'שגיאה בתקשורת');
+            } finally {
+                if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; }
+            }
+        }
+
+        async function startQuiz(bundleId) {
+            const bundle = bundlesCache.find(b => b.bundle_id === bundleId);
+            if(!bundle) return;
+            
+            currentQuizData = bundle;
+            currentQuestionIndex = 0;
+            quizScore = 0;
+            
+            document.getElementById('quiz-title').innerText = bundle.title;
+            
+            const textContainer = document.getElementById('quiz-text-container');
+            if (bundle.text_content) {
+                textContainer.innerHTML = `<p>${bundle.text_content}</p>`;
+                textContainer.classList.remove('hidden');
+            } else {
+                textContainer.classList.add('hidden');
+            }
+
+            document.getElementById('quiz-runner-modal').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = currentQuizData.questions[currentQuestionIndex];
+            document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`;
+            document.getElementById('q-text').innerText = q.q;
+            
+            const optsContainer = document.getElementById('q-options');
+            optsContainer.innerHTML = '';
+            
+            q.options.forEach((opt, idx) => {
+                optsContainer.innerHTML += `
+                <button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">
+                    ${opt}
+                </button>`;
+            });
+        }
+
+        async function submitAnswer(selectedIdx) {
+            const q = currentQuizData.questions[currentQuestionIndex];
+            const isCorrect = selectedIdx === q.correct;
+            
+            const btns = document.querySelectorAll('.quiz-option');
+            btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
+            if(!isCorrect) btns[q.correct].classList.add('correct');
+            
+            if(isCorrect) quizScore++;
+            
+            setTimeout(async () => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < currentQuizData.questions.length) {
+                    renderQuestion();
+                } else {
+                    finishQuiz();
+                }
+            }, 1000);
+        }
+
+        async function finishQuiz() {
+            const total = currentQuizData.questions.length;
+            const finalScore = Math.round((quizScore / total) * 100);
+            const passed = finalScore >= currentQuizData.threshold;
+            
+            document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('quiz-text-container').classList.add('hidden'); 
+            document.getElementById('quiz-result').classList.remove('hidden');
+            
+            document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚';
+            document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...';
+            document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
+            document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
+            
+            if (passed) triggerConfetti();
+            
+            await fetch(`${API}/academy/submit`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore })
+            });
+            fetchData(); 
+        }
+        
+        function closeQuiz() { 
+            document.getElementById('quiz-runner-modal').classList.add('hidden'); 
+            document.getElementById('question-container').classList.remove('hidden');
+            document.getElementById('quiz-result').classList.add('hidden');
         }
 
         // --- SHOP & MISC ---
