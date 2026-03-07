@@ -593,7 +593,7 @@
                         renderAdminAcademy();
                     } else {
                         renderMyAssignments(bundlesCache);
-                        renderLibrary(); // Fix: Force render child library
+                        renderLibrary();
                     }
                 } catch(e) { console.error('Academy render err:', e); }
                 
@@ -1291,10 +1291,10 @@
             const libList = document.getElementById('library-list');
             if (!libList) return;
 
-            const ageFilter = document.getElementById('lib-age-filter')?.value || 'all';
-            const catFilter = document.getElementById('lib-cat-filter')?.value || 'all';
+            const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all';
+            const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
 
-            let filtered = allBundles;
+            let filtered = allBundles || [];
             
             if (ageFilter !== 'all') {
                 filtered = filtered.filter(b => b.age_group === ageFilter);
@@ -1316,10 +1316,10 @@
 
             let libHtml = '';
             filtered.forEach(b => {
-                const isAssigned = bundlesCache.some(ua => ua.bundle_id === b.id && ua.status === 'assigned');
+                const isAssigned = bundlesCache.some(ua => ua.bundle_id == b.id && ua.status === 'assigned');
                 const btnHtml = isAssigned 
                     ? `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> משויך</span>`
-                    : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100">בחר</button>`;
+                    : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">בחר</button>`;
 
                 libHtml += `
                 <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2">
@@ -1363,7 +1363,7 @@
         }
 
         async function startQuiz(bundleId) {
-            const bundle = bundlesCache.find(b => b.bundle_id === bundleId);
+            const bundle = bundlesCache.find(b => b.bundle_id == bundleId);
             if(!bundle) return;
             
             currentQuizData = bundle;
