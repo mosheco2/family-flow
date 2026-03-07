@@ -1,1580 +1,600 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oneflow Life</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <style>
-        body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        .hidden { display: none !important; }
-        .slide-up { animation: slideUp 0.3s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
-        .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
-        .slider-scroll::-webkit-scrollbar { display: none; }
-        .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
-        .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
-        .scroll-btn.left { left: 0; }
-        .scroll-btn.right { right: 0; }
-        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
-        .shop-row { transition: background-color 0.2s; }
-        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
-        .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
-        .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
-        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
-        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
-        .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
-        .wisdom-alert { animation: slideDown 0.3s ease-out; }
-        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
-        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
-        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
-        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
-        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .fab-open #fab-icon { transform: rotate(45deg); }
-        .fab-lifted { transform: translateY(-80px) !important; }
-        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
-        .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
-        .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
-        .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
-        .ai-task-option { border: 1px solid #e2e8f0; transition: all 0.2s; cursor: pointer; }
-        .ai-task-option:hover { border-color: #a855f7; background-color: #faf5ff; }
-    </style>
-</head>
-<body class="text-slate-800 bg-slate-50">
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
-    </div>
+const app = express();
+const port = process.env.PORT || 3000;
 
-    <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
-        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
-            <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
-                <div class="relative z-10">
-                    <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain" style="filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));" onerror="this.src=''; this.className='hidden'; document.getElementById('logo-fallback').classList.remove('hidden')">
-                    <div id="logo-fallback" class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
-                    <p class="text-blue-100 text-sm font-light">ניהול פיננסי חכם למשפחה</p>
-                </div>
-            </div>
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center">
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
-                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
-                    <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition flex justify-center gap-2 text-lg"><span id="btn-login-text">כניסה</span><div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div></button>
-                </form>
-                <div class="mt-8 text-center text-sm space-y-3"><button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי חדש</button><button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה קיימת</button></div>
-            </div>
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
-                <form onsubmit="handleCreate(event)" class="space-y-4">
-                    <div class="flex gap-3 mb-2"><button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button><button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button></div>
-                    <input type="hidden" id="create-type" value="FAMILY">
-                    <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל שלך (לשחזור וגיבוי)" class="modern-input">
-                    <div class="flex gap-3"><input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input"><input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input"></div>
-                    <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד משפחה ייחודי עבורכם.</p>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
-            </div>
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
-                <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="hidden" id="join-role" value="MEMBER">
-                    <input type="text" id="join-code" required placeholder="קוד משפחה (ממי שהזמין אותך)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
-                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
-                    <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
-                    <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה להצטרף</button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
-            </div>
-        </div>
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
-            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div><div><h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2><p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p></div></div><button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button></header>
-            <div class="relative px-2 mb-6 group"><div class="slider-container"><button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button><div class="slider-scroll" id="slider-scroll"><button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button><button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button><button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button><button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button><button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button><button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button><button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button></div><button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button></div></div>
+// Initialize Gemini API
+const apiKey = process.env.GEMINI_API_KEY || "";
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
-            <div class="px-2">
-                <div id="content-feed">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
-                        <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
-                        <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
-                        <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
-                    </div>
-                    
-                    <div id="child-todo-section" class="hidden mb-8">
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3>
-                        <div id="child-todo-list" class="space-y-3"></div>
-                    </div>
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
-                    <div class="flex justify-between items-center mb-3 px-2">
-                        <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
-                        <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none">
-                            <option value="all">כל המשפחה</option>
-                        </select>
-                    </div>
-                    <div id="unified-feed-list" class="space-y-3 pb-8"></div>
-                </div>
+pool.connect()
+  .then(async (client) => {
+      console.log('✅ Connected to DB (Pool)');
+      try {
+          // Auto-migrate schema safely
+          await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
+          await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+          console.log('✅ Auto-migration complete');
+      } catch(err) {
+          console.error('Migration error:', err.message);
+      }
+      client.release();
+  })
+  .catch(err => console.error('Connection Error', err.stack));
 
-                <div id="content-bank" class="hidden">
-                    <div id="bank-admin-view" class="hidden space-y-6">
-                        <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                            <div class="relative z-10">
-                                <h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3>
-                                <p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p>
-                                <button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button>
-                            </div>
-                            <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3>
-                            <div id="bank-accounts-list" class="space-y-3"></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-3 px-2">
-                                <h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3>
-                            </div>
-                            <div id="admin-goals-list" class="space-y-3 pb-20"></div>
-                        </div>
-                    </div>
-                    
-                    <div id="bank-child-view" class="hidden space-y-6">
-                        <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                            <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                            <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div><div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
-                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
-                    </div>
-                </div>
-                <div id="content-shop" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3><div class="flex gap-2"><button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div></div><div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div><div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm"><h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4><div id="shop-requests-list" class="space-y-2"></div></div><div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div></div>
-                
-                <div id="content-academy" class="hidden">
-                    <div id="academy-admin-view" class="hidden">
-                        <div class="flex justify-between items-center mb-6 px-2">
-                            <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
-                            <div class="flex gap-2">
-                                <button onclick="openAIModal()" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition">✨ יצירת אתגר familAI</button>
-                                <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-user-plus mr-1"></i> הקצאה</button>
-                            </div>
-                        </div>
-                        <div id="academy-pending-container" class="hidden mb-6 bg-orange-50 p-4 rounded-2xl border border-orange-100"><h4 class="text-sm font-bold text-orange-700 mb-2">בקשות לאישור</h4><div id="academy-pending-list" class="space-y-2"></div></div>
-                        <div id="admin-assignments-list" class="space-y-3 pb-20"></div>
-                    </div>
-                    <div id="academy-user-view" class="hidden">
-                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden"><h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3><p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p><button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ הגרל אתגר מהיר</button><i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i></div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
-                        <div id="my-assignments-list" class="space-y-3"></div>
-                        
-                        <div id="academy-history-container" class="mt-6 hidden">
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-sm opacity-80">היסטוריית מבחנים</h3>
-                            <div id="academy-history-list" class="space-y-2"></div>
-                        </div>
+const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
+const getAgeGroup = (age) => {
+    if (age >= 6 && age < 8) return '6-8';
+    if (age >= 8 && age < 10) return '8-10';
+    if (age >= 10 && age < 13) return '10-13';
+    if (age >= 13 && age < 15) return '13-15';
+    if (age >= 15 && age < 18) return '15-18';
+    if (age >= 18) return '18+';
+    return 'other';
+};
 
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-8 border-t border-slate-200 pt-6">📚 ספריית המבחנים</h3>
-                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                            <div class="flex gap-3 mb-3">
-                                <select id="lib-age-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הגילאים</option><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option><option value="18+">18+</option></select>
-                                <select id="lib-cat-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="reading">קריאה</option><option value="financial">פיננסי</option></select>
-                            </div>
-                        </div>
-                        <div id="library-list" class="space-y-3 pb-20"></div>
-                    </div>
-                </div>
-                <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
-                <div id="content-tasks" class="hidden">
-                    <div class="flex justify-between items-center mb-4 px-2">
-                        <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
-                        <div class="flex gap-2">
-                            <button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-user-check mr-1"></i> משימה אישית</button>
-                            <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button>
-                        </div>
-                    </div>
-                    <div id="tasks-list" class="space-y-3 pb-20"></div>
-                </div>
-                <div id="content-members" class="hidden space-y-6">
-                    <div class="card-modern overflow-hidden">
-                        <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-                            <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3>
-                            <button onclick="openInviteModal()" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5">
-                                <i class="fa-brands fa-whatsapp text-sm"></i> הזמן
-                            </button>
-                        </div>
-                        <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
-                    </div>
-                    <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden"><div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div><div id="pending-list" class="space-y-2 p-2"></div></div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up"><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div><button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button></div>
-        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
-        
-        <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
-                <p class="text-sm text-slate-500 mb-6">קוד המשפחה שלכם: <span id="display-group-code" class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded tracking-widest">---</span></p>
-                <div class="space-y-3">
-                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 py-3.5 rounded-xl font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-tie"></i> הורה / בן זוג (מנהל)</button>
-                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-green-50 border border-green-100 text-green-700 py-3.5 rounded-xl font-bold hover:bg-green-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-child"></i> ילד / בת (רגיל)</button>
-                </div>
-                <button onclick="document.getElementById('invite-modal').classList.add('hidden')" class="mt-6 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול וסגירה</button>
-            </div>
-        </div>
+const generateGroupCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+};
 
-        <!-- Academy AI Modal -->
-        <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
-                <p class="text-sm text-slate-500 mb-4 text-center">אני אבנה מבחן חדש ומותאם אישית!</p>
-                <label class="text-xs font-bold text-slate-400">לאיזה גיל?</label>
-                <select id="ai-age" class="modern-input mb-3 bg-white">
-                    <option value="6-8">גיל 6-8</option>
-                    <option value="8-10">גיל 8-10</option>
-                    <option value="10-13">גיל 10-13</option>
-                    <option value="13-15">גיל 13-15</option>
-                    <option value="15-18">גיל 15-18</option>
-                </select>
-                <label class="text-xs font-bold text-slate-400">על מה המבחן?</label>
-                <input type="text" id="ai-topic" class="modern-input mb-6" placeholder="למשל: חיסכון, חיות, יזמות...">
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('ai-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="generateAIQuiz()" id="btn-ai-gen" class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg">צור אתגר</button>
-                </div>
-            </div>
-        </div>
+// --- AI ENDPOINTS ---
 
-        <!-- NEW: Unified Task Modal -->
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
-                <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
-                <input type="hidden" id="task-is-self" value="false">
+app.post('/api/academy/ai-generate', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const { ageGroup, topic } = req.body;
+        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}. Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly: { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
 
-                <!-- Global Task Settings -->
-                <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
-                    <div id="task-assignee-container">
-                        <label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label>
-                        <select id="task-assignee" class="modern-input bg-white py-2 text-sm"></select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 mb-1 block">תוקף (ימים - אופציונלי):</label>
-                        <input type="number" id="task-days" class="modern-input py-2 text-sm" placeholder="ללא תוקף">
-                    </div>
-                </div>
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const quizData = JSON.parse(responseText);
 
-                <!-- Mode Toggles -->
-                <div id="task-mode-toggles" class="flex gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl">
-                    <button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition">✍️ הזנה ידנית</button>
-                    <button onclick="setTaskMode('ai')" id="btn-mode-ai" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition">✨ familAI</button>
-                </div>
+        const bundleRes = await pool.query(
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
+            [ageGroup, quizData.title, quizData.text_content || '']
+        );
+        const newBundleId = bundleRes.rows[0].id;
 
-                <!-- Manual Mode Input Area -->
-                <div id="task-mode-manual" class="space-y-3 flex-1 flex flex-col justify-end">
-                    <div>
-                        <input type="text" id="task-title" class="modern-input text-sm" placeholder="מה לעשות? (למשל: לארגן את הסלון)">
-                    </div>
-                    <div id="task-reward-group">
-                        <input type="number" id="task-reward" class="modern-input text-sm" placeholder="תגמול (₪)">
-                    </div>
-                    <div class="flex gap-3 mt-4 pt-2">
-                        <button onclick="closeTaskModal()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                        <button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">צור משימה</button>
-                    </div>
-                </div>
-
-                <!-- AI Mode Input Area -->
-                <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
-                    <p class="text-xs text-slate-500 text-center px-2 font-medium">ספרו לי במה צריך עזרה, ואציע משימות ותמחור הוגן שמתאים לגיל הילד!</p>
-                    <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
-                    <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות</button>
-                    
-                    <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 mt-2 pt-2 border-t border-slate-100"></div>
-                    
-                    <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-auto">ביטול וסגירה</button>
-                </div>
-
-            </div>
-        </div>
-
-        <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
-                <div class="flex justify-center mb-4 relative z-10">
-                    <div class="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-3xl shadow-lg transform -translate-y-2 border-4 border-white">
-                        🤖
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">היי, אני familAI!</h3>
-                <p class="text-xs text-slate-400 mb-6 text-center">היועצת הפיננסית של המשפחה</p>
-                
-                <div id="familai-advisor-loading" class="text-center py-6">
-                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
-                    <p class="text-sm text-slate-500 font-medium">מנתחת את הנתונים שלך...</p>
-                </div>
-
-                <div id="familai-advisor-content" class="hidden">
-                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 mb-6 relative">
-                        <i class="fa-solid fa-quote-right absolute top-2 right-3 text-indigo-200 text-2xl"></i>
-                        <p id="familai-advice-text" class="text-sm text-indigo-900 font-medium leading-relaxed relative z-10"></p>
-                    </div>
-                    <button onclick="document.getElementById('familai-advisor-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">הבנתי, תודה!</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
-        <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
-        <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"><div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]"><h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3><input type="hidden" id="trans-type"><div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div><input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור"><select id="trans-cat" class="modern-input mb-8 bg-white"></select><div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div></div></div>
-        <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3><div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div><input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)"><div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div></div></div>
-        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center"><h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3><p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id"><div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div><div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div></div></div>
-        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3><p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id"><div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div></div></div>
-        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">עריכת תקציב</h3><p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id"><input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי"><div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div></div></div>
-        <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3><input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?"><div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div></div></div>
-        
-        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3><label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select><label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white" onchange="updateAssignDetails()"></select><div class="flex gap-2 mb-6"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">תוקף (ימים):</label><input type="number" id="assign-days" class="modern-input text-center" placeholder="ללא"></div></div><div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצאה</button></div></div></div>
-    </div>
-
-    <script>
-        const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        let currentUser = null;
-        let currentGroup = null;
-        let pollInterval = null;
-        let membersCache = [];
-        let shoppingListCache = [];
-        let wisdomCache = {};
-        let bundlesCache = [];
-        let allBundles = [];
-        
-        let allTasks = [];
-        let allTransactions = [];
-        let feedCache = [];
-
-        const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
-        const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
-        const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
-        const PRODUCT_DB = { "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"], "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"], "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"], "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"], "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"], "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"], "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"] };
-        const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
-
-        let currentQuizData = null, currentQuestionIndex = 0, quizScore = 0;
-
-        window.onload = async () => { 
-            const urlParams = new URLSearchParams(window.location.search);
-            const inviteCode = urlParams.get('code');
-            const inviteRole = urlParams.get('role');
-            
-            if (inviteCode) {
-                document.getElementById('join-code').value = inviteCode;
-                if(inviteRole) document.getElementById('join-role').value = inviteRole;
-                switchView('join');
-            }
-
-            const saved = localStorage.getItem('ofl_session'); 
-            if(saved) { 
-                try { 
-                    const session = JSON.parse(saved); 
-                    if(session && session.user && session.user.id) { 
-                        const res = await fetch(`${API}/users/${session.user.id}`); 
-                        if(res.ok) { 
-                            currentUser = await res.json(); 
-                            currentGroup = session.group; 
-                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
-                            loadDashboard(); 
-                        } else { logout(); } 
-                    } else { logout(); } 
-                } catch(e) { logout(); } 
-            } 
-        };
-
-        function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
-        function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
-        
-        async function handleLogin(e) { 
-            e.preventDefault(); 
-            authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); 
+        for (const q of quizData.questions) {
+            await pool.query(
+                `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
+                [newBundleId, q.q, JSON.stringify(q.options), q.correct]
+            );
         }
-        
-        async function handleCreate(e) { 
-            e.preventDefault(); 
-            authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); 
-        }
-        
-        async function handleJoin(e) { 
-            e.preventDefault(); 
-            const res = await fetch(`${API}/join`, { 
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) 
-            }); 
-            const d=await res.json(); 
-            if(d.success) {
-                showToast('success', 'נשלח בהצלחה!');
-                window.history.replaceState({}, document.title, window.location.pathname);
-                switchView('login');
-            } else {
-                showToast('error', d.error);
-            }
-        }
+        res.json({ success: true, bundleId: newBundleId });
+    } catch (e) {
+        console.error('AI Gen Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
 
-        async function authAction(endpoint, body) { 
-            toggleLoader('login', true); 
+app.post('/api/tasks/ai-generate', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const { age, topic } = req.body;
+        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50). Requirements: 1. Language MUST be Hebrew. 2. Output STRICTLY as a JSON array of objects matching this schema exactly: [ { "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)", "reward": 15 } ]`;
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const tasks = JSON.parse(responseText);
+        res.json({ success: true, tasks });
+    } catch (e) {
+        console.error('AI Task Gen Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/goals/familai-advice', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { userId, goalId } = req.body;
+        const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
+        const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
+
+        if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
+
+        const user = userRes.rows[0];
+        const goal = goalRes.rows[0];
+        const age = calculateAge(user.birth_year);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target amount needed: ${goal.target_amount} ILS. Current saved amount for this goal: ${goal.current_amount} ILS. The child's current free wallet balance is: ${user.balance} ILS. The child's weekly allowance is: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. 1. Tell them they are doing a great job saving. 2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers. 3. Keep it under 4 sentences. 4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis. 5. Introduce yourself as 'familAI' at the start or end (e.g., "כאן familAI!").`;
+
+        const result = await model.generateContent(prompt);
+        const advice = result.response.text().trim();
+        res.json({ success: true, advice });
+    } catch (e) {
+        console.error('familAI Advice Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Setup DB
+app.get('/setup-db', async (req, res) => {
+    try {
+        await pool.query(`
+            DROP TABLE IF EXISTS user_assignments CASCADE;
+            DROP TABLE IF EXISTS quiz_questions CASCADE;
+            DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE;
+            DROP TABLE IF EXISTS goals CASCADE;
+            DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE;
+            DROP TABLE IF EXISTS transactions CASCADE;
+            DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE;
+            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS family_groups CASCADE;
+
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
+            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
+            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
+            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        `);
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables reset.</p><a href="/">Go to App</a>');
+    } catch (e) { res.status(500).send(e.message); }
+});
+
+// Auth
+app.post('/api/groups', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        let code = generateGroupCode();
+        const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
+        const group = gRes.rows[0];
+        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]);
+        await dbClient.query('COMMIT');
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) {
+        await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { dbClient.release(); }
+});
+
+app.post('/api/join', async (req, res) => {
+    try {
+        const { groupCode, nickname, birthYear, password, role } = req.body;
+        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
+        const group = gRes.rows[0];
+        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+        await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [group.id, nickname, birthYear, password, reqRole]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה שגוי' });
+        const group = gRes.rows[0];
+        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
+        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/users/:id', async (req, res) => {
+    try {
+        const u = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+        if (u.rows.length > 0) res.json(u.rows[0]); else res.status(404).json({error: 'Not found'});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+// Dash Data - SECURED WITH TRY/CATCH
+app.get('/api/data/:userId', async (req, res) => {
+    try {
+        const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
+        if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
+        const user = uRes.rows[0];
+
+        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]};
+        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]); } catch(e){}
+        try { shopRes = await pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]); } catch(e){}
+        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY id DESC`); } catch(e){}
+
+        let goalsRes = {rows:[]}, weeklyStats = null, userBundles = [];
+
+        if(user.role === 'ADMIN') {
+            try { goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]); } catch(e){}
             try { 
-                const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
-                const data = await res.json(); 
-                if(data.success) { 
-                    currentUser = data.user; 
-                    currentGroup = data.group; 
-                    localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
-                    loadDashboard(); 
-                } else showToast('error', data.error); 
-            } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
-        }
-        
-        function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
-        function scrollTabs(direction) { const container = document.getElementById('slider-scroll'); const scrollAmount = 150; container.scrollBy({ left: direction * -scrollAmount, behavior: 'smooth' }); }
-        
-        function switchTab(t) { 
-            ['feed','tasks','shop','bank','academy','members','budget'].forEach(x => { 
-                const el = document.getElementById(`content-${x}`); 
-                if(el) el.classList.add('hidden'); 
-                const btn = document.getElementById(`tab-${x}`); 
-                if(btn) btn.classList.remove('tab-active'); 
-            }); 
-            
-            document.getElementById(`content-${t}`).classList.remove('hidden'); 
-            document.getElementById(`tab-${t}`).classList.add('tab-active'); 
-            
-            if (t !== 'shop') {
-                const footer = document.getElementById('cart-footer');
-                if (footer) footer.classList.add('hidden');
-                document.getElementById('fab-container').classList.remove('fab-lifted');
-            } else {
-                renderShopList();
-            }
-        }
-
-        async function loadDashboard() {
-            document.getElementById('auth-container').classList.add('hidden'); 
-            document.getElementById('dashboard-container').classList.remove('hidden'); 
-            document.getElementById('fab-container').classList.remove('hidden');
-            
-            const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-            document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`;
-            document.getElementById('dash-nickname').innerText = currentUser.nickname; 
-            document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
-
-            const isAdmin = currentUser.role === 'ADMIN';
-            if(isAdmin) { 
-                document.getElementById('admin-panel').classList.remove('hidden'); 
-                document.getElementById('btn-add-task').classList.remove('hidden'); 
-                document.getElementById('budget-filter').classList.remove('hidden'); 
-                document.getElementById('bank-admin-view').classList.remove('hidden'); 
-                document.getElementById('academy-admin-view').classList.remove('hidden'); 
-                
-                fetchPendingUsers(); 
-                fetchBundles(); 
-            } else { 
-                document.getElementById('btn-self-task').classList.remove('hidden'); 
-                document.getElementById('bank-child-view').classList.remove('hidden'); 
-                document.getElementById('academy-user-view').classList.remove('hidden'); 
-                document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); 
-                document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; 
-                document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-            }
-            
-            if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
-            
-            await fetchMembers(); 
-            await fetchData();
-        }
-
-        // --- FETCH MEMBERS (ALL CENTRALIZED UI UPDATES FOR USERS) ---
-        async function fetchMembers() { 
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.assigned_at DESC`, [user.group_id]); 
+                userBundles = ubRes.rows;
+            } catch(e){}
+        } else {
+            try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
+            try { 
+                const spentRes = await pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]);
+                const limitRes = await pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]);
+                weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
+            } catch(e){}
             try {
-                if(!currentGroup || !currentGroup.id) return;
-                const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
-                membersCache = await res.json(); 
-                if(!Array.isArray(membersCache)) membersCache = [];
-                
-                // Update Filters
-                if (currentUser.role === 'ADMIN') { 
-                    const budgetFilter = document.getElementById('budget-filter'); 
-                    if (budgetFilter) { 
-                        const currentBudgetVal = budgetFilter.value;
-                        budgetFilter.innerHTML = '<option value="all">כל הבית</option>'; 
-                        membersCache.forEach(m => budgetFilter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); 
-                        if(currentBudgetVal) budgetFilter.value = currentBudgetVal;
-                    } 
-                    const feedFilter = document.getElementById('feed-user-filter');
-                    if (feedFilter) {
-                        const currentFeedVal = feedFilter.value;
-                        feedFilter.innerHTML = '<option value="all">כל המשפחה</option>';
-                        membersCache.forEach(m => feedFilter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`);
-                        if(currentFeedVal) feedFilter.value = currentFeedVal;
-                    }
-                    const goalSelect = document.getElementById('goal-target-user');
-                    if (goalSelect) {
-                        const currentGoalVal = goalSelect.value;
-                        goalSelect.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>';
-                        membersCache.filter(m => m.role !== 'ADMIN').forEach(m => {
-                            goalSelect.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`;
-                        });
-                        if(currentGoalVal) goalSelect.value = currentGoalVal;
-                    }
-                } 
-
-                // Update "ניהול" (Members) List
-                const container = document.getElementById('members-list'); 
-                if(container) {
-                    container.innerHTML = ''; 
-                    membersCache.forEach(m => { 
-                        const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
-                        container.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; 
-                    }); 
-                }
-
-                // Update "בנק" (Bank Accounts) List
-                const accList = document.getElementById('bank-accounts-list'); 
-                if (accList && currentUser.role === 'ADMIN') { 
-                    accList.innerHTML = ''; 
-                    const children = membersCache.filter(m => m.role !== 'ADMIN');
-                    if(children.length === 0) {
-                        accList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
-                    } else {
-                        children.forEach(m => { 
-                            const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
-                            accList.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; 
-                        }); 
-                    }
-                } 
-            } catch(e) { console.error('fetchMembers err:', e); }
-        }
-
-        async function fetchData() {
-            try {
-                if (!currentGroup || !currentGroup.id) return;
-                if (document.activeElement.classList.contains('price-input')) return;
-                
-                const res = await fetch(`${API}/data/${currentUser.id}`); 
-                const data = await res.json();
-
-                if (!data || !data.user) {
-                    console.error("Invalid data received");
-                    return;
-                }
-                
-                currentUser.balance = data.user.balance; 
-                const balEl = document.getElementById('user-balance');
-                if(balEl) balEl.innerText = `₪${currentUser.balance}`;
-                
-                allTasks = Array.isArray(data.tasks) ? data.tasks : [];
-                bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : [];
-                allBundles = Array.isArray(data.all_bundles) ? data.all_bundles : [];
-
-                if (currentUser.role === 'ADMIN') {
-                    renderAdminAcademy();
-                } else {
-                    renderMyAssignments(bundlesCache);
-                }
-                
-                renderTasks(allTasks);
-
-                shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; 
-                renderShopList(); 
-                fetchBudget();
-                
-                const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
-                const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
-                if (goalsList) { 
-                    goalsList.innerHTML = ''; 
-                    if(data.goals && data.goals.length > 0) { 
-                        if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                        data.goals.forEach(g => { 
-                            const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); 
-                            const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; 
-                            
-                            const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-
-                            goalsList.innerHTML += `
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2">
-                                <div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div>
-                                <div class="flex-1">
-                                    ${ownerBadge}
-                                    <h4 class="font-bold text-slate-800">${g.title}</h4>
-                                    <p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p>
-                                    <div class="flex gap-2">
-                                        <button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>
-                                        ${adviseBtn}
-                                    </div>
-                                </div>
-                            </div>`; 
-                        }); 
-                    } else { 
-                        if (goalsContainer) { goalsContainer.classList.add('hidden'); } 
-                        goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; 
-                    } 
-                }
-                
-                if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                    const spent = parseFloat(data.weekly_stats.spent).toFixed(1); 
-                    const limit = parseFloat(data.weekly_stats.limit).toFixed(1); 
-                    const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                    const statusEl = document.getElementById('card-spend-status');
-                    if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                    const bar = document.getElementById('card-spend-bar'); 
-                    if(bar) {
-                        bar.style.width = `${Math.min(100, pct)}%`; 
-                        bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; 
-                    }
-                    const msgEl = document.getElementById('card-spend-msg');
-                    if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-                }
-
-                const limit = currentUser.role === 'ADMIN' ? 50 : 20;
-                const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-                try {
-                    const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-                    if(transRes.ok) {
-                        const transData = await transRes.json();
-                        allTransactions = Array.isArray(transData) ? transData : [];
-                    }
-                } catch(e) {
-                    console.error("Failed fetching transactions:", e);
-                    allTransactions = [];
-                }
-
-                renderChildTodo();
-                buildAndRenderFeed();
-
-            } catch(e) { console.error('fetchData failed:', e); }
-        }
-
-        // --- AI LOGIC (Academy & Goals) ---
-        function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
-        
-        async function generateAIQuiz() {
-            const btn = document.getElementById('btn-ai-gen');
-            const age = val('ai-age');
-            const topic = val('ai-topic');
-            if(!topic) return showToast('error', 'נא להזין נושא');
-
-            btn.disabled = true;
-            btn.innerText = 'familAI חושבת... ⏳';
-            try {
-                const res = await fetch(`${API}/academy/ai-generate`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ ageGroup: age, topic: topic })
-                });
-                const data = await res.json();
-                
-                if(data.success) {
-                    showToast('success', 'מבחן ה-AI מוכן!');
-                    document.getElementById('ai-modal').classList.add('hidden');
-                    document.getElementById('ai-topic').value = '';
-                    await fetchBundles(); 
-                    openAssignModalSpecific(data.bundleId);
-                } else {
-                    showToast('error', data.error || 'שגיאה ביצירת המבחן');
-                }
-            } catch(e) {
-                showToast('error', 'תקלה בתקשורת עם השרת');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'צור אתגר';
-            }
-        }
-
-        async function getFamilAIAdvice(childId, goalId) {
-            document.getElementById('familai-advisor-modal').classList.remove('hidden');
-            document.getElementById('familai-advisor-loading').classList.remove('hidden');
-            document.getElementById('familai-advisor-content').classList.add('hidden');
-
-            try {
-                const res = await fetch(`${API}/goals/familai-advice`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ userId: childId, goalId: goalId })
-                });
-                const data = await res.json();
-                
-                document.getElementById('familai-advisor-loading').classList.add('hidden');
-                
-                if(data.success && data.advice) {
-                    document.getElementById('familai-advice-text').innerText = data.advice;
-                    document.getElementById('familai-advisor-content').classList.remove('hidden');
-                    triggerConfetti();
-                } else {
-                    document.getElementById('familai-advisor-modal').classList.add('hidden');
-                    showToast('error', 'מצטערת, לא הצלחתי לייצר עצה כרגע.');
-                }
-            } catch (e) {
-                document.getElementById('familai-advisor-modal').classList.add('hidden');
-                showToast('error', 'תקלה בתקשורת עם השרת');
-            }
-        }
-
-        // --- TASKS MODAL LOGIC (Unified) ---
-        function setTaskMode(mode) {
-            const mBtn = document.getElementById('btn-mode-manual');
-            const aBtn = document.getElementById('btn-mode-ai');
-            const mDiv = document.getElementById('task-mode-manual');
-            const aDiv = document.getElementById('task-mode-ai');
-
-            if (mode === 'manual') {
-                mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition';
-                aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition';
-                mDiv.classList.remove('hidden');
-                aDiv.classList.add('hidden');
-            } else {
-                aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-purple-600 shadow-sm transition';
-                mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-blue-600 transition';
-                aDiv.classList.remove('hidden');
-                mDiv.classList.add('hidden');
-            }
-        }
-
-        function closeTaskModal() { 
-            document.getElementById('task-modal').classList.add('hidden'); 
-        }
-
-        function openTaskModal(isSelf = false) { 
-            document.getElementById('task-modal').classList.remove('hidden'); 
-            document.getElementById('task-is-self').value = isSelf; 
-            document.getElementById('task-days').value = '';
-            document.getElementById('task-title').value = '';
-            document.getElementById('task-reward').value = '';
-            document.getElementById('ai-task-topic').value = '';
-            document.getElementById('ai-task-results').classList.add('hidden');
-
-            setTaskMode('manual');
-            
-            const toggles = document.getElementById('task-mode-toggles');
-            const assigneeContainer = document.getElementById('task-assignee-container');
-            const rewardGroup = document.getElementById('task-reward-group');
-            const assigneeSelect = document.getElementById('task-assignee');
-
-            if(isSelf) { 
-                document.getElementById('task-modal-title').innerText = 'משימה אישית'; 
-                toggles.classList.add('hidden');
-                assigneeContainer.classList.add('hidden');
-                rewardGroup.classList.add('hidden'); 
-            } else { 
-                document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
-                toggles.classList.remove('hidden');
-                assigneeContainer.classList.remove('hidden');
-                rewardGroup.classList.remove('hidden'); 
-                
-                if(membersCache) {
-                    assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>';
-                    let hasChildren = false;
-                    membersCache.forEach(m => {
-                        if (m.role !== 'ADMIN') {
-                            assigneeSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
-                            hasChildren = true;
-                        }
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 ORDER BY ua.assigned_at DESC`, [user.id]);
+                userBundles = ubRes.rows;
+                const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
+                if (activeBundleIds.length > 0) {
+                    const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
+                    userBundles.forEach(b => {
+                        if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
                     });
-                    if (!hasChildren) {
-                        assigneeSelect.innerHTML = '<option value="" disabled selected>אין ילדים רשומים</option>';
-                    }
                 }
-            } 
+            } catch(e){}
         }
 
-        async function generateAITasks() {
-            const btn = document.getElementById('btn-ai-task-gen');
-            const assigneeId = val('task-assignee');
-            const topic = val('ai-task-topic');
-            const isSelf = document.getElementById('task-is-self').value === 'true'; 
-            
-            let age;
-            if (isSelf) {
-                 age = new Date().getFullYear() - currentUser.birth_year;
-            } else {
-                 if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור מי המשימה 👆');
-                 const child = membersCache.find(m => String(m.id) === String(assigneeId));
-                 if(!child) return showToast('error', 'שגיאה במציאת גיל הילד');
-                 age = new Date().getFullYear() - child.birth_year;
-            }
+        res.json({
+            user: user, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes ? (goalsRes.rows || []) : [],
+            weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || []
+        });
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-            if(!topic) return showToast('error', 'כתבו ל-familAI באיזה נושא לעזור');
+app.get('/api/admin/pending-users', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if(!groupId || groupId === 'undefined') return res.json([]);
+        const users = await pool.query(`SELECT * FROM users WHERE group_id = $1 AND status = 'pending'`, [groupId]);
+        res.json(users.rows);
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> חושבת...';
-            
-            try {
-                const res = await fetch(`${API}/tasks/ai-generate`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ age: age, topic: topic })
-                });
-                const data = await res.json();
-                
-                if(data.success && data.tasks && data.tasks.length > 0) {
-                    const resultsContainer = document.getElementById('ai-task-results');
-                    resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>';
-                    
-                    data.tasks.forEach(task => {
-                        const safeTitle = task.title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                        resultsContainer.innerHTML += `
-                        <div onclick="selectAITask('${safeTitle}', ${task.reward})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-purple-100 hover:bg-purple-50 transition">
-                            <span class="text-sm font-bold text-slate-700">${task.title}</span>
-                            <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${task.reward}</span>
-                        </div>`;
-                    });
-                    resultsContainer.classList.remove('hidden');
-                    triggerConfetti();
-                } else {
-                    showToast('error', 'familAI לא הצליחה לייצר משימות. נסו שוב.');
-                }
-            } catch(e) {
-                showToast('error', 'תקלה בתקשורת עם השרת');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות';
-            }
-        }
+app.post('/api/admin/approve-user', async (req, res) => {
+    try {
+        await pool.query(`UPDATE users SET status = 'active' WHERE id = $1`, [req.body.userId]);
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-        function selectAITask(title, reward) {
-            document.getElementById('task-title').value = title;
-            document.getElementById('task-reward').value = reward;
-            setTaskMode('manual');
-        }
-
-        async function submitTask() { 
-            const isSelf = document.getElementById('task-is-self').value === 'true'; 
-            const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-            const reward = isSelf ? 0 : val('task-reward'); 
-            const title = val('task-title');
-            const days = val('task-days');
-
-            if(!isSelf && !assignee) return showToast('error', 'יש לבחור ילד למשימה');
-            if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
-
-            await fetch(`${API}/tasks`, {
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({ title: title, reward: reward, assignedTo: assignee, days: days })
-            }); 
-
-            if(isSelf) triggerConfetti(); 
-            closeTaskModal();
-            showToast('success', 'משימה נוצרה בהצלחה!');
-            fetchData(); 
-        }
-
-        function renderChildTodo() {
-            const todoSection = document.getElementById('child-todo-section');
-            const todoList = document.getElementById('child-todo-list');
-            if (!todoSection || !todoList) return;
-            
-            if (currentUser.role === 'ADMIN') {
-                todoSection.classList.add('hidden');
-                return;
-            }
-
-            let hasItems = false;
-            let htmlStr = '';
-
-            const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
-            myTasks.forEach(t => {
-                hasItems = true;
-                let dMsg = '';
-                if (t.deadline) {
-                    const d = new Date(t.deadline);
-                    const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
-                    dMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`;
-                }
-
-                htmlStr += `
-                    <div class="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-blue-50 transition mb-2" onclick="switchTab('tasks')">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${t.title}</h4>
-                                <p class="text-[10px] text-slate-500">משימה • תגמול: ₪${t.reward}${dMsg}</p>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-left text-slate-300"></i>
-                    </div>`;
-            });
-
-            const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
-            myQuizzes.forEach(b => {
-                hasItems = true;
-                const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
-                let deadlineMsg = "";
-                if (b.deadline) {
-                    const d = new Date(b.deadline);
-                    const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
-                    deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`;
-                }
-
-                htmlStr += `
-                    <div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${b.title}</h4>
-                                <p class="text-[10px] text-slate-500">אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-left text-slate-300"></i>
-                    </div>`;
-            });
-
-            if (hasItems) {
-                todoList.innerHTML = htmlStr;
-                todoSection.classList.remove('hidden');
-            } else {
-                todoList.innerHTML = '';
-                todoSection.classList.add('hidden');
-            }
-        }
-
-        function renderTasks(tasks) {
-            const list = document.getElementById('tasks-list');
-            if(!list) return;
-            
-            let htmlStr = '';
-            let count = 0;
-
-            tasks.forEach(t => {
-                const isMyTask = String(t.assigned_to) === String(currentUser.id);
-                const isAdmin = currentUser.role === 'ADMIN';
-                if (!isMyTask && !isAdmin) return; 
-                
-                count++;
-                let statusColor = 'bg-white border-slate-50'; 
-                let statusBadge = '';
-                let actionBtn = '';
-
-                if (t.status === 'pending') {
-                    if (isMyTask) actionBtn = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי</button>`;
-                    else statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
-                } 
-                else if (t.status === 'done') {
-                    statusColor = 'bg-yellow-50 border-yellow-100';
-                    if (isAdmin) actionBtn = `<button onclick="updateTask(${t.id}, 'approved')" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`;
-                    else statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
-                }
-                else if (t.status === 'approved') {
-                    statusColor = 'bg-green-50 border-green-100';
-                    statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`;
-                }
-
-                const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
-
-                let deadlineBadge = '';
-                if (t.deadline && t.status === 'pending') {
-                    const d = new Date(t.deadline);
-                    const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
-                    if (diff > 0) {
-                        deadlineBadge = `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>`;
-                    } else {
-                        deadlineBadge = `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`;
-                    }
-                }
-
-                htmlStr += `
-                <div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
-                    <div>
-                        <p class="font-bold text-slate-800">${t.title} ${deadlineBadge}</p>
-                        <div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}</div>
-                    </div>
-                    <div class="flex flex-col items-end gap-1">
-                        ${actionBtn}
-                        ${statusBadge}
-                    </div>
-                </div>`;
-            });
-
-            if (count === 0) {
-                list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
-            } else {
-                list.innerHTML = htmlStr;
-            }
-        }
-
-        // --- UNIFIED FEED LOGIC (Rest of the functions) ---
-        function buildAndRenderFeed() {
-            feedCache = [];
-
-            if(Array.isArray(allTransactions)) {
-                allTransactions.forEach(t => {
-                    feedCache.push({
-                        type: 'transaction',
-                        id: t.id,
-                        user_id: t.user_id,
-                        user_name: t.user_name || currentUser.nickname,
-                        date: t.date ? new Date(t.date) : new Date(),
-                        title: t.description,
-                        amount: t.amount,
-                        isIncome: t.type === 'income',
-                        category: t.category
-                    });
-                });
-            }
-
-            if(Array.isArray(allTasks)) {
-                allTasks.forEach(t => {
-                    feedCache.push({
-                        type: 'task',
-                        id: `task_${t.id}`,
-                        user_id: t.assigned_to,
-                        user_name: t.assignee_name || currentUser.nickname,
-                        date: t.created_at ? new Date(t.created_at) : new Date(),
-                        title: `משימה: ${t.title}`,
-                        amount: t.reward,
-                        status: t.status
-                    });
-                });
-            }
-
-            if(Array.isArray(bundlesCache)) {
-                bundlesCache.forEach(b => {
-                     feedCache.push({
-                         type: 'quiz',
-                         id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`,
-                         user_id: b.user_id || b.assigned_to_user || currentUser.id,
-                         user_name: b.assignee_name || currentUser.nickname,
-                         date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()),
-                         title: `אתגר: ${b.title}`,
-                         amount: b.custom_reward !== null ? b.custom_reward : b.default_reward,
-                         status: b.status
-                     });
-                });
-            }
-
-            feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
-            
-            if(currentUser.role === 'ADMIN') {
-                const filterEl = document.getElementById('feed-user-filter');
-                if (filterEl) filterEl.classList.remove('hidden');
-            }
-
-            renderUnifiedFeed();
-        }
-
-        function renderUnifiedFeed() {
-            const filterEl = document.getElementById('feed-user-filter');
-            const list = document.getElementById('unified-feed-list');
-            if (!list) return;
-
-            const filterUserId = filterEl ? filterEl.value : 'all';
-            let filtered = feedCache;
-            
-            if (currentUser.role !== 'ADMIN') {
-                filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id));
-            } else {
-                if (filterUserId !== 'all' && filterUserId !== '') {
-                    filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId));
-                }
-            }
-
-            filtered = filtered.slice(0, 30); 
-
-            if(filtered.length === 0) {
-                list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>';
-                return;
-            }
-
-            let html = '';
-            filtered.forEach(item => {
-                if(!item.date || isNaN(item.date.getTime())) return;
-
-                const colorClass = userColors[item.user_id % userColors.length] || 'bg-white border-slate-50';
-                const userNameDisplay = currentUser.role === 'ADMIN' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
-                
-                const d = item.date;
-                const today = new Date();
-                const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-                const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
-                const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
-
-                let contentHtml = '';
-
-                if (item.type === 'transaction') {
-                    const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-                    const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600';
-                    const prefix = item.isIncome ? '+' : '-';
-                    contentHtml = `
-                        <div class="flex justify-between items-center w-full">
-                            <div>
-                                ${userNameDisplay}
-                                <p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p>
-                                <p class="text-[10px] text-slate-400 mt-1">${dateStr}</p>
-                            </div>
-                            <span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span>
-                        </div>`;
-                } else if (item.type === 'task') {
-                    const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>';
-                    let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה');
-                    let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
-                    
-                    contentHtml = `
-                        <div class="flex justify-between items-center w-full opacity-90">
-                            <div>
-                                ${userNameDisplay}
-                                <p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p>
-                                <p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p>
-                            </div>
-                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span>
-                        </div>`;
-                } else if (item.type === 'quiz') {
-                    const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>';
-                    let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף');
-                    let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
-                    
-                    contentHtml = `
-                        <div class="flex justify-between items-center w-full opacity-90">
-                            <div>
-                                ${userNameDisplay}
-                                <p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p>
-                                <p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p>
-                            </div>
-                            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span>
-                        </div>`;
-                }
-
-                html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
-            });
-
-            list.innerHTML = html;
-        }
-
-        // --- ACADEMY CONTINUED ---
-        function updateAssignDetails() {
-            const select = document.getElementById('assign-bundle-select');
-            const bundleId = select.value;
-            const bundle = allBundles.find(b => b.id == bundleId);
-            if(bundle) {
-                document.getElementById('assign-reward').value = bundle.reward;
-            }
-        }
-
-        function openAssignModal() {
-            const cSelect = document.getElementById('assign-child-select');
-            cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
-            if(membersCache) {
-                membersCache.forEach(m => {
-                    if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
-                });
-            }
-            
-            const bSelect = document.getElementById('assign-bundle-select');
-            bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
-            
-            if (allBundles && allBundles.length > 0) {
-                allBundles.forEach(b => {
-                    bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${b.title} (${b.age_group})</option>`;
-                });
-            } else {
-                bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>';
-            }
-
-            document.getElementById('assign-reward').value = '';
-            document.getElementById('assign-days').value = '';
-
-            document.getElementById('assign-quiz-modal').classList.remove('hidden');
-        }
-
-        function openAssignModalSpecific(bundleId) {
-            openAssignModal();
-            setTimeout(() => {
-                const select = document.getElementById('assign-bundle-select');
-                if (select) {
-                    select.value = bundleId;
-                    updateAssignDetails();
-                }
-            }, 100);
-        }
-
-        async function submitAssignQuiz() {
-            const childId = document.getElementById('assign-child-select').value;
-            const bundleId = document.getElementById('assign-bundle-select').value;
-            const reward = document.getElementById('assign-reward').value;
-            const days = document.getElementById('assign-days').value;
-            
-            if(!childId) { showToast('error', 'אנא בחר ילד להקצאה'); return; }
-            if(!bundleId) { showToast('error', 'אנא בחר אתגר להקצאה'); return; }
-
-            await fetch(`${API}/academy/assign`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days })
-            });
-            
-            document.getElementById('assign-quiz-modal').classList.add('hidden');
-            showToast('success', 'הוקצה בהצלחה');
-            
-            fetchData();
-        }
-
-        function renderAdminAcademy() {
-            const list = document.getElementById('admin-assignments-list');
-            if(!list || currentUser.role !== 'ADMIN') return;
-            
-            let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
-            if (!allBundles || allBundles.length === 0) {
-                html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>';
-            } else {
-                html += '<div class="space-y-2 mb-8">';
-                allBundles.forEach(b => {
-                    const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈');
-                    html += `
-                    <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
-                            <div>
-                                <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                                <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p>
-                            </div>
-                        </div>
-                        <button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button>
-                    </div>`;
-                });
-                html += '</div>';
-            }
-
-            html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
-            if (!bundlesCache || bundlesCache.length === 0) {
-                html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>';
-            } else {
-                html += '<div class="space-y-2 pb-20">';
-                bundlesCache.forEach(b => {
-                    let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500');
-                    let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין');
-                    html += `
-                    <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
-                        <div>
-                            <p class="font-bold text-slate-700 text-sm">${b.title}</p>
-                            <p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span></p>
-                        </div>
-                        <span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span>
-                    </div>`;
-                });
-                html += '</div>';
-            }
-
-            list.innerHTML = html;
-        }
-
-        // --- SHOP & MISC ---
-        function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
+app.get('/api/group/members', async (req, res) => {
+    try {
+        const { requesterId, groupId } = req.query;
+        if(!groupId || groupId === 'undefined') return res.json([]);
         
-        async function submitShopItem() { 
-            const itemInput = document.getElementById('shop-item');
-            const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
-            
-            const item = itemInput.value;
-            const qty = val('shop-quantity');
-            const est = val('shop-est-price');
-            
-            if(!item) return;
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.innerText = 'מוסיף...';
+        const uReq = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+        const isAdmin = uReq.rows[0].role === 'ADMIN';
+        const members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
+        if(isAdmin) res.json(members.rows);
+        else res.json(members.rows.map(m => ({id: m.id, nickname: m.nickname, role: m.role, birth_year: m.birth_year, balance: m.id == requesterId ? m.balance : null})));
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-            try {
-                const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, estimatedPrice: est, userId: currentUser.id}) }); 
-                const data = await res.json(); 
-                
-                if (data.success) { 
-                    document.getElementById('shop-modal').classList.add('hidden'); 
-                    itemInput.value = ''; 
-                    document.getElementById('shop-est-price').value = ''; 
-                    document.getElementById('shop-quantity').value = 1; 
-                    document.getElementById('suggestions').classList.add('hidden'); 
-                    if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
-                    showToast('success', 'נוסף לרשימה'); 
-                    fetchData(); 
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'הוסף';
-            }
-        }
-        
-        async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
-        function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
-        
-        function renderShopList() {
-            if (document.activeElement.classList.contains('price-input')) return;
-            
-            const list = document.getElementById('shop-list');
-            const reqList = document.getElementById('shop-requests-list');
-            const reqContainer = document.getElementById('shop-requests-container');
-            
-            const activeItems = [];
-            const requestedItems = [];
-            
-            shoppingListCache.forEach(i => {
-                if(i.status === 'requested') requestedItems.push(i);
-                else activeItems.push(i);
-            });
-            
-            let reqHtml = '';
-            if (currentUser.role === 'ADMIN' && requestedItems.length > 0) {
-                reqContainer.classList.remove('hidden');
-                requestedItems.forEach(i => {
-                    reqHtml += `
-                    <div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2">
-                        <div>
-                            <span class="font-bold text-slate-700">${i.item_name}</span>
-                            <span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button>
-                            <button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>`;
-                });
-                reqList.innerHTML = reqHtml;
-            } else {
-                reqContainer.classList.add('hidden');
-            }
+app.post('/api/admin/update-settings', async (req, res) => {
+    try {
+        await pool.query(`UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3`, [req.body.allowance || 0, req.body.interest || 0, req.body.userId]);
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
 
-            if(activeItems.length === 0) { 
-                list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
-                document.getElementById('cart-footer').classList.add('hidden'); 
-                document.getElementById('fab-container').classList.remove('fab-lifted');
-                return; 
+app.post('/api/admin/payday', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const children = await dbClient.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND role='MEMBER' AND status='active'`, [req.body.groupId]);
+        let totalDistributed = 0;
+        for(let child of children.rows) {
+            const allowance = parseFloat(child.allowance_amount) || 0;
+            let interest = 0;
+            const spentRes = await dbClient.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE - INTERVAL '7 days') AND date < date_trunc('week', CURRENT_DATE)`, [child.id]);
+            const spent = parseFloat(spentRes.rows[0].spent);
+            const limit = allowance * 0.2; 
+            if (spent <= limit && parseFloat(child.balance) > 0) interest = parseFloat(child.balance) * ((parseFloat(child.interest_rate)||0) / 100);
+            const totalAdded = allowance + interest;
+            if(totalAdded > 0) {
+                await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [totalAdded, child.id]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, [child.id, req.body.groupId, totalAdded, `יום תשלום: ${allowance} דמי כיס + ${interest.toFixed(2)} ריבית`]);
+                totalDistributed += totalAdded;
             }
-            
-            document.getElementById('cart-footer').classList.remove('hidden');
-            document.getElementById('fab-container').classList.add('fab-lifted');
-            
-            const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
-            activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
-            
-            let currentCat = '';
-            let shopHtml = '';
-            activeItems.forEach(i => {
-                const cat = getCatScore(i.item_name);
-                if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
-                const isChecked = i.status === 'in_cart';
-                const val = i.estimated_price > 0 ? i.estimated_price : '';
-                const savedWisdom = wisdomCache[i.id];
-                const showWisdom = savedWisdom && savedWisdom.length > 0;
-                
-                const unitPrice = parseFloat(i.estimated_price) || 0;
-                const totalRowPrice = unitPrice * i.quantity;
-                
-                shopHtml += `
-                <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0">
-                        <div class="flex-1">
-                            <div class="flex justify-between items-start">
-                                <span class="text-slate-700 font-medium item-name">${i.item_name}</span>
-                                <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button>
-                            </div>
-                            <span class="text-[10px] text-slate-400">${i.requester_name}</span>
-                            <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all">
-                                <i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-2 items-center pl-0 mt-1">
-                         <div class="relative w-24">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span>
-                            <input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center">
-                        </div>
-                        <div class="flex flex-col items-center leading-none">
-                             <span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span>
-                             <span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span>
-                        </div>
-                        <div class="flex flex-col items-center leading-none ml-auto">
-                            <span class="text-[9px] text-slate-400 mb-0.5">כמות</span>
-                            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span>
-                        </div>
-                        <button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button>
-                    </div>
-                </div>`;
-            });
-            list.innerHTML = shopHtml;
-            calcRunningTotal();
         }
+        await dbClient.query('COMMIT');
+        res.json({success: true, totalDistributed});
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
+});
 
-        async function updateRow(id, type, value) {
-            if (type === 'approve_request') {
-                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})});
-            }
-            else if (type === 'check') { 
-                const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); 
-                if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } 
-                await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); 
-            } 
-            else if (type === 'price_calc') {
-                const item = shoppingListCache.find(i => i.id == id);
-                if(item) {
-                    const unitPrice = parseFloat(value) || 0;
-                    const total = unitPrice * item.quantity;
-                    const totalEl = document.getElementById(`row-total-${id}`);
-                    if(totalEl) totalEl.innerText = `₪${total.toFixed(0)}`;
-                }
-                calcRunningTotal(); 
-                return; 
-            }
-            else if (type === 'price_save') { 
-                const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); 
-                const data = await res.json(); 
-                const freshWisdomDiv = document.getElementById(`wisdom-${id}`); 
-                if(freshWisdomDiv) { 
-                    if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } 
-                    else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } 
-                } 
-                const cachedItem = shoppingListCache.find(i => i.id == id); 
-                if(cachedItem) cachedItem.estimated_price = value; 
-            } 
-            if(type === 'approve_request') fetchData();
-            else calcRunningTotal(); 
-        }
+app.post('/api/transaction', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
+        await dbClient.query('BEGIN');
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type]);
+        const op = req.body.type === 'income' ? '+' : '-';
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
+        if (req.body.type === 'expense') await dbClient.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, [u.rows[0].group_id, req.body.category, req.body.userId]);
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
 
-        function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
-        
-        function calcRunningTotal() { 
-            let total = 0; 
-            document.querySelectorAll('.shop-row').forEach(row => { 
-                const isChecked = row.querySelector('input[type="checkbox"]').checked; 
-                const isMissing = row.classList.contains('missing'); 
-                if (isChecked && !isMissing) { 
-                    const id = row.id.replace('row-', '');
-                    const itemData = shoppingListCache.find(i => i.id == id);
-                    const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; 
-                    const qty = itemData ? itemData.quantity : 1;
-                    total += (unitPrice * qty); 
-                } 
-            }); 
-            document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
+        const { groupId, userId } = req.query;
+        if(!groupId || groupId === 'undefined') return res.json([]);
+        let query, params;
+        if(userId === 'all') {
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.date DESC ${limit}`;
+             params = [groupId];
+        } else {
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id=$1 ORDER BY t.date DESC ${limit}`;
+             params = [userId];
         }
-        
-        function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
-        async function submitFinalCheckout() { const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = []; document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); if (row.classList.contains('missing')) { missingItems.push({ id }); } else if (row.querySelector('input[type="checkbox"]').checked) { const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal; boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal }); } }); triggerShake(); await fetch(`${API}/shopping/checkout`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems })}); document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData(); }
-        async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
-        
-        // --- WHATSAPP SHARE & INVITES ---
-        function openInviteModal() {
-            const codeSpan = document.getElementById('display-group-code');
-            if (currentGroup && currentGroup.group_code) {
-                codeSpan.innerText = currentGroup.group_code;
-            } else {
-                codeSpan.innerText = 'שגיאה: חסר קוד';
-            }
-            document.getElementById('invite-modal').classList.remove('hidden');
-        }
+        const t = await pool.query(query, params);
+        res.json(t.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
-        function sendWhatsAppInvite(role) {
-            if (!currentGroup || !currentGroup.group_code) {
-                showToast('error', 'קוד משפחה לא זמין כרגע');
-                return;
-            }
-            
-            const url = window.location.origin;
-            const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`;
-            
-            let text = '';
-            if (role === 'ADMIN') {
-                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}`;
-            } else {
-                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`;
-            }
-            
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(whatsappUrl, '_blank');
-            document.getElementById('invite-modal').classList.add('hidden');
+app.post('/api/tasks', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.assignedTo]);
+        let deadline = null;
+        if (req.body.days && parseInt(req.body.days) > 0) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(req.body.days));
         }
+        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, deadline) VALUES ($1, $2, $3, $4, $5, $6)`, 
+            [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward, deadline]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
 
-        // --- HELPERS ---
-        function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
-        function val(id) { return document.getElementById(id).value; }
-        function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
-        function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-        function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
-        function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
-        
-        async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button></div></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
-        function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-        async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-        async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-        function openGoalModal() { 
-            if(currentUser.role === 'ADMIN') {
-                document.getElementById('goal-user-select-container').classList.remove('hidden');
+app.post('/api/tasks/update', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const t = (await dbClient.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0];
+        if (req.body.status === 'completed_self') await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+        else if (req.body.status === 'approved' && t.reward > 0) {
+            await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
+            await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, t.reward, `תגמול משימה: ${t.title}`]);
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+        } else {
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', [req.body.status, req.body.taskId]);
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
+app.post('/api/goals', async (req, res) => {
+    try {
+        const { userId, targetUserId, title, target } = req.body;
+        const finalTargetId = targetUserId || userId;
+        await pool.query(`INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)`, [userId, finalTargetId, title, target]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/goals/deposit', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { userId, goalId, amount } = req.body;
+        const g = (await dbClient.query('SELECT target_user_id, title FROM goals WHERE id=$1', [goalId])).rows[0];
+        const u = (await dbClient.query('SELECT balance, group_id FROM users WHERE id=$1', [userId])).rows[0];
+        if (parseFloat(u.balance) < parseFloat(amount)) { await dbClient.query('ROLLBACK'); return res.status(400).json({ error: 'אין מספיק יתרה' }); }
+        await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
+        await dbClient.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`, [userId, u.group_id, amount, `הפקדה ליעד: ${g.title}`]);
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
+app.post('/api/shopping/add', async (req, res) => {
+    try {
+        const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
+        const user = uRes.rows[0];
+        const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
+        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
+        res.json({ success: true, id: iRes.rows[0].id, alert: null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/update', async (req, res) => {
+    try {
+        const { itemId, status, estimatedPrice } = req.body;
+        if (status) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+        res.json({ success: true, alert: null });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/checkout', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { userId, totalAmount, storeName, branchName, boughtItems, missingItems } = req.body;
+        const u = (await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
+        const tripId = tripRes.rows[0].id;
+        for (let item of boughtItems) {
+            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [tripId, item.name, item.quantity, item.price]);
+            await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+        }
+        for (let item of missingItems) { await dbClient.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'groceries', 'expense', FALSE)`, [userId, u.group_id, totalAmount, `קניות בסופר: ${storeName}`]);
+        await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
+app.get('/api/shopping/history', async (req, res) => {
+    try {
+        const trips = await pool.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 10`, [req.query.groupId]);
+        for (let t of trips.rows) {
+            const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
+            t.items = items.rows;
+        }
+        res.json(trips.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/copy', async (req, res) => {
+    try {
+        const { tripId, userId } = req.body;
+        const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
+        for(let i of items.rows) {
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [u.group_id, userId, i.item_name, i.quantity]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/budget/filter', async (req, res) => {
+    try {
+        const { groupId, targetUserId } = req.query;
+        let expenses;
+        let limitsQuery = `SELECT category, amount_limit as limit FROM budget_allocations WHERE group_id=$1`;
+        let limitParams = [groupId];
+        if (targetUserId && targetUserId !== 'all') {
+            expenses = await pool.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId, targetUserId]);
+            limitsQuery += ` AND target_user_id=$2`;
+            limitParams.push(targetUserId);
+        } else {
+            expenses = await pool.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId]);
+            limitsQuery = `SELECT category, SUM(amount_limit) as limit FROM budget_allocations WHERE group_id=$1 GROUP BY category`;
+        }
+        const limits = await pool.query(limitsQuery, limitParams);
+        const result = [];
+        const cats = new Set([...expenses.rows.map(r=>r.category), ...limits.rows.map(r=>r.category)]);
+        cats.forEach(c => {
+            const spent = expenses.rows.find(r=>r.category === c)?.spent || 0;
+            const limit = limits.rows.find(r=>r.category === c)?.limit || 0;
+            result.push({ category: c, spent: parseFloat(spent), limit: parseFloat(limit) });
+        });
+        if (targetUserId === 'all') {
+             const allocations = await pool.query(`SELECT SUM(amount) as spent FROM transactions WHERE group_id=$1 AND category='allowance' AND type='income' AND date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
+             if (allocations.rows[0].spent > 0) result.push({ category: 'allocations', spent: parseFloat(allocations.rows[0].spent), limit: 0 });
+        }
+        res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/budget/update', async (req, res) => {
+    try {
+        const { groupId, category, limit, targetUserId } = req.body;
+        const target = targetUserId === 'all' ? null : targetUserId;
+        const exists = await pool.query(`SELECT id FROM budget_allocations WHERE group_id=$1 AND category=$2 AND (target_user_id=$3 OR ($3 IS NULL AND target_user_id IS NULL))`, [groupId, category, target]);
+        if (exists.rows.length > 0) await pool.query(`UPDATE budget_allocations SET amount_limit=$1 WHERE id=$2`, [limit || 0, exists.rows[0].id]);
+        else await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4)`, [groupId, category, target, limit || 0]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/academy/bundles', async (req, res) => {
+    try {
+        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY id DESC`);
+        res.json(bundles.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days } = req.body;
+        let deadline = null;
+        if (days && parseInt(days) > 0) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(days));
+        }
+        const existing = await pool.query(`SELECT id FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned'`, [userId, bundleId]);
+        if (existing.rows.length > 0) return res.status(400).json({ error: 'מבחן זה כבר משויך לילד' });
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)`, [userId, bundleId, reward || null, deadline]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/request-challenge', async (req, res) => {
+    try {
+        const { userId, bundleId } = req.body;
+        const user = await pool.query(`SELECT birth_year FROM users WHERE id=$1`, [userId]);
+        const age = calculateAge(user.rows[0].birth_year);
+        const ageGroup = getAgeGroup(age);
+        let targetBundleId = bundleId;
+        if (!targetBundleId) {
+            const available = await pool.query(`SELECT id FROM quiz_bundles WHERE age_group = $1 AND id NOT IN (SELECT bundle_id FROM user_assignments WHERE user_id=$2)`, [ageGroup, userId]);
+            if (available.rows.length === 0) return res.status(404).json({ error: 'לא מצאנו אתגרים חדשים לגיל שלך כרגע.' });
+            targetBundleId = available.rows[Math.floor(Math.random() * available.rows.length)].id;
+        }
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)`, [userId, targetBundleId]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/academy/submit', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { userId, bundleId, score } = req.body;
+        const assignment = await dbClient.query(`
+            SELECT ua.id, ua.custom_reward, qb.reward as default_reward, qb.threshold, qb.title
+            FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id
+            WHERE ua.user_id = $1 AND ua.bundle_id = $2 AND ua.status = 'assigned'
+            ORDER BY ua.assigned_at DESC LIMIT 1
+        `, [userId, bundleId]);
+        if (assignment.rows.length === 0) {
+            await dbClient.query('ROLLBACK');
+            return res.status(400).json({ error: 'Assignment not found or already completed.' });
+        }
+        const a = assignment.rows[0];
+        const passed = score >= a.threshold;
+        const status = passed ? 'completed' : 'failed';
+        await dbClient.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3`, [status, score, a.id]);
+        if (passed) {
+            const reward = a.custom_reward !== null ? parseFloat(a.custom_reward) : parseFloat(a.default_reward);
+            if (reward > 0) {
+                const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+                await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [reward, userId]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
+                    [userId, u.rows[0].group_id, reward, `בונוס אקדמיה: ${a.title}`]);
             }
-            document.getElementById('goal-title').value = '';
-            document.getElementById('goal-target').value = '';
-            document.getElementById('goal-modal').classList.remove('hidden'); 
         }
-        function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-        async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
-        async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-        async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-        function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
-        function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-        async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
-        function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
-        async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
+        await dbClient.query('COMMIT');
+        res.json({ success: true, passed });
+    } catch (e) {
+        await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { dbClient.release(); }
+});
 
-        // --- ADMIN USERS ---
-        async function fetchPendingUsers() {
-            try {
-                if(!currentGroup || !currentGroup.id) return;
-                const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`);
-                const users = await res.json();
-                const list = document.getElementById('pending-list');
-                const container = document.getElementById('admin-panel');
-                
-                if (users && users.length > 0) {
-                    container.classList.remove('hidden');
-                    list.innerHTML = '';
-                    users.forEach(u => {
-                        const age = new Date().getFullYear() - u.birth_year;
-                        list.innerHTML += `
-                        <div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm">
-                            <span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span>
-                            <div class="flex gap-2">
-                                <button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
-                            </div>
-                        </div>`;
-                    });
-                } else {
-                    if(container) container.classList.add('hidden');
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        async function approveUser(id) {
-            await fetch(`${API}/admin/approve-user`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ userId: id })
-            });
-            showToast('success', 'משתמש אושר!');
-            fetchPendingUsers();
-            fetchMembers();
-        }
-    </script>
-</body>
-</html>
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
+});
