@@ -189,7 +189,7 @@ function closeWelcomeModal() {
 }
 
 function checkAndStartTour() {
-    // Delay slightly to ensure UI is fully stabilized
+    // השהייה ארוכה יותר כדי להבטיח שהדאשבורד נטען ומוצג במלואו
     setTimeout(() => {
         if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
             startAdminTour();
@@ -198,7 +198,7 @@ function checkAndStartTour() {
             startChildTour();
             localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
         }
-    }, 1000);
+    }, 1500);
 }
 
 function triggerManualTour() {
@@ -306,7 +306,16 @@ async function authAction(endpoint, body) {
     try { 
         const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
         const data = await res.json(); 
-        if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); await loadDashboard(); } else showToast('error', data.error); 
+        if(data.success) { 
+            currentUser = data.user; 
+            currentGroup = data.group; 
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            // התחל את הסיור בצורה יזומה פה אם זו יצירה (create)
+            if (endpoint === 'groups') {
+                 setTimeout(() => checkAndStartTour(), 1500);
+            }
+            await loadDashboard(); 
+        } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
@@ -886,7 +895,7 @@ function openDepositModal(id, title) { document.getElementById('deposit-goal-id'
 async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
 async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
 
-function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
+function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
 async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
 function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
