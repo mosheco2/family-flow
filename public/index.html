@@ -85,6 +85,7 @@
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
+        
         <!-- AUTH CONTAINER -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col hidden">
             <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
@@ -107,7 +108,8 @@
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3">
                     <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי חדש</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium">הצטרפות למשפחה קיימת</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות למשפחה קיימת</button>
+                    <button onclick="switchView('sa-login')" class="text-[10px] text-slate-300 mt-6 underline block w-full text-center">כניסת מנהל מערכת ראשי</button>
                 </div>
             </div>
             
@@ -122,7 +124,7 @@
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל שלך (לשחזור וגיבוי)" class="modern-input">
                     <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="שם שלך (הורה)" class="modern-input">
+                        <input type="text" id="create-nickname" required placeholder="שם (הורה)" class="modern-input">
                         <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
                     </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
@@ -136,7 +138,7 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
                     <input type="hidden" id="join-role" value="MEMBER">
-                    <input type="text" id="join-code" required placeholder="קוד משפחה (ממי שהזמין אותך)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
+                    <input type="text" id="join-code" required placeholder="קוד משפחה" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
@@ -144,9 +146,52 @@
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
             </div>
+
+            <!-- SUPER ADMIN LOGIN VIEW -->
+            <div id="view-sa-login" class="px-8 py-10 flex-1 flex flex-col justify-center hidden">
+                <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">מנהל מערכת ראשי</h2>
+                <form onsubmit="handleSALogin(event)" class="space-y-4">
+                    <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input">
+                    <input type="password" id="sa-password" required placeholder="סיסמה (123456)" class="modern-input">
+                    <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2">הכנס לניהול</button>
+                </form>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">חזור</button>
+            </div>
         </div>
 
-        <!-- DASHBOARD CONTAINER -->
+        <!-- SUPER ADMIN DASHBOARD -->
+        <div id="sa-dashboard-container" class="w-full max-w-4xl mx-auto hidden fade-in pb-32 pt-8">
+            <div class="bg-white rounded-[2rem] p-8 shadow-2xl">
+                <div class="flex justify-between items-center mb-8 border-b pb-4">
+                    <h1 class="text-3xl font-bold text-slate-800">ניהול מערכת ראשי ⚙️</h1>
+                    <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Welcome Msg Editor -->
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
+                        <p class="text-xs text-slate-500 mb-3">טקסט זה יופיע בפופ-אפ לכל משתמש שמתחבר למערכת. השאירו ריק כדי לבטל.</p>
+                        <textarea id="sa-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
+                        <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
+                        <div id="sa-activity-list" class="space-y-2 h-40 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <!-- Families List -->
+                <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
+                    <div id="sa-groups-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD CONTAINER -->
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
@@ -184,18 +229,8 @@
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
                     </div>
-                    
-                    <div id="child-todo-section" class="hidden mb-8">
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3>
-                        <div id="child-todo-list" class="space-y-3"></div>
-                    </div>
-
-                    <div class="flex justify-between items-center mb-3 px-2">
-                        <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
-                        <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none">
-                            <option value="all">כל המשפחה</option>
-                        </select>
-                    </div>
+                    <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
+                    <div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3><select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none"><option value="all">כל המשפחה</option></select></div>
                     <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                 </div>
 
@@ -203,54 +238,22 @@
                 <div id="content-bank" class="hidden">
                     <div id="bank-admin-view" class="hidden space-y-6">
                         <div id="tour-bank-payday" class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                            <div class="relative z-10">
-                                <h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3>
-                                <p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p>
-                                <button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button>
-                            </div>
+                            <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
                             <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                         </div>
-                        <div>
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3>
-                            <div id="bank-accounts-list" class="space-y-3"></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-3 px-2">
-                                <h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3>
-                            </div>
-                            <div id="admin-goals-list" class="space-y-3 pb-20"></div>
-                        </div>
+                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                        <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
                     </div>
-                    
                     <div id="bank-child-view" class="hidden space-y-6">
                         <div id="tour-bank-card" class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
                             <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                            <div class="mb-6">
-                                <p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p>
-                                <div class="flex gap-6">
-                                    <div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div>
-                                    <div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div>
-                                </div>
-                            </div>
-                            <div class="mt-4 pt-3 border-t border-white/10">
-                                <div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div>
-                                <div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div>
-                                <p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p>
-                            </div>
+                            <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
+                            <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
                             <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                         </div>
-                        <div id="tour-child-goals" class="grid grid-cols-2 gap-3">
-                            <button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button>
-                            <button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button>
-                        </div>
-                        <div id="my-goals-container" class="hidden">
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3>
-                            <div id="my-goals-list" class="space-y-3"></div>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3>
-                            <div id="my-loans-list" class="space-y-3"></div>
-                        </div>
+                        <div id="tour-child-goals" class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
+                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
+                        <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
                     </div>
                 </div>
 
@@ -391,6 +394,17 @@
         </div>
         
         <!-- MODALS -->
+        <!-- Welcome Modal (Global SA setting) -->
+        <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                <i class="fa-solid fa-bullhorn text-4xl text-blue-500 mb-4 mt-2"></i>
+                <h3 class="text-2xl font-bold mb-4 text-slate-800">הודעת מערכת</h3>
+                <p id="welcome-modal-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
+                <button onclick="closeWelcomeModal()" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg hover:scale-105 transition">הבנתי, תודה!</button>
+            </div>
+        </div>
+
         <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
                 <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
@@ -572,6 +586,7 @@
             </div>
         </div>
 
+        <!-- פופאפ שינוי סיסמה -->
         <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
                 <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
@@ -587,7 +602,7 @@
 
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-        let currentUser = null; let currentGroup = null; let pollInterval = null;
+        let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null;
         let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
         let bundlesCache = []; let allBundles = []; let pantryCache = [];
         let allTasks = []; let allTransactions = []; let feedCache = [];
@@ -654,6 +669,128 @@
             }
         };
 
+        // --- SUPER ADMIN LOGIC ---
+        async function handleSALogin(e) {
+            e.preventDefault();
+            const code = val('sa-code');
+            const pass = val('sa-password');
+            try {
+                const res = await fetch(`${API}/superadmin/login`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code, password: pass})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    saToken = data.token;
+                    document.getElementById('auth-container').classList.add('hidden');
+                    document.getElementById('sa-dashboard-container').classList.remove('hidden');
+                    loadSAData();
+                } else {
+                    showToast('error', data.error);
+                }
+            } catch(err) { showToast('error', 'שגיאת תקשורת'); }
+        }
+
+        function logoutSA() {
+            saToken = null;
+            document.getElementById('sa-dashboard-container').classList.add('hidden');
+            document.getElementById('auth-container').classList.remove('hidden');
+            switchView('login');
+        }
+
+        async function loadSAData() {
+            try {
+                const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }});
+                const data = await res.json();
+                
+                document.getElementById('sa-welcome-msg').value = data.welcomeMsg || '';
+                
+                const actList = document.getElementById('sa-activity-list');
+                actList.innerHTML = data.activity.map(a => `<div class="text-xs border-b pb-2 mb-2"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | משפחת <span class="text-blue-600">${a.group_name}</span> | ${a.user_name} | ${a.description} <span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span></div>`).join('');
+
+                const groupsList = document.getElementById('sa-groups-list');
+                let gHtml = '';
+                data.groups.forEach(g => {
+                    const groupUsers = data.users.filter(u => u.group_id === g.id);
+                    let uHtml = groupUsers.map(u => `
+                        <div class="flex justify-between items-center bg-white p-2 mt-1 rounded border text-sm">
+                            <span>${u.nickname} (${u.role})</span>
+                            <button onclick="saDeleteUser(${u.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `).join('');
+                    
+                    gHtml += `
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-blue-900">${g.name} (קוד: ${g.group_code})</h3>
+                                <button onclick="saDeleteGroup(${g.id})" class="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-600">מחק משפחה</button>
+                            </div>
+                            ${uHtml}
+                        </div>
+                    `;
+                });
+                groupsList.innerHTML = gHtml;
+            } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+        }
+
+        async function saDeleteUser(id) {
+            if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return;
+            await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }});
+            showToast('success', 'משתמש נמחק');
+            loadSAData();
+        }
+
+        async function saDeleteGroup(id) {
+            if(!confirm('האם אתה בטוח שברצונך למחוק משפחה זו ואת כל המשתמשים והנתונים שלה?! הפעולה בלתי הפיכה.')) return;
+            await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }});
+            showToast('success', 'משפחה נמחקה לחלוטין');
+            loadSAData();
+        }
+
+        async function saveWelcomeMsg() {
+            const msg = document.getElementById('sa-welcome-msg').value;
+            await fetch(`${API}/superadmin/settings`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                body: JSON.stringify({ welcomeMsg: msg })
+            });
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!');
+        }
+
+        async function checkGlobalWelcome() {
+            try {
+                const res = await fetch(`${API}/settings/welcome`);
+                const data = await res.json();
+                if (data.message && data.message.trim() !== '') {
+                    const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}`);
+                    if (seen !== data.message) {
+                        document.getElementById('welcome-modal-text').innerText = data.message;
+                        document.getElementById('welcome-modal').classList.remove('hidden');
+                        window.pendingWelcomeMsg = data.message;
+                        return true; 
+                    }
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        function closeWelcomeModal() {
+            document.getElementById('welcome-modal').classList.add('hidden');
+            if (window.pendingWelcomeMsg) {
+                localStorage.setItem(`ofl_welcome_${currentUser.id}`, window.pendingWelcomeMsg);
+            }
+            checkAndStartTour();
+        }
+
+        function checkAndStartTour() {
+            if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
+                startAdminTour();
+                localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
+            } else if (currentUser.role !== 'ADMIN' && !localStorage.getItem(`ofl_tour_child_${currentUser.id}`)) {
+                startChildTour();
+                localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
+            }
+        }
+
         // --- GUIDED TOURS (Intro.js) ---
         function startAdminTour() {
             switchTab('feed');
@@ -711,7 +848,7 @@
             intro.start();
         }
 
-        function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
+        function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
         function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
         
         async function handleLogin(e) { e.preventDefault(); authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); }
@@ -766,20 +903,20 @@
             const preloader = document.getElementById('app-preloader'); 
             if (preloader) { 
                 preloader.classList.add('opacity-0', 'pointer-events-none'); 
-                setTimeout(() => {
+                setTimeout(async () => {
                     preloader.classList.add('hidden');
                     
-                    setTimeout(() => {
-                        if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
-                            startAdminTour();
-                            localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
-                        } else if (currentUser.role !== 'ADMIN' && !localStorage.getItem(`ofl_tour_child_${currentUser.id}`)) {
-                            startChildTour();
-                            localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
+                    setTimeout(async () => {
+                        const showedWelcome = await checkGlobalWelcome();
+                        if (!showedWelcome) {
+                            checkAndStartTour();
                         }
                     }, 500);
 
                 }, 700); 
+            } else {
+                const showedWelcome = await checkGlobalWelcome();
+                if (!showedWelcome) checkAndStartTour();
             }
         }
 
@@ -802,7 +939,7 @@
                         c.innerHTML = ''; 
                         membersCache.forEach(m => { 
                             const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                            const adminDeleteBtn = currentUser.role === 'ADMIN' && m.role !== 'ADMIN' ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+                            const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
                             c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
                         }); 
                     }
@@ -1341,53 +1478,24 @@
 
         async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
 
-        function openProfileModal() {
-            document.getElementById('old-password').value = '';
-            document.getElementById('new-password').value = '';
-            document.getElementById('profile-modal').classList.remove('hidden');
-        }
-
+        function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
         async function submitChangePassword(e) {
             e.preventDefault();
-            const oldP = document.getElementById('old-password').value;
-            const newP = document.getElementById('new-password').value;
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.disabled = true; btn.innerText = 'מעדכן...';
+            const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value;
+            const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...';
             try {
-                const res = await fetch(`${API}/users/${currentUser.id}/password`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
-                });
+                const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
                 const data = await res.json();
-                if(data.success) {
-                    showToast('success', 'הסיסמה שונתה בהצלחה!');
-                    document.getElementById('profile-modal').classList.add('hidden');
-                } else {
-                    showToast('error', data.error || 'שגיאה בשינוי סיסמה');
-                }
-            } catch(err) {
-                showToast('error', 'שגיאה בתקשורת');
-            } finally {
-                btn.disabled = false; btn.innerText = 'שנה סיסמה';
-            }
+                if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); }
+            } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'שנה סיסמה'; }
         }
 
         async function deleteUser(id, name) {
             if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
             try {
-                const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if(data.success) {
-                    showToast('success', 'המשתמש נמחק בהצלחה');
-                    fetchMembers();
-                    fetchData();
-                } else {
-                    showToast('error', data.error || 'שגיאה במחיקה');
-                }
-            } catch(e) {
-                showToast('error', 'שגיאה בתקשורת');
-            }
+                const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+                if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
+            } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
         }
     </script>
 </body>
