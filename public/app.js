@@ -175,7 +175,7 @@ async function checkGlobalWelcome() {
         const res = await fetch(`${API}/settings/welcome`);
         const data = await res.json();
         if (data.message && data.message.trim() !== '') {
-            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}`);
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
             if (seen !== data.message) {
                 document.getElementById('welcome-modal-text').innerText = data.message;
                 document.getElementById('welcome-modal').classList.remove('hidden');
@@ -190,7 +190,7 @@ async function checkGlobalWelcome() {
 function closeWelcomeModal() {
     document.getElementById('welcome-modal').classList.add('hidden');
     if (window.pendingWelcomeMsg) {
-        localStorage.setItem(`ofl_welcome_${currentUser.id}`, window.pendingWelcomeMsg);
+        localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
     }
     checkAndStartTour();
 }
@@ -198,15 +198,15 @@ function closeWelcomeModal() {
 function checkAndStartTour() {
     setTimeout(() => {
         try {
-            if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
-                localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
-                startAdminTour();
-            } else if (currentUser.role !== 'ADMIN' && !localStorage.getItem(`ofl_tour_child_${currentUser.id}`)) {
-                localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
-                startChildTour();
+            // הוספנו את קוד המשפחה למפתח כדי לוודא שאיפוס מסד הנתונים יפעיל את הסיור מחדש
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
+            if (!localStorage.getItem(tourKey)) {
+                localStorage.setItem(tourKey, 'true');
+                if (currentUser.role === 'ADMIN') startAdminTour();
+                else startChildTour();
             }
         } catch(e) { console.error('Tour Start Error:', e); }
-    }, 1500); // ממתין 1.5 שניות שהדאשבורד ייטען לגמרי
+    }, 800); // ממתין 0.8 שניות כדי לוודא שהדאשבורד סיים להופיע
 }
 
 function triggerManualTour() {
@@ -229,36 +229,34 @@ function startAdminTour() {
         showProgress: true, rtl: true, hidePrev: false, showBullets: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
-            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור שוב." },
-            { element: '#slider-scroll', title: "תפריט הניווט", intro: "מכאן תדלגו בין כל האזורים במערכת. גללו את התפריט ימינה ושמאלה במידת הצורך!", position: 'bottom' },
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור שוב." },
             { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
-            { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם." },
-            { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!" },
-            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!" },
-            { element: '#tab-budget', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף." },
-            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!" }
+            { element: '#content-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם." },
+            { element: '#content-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!" },
+            { element: '#content-academy', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!" },
+            { element: '#content-budget', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף בעזרת ה-AI." },
+            { element: '#content-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!" }
         ]
     });
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
+        const id = targetElement.id;
         
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
-            targetElement.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
-        }
-
-        if(targetElement.id === 'tab-bank') switchTab('bank'); 
-        else if(targetElement.id === 'tab-tasks') switchTab('tasks'); 
-        else if(targetElement.id === 'tab-academy') switchTab('academy'); 
-        else if(targetElement.id === 'tab-budget') switchTab('budget'); 
-        else if(targetElement.id === 'tab-members') switchTab('members'); 
+        // מעבר חכם ויציב בין הטאבים במהלך הסיור
+        if(id === 'content-bank') switchTab('bank'); 
+        else if(id === 'content-tasks') switchTab('tasks'); 
+        else if(id === 'content-academy') switchTab('academy'); 
+        else if(id === 'content-budget') switchTab('budget'); 
+        else if(id === 'content-members') switchTab('members'); 
         else switchTab('feed'); 
         
+        // המתנה קלה כדי שהדפדפן ירנדר את הטאב לפני שמחשבים את הריבוע
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 50));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -273,31 +271,28 @@ function startChildTour() {
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
             { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
-            { element: '#slider-scroll', title: "תפריט הניווט", intro: "גללו ימינה ושמאלה כדי לעבור בין האזורים השונים.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תפתחו 'קופות חיסכון' לדברים שאתם ממש רוצים לקנות ותעקבו אחרי דמי הכיס שלכם." },
-            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
-            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
-            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים." }
+            { element: '#content-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות." },
+            { element: '#content-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
+            { element: '#content-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
+            { element: '#content-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים." }
         ]
     });
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
+        const id = targetElement.id;
 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
-            targetElement.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
-        }
-
-        if(targetElement.id === 'tab-bank') switchTab('bank'); 
-        else if(targetElement.id === 'tab-tasks') switchTab('tasks'); 
-        else if(targetElement.id === 'tab-academy') switchTab('academy'); 
-        else if(targetElement.id === 'tab-shop') switchTab('shop'); 
+        // מעבר חכם ויציב בין הטאבים במהלך הסיור
+        if(id === 'content-bank') switchTab('bank'); 
+        else if(id === 'content-tasks') switchTab('tasks'); 
+        else if(id === 'content-academy') switchTab('academy'); 
+        else if(id === 'content-shop') switchTab('shop'); 
         else switchTab('feed'); 
         
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 50));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
