@@ -190,11 +190,24 @@ function closeWelcomeModal() {
 
 function checkAndStartTour() {
     if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
-        startAdminTour();
-        localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
+        setTimeout(() => {
+            startAdminTour();
+            localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
+        }, 500);
     } else if (currentUser.role !== 'ADMIN' && !localStorage.getItem(`ofl_tour_child_${currentUser.id}`)) {
+        setTimeout(() => {
+            startChildTour();
+            localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
+        }, 500);
+    }
+}
+
+function triggerManualTour() {
+    document.getElementById('profile-modal').classList.add('hidden');
+    if (currentUser.role === 'ADMIN') {
+        startAdminTour();
+    } else {
         startChildTour();
-        localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
     }
 }
 
@@ -212,7 +225,7 @@ function startAdminTour() {
             { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה שלכם." },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
             { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן מחלקים דמי כיס וריביות לכל הילדים יחד, ועוקבים אחרי החסכונות שלהם." },
-            { element: '#tab-budget', title: "תקציב ומזווה 📊📦", intro: "אזורים בהם תוכלו לנהל את מלאי הבית ולעקוב אחרי הוצאות חודשיות - עם תובנות מ-familAI." },
+            { element: '#tab-budget', title: "תקציב ומזווה 📊📦", intro: "אזורים בהם תוכלו לנהל את מלאי הבית ולעקוב אחרי הוצאות חודשיות." },
             { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כנסו לכאן כדי לשלוח הזמנה בוואטסאפ לילדים או לבן/בת הזוג. בהצלחה!" }
         ]
     });
