@@ -37,7 +37,6 @@ pool.connect()
           await client.query(`ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
           await client.query(`ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
           
-          // NEW: Pantry Table
           await client.query(`
               CREATE TABLE IF NOT EXISTS pantry (
                   id SERIAL PRIMARY KEY, 
@@ -133,6 +132,34 @@ app.post('/api/budget/familai-insight', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// NEW: Pantry & Shopping Insights
+app.post('/api/pantry/familai-insight', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { groupId } = req.body;
+        
+        const pantryRes = await pool.query('SELECT item_name, quantity, updated_at FROM pantry WHERE group_id=$1', [groupId]);
+        const historyRes = await pool.query(`
+            SELECT sti.item_name, sti.quantity, sti.price_per_unit, st.trip_date 
+            FROM shopping_trip_items sti 
+            JOIN shopping_trips st ON sti.trip_id = st.id 
+            WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+        `, [groupId]);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', a smart home inventory and grocery manager.
+        Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}.
+        Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}.
+        Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents.
+        1. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon.
+        2. Give one smart shopping tip or savings recommendation based on their habits (e.g., buying in bulk).
+        Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
@@ -187,9 +214,6 @@ app.post('/api/academy/tutor', async (req, res) => {
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
-// Setup DB
-app.get('/setup-db', async (req, res) => { res.send('DB is managed via auto-migration now. No need to reset.'); });
 
 // Auth
 app.post('/api/groups', async (req, res) => {
@@ -501,7 +525,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
             const pricePerUnit = parseFloat(item.price) / (parseInt(item.quantity) || 1);
             await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4, $5)`, [tripId, item.name, normName, item.quantity, pricePerUnit]);
             
-            // Add to Pantry automatically
             const pantryExists = await dbClient.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [u.group_id, normName]);
             if (pantryExists.rows.length > 0) {
                  await dbClient.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [item.quantity, pantryExists.rows[0].id]);
@@ -541,7 +564,6 @@ app.post('/api/shopping/copy', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// PANTRY ENDPOINTS
 app.post('/api/pantry/add', async (req, res) => {
     try {
         const { groupId, itemName, quantity } = req.body;
@@ -580,7 +602,6 @@ app.get('/api/budget/filter', async (req, res) => {
             expenses = await pool.query(`SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId, targetUserId]);
             limitsQuery += ` AND target_user_id=$2`;
             limitParams.push(targetUserId);
-            
             incomesQuery = `SELECT category, SUM(amount) as spent FROM transactions WHERE group_id=$1 AND user_id=$2 AND type='income' AND category IN ('allowance', 'tasks', 'academy') AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`;
             incomeParams.push(targetUserId);
         } else {
@@ -603,17 +624,12 @@ app.get('/api/budget/filter', async (req, res) => {
              const limitRow = limits.rows.find(r => r.category === row.category);
              const limit = limitRow ? limitRow.limit : 0;
              const existing = result.find(r => r.category === row.category);
-             if (existing) {
-                 existing.spent += parseFloat(row.spent);
-             } else {
-                 result.push({ category: row.category, spent: parseFloat(row.spent), limit: parseFloat(limit) });
-             }
+             if (existing) existing.spent += parseFloat(row.spent);
+             else result.push({ category: row.category, spent: parseFloat(row.spent), limit: parseFloat(limit) });
         });
          
         limits.rows.filter(r => ['allowance', 'tasks', 'academy'].includes(r.category)).forEach(r => {
-             if (!result.find(res => res.category === r.category)) {
-                 result.push({ category: r.category, spent: 0, limit: parseFloat(r.limit) });
-             }
+             if (!result.find(res => res.category === r.category)) result.push({ category: r.category, spent: 0, limit: parseFloat(r.limit) });
         });
         
         res.json(result);
