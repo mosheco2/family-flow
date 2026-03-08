@@ -150,7 +150,7 @@
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div>
+                    <button onclick="openProfileModal()" class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50 hover:bg-blue-50 transition cursor-pointer"><i class="fa-solid fa-user"></i></button>
                     <div>
                         <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
                         <p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
@@ -571,6 +571,18 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצאה</button></div>
             </div>
         </div>
+
+        <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+                <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
+                <form onsubmit="submitChangePassword(event)" class="space-y-3">
+                    <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
+                    <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg mt-2">שנה סיסמה</button>
+                </form>
+                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-4 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -623,9 +635,18 @@
                             currentGroup = session.group; 
                             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
                             await loadDashboard(); 
-                        } else logout(); 
-                    } else logout(); 
-                } catch(e) { logout(); } 
+                        } else {
+                            document.getElementById('auth-container').classList.remove('hidden');
+                            logout();
+                        }
+                    } else {
+                        document.getElementById('auth-container').classList.remove('hidden');
+                        logout();
+                    }
+                } catch(e) { 
+                    document.getElementById('auth-container').classList.remove('hidden');
+                    logout(); 
+                } 
             } else { 
                 document.getElementById('auth-container').classList.remove('hidden');
                 document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); 
@@ -651,7 +672,14 @@
                     { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כנסו לכאן כדי לשלוח הזמנה בוואטסאפ לילדים או לבן/בת הזוג. בהצלחה!" }
                 ]
             });
-            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-budget') switchTab('budget'); else if(targetElement.id === 'tab-members') switchTab('members'); else switchTab('feed'); return new Promise(resolve => setTimeout(resolve, 50));});
+            intro.onbeforechange(function(targetElement) { 
+                if(!targetElement) return;
+                if(targetElement.id === 'tab-bank') switchTab('bank'); 
+                else if(targetElement.id === 'tab-budget') switchTab('budget'); 
+                else if(targetElement.id === 'tab-members') switchTab('members'); 
+                else switchTab('feed'); 
+                return new Promise(resolve => setTimeout(resolve, 50));
+            });
             intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
@@ -671,7 +699,14 @@
                     { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה מעניינים ותרוויחו בונוסים." }
                 ]
             });
-            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-tasks') switchTab('tasks'); else if(targetElement.id === 'tab-academy') switchTab('academy'); else switchTab('feed'); return new Promise(resolve => setTimeout(resolve, 50));});
+            intro.onbeforechange(function(targetElement) { 
+                if(!targetElement) return;
+                if(targetElement.id === 'tab-bank') switchTab('bank'); 
+                else if(targetElement.id === 'tab-tasks') switchTab('tasks'); 
+                else if(targetElement.id === 'tab-academy') switchTab('academy'); 
+                else switchTab('feed'); 
+                return new Promise(resolve => setTimeout(resolve, 50));
+            });
             intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
@@ -763,14 +798,24 @@
                 } 
                 try {
                     const c = document.getElementById('members-list'); 
-                    if(c) { c.innerHTML = ''; membersCache.forEach(m => { const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span></div></div>`; }); }
+                    if(c) { 
+                        c.innerHTML = ''; 
+                        membersCache.forEach(m => { 
+                            const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                            const adminDeleteBtn = currentUser.role === 'ADMIN' && m.role !== 'ADMIN' ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+                            c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                        }); 
+                    }
                 } catch(err) { console.error(err); }
                 try {
                     const a = document.getElementById('bank-accounts-list'); 
                     if (a && currentUser.role === 'ADMIN') { 
                         a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
                         if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
-                        else children.forEach(m => { const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button></div>`; }); 
+                        else children.forEach(m => { 
+                            const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                            a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><div class="flex gap-2"><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                        }); 
                     } 
                 } catch(err) { console.error(err); }
             } catch(e) { console.error(e); }
@@ -788,10 +833,10 @@
                 allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
                 if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-                try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) { console.error('Academy render err:', e); }
-                try { renderTasks(allTasks); renderPantry(); } catch(e) { console.error(e); }
-                try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) { console.error(e); }
-                try { fetchBudget(); } catch(e) { console.error(e); }
+                try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) { console.error('Academy err:', e); }
+                try { renderTasks(allTasks); renderPantry(); } catch(e) { console.error('Tasks/Pantry err:', e); }
+                try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) { console.error('Shop err:', e); }
+                try { fetchBudget(); } catch(e) { console.error('Budget err:', e); }
                 
                 try {
                     const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
@@ -806,7 +851,7 @@
                             }); 
                         } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) { console.error('Goals err:', e); }
                 
                 try {
                     if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
@@ -815,16 +860,16 @@
                         const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
                         const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) { console.error('Stats err:', e); }
 
                 try {
                     const limit = currentUser.role === 'ADMIN' ? 50 : 20; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
                     const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
                     if(transRes.ok) allTransactions = Array.isArray(await transRes.json()) ? await transRes.json() : [];
-                } catch(e) { allTransactions = []; console.error(e); }
+                } catch(e) { allTransactions = []; console.error('Transactions err:', e); }
 
-                try { renderChildTodo(); buildAndRenderFeed(); } catch(e) { console.error(e); }
-            } catch(e) { console.error(e); }
+                try { renderChildTodo(); buildAndRenderFeed(); } catch(e) { console.error('Feed err:', e); }
+            } catch(e) { console.error('FetchData err:', e); }
         }
 
         function showFamilAIModal(title, text) {
@@ -1295,6 +1340,55 @@
         }
 
         async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
+
+        function openProfileModal() {
+            document.getElementById('old-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+
+        async function submitChangePassword(e) {
+            e.preventDefault();
+            const oldP = document.getElementById('old-password').value;
+            const newP = document.getElementById('new-password').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.innerText = 'מעדכן...';
+            try {
+                const res = await fetch(`${API}/users/${currentUser.id}/password`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast('success', 'הסיסמה שונתה בהצלחה!');
+                    document.getElementById('profile-modal').classList.add('hidden');
+                } else {
+                    showToast('error', data.error || 'שגיאה בשינוי סיסמה');
+                }
+            } catch(err) {
+                showToast('error', 'שגיאה בתקשורת');
+            } finally {
+                btn.disabled = false; btn.innerText = 'שנה סיסמה';
+            }
+        }
+
+        async function deleteUser(id, name) {
+            if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
+            try {
+                const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if(data.success) {
+                    showToast('success', 'המשתמש נמחק בהצלחה');
+                    fetchMembers();
+                    fetchData();
+                } else {
+                    showToast('error', data.error || 'שגיאה במחיקה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאה בתקשורת');
+            }
+        }
     </script>
 </body>
 </html>
