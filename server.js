@@ -38,6 +38,108 @@ const generateGroupCode = () => {
     return code;
 };
 
+// --- SYSTEM SETUP ---
+app.get('/setup-db', async (req, res) => {
+    try {
+        await pool.query(`
+            DROP TABLE IF EXISTS user_assignments CASCADE;
+            DROP TABLE IF EXISTS quiz_questions CASCADE;
+            DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE;
+            DROP TABLE IF EXISTS goals CASCADE;
+            DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE;
+            DROP TABLE IF EXISTS transactions CASCADE;
+            DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE;
+            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
+            DROP TABLE IF EXISTS pantry CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS family_groups CASCADE;
+            DROP TABLE IF EXISTS system_settings CASCADE;
+
+            CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
+            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
+            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
+            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
+            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        `);
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+    } catch (e) { res.status(500).send(e.message); }
+});
+
+// --- SUPER ADMIN ENDPOINTS ---
+const SA_CODE = 'admin';
+const SA_PASS = '123456';
+
+app.post('/api/superadmin/login', (req, res) => {
+    const { code, password } = req.body;
+    if (code === SA_CODE && password === SA_PASS) {
+        res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' });
+    } else {
+        res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
+    }
+});
+
+const verifySA = (req, res, next) => {
+    if (req.headers.authorization !== 'SA_SECRET_TOKEN_2026') return res.status(403).json({error: 'Forbidden'});
+    next();
+};
+
+app.get('/api/superadmin/data', verifySA, async (req, res) => {
+    try {
+        const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
+        const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
+        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
+        const settings = await pool.query("SELECT value FROM system_settings WHERE key='welcome_msg'");
+        res.json({
+            groups: groups.rows,
+            users: users.rows,
+            activity: activity.rows,
+            welcomeMsg: settings.rows.length > 0 ? settings.rows[0].value : ''
+        });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM family_groups WHERE id=$1', [req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/superadmin/settings', verifySA, async (req, res) => {
+    try {
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/settings/welcome', async (req, res) => {
+    try {
+        const s = await pool.query("SELECT value FROM system_settings WHERE key='welcome_msg'");
+        res.json({message: s.rows.length > 0 ? s.rows[0].value : null});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+
 // --- AI ENDPOINTS ---
 
 app.post('/api/academy/ai-generate', async (req, res) => {
@@ -176,46 +278,7 @@ app.post('/api/academy/tutor', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
-// Setup DB - EXPLICIT RESET ROUTE FOR RENDER
-app.get('/setup-db', async (req, res) => {
-    try {
-        await pool.query(`
-            DROP TABLE IF EXISTS user_assignments CASCADE;
-            DROP TABLE IF EXISTS quiz_questions CASCADE;
-            DROP TABLE IF EXISTS quiz_bundles CASCADE;
-            DROP TABLE IF EXISTS budget_allocations CASCADE;
-            DROP TABLE IF EXISTS goals CASCADE;
-            DROP TABLE IF EXISTS loans CASCADE;
-            DROP TABLE IF EXISTS tasks CASCADE;
-            DROP TABLE IF EXISTS transactions CASCADE;
-            DROP TABLE IF EXISTS shopping_list CASCADE;
-            DROP TABLE IF EXISTS shopping_trips CASCADE;
-            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
-            DROP TABLE IF EXISTS pantry CASCADE;
-            DROP TABLE IF EXISTS users CASCADE;
-            DROP TABLE IF EXISTS family_groups CASCADE;
-
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
-            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
-            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
-            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
-            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
-            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-        `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
-    } catch (e) { res.status(500).send(e.message); }
-});
-
-// Auth
+// --- BASIC API ENDPOINTS ---
 app.post('/api/groups', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -260,7 +323,29 @@ app.get('/api/users/:id', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Dash Data 
+app.post('/api/users/:id/password', async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const updateRes = await pool.query(
+            "UPDATE users SET password_hash = $1 WHERE id = $2 AND password_hash = $3 RETURNING id",
+            [newPassword, req.params.id, oldPassword]
+        );
+        if (updateRes.rows.length === 0) return res.status(400).json({error: "סיסמה נוכחית שגויה"});
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+    try {
+        const { adminId } = req.query;
+        const adminCheck = await pool.query("SELECT group_id FROM users WHERE id = $1 AND role = 'ADMIN'", [adminId]);
+        if (adminCheck.rows.length === 0) return res.status(403).json({error: "Only admins can delete users"});
+        const groupId = adminCheck.rows[0].group_id;
+        await pool.query("DELETE FROM users WHERE id = $1 AND group_id = $2", [req.params.id, groupId]);
+        res.json({success: true});
+    } catch (e) { res.status(500).json({error: e.message}); }
+});
+
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
