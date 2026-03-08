@@ -55,12 +55,24 @@
 </head>
 <body class="text-slate-800 bg-slate-50">
 
+    <!-- GLOBAL PRELOADER (familAI loading) -->
+    <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="relative w-24 h-24 mb-4">
+            <div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20"></div>
+            <div class="relative flex items-center justify-center w-full h-full bg-white rounded-full shadow-xl text-4xl border-4 border-blue-50">
+                🤖
+            </div>
+        </div>
+        <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
+        <p class="text-sm text-slate-500 font-medium animate-pulse">familAI מכינה את הנתונים...</p>
+    </div>
+
     <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
-        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col">
+        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] h-screen sm:h-auto shadow-2xl overflow-hidden fade-in relative flex flex-col hidden">
             <div class="p-10 text-center relative overflow-hidden bg-blue-600 rounded-b-[3rem] shadow-xl pt-16 pb-12">
                 <div class="relative z-10">
                     <img src="logo.png" alt="Logo" class="w-48 h-auto mx-auto mb-4 object-contain" style="filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));" onerror="this.src=''; this.className='hidden'; document.getElementById('logo-fallback').classList.remove('hidden')">
@@ -225,7 +237,7 @@
         </div>
         
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up"><div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div><button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button></div>
-        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
+        <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center transition-all duration-300 hidden"><div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300"><button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button><button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button></div><button onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button></div>
         
         <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
@@ -239,7 +251,6 @@
             </div>
         </div>
 
-        <!-- Academy AI Modal -->
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
@@ -261,7 +272,6 @@
             </div>
         </div>
 
-        <!-- Unified Task Modal -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
@@ -308,7 +318,6 @@
             </div>
         </div>
 
-        <!-- familAI Advisor Modal -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -381,6 +390,9 @@
                 document.getElementById('join-code').value = inviteCode;
                 if(inviteRole) document.getElementById('join-role').value = inviteRole;
                 switchView('join');
+                document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700);
+                return;
             }
 
             const saved = localStorage.getItem('ofl_session'); 
@@ -393,11 +405,14 @@
                             currentUser = await res.json(); 
                             currentGroup = session.group; 
                             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
-                            loadDashboard(); 
+                            await loadDashboard(); 
                         } else { logout(); } 
                     } else { logout(); } 
                 } catch(e) { logout(); } 
-            } 
+            } else {
+                document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700);
+            }
         };
 
         function switchView(view) { ['login','create','join'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
@@ -439,7 +454,7 @@
                     currentUser = data.user; 
                     currentGroup = data.group; 
                     localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
-                    loadDashboard(); 
+                    await loadDashboard(); 
                 } else showToast('error', data.error); 
             } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
         }
@@ -500,8 +515,14 @@
             
             await fetchMembers(); 
             if(isAdmin) { fetchPendingUsers(); }
-            await fetchBundles(); // FIX: Load bundles for EVERYONE so the child's library has data
             await fetchData();
+
+            // Hide the Preloader
+            const preloader = document.getElementById('app-preloader');
+            if (preloader) {
+                preloader.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => preloader.classList.add('hidden'), 700);
+            }
         }
 
         async function fetchMembers() { 
@@ -587,19 +608,10 @@
                 
                 allTasks = Array.isArray(data.tasks) ? data.tasks : [];
                 bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : [];
+                
                 if (data.all_bundles && data.all_bundles.length > 0) {
-                     allBundles = data.all_bundles; // Update only if data exists
+                     allBundles = data.all_bundles;
                 }
-
-                try {
-                    if (currentUser.role === 'ADMIN') {
-                        renderAdminAcademy();
-                    } else {
-                        renderMyAssignments(bundlesCache);
-                        renderLibrary();
-                    }
-                } catch(e) { console.error('Academy render err:', e); }
-
 
                 try {
                     if (currentUser.role === 'ADMIN') {
@@ -925,6 +937,7 @@
                     const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
                     dMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`;
                 }
+                const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
 
                 htmlStr += `
                     <div class="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-blue-50 transition mb-2" onclick="switchTab('tasks')">
@@ -932,7 +945,7 @@
                             <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div>
                             <div>
                                 <h4 class="font-bold text-slate-800 text-sm">${t.title}</h4>
-                                <p class="text-[10px] text-slate-500">משימה • תגמול: ₪${t.reward}${dMsg}</p>
+                                <p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • משימה • תגמול: ₪${t.reward}${dMsg}</p>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-left text-slate-300"></i>
@@ -949,6 +962,7 @@
                     const diff = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
                     deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`;
                 }
+                const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
 
                 htmlStr += `
                     <div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')">
@@ -956,7 +970,7 @@
                             <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div>
                             <div>
                                 <h4 class="font-bold text-slate-800 text-sm">${b.title}</h4>
-                                <p class="text-[10px] text-slate-500">אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p>
+                                <p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-left text-slate-300"></i>
@@ -1016,11 +1030,14 @@
                     }
                 }
 
+                const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
+                const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
+
                 htmlStr += `
                 <div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
                     <div>
                         <p class="font-bold text-slate-800">${t.title} ${deadlineBadge}</p>
-                        <div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}</div>
+                        <div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}${dateBadge}</div>
                     </div>
                     <div class="flex flex-col items-end gap-1">
                         ${actionBtn}
@@ -1262,13 +1279,14 @@
                 html += '<div class="space-y-2 mb-8">';
                 allBundles.forEach(b => {
                     const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈');
+                    const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
                     html += `
                     <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                             <div>
                                 <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                                <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p>
+                                <p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward} • נוצר ב-${cDate}</p>
                             </div>
                         </div>
                         <button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button>
@@ -1285,11 +1303,12 @@
                 bundlesCache.forEach(b => {
                     let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500');
                     let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין');
+                    const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
                     html += `
                     <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center">
                         <div>
                             <p class="font-bold text-slate-700 text-sm">${b.title}</p>
-                            <p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span></p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span> ב-${aDate}</p>
                         </div>
                         <span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span>
                     </div>`;
@@ -1300,6 +1319,77 @@
             list.innerHTML = html;
         }
 
+        function renderMyAssignments(bundles) {
+            const list = document.getElementById('my-assignments-list');
+            const historyContainer = document.getElementById('academy-history-container');
+            const historyList = document.getElementById('academy-history-list');
+            
+            if(!list) return; 
+            
+            const activeBundles = bundles.filter(b => b.status === 'assigned');
+            const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
+
+            const getIcon = (type) => {
+                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
+                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
+                return '<i class="fa-solid fa-chart-line"></i>';
+            };
+
+            if (activeBundles.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בחרו מהספרייה למטה!</p>';
+            } else {
+                let activeHtml = '';
+                activeBundles.forEach(b => {
+                    let deadlineMsg = "";
+                    if (b.deadline) {
+                        const d = new Date(b.deadline);
+                        const now = new Date();
+                        const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+                        deadlineMsg = diff > 0 ? `<span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : `<span class="text-red-500 ml-1">פג תוקף!</span>`;
+                    }
+
+                    const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
+                    const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+
+                    activeHtml += `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01] mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800">${b.title}</h4>
+                                <p class="text-xs text-slate-500">פרס: ₪${reward} • הוקצה ב-${aDate} ${deadlineMsg}</p>
+                            </div>
+                        </div>
+                        <button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
+                    </div>`;
+                });
+                list.innerHTML = activeHtml;
+            }
+            
+            if (historyContainer && historyList) {
+                if (doneBundles.length === 0) {
+                    historyContainer.classList.add('hidden');
+                } else {
+                    historyContainer.classList.remove('hidden');
+                    let historyHtml = '';
+                    doneBundles.forEach(b => {
+                        let statusClass = 'bg-gray-100 text-gray-500';
+                        let label = 'הושלם';
+                        if(b.status === 'completed') { statusClass = 'bg-green-100 text-green-600'; }
+                        else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; }
+                        else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
+
+                        historyHtml += `
+                        <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2">
+                            <span class="text-sm font-bold text-slate-600">${b.title}</span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span>
+                        </div>`;
+                    });
+                    historyList.innerHTML = historyHtml;
+                }
+            }
+        }
+
         function renderLibrary() {
             const libList = document.getElementById('library-list');
             if (!libList) return;
@@ -1307,7 +1397,6 @@
             const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all';
             const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
 
-            // FIX: Ensure allBundles is an array
             let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
             
             if (ageFilter !== 'all') {
@@ -1317,7 +1406,6 @@
                 filtered = filtered.filter(b => b.type === catFilter);
             }
 
-            // FIX: Hide bundles the child has ALREADY DONE or is CURRENTLY DOING
             if(Array.isArray(bundlesCache)) {
                 const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id));
                 filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id)));
@@ -1336,13 +1424,14 @@
 
             let libHtml = '';
             filtered.forEach(b => {
+                const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
                 libHtml += `
                 <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p>
+                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward} • נוסף ב-${cDate}</p>
                         </div>
                     </div>
                     <button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button>
@@ -1745,7 +1834,7 @@
         function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
         async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
         async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='הכנסה חדשה'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
+        function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
         async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
