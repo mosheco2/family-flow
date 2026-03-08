@@ -396,8 +396,50 @@
         let currentWrongAnswers = [];
 
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
-        const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
-        const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים', 'allowance': '💰 דמי כיס', 'tasks': '✅ תגמול משימות', 'academy': '🎓 אתגר אקדמיה', 'savings': '🐖 הפקדות לחיסכון'};
+        const CATEGORIES = { 
+            income: [ 
+                {value:'salary',label:'💼 משכורת'}, 
+                {value:'allowance',label:'💰 דמי כיס'}, 
+                {value:'bonus',label:'🌟 בונוס'}, 
+                {value:'gift',label:'🎁 מתנה'}, 
+                {value:'business',label:'🚀 עסק'} 
+            ], 
+            expense: [ 
+                {value:'food',label:'🍔 מסעדות וטייקאווי'}, 
+                {value:'groceries',label:'🛒 סופר ופארם'}, 
+                {value:'transport',label:'🚌 תחבורה ודלק'}, 
+                {value:'home',label:'🏠 דיור ותחזוקה'}, 
+                {value:'bills',label:'📄 חשבונות ותקשורת'}, 
+                {value:'fun',label:'🎉 פנאי ובילויים'}, 
+                {value:'clothes',label:'👕 ביגוד והנעלה'}, 
+                {value:'health',label:'💊 בריאות וביטוחים'}, 
+                {value:'education',label:'📚 חינוך וחוגים'}, 
+                {value:'vacation',label:'✈️ חופשות וטיולים'}, 
+                {value:'pets',label:'🐶 חיות מחמד'}, 
+                {value:'gifts',label:'🎁 מתנות ותרומות'}, 
+                {value:'other',label:'💸 אחר'} 
+            ] 
+        };
+        const BUDGET_LABELS = {
+            'food': '🍔 מסעדות וטייקאווי',
+            'groceries': '🛒 סופר ופארם',
+            'transport': '🚌 תחבורה ודלק',
+            'home': '🏠 דיור ותחזוקה',
+            'bills': '📄 חשבונות ותקשורת',
+            'fun': '🎉 פנאי ובילויים',
+            'clothes': '👕 ביגוד והנעלה',
+            'health': '💊 בריאות וביטוחים',
+            'education': '📚 חינוך וחוגים',
+            'vacation': '✈️ חופשות וטיולים',
+            'pets': '🐶 חיות מחמד',
+            'gifts': '🎁 מתנות ותרומות',
+            'other': '💸 אחר',
+            'allocations': '👶 הפרשות כלליות', 
+            'allowance': '💰 דמי כיס לילדים', 
+            'tasks': '✅ תגמול על משימות', 
+            'academy': '🎓 אתגרי אקדמיה', 
+            'savings': '🐖 הפקדות לחיסכון'
+        };
         const PRODUCT_DB = { "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"], "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"], "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"], "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"], "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"], "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"], "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"] };
         const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
@@ -1948,7 +1990,89 @@
         function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
         function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
         async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
-        async function fetchBudget() { const cat = document.getElementById('budget-filter').value || 'all'; const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); const data = await res.json(); const list = document.getElementById('budget-list'); list.innerHTML=''; data.forEach(b => { const pct = b.limit > 0 ? (b.spent / b.limit) * 100 : 0; let color = 'bg-green-500'; if(pct > 80) color = 'bg-orange-500'; if(pct > 100) color = 'bg-red-500'; const limitDisplay = b.limit > 0 ? `₪${b.limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[b.category] || b.category; const editBtn = (currentUser.role === 'ADMIN' && b.category !== 'allocations') ? `<button onclick="openBudgetModal('${b.category}', '${catName}', ${b.limit})" class="text-xs text-blue-500 font-bold ml-2">ערוך</button>` : ''; list.innerHTML += `<div class="mb-4"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} ${editBtn}</span><span class="text-xs text-slate-500">₪${b.spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="${color} h-2 rounded-full" style="width: ${Math.min(100, pct)}%"></div></div></div>`; }); }
+        
+        async function fetchBudget() {
+            const cat = document.getElementById('budget-filter').value || 'all';
+            const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`);
+            const data = await res.json();
+            const list = document.getElementById('budget-list');
+            list.innerHTML = '';
+
+            // הוספת כל קטגוריות הבסיס במידה והן לא קיימות, כדי שההורה יוכל להגדיר להן תקציב
+            const baseCategories = CATEGORIES.expense.map(c => c.value);
+            baseCategories.forEach(catId => {
+                if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 });
+            });
+            const childrenCategories = ['allowance', 'tasks', 'academy'];
+            childrenCategories.forEach(catId => {
+                if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 });
+            });
+
+            let childrenTotalSpent = 0;
+            let childrenTotalLimit = 0;
+            let childrenItems = [];
+            let otherItems = [];
+
+            data.forEach(b => {
+                if (childrenCategories.includes(b.category) || b.category === 'allocations') {
+                    childrenTotalSpent += parseFloat(b.spent) || 0;
+                    childrenTotalLimit += parseFloat(b.limit) || 0;
+                    childrenItems.push(b);
+                } else {
+                    otherItems.push(b);
+                }
+            });
+
+            const createRow = (category, spent, limit, isSub = false) => {
+                const pct = limit > 0 ? (spent / limit) * 100 : 0;
+                let color = 'bg-green-500'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+                const limitDisplay = limit > 0 ? `₪${limit}` : 'לא הוגדר';
+                const catName = BUDGET_LABELS[category] || category;
+                const editBtn = (currentUser.role === 'ADMIN' && category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">ערוך יעד</button>` : '';
+                const textSize = isSub ? 'text-sm' : 'text-base';
+                const containerClass = isSub ? 'pl-2 border-r-2 border-indigo-200 pr-2 mb-3' : 'mb-5';
+
+                return `
+                <div class="${containerClass}">
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span>
+                        <span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner">
+                        <div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div>
+                    </div>
+                </div>`;
+            };
+
+            // ציור קבוצת הילדים המאוגדת (במידה ויש הגדרות או הוצאות)
+            if (childrenItems.length > 0) {
+                const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0;
+                let color = 'bg-indigo-500'; if (pct > 80) color = 'bg-indigo-400'; if (pct > 100) color = 'bg-purple-600';
+                const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר';
+
+                let subItemsHtml = '';
+                childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+
+                list.innerHTML += `
+                <div class="mb-8 bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100/60 shadow-sm transition-all hover:bg-indigo-50">
+                    <div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')">
+                        <span class="font-bold text-indigo-900 flex items-center gap-2"><i class="fa-solid fa-child-reaching text-indigo-500"></i> הוצאות על הילדים <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span>
+                        <span class="text-xs font-bold text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-100">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span>
+                    </div>
+                    <div class="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner">
+                        <div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div>
+                    </div>
+                    <div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-indigo-100">
+                        ${subItemsHtml}
+                    </div>
+                </div>`;
+            }
+
+            // ציור שאר הקטגוריות הקבועות
+            otherItems.forEach(b => {
+                list.innerHTML += createRow(b.category, b.spent, b.limit, false);
+            });
+        }
         function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
         async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
 
