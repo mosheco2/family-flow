@@ -23,16 +23,21 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// Auto-Migration: מתקן את מסד הנתונים אוטומטית ברגע שהשרת עולה
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       try {
-          // Auto-migrate schema safely
           await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
           await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-          console.log('✅ Auto-migration complete');
+          await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_by VARCHAR(50) DEFAULT 'SYSTEM'`);
+          await client.query(`ALTER TABLE user_assignments ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+          await client.query(`ALTER TABLE user_assignments ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
+          await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowance_amount DECIMAL(10,2) DEFAULT 0.00`);
+          await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 0.00`);
+          console.log('✅ Auto-migration completed successfully - Database is up to date!');
       } catch(err) {
-          console.error('Migration error:', err.message);
+          console.error('Migration info (safe to ignore):', err.message);
       }
       client.release();
   })
@@ -61,9 +66,28 @@ const generateGroupCode = () => {
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
+        
         const { ageGroup, topic } = req.body;
-        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}. Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly: { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
+        Requirements:
+        1. Language MUST be Hebrew.
+        2. Output strictly as JSON matching this schema exactly:
+        {
+          "title": "A catchy title for the quiz",
+          "text_content": "A short educational text before the questions. Make it engaging.",
+          "questions": [
+            {
+              "q": "The question text",
+              "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"],
+              "correct": 0
+            }
+          ]
+        }`;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
@@ -81,6 +105,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
                 [newBundleId, q.q, JSON.stringify(q.options), q.correct]
             );
         }
+
         res.json({ success: true, bundleId: newBundleId });
     } catch (e) {
         console.error('AI Gen Error:', e);
@@ -90,17 +115,19 @@ app.post('/api/academy/ai-generate', async (req, res) => {
 
 app.post('/api/tasks/ai-generate', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { age, topic } = req.body;
-        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50). Requirements: 1. Language MUST be Hebrew. 2. Output STRICTLY as a JSON array of objects matching this schema exactly: [ { "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)", "reward": 15 } ]`;
+        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50).
+        Requirements:
+        1. Language MUST be Hebrew.
+        2. Output STRICTLY as a JSON array of objects matching this schema exactly:
+        [ { "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)", "reward": 15 } ]`;
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-        const tasks = JSON.parse(responseText);
+        const tasks = JSON.parse(result.response.text());
         res.json({ success: true, tasks });
     } catch (e) {
-        console.error('AI Task Gen Error:', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -109,6 +136,7 @@ app.post('/api/goals/familai-advice', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { userId, goalId } = req.body;
+
         const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
         const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
 
@@ -119,16 +147,15 @@ app.post('/api/goals/familai-advice', async (req, res) => {
         const age = calculateAge(user.birth_year);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
-        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target amount needed: ${goal.target_amount} ILS. Current saved amount for this goal: ${goal.current_amount} ILS. The child's current free wallet balance is: ${user.balance} ILS. The child's weekly allowance is: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. 1. Tell them they are doing a great job saving. 2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers. 3. Keep it under 4 sentences. 4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis. 5. Introduce yourself as 'familAI' at the start or end (e.g., "כאן familAI!").`;
+        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target amount needed: ${goal.target_amount} ILS. Current saved amount for this goal: ${goal.current_amount} ILS. The child's current free wallet balance is: ${user.balance} ILS. The child's weekly allowance is: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. 1. Tell them they are doing a great job saving. 2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers. 3. Keep it under 4 sentences. 4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis. 5. Introduce yourself as 'familAI' at the start or end.`;
 
         const result = await model.generateContent(prompt);
-        const advice = result.response.text().trim();
-        res.json({ success: true, advice });
+        res.json({ success: true, advice: result.response.text().trim() });
     } catch (e) {
-        console.error('familAI Advice Error:', e);
         res.status(500).json({ error: e.message });
     }
 });
+
 
 // Setup DB
 app.get('/setup-db', async (req, res) => {
@@ -158,7 +185,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
-            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
@@ -222,18 +249,18 @@ app.get('/api/data/:userId', async (req, res) => {
         const user = uRes.rows[0];
 
         let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]};
-        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [user.group_id]); } catch(e){}
-        try { shopRes = await pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.added_at DESC`, [user.group_id]); } catch(e){}
-        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward FROM quiz_bundles ORDER BY id DESC`); } catch(e){}
+        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ console.error(e); }
+        try { shopRes = await pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.id DESC`, [user.group_id]); } catch(e){ console.error(e); }
+        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward, threshold, created_at FROM quiz_bundles ORDER BY id DESC`); } catch(e){ console.error(e); }
 
         let goalsRes = {rows:[]}, weeklyStats = null, userBundles = [];
 
         if(user.role === 'ADMIN') {
             try { goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]); } catch(e){}
             try { 
-                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.assigned_at DESC`, [user.group_id]); 
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.id DESC`, [user.group_id]); 
                 userBundles = ubRes.rows;
-            } catch(e){}
+            } catch(e){ console.error(e); }
         } else {
             try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
             try { 
@@ -242,7 +269,7 @@ app.get('/api/data/:userId', async (req, res) => {
                 weeklyStats = { spent: spentRes.rows[0].spent, limit: limitRes.rows.length > 0 ? limitRes.rows[0].limit : user.allowance_amount * 0.2 };
             } catch(e){}
             try {
-                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.deadline, ua.custom_reward, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 ORDER BY ua.assigned_at DESC`, [user.id]);
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 ORDER BY ua.id DESC`, [user.id]);
                 userBundles = ubRes.rows;
                 const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
                 if (activeBundleIds.length > 0) {
@@ -251,14 +278,17 @@ app.get('/api/data/:userId', async (req, res) => {
                         if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
                     });
                 }
-            } catch(e){}
+            } catch(e){ console.error(e); }
         }
 
         res.json({
             user: user, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes ? (goalsRes.rows || []) : [],
             weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || []
         });
-    } catch (e) { res.status(500).json({error: e.message}); }
+    } catch (e) { 
+        console.error('Data Endpoint Error:', e);
+        res.status(500).json({error: e.message}); 
+    }
 });
 
 app.get('/api/admin/pending-users', async (req, res) => {
@@ -284,7 +314,13 @@ app.get('/api/group/members', async (req, res) => {
         
         const uReq = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
         const isAdmin = uReq.rows[0].role === 'ADMIN';
-        const members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
+        let members;
+        try {
+            members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
+        } catch(e) {
+            members = await pool.query('SELECT id, nickname, role, birth_year, balance FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
+        }
+        
         if(isAdmin) res.json(members.rows);
         else res.json(members.rows.map(m => ({id: m.id, nickname: m.nickname, role: m.role, birth_year: m.birth_year, balance: m.id == requesterId ? m.balance : null})));
     } catch (e) { res.status(500).json({error: e.message}); }
@@ -341,12 +377,13 @@ app.get('/api/transactions', async (req, res) => {
         const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
         const { groupId, userId } = req.query;
         if(!groupId || groupId === 'undefined') return res.json([]);
+        
         let query, params;
         if(userId === 'all') {
-             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.date DESC ${limit}`;
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.id DESC ${limit}`;
              params = [groupId];
         } else {
-             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id=$1 ORDER BY t.date DESC ${limit}`;
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id=$1 ORDER BY t.id DESC ${limit}`;
              params = [userId];
         }
         const t = await pool.query(query, params);
@@ -458,7 +495,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
 
 app.get('/api/shopping/history', async (req, res) => {
     try {
-        const trips = await pool.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC LIMIT 10`, [req.query.groupId]);
+        const trips = await pool.query(`SELECT st.*, u.nickname FROM shopping_trips st JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.id DESC LIMIT 10`, [req.query.groupId]);
         for (let t of trips.rows) {
             const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
             t.items = items.rows;
@@ -522,7 +559,7 @@ app.post('/api/budget/update', async (req, res) => {
 
 app.get('/api/academy/bundles', async (req, res) => {
     try {
-        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold FROM quiz_bundles ORDER BY id DESC`);
+        const bundles = await pool.query(`SELECT id, type, age_group, title, reward, threshold, created_at FROM quiz_bundles ORDER BY id DESC`);
         res.json(bundles.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -568,7 +605,7 @@ app.post('/api/academy/submit', async (req, res) => {
             SELECT ua.id, ua.custom_reward, qb.reward as default_reward, qb.threshold, qb.title
             FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id
             WHERE ua.user_id = $1 AND ua.bundle_id = $2 AND ua.status = 'assigned'
-            ORDER BY ua.assigned_at DESC LIMIT 1
+            ORDER BY ua.id DESC LIMIT 1
         `, [userId, bundleId]);
         if (assignment.rows.length === 0) {
             await dbClient.query('ROLLBACK');
