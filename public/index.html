@@ -281,6 +281,7 @@
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
                         </div>
+                        <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
                         <button onclick="openPantryModal()" class="w-full mt-2 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
                     </div>
                     <div id="pantry-list" class="space-y-3 pb-20"></div>
@@ -289,6 +290,7 @@
                 <!-- ACADEMY TAB -->
                 <div id="content-academy" class="hidden">
                     <div id="academy-admin-view" class="hidden">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-800"><i class="fa-solid fa-circle-info mt-0.5"></i> הקצו מבחנים לילדים כדי שירוויחו כסף מלמידה. familAI יכולה לייצר לכם כל מבחן שרק תבקשו!</div>
                         <div class="flex justify-between items-center mb-6 px-2">
                             <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
                             <div class="flex gap-2">
@@ -333,17 +335,19 @@
                 <div id="content-budget" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
                         <button onclick="getBudgetInsight()" id="btn-budget-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות familAI</button>
-                        <div class="flex justify-between items-center mb-6">
+                        <div class="flex justify-between items-center mb-4">
                             <h3 class="font-bold text-slate-800 text-lg">מעקב תקציב</h3>
                             <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden ml-24"></select>
                         </div>
-                        <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="hidden w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
+                        <p id="budget-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-6"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן מגדירים יעד הוצאות לכל תחום. ה-AI ינתח ויעזור לכם לעמוד ביעדים ולחסוך!</p>
+                        <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
                         <div id="budget-list" class="space-y-6"></div>
                     </div>
                 </div>
 
                 <!-- TASKS TAB -->
                 <div id="content-tasks" class="hidden">
+                    <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mx-2 mb-4 hidden"><i class="fa-solid fa-circle-info text-blue-500"></i> צרו משימות לילדים וקבעו תגמול. כשיסיימו, הם יצלמו הוכחה ו-familAI תאשר את התשלום באופן אוטומטי!</p>
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
                         <div class="flex gap-2">
@@ -620,31 +624,18 @@
                 nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג',
                 showProgress: true, rtl: true, hidePrev: false, showBullets: true,
                 steps: [
-                    { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את הכלים לניהול כלכלת המשפחה." },
-                    { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - זה הקוד שתשלחו לשאר בני הבית כדי שיתחברו." },
-                    { element: '#slider-scroll', title: "תפריט הניווט", intro: "מכאן תדלגו בין כל האזורים במערכת. גללו אותו ימינה ושמאלה!", position: 'bottom' },
-                    { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה. למטה בפיד יופיעו כל הפעולות הפיננסיות והמשימות של כולם." },
-                    { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "כפתור הקסם! לחיצה פה תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
-                    { element: '#tour-bank-payday', title: "יום תשלום 🤑", intro: "במקום לחלק לכל ילד בנפרד - כפתור אחד מחלק את דמי הכיס ומחשב ריביות לכל הילדים יחד!" },
-                    { element: '#content-budget', title: "מעקב תקציב חכם 📊", intro: "הגדירו יעדים לכל סוג הוצאה. familAI (היועצת שלנו) תנתח את הנתונים ותשלח לכם תובנות איך לחסוך." },
-                    { element: '#content-pantry', title: "מזווה ומלאי 📦", intro: "ניהול חכם של המקרר והמזווה. כשמוצר נגמר, קליק אחד יעביר אותו ישירות לעגלת הקניות!" },
-                    { element: '#tour-invite-btn', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "לסיום, באזור הניהול לחצו פה כדי לשלוח הזמנה בוואטסאפ לילדים או לבן/בת הזוג. בהצלחה!" }
+                    { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם. בואו נעשה סיור קצר כדי להכיר את המערכת." },
+                    { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית." },
+                    { element: '#slider-scroll', title: "תפריט הניווט", intro: "מכאן תדלגו בין כל האזורים במערכת. גללו את התפריט ימינה ושמאלה!", position: 'bottom' },
+                    { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה שלכם." },
+                    { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
+                    { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן מחלקים דמי כיס וריביות לכל הילדים יחד, ועוקבים אחרי החסכונות שלהם." },
+                    { element: '#tab-budget', title: "תקציב ומזווה 📊📦", intro: "אזורים בהם תוכלו לנהל את מלאי הבית ולעקוב אחרי הוצאות חודשיות - עם תובנות מ-familAI." },
+                    { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כנסו לכאן כדי לשלוח הזמנה בוואטסאפ לילדים או לבן/בת הזוג. בהצלחה!" }
                 ]
             });
-            
-            intro.onbeforechange(function(targetElement) {
-                if (!targetElement) return;
-                if (targetElement.id === 'tour-bank-payday') switchTab('bank');
-                else if (targetElement.id === 'content-budget') switchTab('budget');
-                else if (targetElement.id === 'content-pantry') switchTab('pantry');
-                else if (targetElement.id === 'tour-invite-btn') switchTab('members');
-                else switchTab('feed');
-                
-                return new Promise(resolve => setTimeout(resolve, 50));
-            });
-            
-            intro.onexit(() => switchTab('feed'));
-            intro.oncomplete(() => switchTab('feed'));
+            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-budget') switchTab('budget'); else if(targetElement.id === 'tab-members') switchTab('members'); else switchTab('feed'); });
+            intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
 
@@ -655,29 +646,16 @@
                 nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג',
                 showProgress: true, rtl: true, hidePrev: false, showBullets: true,
                 steps: [
-                    { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
+                    { title: "ברוכים הבאים! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
                     { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
-                    { element: '#tour-bank-card', title: "תנאי החשבון 🏦", intro: "בבנק תראו כמה דמי כיס מגיעים לכם, ואיזו ריבית תקבלו אם תהיו חכמים ולא תבזבזו את הכל!" },
-                    { element: '#tour-child-goals', title: "יעדי חיסכון 🎯", intro: "חולמים לקנות משהו? פתחו כאן יעד, ו-familAI תעזור לכם לבנות תוכנית כדי להשיג אותו." },
-                    { element: '#content-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? המשימה תופיע כאן. סיימתם? תצלמו את זה ותקבלו תגמול ישר לארנק!" },
-                    { element: '#content-academy', title: "האקדמיה הפיננסית 🎓", intro: "רוצים להרוויח עוד כסף? בצעו אתגרי למידה מעניינים ותרוויחו בונוסים." },
-                    { element: '#content-shop', title: "סופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות, וההורים יקבלו על זה הודעה." }
+                    { element: '#slider-scroll', title: "תפריט הניווט", intro: "גללו ימינה ושמאלה כדי לעבור בין האזורים השונים.", position: 'bottom' },
+                    { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תפתחו 'קופות חיסכון' לדברים שאתם ממש רוצים לקנות ותעקבו אחרי דמי הכיס שלכם." },
+                    { element: '#tab-tasks', title: "משימות ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
+                    { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה מעניינים ותרוויחו בונוסים." }
                 ]
             });
-
-            intro.onbeforechange(function(targetElement) {
-                if (!targetElement) return;
-                if (targetElement.id === 'tour-bank-card' || targetElement.id === 'tour-child-goals') switchTab('bank');
-                else if (targetElement.id === 'content-tasks') switchTab('tasks');
-                else if (targetElement.id === 'content-academy') switchTab('academy');
-                else if (targetElement.id === 'content-shop') switchTab('shop');
-                else switchTab('feed');
-
-                return new Promise(resolve => setTimeout(resolve, 50));
-            });
-
-            intro.onexit(() => switchTab('feed'));
-            intro.oncomplete(() => switchTab('feed'));
+            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-tasks') switchTab('tasks'); else if(targetElement.id === 'tab-academy') switchTab('academy'); else switchTab('feed'); });
+            intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
 
@@ -720,7 +698,7 @@
             const isAdmin = currentUser.role === 'ADMIN';
             
             if(isAdmin) { 
-                ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+                ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
                 document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
             } else { 
                 ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
@@ -1002,7 +980,7 @@
             });
             const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
             myQuizzes.forEach(b => {
-                hasItems = true; const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward; let deadlineMsg = "";
+                hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
                 if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
                 const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
                 htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${b.title}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
