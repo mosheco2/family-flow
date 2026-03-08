@@ -102,10 +102,38 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
         const settings = await pool.query("SELECT value FROM system_settings WHERE key='welcome_msg'");
+        
+        let unifiedActivity = [];
+        
+        activity.rows.forEach(a => {
+            unifiedActivity.push({
+                date: a.date,
+                group_name: a.group_name,
+                user_name: a.user_name,
+                description: a.description,
+                amount: a.amount,
+                is_financial: true
+            });
+        });
+        
+        groups.rows.forEach(g => {
+            const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
+            unifiedActivity.push({
+                date: g.created_at,
+                group_name: g.name,
+                user_name: adminUser ? adminUser.nickname : 'מנהל',
+                description: '🎉 פתח/ה משפחה חדשה',
+                amount: 0,
+                is_financial: false
+            });
+        });
+        
+        unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
         res.json({
             groups: groups.rows,
             users: users.rows,
-            activity: activity.rows,
+            activity: unifiedActivity.slice(0, 50),
             welcomeMsg: settings.rows.length > 0 ? settings.rows[0].value : ''
         });
     } catch(e) { res.status(500).json({error: e.message}); }
@@ -141,7 +169,6 @@ app.get('/api/settings/welcome', async (req, res) => {
 
 
 // --- AI ENDPOINTS ---
-
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
