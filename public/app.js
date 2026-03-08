@@ -24,18 +24,27 @@ const PRODUCT_DB = {
 };
 const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
+const hidePreloaderAndShowAuth = (view = 'login') => {
+    document.getElementById('auth-container').classList.remove('hidden');
+    switchView(view);
+    const preloader = document.getElementById('app-preloader');
+    if (preloader) {
+        preloader.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => preloader.classList.add('hidden'), 700);
+    }
+};
+
 window.onload = async () => { 
     const urlParams = new URLSearchParams(window.location.search);
     const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+    
     if (inviteCode) { 
         document.getElementById('join-code').value = inviteCode; 
         if(inviteRole) document.getElementById('join-role').value = inviteRole; 
-        document.getElementById('auth-container').classList.remove('hidden');
-        switchView('join'); 
-        document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); 
-        setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); 
+        hidePreloaderAndShowAuth('join');
         return; 
     }
+    
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
@@ -48,21 +57,19 @@ window.onload = async () => {
                     localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
                     await loadDashboard(); 
                 } else {
-                    document.getElementById('auth-container').classList.remove('hidden');
-                    logout();
+                    localStorage.removeItem('ofl_session');
+                    hidePreloaderAndShowAuth('login');
                 }
             } else {
-                document.getElementById('auth-container').classList.remove('hidden');
-                logout();
+                localStorage.removeItem('ofl_session');
+                hidePreloaderAndShowAuth('login');
             }
         } catch(e) { 
-            document.getElementById('auth-container').classList.remove('hidden');
-            logout(); 
+            localStorage.removeItem('ofl_session');
+            hidePreloaderAndShowAuth('login');
         } 
     } else { 
-        document.getElementById('auth-container').classList.remove('hidden');
-        document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); 
-        setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); 
+        hidePreloaderAndShowAuth('login');
     }
 };
 
