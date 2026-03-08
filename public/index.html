@@ -56,7 +56,7 @@
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         
-        /* IntroJS Overrides for modern look */
+        /* IntroJS Overrides */
         .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 1.5rem !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important; padding: 10px !important; }
         .introjs-tooltipbuttons { border-top: 1px solid #f1f5f9 !important; padding-top: 10px !important; }
         .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: 600 !important; font-family: 'Rubik', sans-serif !important; }
@@ -340,7 +340,7 @@
                             <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden ml-24"></select>
                         </div>
                         <p id="budget-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-6"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן מגדירים יעד הוצאות לכל תחום. ה-AI ינתח ויעזור לכם לעמוד ביעדים ולחסוך!</p>
-                        <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
+                        <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition hidden"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
                         <div id="budget-list" class="space-y-6"></div>
                     </div>
                 </div>
@@ -603,17 +603,34 @@
         window.onload = async () => { 
             const urlParams = new URLSearchParams(window.location.search);
             const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-            if (inviteCode) { document.getElementById('join-code').value = inviteCode; if(inviteRole) document.getElementById('join-role').value = inviteRole; switchView('join'); document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); return; }
+            if (inviteCode) { 
+                document.getElementById('join-code').value = inviteCode; 
+                if(inviteRole) document.getElementById('join-role').value = inviteRole; 
+                document.getElementById('auth-container').classList.remove('hidden');
+                switchView('join'); 
+                document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); 
+                setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); 
+                return; 
+            }
             const saved = localStorage.getItem('ofl_session'); 
             if(saved) { 
                 try { 
                     const session = JSON.parse(saved); 
                     if(session && session.user && session.user.id) { 
                         const res = await fetch(`${API}/users/${session.user.id}`); 
-                        if(res.ok) { currentUser = await res.json(); currentGroup = session.group; localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); await loadDashboard(); } else logout(); 
+                        if(res.ok) { 
+                            currentUser = await res.json(); 
+                            currentGroup = session.group; 
+                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
+                            await loadDashboard(); 
+                        } else logout(); 
                     } else logout(); 
                 } catch(e) { logout(); } 
-            } else { document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); }
+            } else { 
+                document.getElementById('auth-container').classList.remove('hidden');
+                document.getElementById('app-preloader').classList.add('opacity-0', 'pointer-events-none'); 
+                setTimeout(() => document.getElementById('app-preloader').classList.add('hidden'), 700); 
+            }
         };
 
         // --- GUIDED TOURS (Intro.js) ---
@@ -634,7 +651,7 @@
                     { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כנסו לכאן כדי לשלוח הזמנה בוואטסאפ לילדים או לבן/בת הזוג. בהצלחה!" }
                 ]
             });
-            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-budget') switchTab('budget'); else if(targetElement.id === 'tab-members') switchTab('members'); else switchTab('feed'); });
+            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-budget') switchTab('budget'); else if(targetElement.id === 'tab-members') switchTab('members'); else switchTab('feed'); return new Promise(resolve => setTimeout(resolve, 50));});
             intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
@@ -654,7 +671,7 @@
                     { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה מעניינים ותרוויחו בונוסים." }
                 ]
             });
-            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-tasks') switchTab('tasks'); else if(targetElement.id === 'tab-academy') switchTab('academy'); else switchTab('feed'); });
+            intro.onbeforechange(function(targetElement) { if(targetElement.id === 'tab-bank') switchTab('bank'); else if(targetElement.id === 'tab-tasks') switchTab('tasks'); else if(targetElement.id === 'tab-academy') switchTab('academy'); else switchTab('feed'); return new Promise(resolve => setTimeout(resolve, 50));});
             intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
             intro.start();
         }
