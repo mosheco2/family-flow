@@ -332,7 +332,7 @@
             </div>
         </div>
 
-        <!-- familAI Universal Output Modal -->
+        <!-- familAI Advisor Modal -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -341,12 +341,12 @@
                         🤖
                     </div>
                 </div>
-                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">familAI</h3>
-                <p id="familai-modal-subtitle" class="text-xs text-slate-400 mb-6 text-center">היועצת של המשפחה</p>
+                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">היי, אני familAI!</h3>
+                <p class="text-xs text-slate-400 mb-6 text-center">היועצת הפיננסית של המשפחה</p>
                 
                 <div id="familai-advisor-loading" class="text-center py-6">
                     <i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
-                    <p class="text-sm text-slate-500 font-medium" id="familai-loading-text">מנתחת את הנתונים...</p>
+                    <p class="text-sm text-slate-500 font-medium">מנתחת את הנתונים שלך...</p>
                 </div>
 
                 <div id="familai-advisor-content" class="hidden">
@@ -359,7 +359,7 @@
             </div>
         </div>
 
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-4"></p> <button id="btn-tutor" class="hidden mb-4 w-full bg-purple-100 text-purple-700 py-3 rounded-xl font-bold shadow-sm hover:bg-purple-200" onclick="askTutor()">🤖 familAI, איפה טעיתי?</button> <button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-4"></p> <button id="btn-tutor" class="hidden mb-4 w-full bg-purple-100 text-purple-700 py-3 rounded-xl font-bold shadow-sm hover:bg-purple-200 transition" onclick="askTutor()">🤖 familAI, איפה טעיתי?</button> <button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
@@ -397,7 +397,7 @@
 
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
-        const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים'};
+        const BUDGET_LABELS = {'food': '🍔 אוכל','groceries': '🛒 סופר','transport': '🚌 נסיעות','bills': '📄 חשבונות','fun': '🎉 בילויים','clothes': '👕 בגדים','health': '💊 בריאות','education': '📚 חינוך','other': '💸 אחר','allocations': '👶 הפרשות לילדים', 'allowance': '💰 דמי כיס', 'tasks': '✅ תגמול משימות', 'academy': '🎓 אתגר אקדמיה', 'savings': '🐖 הפקדות לחיסכון'};
         const PRODUCT_DB = { "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "פלפל ירוק", "גזר", "בצל יבש", "תפוחי אדמה", "בטטה", "חסה", "כרוב לבן", "כרובית", "ברוקולי", "פטריות", "שום", "לימון", "תפוח עץ", "בננות", "אגס", "תפוז", "אבטיח", "מלון", "ענבים", "אבוקדו", "קישואים", "חצילים"], "חלב וביצים 🥛": ["חלב תנובה 3%", "חלב טרה 3%", "חלב יוטבתה", "חלב סויה", "חלב שקדים", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה עמק", "גבינה בולגרית", "גבינת פטה", "לבן", "שמנת חמוצה", "שמנת מתוקה", "חמאה", "יוגורט", "מילקי", "דני", "ביצים L", "ביצים XL"], "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "לחם שיפון", "חלה", "פיתות", "לחמניות", "באגט", "פריכיות", "קרקרים", "פירורי לחם"], "מזווה ובישול 🍝": ["אורז פרסי", "אורז בסמטי", "פסטה", "פתיתים", "קוסקוס", "בורגול", "קינואה", "עדשים", "חומוס גרגירים", "טונה בשמן", "טונה במים", "תירס שימורים", "רסק עגבניות", "מלפפון חמוץ", "זיתים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "שמרים", "קפה נמס", "קפה שחור", "תה", "שוקולית", "דגני בוקר", "קוואקר"], "בשר ודגים 🍗": ["חזה עוף", "כרעיים", "שוקיים", "בשר טחון", "שניצל מוכן", "נקניקיות", "פסטרמה", "פילה סלמון", "דג אמנון"], "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נייר סופג", "נוזל כלים", "טבליות למדיח", "אבקת כביסה", "מרכך כביסה", "אקונומיקה", "סבון גוף", "שמפו", "מרכך שיער", "משחת שיניים", "דאודורנט", "סכיני גילוח", "חיתולים"], "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "תפוצ'יפס", "בייגלה", "וופלים", "עוגיות", "שוקולד פרה", "גלידה", "ארטיק", "מסטיקים"] };
         const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
@@ -783,8 +783,12 @@
                     body: JSON.stringify({ userId: childId, goalId: goalId })
                 });
                 const data = await res.json();
+                
+                document.getElementById('familai-advisor-loading').classList.add('hidden');
+                
                 if(data.success && data.advice) {
-                    showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice);
+                    document.getElementById('familai-advice-text').innerText = data.advice;
+                    document.getElementById('familai-advisor-content').classList.remove('hidden');
                     triggerConfetti();
                 } else {
                     document.getElementById('familai-advisor-modal').classList.add('hidden');
@@ -1759,6 +1763,13 @@
                 
                 const unitPrice = parseFloat(i.estimated_price) || 0;
                 const totalRowPrice = unitPrice * i.quantity;
+
+                let bestPriceHtml = '';
+                if (i.best_price && i.best_price.price_per_unit > 0) {
+                    const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2);
+                    const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL');
+                    bestPriceHtml = `<div class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid fa-tag"></i> מחיר הכי טוב שהיה: ₪${bestP} (${i.best_price.store_name}, ${dDate})</div>`;
+                }
                 
                 shopHtml += `
                 <div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}">
@@ -1770,6 +1781,7 @@
                                 <button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button>
                             </div>
                             <span class="text-[10px] text-slate-400">${i.requester_name}</span>
+                            ${bestPriceHtml}
                             <div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all">
                                 <i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span>
                             </div>
@@ -1851,6 +1863,7 @@
         }
         
         function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
+        
         async function submitFinalCheckout() {
             const store = document.getElementById('checkout-store').value || 'סופר כללי';
             const branch = document.getElementById('checkout-branch').value;
@@ -1884,7 +1897,6 @@
 
         async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
         
-        // --- WHATSAPP SHARE & INVITES ---
         function openInviteModal() {
             const codeSpan = document.getElementById('display-group-code');
             if (currentGroup && currentGroup.group_code) {
@@ -1900,23 +1912,15 @@
                 showToast('error', 'קוד משפחה לא זמין כרגע');
                 return;
             }
-            
             const url = window.location.origin;
             const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`;
-            
-            let text = '';
-            if (role === 'ADMIN') {
-                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}`;
-            } else {
-                text = `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`;
-            }
-            
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(whatsappUrl, '_blank');
+            let text = role === 'ADMIN' 
+                ? `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}`
+                : `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
             document.getElementById('invite-modal').classList.add('hidden');
         }
 
-        // --- HELPERS ---
         function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
         function val(id) { return document.getElementById(id).value; }
         function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
