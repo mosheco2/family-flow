@@ -26,30 +26,6 @@ const pool = new Pool({
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
-      try {
-          await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
-          await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-          await client.query(`ALTER TABLE quiz_bundles ADD COLUMN IF NOT EXISTS created_by VARCHAR(50) DEFAULT 'SYSTEM'`);
-          await client.query(`ALTER TABLE user_assignments ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-          await client.query(`ALTER TABLE user_assignments ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
-          await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowance_amount DECIMAL(10,2) DEFAULT 0.00`);
-          await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 0.00`);
-          await client.query(`ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
-          await client.query(`ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
-          
-          await client.query(`
-              CREATE TABLE IF NOT EXISTS pantry (
-                  id SERIAL PRIMARY KEY, 
-                  group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
-                  item_name VARCHAR(100), 
-                  quantity INT DEFAULT 1, 
-                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-              )
-          `);
-          console.log('✅ Auto-migration completed successfully');
-      } catch(err) {
-          console.error('Migration info:', err.message);
-      }
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -132,29 +108,14 @@ app.post('/api/budget/familai-insight', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// NEW: Pantry & Shopping Insights
 app.post('/api/pantry/familai-insight', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { groupId } = req.body;
-        
         const pantryRes = await pool.query('SELECT item_name, quantity, updated_at FROM pantry WHERE group_id=$1', [groupId]);
-        const historyRes = await pool.query(`
-            SELECT sti.item_name, sti.quantity, sti.price_per_unit, st.trip_date 
-            FROM shopping_trip_items sti 
-            JOIN shopping_trips st ON sti.trip_id = st.id 
-            WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
-        `, [groupId]);
-
+        const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a smart home inventory and grocery manager.
-        Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}.
-        Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}.
-        Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents.
-        1. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon.
-        2. Give one smart shopping tip or savings recommendation based on their habits (e.g., buying in bulk).
-        Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
-
+        const prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -213,6 +174,45 @@ app.post('/api/academy/tutor', async (req, res) => {
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// Setup DB - EXPLICIT RESET ROUTE FOR RENDER
+app.get('/setup-db', async (req, res) => {
+    try {
+        await pool.query(`
+            DROP TABLE IF EXISTS user_assignments CASCADE;
+            DROP TABLE IF EXISTS quiz_questions CASCADE;
+            DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE;
+            DROP TABLE IF EXISTS goals CASCADE;
+            DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE;
+            DROP TABLE IF EXISTS transactions CASCADE;
+            DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE;
+            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
+            DROP TABLE IF EXISTS pantry CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS family_groups CASCADE;
+
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
+            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
+            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
+            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
+            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        `);
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+    } catch (e) { res.status(500).send(e.message); }
 });
 
 // Auth
