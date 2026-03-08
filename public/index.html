@@ -8,6 +8,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Intro.js CSS for Tour -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+    
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
@@ -49,6 +54,15 @@
         .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+        
+        /* IntroJS Overrides for modern look */
+        .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 1.5rem !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important; padding: 10px !important; }
+        .introjs-tooltipbuttons { border-top: 1px solid #f1f5f9 !important; padding-top: 10px !important; }
+        .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: 600 !important; font-family: 'Rubik', sans-serif !important; }
+        .introjs-nextbutton { background-color: #3b82f6 !important; color: white !important; border: none !important; }
+        .introjs-prevbutton { color: #64748b !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
+        .introjs-skipbutton { color: #94a3b8 !important; font-weight: 500 !important; }
+        .introjs-bullets ul li a.active { background: #3b82f6 !important; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
@@ -128,7 +142,7 @@
         </div>
 
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
-            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600 ring-2 ring-blue-50"><i class="fa-solid fa-user"></i></div>
                     <div>
@@ -158,7 +172,7 @@
 
             <div class="px-2">
                 <div id="content-feed">
-                    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
+                    <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
@@ -328,7 +342,7 @@
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
                             <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3>
-                            <button onclick="openInviteModal()" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> הזמן</button>
+                            <button onclick="openInviteModal()" id="tour-invite-btn" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> הזמן</button>
                         </div>
                         <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                     </div>
@@ -630,7 +644,84 @@
             
             if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
             await fetchMembers(); if(isAdmin) fetchPendingUsers(); await fetchData();
-            const preloader = document.getElementById('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+            
+            const preloader = document.getElementById('app-preloader'); 
+            if (preloader) { 
+                preloader.classList.add('opacity-0', 'pointer-events-none'); 
+                setTimeout(() => {
+                    preloader.classList.add('hidden');
+                    
+                    // START TOUR AFTER PRELOADER HIDDEN
+                    setTimeout(() => {
+                        if (currentUser.role === 'ADMIN' && !localStorage.getItem(`ofl_tour_admin_${currentUser.id}`)) {
+                            startAdminTour();
+                            localStorage.setItem(`ofl_tour_admin_${currentUser.id}`, 'true');
+                        } else if (currentUser.role !== 'ADMIN' && !localStorage.getItem(`ofl_tour_child_${currentUser.id}`)) {
+                            startChildTour();
+                            localStorage.setItem(`ofl_tour_child_${currentUser.id}`, 'true');
+                        }
+                    }, 500);
+
+                }, 700); 
+            }
+        }
+
+        // --- GUIDED TOURS (Intro.js) ---
+        function startAdminTour() {
+            switchTab('feed');
+            const intro = introJs();
+            intro.setOptions({
+                nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג',
+                showProgress: false, rtl: true, hidePrev: true, showBullets: true,
+                steps: [
+                    { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את הכלים לניהול כלכלת המשפחה." },
+                    { element: '#tour-header', title: "האזור שלכם", intro: "כאן למעלה תוכלו לראות את שם המשפחה, ואת קוד ההזמנה שלכם (אותו תשלחו לילדים)." },
+                    { element: '#slider-scroll', title: "תפריט הניווט", intro: "מכאן תדלגו בין כל האזורים במערכת - תקציב, קניות, משימות ועוד. אפשר להחליק ימינה ושמאלה!", position: 'bottom' },
+                    { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הכללית הפנויה. למטה יופיע הפיד של כל הפעילויות בבית." },
+                    { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "בלחיצה על הכפתור הזה תוכלו לרשום הוצאה או הכנסה חדשה מכל מקום באפליקציה, ברגע אחד." },
+                    { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "בלשונית זו תוכלו להגדיר יעדי הוצאה לכל קטגוריה (כמו סופרמרקט או דלק) ולעקוב אחריהם בזמן אמת. familAI תעזור לכם לנתח את הנתונים!" },
+                    { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "לסיום, באזור הניהול לחצו על 'הזמן' כדי לשלוח הודעת וואטסאפ לילדים. לכל ילד יווצר ארנק עצמאי משלו. בהצלחה!" }
+                ]
+            });
+            
+            intro.onbeforechange(function(targetElement) {
+                if(targetElement.id === 'tab-budget') switchTab('budget');
+                else if(targetElement.id === 'tab-members') switchTab('members');
+                else switchTab('feed');
+            });
+            
+            intro.onexit(() => switchTab('feed'));
+            intro.oncomplete(() => switchTab('feed'));
+            intro.start();
+        }
+
+        function startChildTour() {
+            switchTab('feed');
+            const intro = introJs();
+            intro.setOptions({
+                nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג',
+                showProgress: false, rtl: true, hidePrev: true, showBullets: true,
+                steps: [
+                    { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
+                    { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון." },
+                    { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "בלשונית הבנק תראו מתי נכנסים דמי הכיס, וכאן תפתחו 'קופות חיסכון' לדברים שאתם ממש רוצים לקנות!" },
+                    { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה בבית? המשימה תופיע כאן. צלמו שסיימתם - וקבלו את התגמול ישר לארנק!" },
+                    { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "רוצים להרוויח אקסטרה כסף? כנסו לפה, בצעו אתגרי למידה קצרים ומעניינים, ותרוויחו בונוסים." },
+                    { element: '#tab-shop', title: "סופרמרקט 🛒", intro: "מתחשק לכם משהו טעים מהסופר? בקשו להוסיף אותו לרשימה מכאן, וההורים יקבלו התראה." }
+                ]
+            });
+
+            intro.onbeforechange(function(targetElement) {
+                if(targetElement.id === 'tab-bank') switchTab('bank');
+                else if(targetElement.id === 'tab-tasks') switchTab('tasks');
+                else if(targetElement.id === 'tab-academy') switchTab('academy');
+                else if(targetElement.id === 'tab-shop') switchTab('shop');
+                else switchTab('feed');
+            });
+
+            intro.onexit(() => switchTab('feed'));
+            intro.oncomplete(() => switchTab('feed'));
+            intro.start();
         }
 
         async function fetchMembers() { 
@@ -981,74 +1072,20 @@
             } list.innerHTML = html;
         }
 
-        function renderMyAssignments(bundles) {
-            try {
-                const list = document.getElementById('my-assignments-list');
-                const historyContainer = document.getElementById('academy-history-container');
-                const historyList = document.getElementById('academy-history-list');
-                if(!list) return; 
-                
-                const activeBundles = bundles.filter(b => b.status === 'assigned');
-                const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
-                const getIcon = (type) => { if (type === 'math') return '<i class="fa-solid fa-calculator"></i>'; if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>'; return '<i class="fa-solid fa-chart-line"></i>'; };
-
-                if (activeBundles.length === 0) { 
-                    list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין משימות פעילות. בחרו מהספרייה למטה!</p>'; 
-                } else {
-                    let activeHtml = '';
-                    activeBundles.forEach(b => {
-                        let deadlineMsg = ""; 
-                        if (b.deadline) { 
-                            const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); 
-                            deadlineMsg = diff > 0 ? ` <span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : ` <span class="text-red-500 ml-1">פג תוקף!</span>`; 
-                        }
-                        const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; 
-                        const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-                        activeHtml += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01] mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-800">${b.title}</h4><p class="text-xs text-slate-500">פרס: ₪${reward} • הוקצה ב-${aDate}${deadlineMsg}</p></div></div><button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700 transition">התחל</button></div>`;
-                    }); 
-                    list.innerHTML = activeHtml;
-                }
-                
-                if (historyContainer && historyList) {
-                    if (doneBundles.length === 0) historyContainer.classList.add('hidden');
-                    else {
-                        historyContainer.classList.remove('hidden'); let historyHtml = '';
-                        doneBundles.forEach(b => {
-                            let statusClass = 'bg-gray-100 text-gray-500'; let label = 'הושלם';
-                            if(b.status === 'completed') statusClass = 'bg-green-100 text-green-600'; else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; } else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
-                            historyHtml += `<div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2"><span class="text-sm font-bold text-slate-600">${b.title}</span><span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span></div>`;
-                        }); historyList.innerHTML = historyHtml;
-                    }
-                }
-            } catch(err) { console.error(err); }
-        }
-
         function renderLibrary() {
             try {
                 const libList = document.getElementById('library-list'); if (!libList) return;
-                const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all'; 
-                const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
+                const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all'; const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
                 let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
-                
-                if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); 
-                if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
-                if(Array.isArray(bundlesCache)) { 
-                    const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id)); 
-                    filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id))); 
-                }
-                
-                if (filtered.length === 0) { 
-                    libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>'; 
-                    return; 
-                }
-                
+                if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
+                if(Array.isArray(bundlesCache)) { const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id)); filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id))); }
+                if (filtered.length === 0) { libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>'; return; }
                 const getIcon = (type) => { if (type === 'math') return '<i class="fa-solid fa-calculator"></i>'; if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>'; return '<i class="fa-solid fa-chart-line"></i>'; };
                 let libHtml = '';
                 filtered.forEach(b => {
                     const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
                     libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button></div>`;
-                }); 
-                libList.innerHTML = libHtml;
+                }); libList.innerHTML = libHtml;
             } catch(err) { console.error(err); }
         }
 
