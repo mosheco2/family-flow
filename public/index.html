@@ -51,21 +51,24 @@
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         .ai-task-option { border: 1px solid #e2e8f0; transition: all 0.2s; cursor: pointer; }
         .ai-task-option:hover { border-color: #a855f7; background-color: #faf5ff; }
+        .image-preview { width: 100%; height: 150px; object-fit: cover; border-radius: 1rem; margin-bottom: 1rem; border: 2px dashed #e2e8f0; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
 
-    <!-- GLOBAL PRELOADER (familAI loading) -->
+    <!-- GLOBAL PRELOADER -->
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <div class="relative w-24 h-24 mb-4">
             <div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20"></div>
-            <div class="relative flex items-center justify-center w-full h-full bg-white rounded-full shadow-xl text-4xl border-4 border-blue-50">
-                🤖
-            </div>
+            <div class="relative flex items-center justify-center w-full h-full bg-white rounded-full shadow-xl text-4xl border-4 border-blue-50">🤖</div>
         </div>
         <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
         <p class="text-sm text-slate-500 font-medium animate-pulse">familAI מכינה את הנתונים...</p>
     </div>
+
+    <!-- Hidden file inputs for Vision AI -->
+    <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
+    <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
     <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-50 flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
@@ -176,7 +179,7 @@
                         <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
                     </div>
                 </div>
-                <div id="content-shop" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3><div class="flex gap-2"><button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div></div><div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div><div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm"><h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4><div id="shop-requests-list" class="space-y-2"></div></div><div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div></div>
+                <div id="content-shop" class="hidden"><div class="flex justify-between items-center mb-4 px-2"><h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3><div class="flex gap-2"><button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button><button onclick="document.getElementById('receipt-scan-upload').click()" class="bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold shadow-sm hover:bg-purple-200 transition"><i class="fa-solid fa-receipt"></i> סרוק</button><button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> פריט</button></div></div><div class="flex justify-between items-center mb-2 px-2"><button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button></div><div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm"><h4 class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> בקשות ממתינות לאישור</h4><div id="shop-requests-list" class="space-y-2"></div></div><div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div></div>
                 
                 <div id="content-academy" class="hidden">
                     <div id="academy-admin-view" class="hidden">
@@ -210,7 +213,16 @@
                         <div id="library-list" class="space-y-3 pb-20"></div>
                     </div>
                 </div>
-                <div id="content-budget" class="hidden"><div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100"><div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3><select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select></div><div id="budget-list" class="space-y-6"></div></div></div>
+                <div id="content-budget" class="hidden">
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
+                        <button onclick="getBudgetInsight()" id="btn-budget-insight" class="absolute top-6 left-6 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות familAI</button>
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-slate-800 text-lg">ניהול תקציב</h3>
+                            <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden ml-24"></select>
+                        </div>
+                        <div id="budget-list" class="space-y-6"></div>
+                    </div>
+                </div>
                 <div id="content-tasks" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
@@ -251,6 +263,7 @@
             </div>
         </div>
 
+        <!-- Academy AI Modal -->
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
@@ -272,6 +285,7 @@
             </div>
         </div>
 
+        <!-- Unified Task Modal -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
@@ -318,6 +332,7 @@
             </div>
         </div>
 
+        <!-- familAI Universal Output Modal -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -326,12 +341,12 @@
                         🤖
                     </div>
                 </div>
-                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">היי, אני familAI!</h3>
-                <p class="text-xs text-slate-400 mb-6 text-center">היועצת הפיננסית של המשפחה</p>
+                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">familAI</h3>
+                <p id="familai-modal-subtitle" class="text-xs text-slate-400 mb-6 text-center">היועצת של המשפחה</p>
                 
                 <div id="familai-advisor-loading" class="text-center py-6">
                     <i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i>
-                    <p class="text-sm text-slate-500 font-medium">מנתחת את הנתונים שלך...</p>
+                    <p class="text-sm text-slate-500 font-medium" id="familai-loading-text">מנתחת את הנתונים...</p>
                 </div>
 
                 <div id="familai-advisor-content" class="hidden">
@@ -344,7 +359,7 @@
             </div>
         </div>
 
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-6"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6"><div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative"><button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button><div id="quiz-content" class="text-center"><h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2><div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div><div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div><div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-msg-desc" class="text-slate-500 mb-6"></p><p id="quiz-score-display" class="font-bold text-xl mb-4"></p> <button id="btn-tutor" class="hidden mb-4 w-full bg-purple-100 text-purple-700 py-3 rounded-xl font-bold shadow-sm hover:bg-purple-200" onclick="askTutor()">🤖 familAI, איפה טעיתי?</button> <button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div></div></div></div>
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3><div class="space-y-4"><div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div><div class="flex gap-2"><div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div><div class="w-24 relative"><input type="number" id="shop-quantity" class="modern-input text-center" value="1" min="1"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div></div></div><div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div></div></div>
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl"><h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3><p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p><div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div><div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div><div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div></div></div>
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]"><h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3><div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div><button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button></div></div>
@@ -372,6 +387,13 @@
         let allTasks = [];
         let allTransactions = [];
         let feedCache = [];
+
+        // For tracking the current task being photo-verified
+        let currentVerifyTaskId = null;
+        let currentVerifyTaskTitle = null;
+
+        // For Tutor AI
+        let currentWrongAnswers = [];
 
         const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
         const CATEGORIES = { income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], expense: [ {value:'food',label:'🍔 אוכל'}, {value:'groceries',label:'🛒 סופר'}, {value:'transport',label:'🚌 נסיעות'}, {value:'bills',label:'📄 חשבונות'}, {value:'fun',label:'🎉 בילויים'}, {value:'clothes',label:'👕 בגדים'}, {value:'health',label:'💊 בריאות'}, {value:'education',label:'📚 חינוך'}, {value:'other',label:'💸 אחר'} ] };
@@ -701,6 +723,20 @@
             } catch(e) { console.error('fetchData failed entirely:', e); }
         }
 
+        // --- familAI UNIVERSAL MODAL ---
+        function showFamilAIModal(title, text) {
+            document.getElementById('familai-advisor-modal').classList.remove('hidden');
+            document.getElementById('familai-modal-subtitle').innerText = title;
+            if (text) {
+                document.getElementById('familai-advisor-loading').classList.add('hidden');
+                document.getElementById('familai-advice-text').innerText = text;
+                document.getElementById('familai-advisor-content').classList.remove('hidden');
+            } else {
+                document.getElementById('familai-advisor-loading').classList.remove('hidden');
+                document.getElementById('familai-advisor-content').classList.add('hidden');
+            }
+        }
+
         // --- AI LOGIC (Academy & Goals) ---
         function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
         
@@ -738,10 +774,8 @@
         }
 
         async function getFamilAIAdvice(childId, goalId) {
-            document.getElementById('familai-advisor-modal').classList.remove('hidden');
-            document.getElementById('familai-advisor-loading').classList.remove('hidden');
-            document.getElementById('familai-advisor-content').classList.add('hidden');
-
+            showFamilAIModal('היועצת הפיננסית של המשפחה', null);
+            document.getElementById('familai-loading-text').innerText = 'מנתחת את הנתונים שלך...';
             try {
                 const res = await fetch(`${API}/goals/familai-advice`, {
                     method: 'POST',
@@ -749,12 +783,8 @@
                     body: JSON.stringify({ userId: childId, goalId: goalId })
                 });
                 const data = await res.json();
-                
-                document.getElementById('familai-advisor-loading').classList.add('hidden');
-                
                 if(data.success && data.advice) {
-                    document.getElementById('familai-advice-text').innerText = data.advice;
-                    document.getElementById('familai-advisor-content').classList.remove('hidden');
+                    showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice);
                     triggerConfetti();
                 } else {
                     document.getElementById('familai-advisor-modal').classList.add('hidden');
@@ -763,6 +793,51 @@
             } catch (e) {
                 document.getElementById('familai-advisor-modal').classList.add('hidden');
                 showToast('error', 'תקלה בתקשורת עם השרת');
+            }
+        }
+
+        async function getBudgetInsight() {
+            showFamilAIModal('אנליסטית התקציב', null);
+            document.getElementById('familai-loading-text').innerText = 'בודקת על מה הוצאנו החודש...';
+            try {
+                const res = await fetch(`${API}/budget/familai-insight`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ groupId: currentGroup.id })
+                });
+                const data = await res.json();
+                if(data.success && data.insight) {
+                    showFamilAIModal('אנליסטית התקציב', data.insight);
+                } else {
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    showToast('error', 'שגיאה ביצירת תובנות תקציב');
+                }
+            } catch(e) {
+                document.getElementById('familai-advisor-modal').classList.add('hidden');
+                showToast('error', 'שגיאה בתקשורת');
+            }
+        }
+
+        async function askTutor() {
+            if(currentWrongAnswers.length === 0) return;
+            const w = currentWrongAnswers[0];
+            document.getElementById('btn-tutor').disabled = true;
+            document.getElementById('btn-tutor').innerText = 'מכינה הסבר... ⏳';
+            try {
+                const res = await fetch(`${API}/academy/tutor`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showFamilAIModal('המורה הפרטית שלך', data.explanation);
+                }
+            } catch(e) {
+                showToast('error', 'שגיאה בהבאת ההסבר');
+            } finally {
+                document.getElementById('btn-tutor').disabled = false;
+                document.getElementById('btn-tutor').innerText = '🤖 familAI, איפה טעיתי?';
             }
         }
 
@@ -915,6 +990,86 @@
             fetchData(); 
         }
 
+        // --- VISION AI LOGIC (Tasks & Receipts) ---
+        function clickTaskProof(taskId, title) {
+            currentVerifyTaskId = taskId;
+            currentVerifyTaskTitle = title;
+            document.getElementById('task-proof-upload').click();
+        }
+
+        function handleTaskProofUpload(event) {
+            const file = event.target.files[0];
+            if(!file || !currentVerifyTaskId) return;
+            
+            showFamilAIModal('בקרת איכות', null);
+            document.getElementById('familai-loading-text').innerText = 'familAI בודקת את התמונה שלך...';
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result.split(',')[1];
+                try {
+                    const res = await fetch(`${API}/tasks/vision-verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: file.type })
+                    });
+                    const data = await res.json();
+                    
+                    if(data.success) {
+                        showFamilAIModal('בקרת איכות', data.message);
+                        if(data.verified) {
+                            triggerConfetti();
+                            fetchData();
+                        }
+                    } else {
+                        document.getElementById('familai-advisor-modal').classList.add('hidden');
+                        showToast('error', 'שגיאה בניתוח התמונה.');
+                    }
+                } catch(err) {
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.');
+                }
+                event.target.value = ''; // reset input
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleReceiptUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            showFamilAIModal('קופאית אוטומטית', null);
+            document.getElementById('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result.split(',')[1];
+                try {
+                    const res = await fetch(`${API}/shopping/scan-receipt`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: file.type })
+                    });
+                    const data = await res.json();
+                    
+                    if(data.success) {
+                        showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`);
+                        triggerConfetti();
+                        fetchData();
+                    } else {
+                        document.getElementById('familai-advisor-modal').classList.add('hidden');
+                        showToast('error', 'שגיאה בקריאת הקבלה.');
+                    }
+                } catch(err) {
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.');
+                }
+                event.target.value = ''; // reset
+            };
+            reader.readAsDataURL(file);
+        }
+
+
         function renderChildTodo() {
             const todoSection = document.getElementById('child-todo-section');
             const todoList = document.getElementById('child-todo-list');
@@ -1004,8 +1159,9 @@
                 let actionBtn = '';
 
                 if (t.status === 'pending') {
-                    if (isMyTask) actionBtn = `<button onclick="updateTask(${t.id}, '${isAdmin ? 'completed_self' : 'done'}')" class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">סיימתי</button>`;
-                    else statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
+                    if (isMyTask) {
+                        actionBtn = `<button onclick="clickTaskProof(${t.id}, '${t.title.replace(/'/g, "\\'")}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`;
+                    } else statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לילד</span>`;
                 } 
                 else if (t.status === 'done') {
                     statusColor = 'bg-yellow-50 border-yellow-100';
@@ -1053,7 +1209,13 @@
             }
         }
 
-        // --- UNIFIED FEED LOGIC (Rest of the functions) ---
+        async function updateTask(id, s) { 
+            if(s==='done' || s==='approved' || s==='completed_self') triggerConfetti(); 
+            await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); 
+            fetchData(); 
+        }
+
+        // --- UNIFIED FEED LOGIC ---
         function buildAndRenderFeed() {
             feedCache = [];
 
@@ -1286,7 +1448,7 @@
                             <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                             <div>
                                 <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                                <p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward} • נוצר ב-${cDate}</p>
+                                <p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p>
                             </div>
                         </div>
                         <button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button>
@@ -1317,77 +1479,6 @@
             }
 
             list.innerHTML = html;
-        }
-
-        function renderMyAssignments(bundles) {
-            const list = document.getElementById('my-assignments-list');
-            const historyContainer = document.getElementById('academy-history-container');
-            const historyList = document.getElementById('academy-history-list');
-            
-            if(!list) return; 
-            
-            const activeBundles = bundles.filter(b => b.status === 'assigned');
-            const doneBundles = bundles.filter(b => b.status === 'completed' || b.status === 'failed' || b.status === 'expired');
-
-            const getIcon = (type) => {
-                if (type === 'math') return '<i class="fa-solid fa-calculator"></i>';
-                if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>';
-                return '<i class="fa-solid fa-chart-line"></i>';
-            };
-
-            if (activeBundles.length === 0) {
-                list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין משימות פעילות. בחרו מהספרייה למטה!</p>';
-            } else {
-                let activeHtml = '';
-                activeBundles.forEach(b => {
-                    let deadlineMsg = "";
-                    if (b.deadline) {
-                        const d = new Date(b.deadline);
-                        const now = new Date();
-                        const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
-                        deadlineMsg = diff > 0 ? `<span class="text-orange-500 ml-1">⏱ עוד ${diff} ימים</span>` : `<span class="text-red-500 ml-1">פג תוקף!</span>`;
-                    }
-
-                    const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
-                    const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-
-                    activeHtml += `
-                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center transform transition hover:scale-[1.01] mb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-lg">${getIcon(b.type)}</div>
-                            <div>
-                                <h4 class="font-bold text-slate-800">${b.title}</h4>
-                                <p class="text-xs text-slate-500">פרס: ₪${reward} • הוקצה ב-${aDate} ${deadlineMsg}</p>
-                            </div>
-                        </div>
-                        <button onclick="startQuiz(${b.bundle_id})" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700">התחל</button>
-                    </div>`;
-                });
-                list.innerHTML = activeHtml;
-            }
-            
-            if (historyContainer && historyList) {
-                if (doneBundles.length === 0) {
-                    historyContainer.classList.add('hidden');
-                } else {
-                    historyContainer.classList.remove('hidden');
-                    let historyHtml = '';
-                    doneBundles.forEach(b => {
-                        let statusClass = 'bg-gray-100 text-gray-500';
-                        let label = 'הושלם';
-                        if(b.status === 'completed') { statusClass = 'bg-green-100 text-green-600'; }
-                        else if(b.status === 'failed') { statusClass = 'bg-red-100 text-red-600'; label = 'נכשל'; }
-                        else if(b.status === 'expired') { statusClass = 'bg-orange-100 text-orange-600'; label = 'פג תוקף'; }
-
-                        historyHtml += `
-                        <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center opacity-80 mb-2">
-                            <span class="text-sm font-bold text-slate-600">${b.title}</span>
-                            <span class="text-xs font-bold px-2 py-1 rounded ${statusClass}">${label} (${b.score || 0}%)</span>
-                        </div>`;
-                    });
-                    historyList.innerHTML = historyHtml;
-                }
-            }
         }
 
         function renderLibrary() {
@@ -1431,7 +1522,7 @@
                         <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward} • נוסף ב-${cDate}</p>
+                            <p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p>
                         </div>
                     </div>
                     <button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button>
@@ -1473,8 +1564,10 @@
             currentQuizData = bundle;
             currentQuestionIndex = 0;
             quizScore = 0;
+            currentWrongAnswers = []; // reset tutor memory
             
             document.getElementById('quiz-title').innerText = bundle.title;
+            document.getElementById('btn-tutor').classList.add('hidden'); // hide tutor
             
             const textContainer = document.getElementById('quiz-text-container');
             if (bundle.text_content) {
@@ -1510,7 +1603,15 @@
             
             const btns = document.querySelectorAll('.quiz-option');
             btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
-            if(!isCorrect) btns[q.correct].classList.add('correct');
+            if(!isCorrect) {
+                btns[q.correct].classList.add('correct');
+                // Save wrong answer for Tutor
+                currentWrongAnswers.push({
+                    q: q.q,
+                    wrong: q.options[selectedIdx],
+                    correct: q.options[q.correct]
+                });
+            }
             
             if(isCorrect) quizScore++;
             
@@ -1538,6 +1639,10 @@
             document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`;
             document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
             
+            if (!passed && currentWrongAnswers.length > 0) {
+                document.getElementById('btn-tutor').classList.remove('hidden');
+            }
+
             if (passed) triggerConfetti();
             
             await fetch(`${API}/academy/submit`, {
