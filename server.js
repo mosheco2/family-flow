@@ -8,12 +8,10 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
-// הגדלת מגבלת המשקל כדי לאפשר העלאת תמונות (Vision AI)
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
 app.use(express.static('public'));
 
-// Initialize Gemini API
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
@@ -25,7 +23,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Auto-Migration
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
@@ -39,6 +36,17 @@ pool.connect()
           await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 0.00`);
           await client.query(`ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
           await client.query(`ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS normalized_name VARCHAR(100)`);
+          
+          // NEW: Pantry Table
+          await client.query(`
+              CREATE TABLE IF NOT EXISTS pantry (
+                  id SERIAL PRIMARY KEY, 
+                  group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
+                  item_name VARCHAR(100), 
+                  quantity INT DEFAULT 1, 
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )
+          `);
           console.log('✅ Auto-migration completed successfully');
       } catch(err) {
           console.error('Migration info:', err.message);
@@ -48,7 +56,6 @@ pool.connect()
   .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
-
 const generateGroupCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -58,7 +65,6 @@ const generateGroupCode = () => {
 
 // --- AI ENDPOINTS ---
 
-// 1. Academy Quiz Generator
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
@@ -84,7 +90,6 @@ app.post('/api/academy/ai-generate', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 2. Task Generator
 app.post('/api/tasks/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
@@ -98,7 +103,6 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. Goal Advisor
 app.post('/api/goals/familai-advice', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
@@ -117,155 +121,75 @@ app.post('/api/goals/familai-advice', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 4. Budget Analytics
 app.post('/api/budget/familai-insight', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { groupId } = req.body;
-        
         const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
-        
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. 
-        Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. 
-        Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
-
+        const prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 5. Vision AI: Verify Task
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { taskId, title, imageBase64, mimeType } = req.body;
-        
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" }
-        });
-
-        const prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest.
-        Return JSON strictly matching this schema:
-        { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
-
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } }
-        ]);
-
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+        const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const feedback = JSON.parse(result.response.text());
-        
         if(feedback.verified) {
             const t = (await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
             await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, t.reward, `תגמול משימה (אושר ע"י AI): ${t.title}`]);
             await pool.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', taskId]);
         }
-
         res.json({ success: true, verified: feedback.verified, message: feedback.message });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 6. Vision AI: Scan Receipt
 app.post('/api/shopping/scan-receipt', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { imageBase64, mimeType, userId } = req.body;
-        
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" }
-        });
-
-        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row.
-        Return JSON strictly matching this array schema:
-        [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
-
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } }
-        ]);
-
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
+        const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const items = JSON.parse(result.response.text());
-        
         let normalizedArray = [];
         try {
             const names = items.map(i => i.name);
             const normPrompt = `Normalize these grocery product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
             const normResult = await model.generateContent(normPrompt);
             normalizedArray = JSON.parse(normResult.response.text());
-        } catch(e) { console.error("Receipt norm err", e); }
-
+        } catch(e) { console.error(e); }
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         const groupId = uRes.rows[0].group_id;
-
         for (let i = 0; i < items.length; i++) {
              const item = items[i];
              const normName = normalizedArray[i] || item.name;
-             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, 
-             [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
+             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
         }
-
         res.json({ success: true, count: items.length });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 7. Academy Tutor AI
 app.post('/api/academy/tutor', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { question, wrongAnswer, correctAnswer } = req.body;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. 
-        Question: "${question}"
-        They answered: "${wrongAnswer}"
-        The correct answer is: "${correctAnswer}"
-        Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
-
+        const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
 // Setup DB
-app.get('/setup-db', async (req, res) => {
-    try {
-        await pool.query(`
-            DROP TABLE IF EXISTS user_assignments CASCADE;
-            DROP TABLE IF EXISTS quiz_questions CASCADE;
-            DROP TABLE IF EXISTS quiz_bundles CASCADE;
-            DROP TABLE IF EXISTS budget_allocations CASCADE;
-            DROP TABLE IF EXISTS goals CASCADE;
-            DROP TABLE IF EXISTS loans CASCADE;
-            DROP TABLE IF EXISTS tasks CASCADE;
-            DROP TABLE IF EXISTS transactions CASCADE;
-            DROP TABLE IF EXISTS shopping_list CASCADE;
-            DROP TABLE IF EXISTS shopping_trips CASCADE;
-            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
-            DROP TABLE IF EXISTS users CASCADE;
-            DROP TABLE IF EXISTS family_groups CASCADE;
-
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
-            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
-            CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
-            CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
-            CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
-            CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-        `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables reset.</p><a href="/">Go to App</a>');
-    } catch (e) { res.status(500).send(e.message); }
-});
+app.get('/setup-db', async (req, res) => { res.send('DB is managed via auto-migration now. No need to reset.'); });
 
 // Auth
 app.post('/api/groups', async (req, res) => {
@@ -278,10 +202,7 @@ app.post('/api/groups', async (req, res) => {
         const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]);
         await dbClient.query('COMMIT');
         res.json({ success: true, user: uRes.rows[0], group: group });
-    } catch (e) {
-        await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message });
-    } finally { dbClient.release(); }
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
 app.post('/api/join', async (req, res) => {
@@ -322,8 +243,8 @@ app.get('/api/data/:userId', async (req, res) => {
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]};
-        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ console.error(e); }
+        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]}, pantryRes={rows:[]};
+        try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ }
         
         try { 
             const sRes = await pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 ORDER BY s.id DESC`, [user.group_id]); 
@@ -336,16 +257,14 @@ app.get('/api/data/:userId', async (req, res) => {
                     FROM shopping_trip_items sti
                     JOIN shopping_trips st ON sti.trip_id = st.id
                     WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3)
-                    ORDER BY sti.price_per_unit ASC
-                    LIMIT 1
+                    ORDER BY sti.price_per_unit ASC LIMIT 1
                 `, [user.group_id, searchName, searchName]);
-                if (bestPriceRes.rows.length > 0) {
-                    item.best_price = bestPriceRes.rows[0];
-                }
+                if (bestPriceRes.rows.length > 0) item.best_price = bestPriceRes.rows[0];
             }
-        } catch(e){ console.error(e); }
+        } catch(e){ }
         
-        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward, threshold, created_at FROM quiz_bundles ORDER BY id DESC`); } catch(e){ console.error(e); }
+        try { allBRes = await pool.query(`SELECT id, type, age_group, title, reward, threshold, created_at FROM quiz_bundles ORDER BY id DESC`); } catch(e){ }
+        try { pantryRes = await pool.query(`SELECT * FROM pantry WHERE group_id=$1 ORDER BY item_name ASC`, [user.group_id]); } catch(e){ }
 
         let goalsRes = {rows:[]}, weeklyStats = null, userBundles = [];
 
@@ -354,7 +273,7 @@ app.get('/api/data/:userId', async (req, res) => {
             try { 
                 const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.id DESC`, [user.group_id]); 
                 userBundles = ubRes.rows;
-            } catch(e){ console.error(e); }
+            } catch(e){ }
         } else {
             try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
             try { 
@@ -372,17 +291,14 @@ app.get('/api/data/:userId', async (req, res) => {
                         if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
                     });
                 }
-            } catch(e){ console.error(e); }
+            } catch(e){ }
         }
 
         res.json({
-            user: user, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes ? (goalsRes.rows || []) : [],
-            weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || []
+            user: user, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes.rows || [],
+            weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || [], pantry: pantryRes.rows || []
         });
-    } catch (e) { 
-        console.error('Data Endpoint Error:', e);
-        res.status(500).json({error: e.message}); 
-    }
+    } catch (e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/admin/pending-users', async (req, res) => {
@@ -405,16 +321,11 @@ app.get('/api/group/members', async (req, res) => {
     try {
         const { requesterId, groupId } = req.query;
         if(!groupId || groupId === 'undefined') return res.json([]);
-        
         const uReq = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
         const isAdmin = uReq.rows[0].role === 'ADMIN';
         let members;
-        try {
-            members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
-        } catch(e) {
-            members = await pool.query('SELECT id, nickname, role, birth_year, balance FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']);
-        }
-        
+        try { members = await pool.query('SELECT id, nickname, role, birth_year, balance, allowance_amount, interest_rate FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']); } 
+        catch(e) { members = await pool.query('SELECT id, nickname, role, birth_year, balance FROM users WHERE group_id=$1 AND status=$2', [groupId, 'active']); }
         if(isAdmin) res.json(members.rows);
         else res.json(members.rows.map(m => ({id: m.id, nickname: m.nickname, role: m.role, birth_year: m.birth_year, balance: m.id == requesterId ? m.balance : null})));
     } catch (e) { res.status(500).json({error: e.message}); }
@@ -471,7 +382,6 @@ app.get('/api/transactions', async (req, res) => {
         const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
         const { groupId, userId } = req.query;
         if(!groupId || groupId === 'undefined') return res.json([]);
-        
         let query, params;
         if(userId === 'all') {
              query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.id DESC ${limit}`;
@@ -548,18 +458,16 @@ app.post('/api/shopping/add', async (req, res) => {
         const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
         const user = uRes.rows[0];
         const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
-        
         let normalizedName = req.body.itemName;
         if (genAI) {
             try {
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
                 const prompt = `Normalize this grocery product name to a generic, brand-less Hebrew name. For example: 'חלב תנובה 3% קרטון' -> 'חלב 3%'. Product: "${req.body.itemName}". Output JSON: {"normalized": "..."}`;
                 const result = await model.generateContent(prompt);
                 const data = JSON.parse(result.response.text());
                 if(data.normalized) normalizedName = data.normalized;
-            } catch(e) { console.error("Normalization Error", e); }
+            } catch(e) {}
         }
-
         const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
         res.json({ success: true, id: iRes.rows[0].id, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -592,6 +500,14 @@ app.post('/api/shopping/checkout', async (req, res) => {
             const normName = slItemRes.rows.length > 0 ? (slItemRes.rows[0].normalized_name || item.name) : item.name;
             const pricePerUnit = parseFloat(item.price) / (parseInt(item.quantity) || 1);
             await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4, $5)`, [tripId, item.name, normName, item.quantity, pricePerUnit]);
+            
+            // Add to Pantry automatically
+            const pantryExists = await dbClient.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [u.group_id, normName]);
+            if (pantryExists.rows.length > 0) {
+                 await dbClient.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [item.quantity, pantryExists.rows[0].id]);
+            } else {
+                 await dbClient.query('INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)', [u.group_id, normName, item.quantity]);
+            }
             await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
         for (let item of missingItems) { await dbClient.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
@@ -623,6 +539,31 @@ app.post('/api/shopping/copy', async (req, res) => {
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PANTRY ENDPOINTS
+app.post('/api/pantry/add', async (req, res) => {
+    try {
+        const { groupId, itemName, quantity } = req.body;
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if (existing.rows.length > 0) {
+            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, existing.rows[0].id]);
+        } else {
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)', [groupId, itemName, quantity]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/pantry/update', async (req, res) => {
+    try {
+        const { itemId, quantity } = req.body;
+        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/pantry/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/budget/filter', async (req, res) => {
