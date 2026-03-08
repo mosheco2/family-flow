@@ -8,7 +8,9 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+// הגדלת מגבלת המשקל כדי לאפשר העלאת תמונות (Vision AI)
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb', extended: true}));
 app.use(express.static('public'));
 
 // Initialize Gemini API
@@ -23,7 +25,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Auto-Migration: מתקן את מסד הנתונים אוטומטית ברגע שהשרת עולה
+// Auto-Migration
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
@@ -35,24 +37,15 @@ pool.connect()
           await client.query(`ALTER TABLE user_assignments ADD COLUMN IF NOT EXISTS deadline TIMESTAMP`);
           await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowance_amount DECIMAL(10,2) DEFAULT 0.00`);
           await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS interest_rate DECIMAL(5,2) DEFAULT 0.00`);
-          console.log('✅ Auto-migration completed successfully - Database is up to date!');
+          console.log('✅ Auto-migration completed successfully');
       } catch(err) {
-          console.error('Migration info (safe to ignore):', err.message);
+          console.error('Migration info:', err.message);
       }
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
-const getAgeGroup = (age) => {
-    if (age >= 6 && age < 8) return '6-8';
-    if (age >= 8 && age < 10) return '8-10';
-    if (age >= 10 && age < 13) return '10-13';
-    if (age >= 13 && age < 15) return '13-15';
-    if (age >= 15 && age < 18) return '15-18';
-    if (age >= 18) return '18+';
-    return 'other';
-};
 
 const generateGroupCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -63,35 +56,18 @@ const generateGroupCode = () => {
 
 // --- AI ENDPOINTS ---
 
+// 1. Academy Quiz Generator
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set in environment variables');
-
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" }
-        });
-        
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { ageGroup, topic } = req.body;
         const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
-        Requirements:
-        1. Language MUST be Hebrew.
-        2. Output strictly as JSON matching this schema exactly:
-        {
-          "title": "A catchy title for the quiz",
-          "text_content": "A short educational text before the questions. Make it engaging.",
-          "questions": [
-            {
-              "q": "The question text",
-              "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"],
-              "correct": 0
-            }
-          ]
-        }`;
+        Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly:
+        { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-        const quizData = JSON.parse(responseText);
+        const quizData = JSON.parse(result.response.text());
 
         const bundleRes = await pool.query(
             `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`,
@@ -100,60 +76,155 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const newBundleId = bundleRes.rows[0].id;
 
         for (const q of quizData.questions) {
-            await pool.query(
-                `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
-                [newBundleId, q.q, JSON.stringify(q.options), q.correct]
-            );
+            await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
         }
-
         res.json({ success: true, bundleId: newBundleId });
-    } catch (e) {
-        console.error('AI Gen Error:', e);
-        res.status(500).json({ error: e.message });
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 2. Task Generator
 app.post('/api/tasks/ai-generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { age, topic } = req.body;
-        const prompt = `You are a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (Israeli Shekels, integer between 5 and 50).
-        Requirements:
-        1. Language MUST be Hebrew.
-        2. Output STRICTLY as a JSON array of objects matching this schema exactly:
-        [ { "title": "Task description in Hebrew (e.g., סידור החדר ושאיבת אבק)", "reward": 15 } ]`;
+        const prompt = `You are familAI, a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
+        Output STRICTLY as a JSON array of objects matching this schema exactly: [ { "title": "Task description in Hebrew", "reward": 15 } ]`;
 
         const result = await model.generateContent(prompt);
-        const tasks = JSON.parse(result.response.text());
-        res.json({ success: true, tasks });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+        res.json({ success: true, tasks: JSON.parse(result.response.text()) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 3. Goal Advisor
 app.post('/api/goals/familai-advice', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { userId, goalId } = req.body;
-
         const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
         const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
 
         if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
-
-        const user = userRes.rows[0];
-        const goal = goalRes.rows[0];
-        const age = calculateAge(user.birth_year);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const user = userRes.rows[0]; const goal = goalRes.rows[0]; const age = calculateAge(user.birth_year);
         
-        const prompt = `You are 'familAI', a friendly, encouraging, and smart digital character in a family banking app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target amount needed: ${goal.target_amount} ILS. Current saved amount for this goal: ${goal.current_amount} ILS. The child's current free wallet balance is: ${user.balance} ILS. The child's weekly allowance is: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. 1. Tell them they are doing a great job saving. 2. Give them a practical, simple 2-step plan to reach their specific goal faster based on their numbers. 3. Keep it under 4 sentences. 4. Do NOT use markdown like **bolding** or bullets, just plain text with a few emojis. 5. Introduce yourself as 'familAI' at the start or end.`;
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', a friendly digital character in a family app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Wallet balance: ${user.balance} ILS. Weekly allowance: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. Give a practical 2-step plan to reach their goal faster. Keep it under 4 sentences. Introduce yourself as 'familAI' at the start. Use emojis.`;
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, advice: result.response.text().trim() });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 4. Budget Analytics (NEW)
+app.post('/api/budget/familai-insight', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { groupId } = req.body;
+        
+        // Fetch current month transactions
+        const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. 
+        Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. 
+        Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 5. Vision AI: Verify Task (NEW)
+app.post('/api/tasks/vision-verify', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { taskId, title, imageBase64, mimeType } = req.body;
+        
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest.
+        Return JSON strictly matching this schema:
+        { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } }
+        ]);
+
+        const feedback = JSON.parse(result.response.text());
+        
+        if(feedback.verified) {
+            const t = (await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
+            await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, t.reward, `תגמול משימה (אושר ע"י AI): ${t.title}`]);
+            await pool.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', taskId]);
+        }
+
+        res.json({ success: true, verified: feedback.verified, message: feedback.message });
+    } catch (e) { 
+        console.error('Vision AI Verify Error:', e);
+        res.status(500).json({ error: e.message }); 
     }
+});
+
+// 6. Vision AI: Scan Receipt (NEW)
+app.post('/api/shopping/scan-receipt', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { imageBase64, mimeType, userId } = req.body;
+        
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+        });
+
+        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row.
+        Return JSON strictly matching this array schema:
+        [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } }
+        ]);
+
+        const items = JSON.parse(result.response.text());
+        
+        // Find user group
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+
+        // Add scanned items to shopping list as "in_cart" or "pending" depending on logic. We'll add them as pending so parent can review.
+        for (let item of items) {
+             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
+             [groupId, userId, item.name, item.qty || 1, item.price || 0]);
+        }
+
+        res.json({ success: true, count: items.length });
+    } catch (e) { 
+        console.error('Vision AI Scan Error:', e);
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// 7. Academy Tutor AI (NEW)
+app.post('/api/academy/tutor', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { question, wrongAnswer, correctAnswer } = req.body;
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
+        const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. 
+        Question: "${question}"
+        They answered: "${wrongAnswer}"
+        The correct answer is: "${correctAnswer}"
+        Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, explanation: result.response.text().trim() });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 
@@ -241,7 +312,7 @@ app.get('/api/users/:id', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// Dash Data - SECURED WITH TRY/CATCH
+// Dash Data 
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.params.userId]);
