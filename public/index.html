@@ -500,6 +500,7 @@
             
             await fetchMembers(); 
             if(isAdmin) { fetchPendingUsers(); }
+            await fetchBundles(); // FIX: Load bundles for EVERYONE so the child's library has data
             await fetchData();
         }
 
@@ -586,7 +587,19 @@
                 
                 allTasks = Array.isArray(data.tasks) ? data.tasks : [];
                 bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : [];
-                allBundles = Array.isArray(data.all_bundles) ? data.all_bundles : [];
+                if (data.all_bundles && data.all_bundles.length > 0) {
+                     allBundles = data.all_bundles; // Update only if data exists
+                }
+
+                try {
+                    if (currentUser.role === 'ADMIN') {
+                        renderAdminAcademy();
+                    } else {
+                        renderMyAssignments(bundlesCache);
+                        renderLibrary();
+                    }
+                } catch(e) { console.error('Academy render err:', e); }
+
 
                 try {
                     if (currentUser.role === 'ADMIN') {
@@ -1294,7 +1307,8 @@
             const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all';
             const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
 
-            let filtered = allBundles || [];
+            // FIX: Ensure allBundles is an array
+            let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
             
             if (ageFilter !== 'all') {
                 filtered = filtered.filter(b => b.age_group === ageFilter);
@@ -1303,8 +1317,14 @@
                 filtered = filtered.filter(b => b.type === catFilter);
             }
 
+            // FIX: Hide bundles the child has ALREADY DONE or is CURRENTLY DOING
+            if(Array.isArray(bundlesCache)) {
+                const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id));
+                filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id)));
+            }
+
             if (filtered.length === 0) {
-                libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין מבחנים התואמים לחיפוש הנוכחי.</p>';
+                libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>';
                 return;
             }
 
@@ -1316,21 +1336,16 @@
 
             let libHtml = '';
             filtered.forEach(b => {
-                const isAssigned = bundlesCache.some(ua => ua.bundle_id == b.id && ua.status === 'assigned');
-                const btnHtml = isAssigned 
-                    ? `<span class="text-xs font-bold text-green-500"><i class="fa-solid fa-check"></i> משויך</span>`
-                    : `<button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">בחר</button>`;
-
                 libHtml += `
-                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2">
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
+                        <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div>
                         <div>
                             <h4 class="font-bold text-slate-700 text-sm">${b.title}</h4>
-                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward}</p>
+                            <p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p>
                         </div>
                     </div>
-                    ${btnHtml}
+                    <button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button>
                 </div>`;
             });
             libList.innerHTML = libHtml;
