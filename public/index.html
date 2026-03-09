@@ -76,14 +76,14 @@
         body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
     </style>
 </head>
-<body class="text-slate-800 bg-slate-50">
+<body class="text-slate-800 bg-slate-50 relative">
 
     <!-- GLOBAL PRELOADER -->
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
         <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
         <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
-        <p class="text-sm text-slate-500 font-medium animate-pulse">familAI מכינה את הנתונים...</p>
+        <p class="text-sm text-slate-500 font-medium animate-pulse">מכינה את הנתונים...</p>
     </div>
 
     <!-- Hidden file inputs for Vision AI -->
@@ -245,7 +245,7 @@
                         <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
                     </div>
 
-                    <!-- Ad Banners Editor (NEW) -->
+                    <!-- Ad Banners Editor -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> ניהול באנרים פרסומיים (Top & Bottom)</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -276,10 +276,16 @@
                     </div>
                 </div>
 
-                <!-- Families List -->
+                <!-- Families List with Search and Accordion -->
                 <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
-                    <div id="sa-groups-list" class="space-y-4"></div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
+                        <div class="relative w-full sm:w-64">
+                            <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש לפי קוד או שם משפחה...">
+                        </div>
+                    </div>
+                    <div id="sa-groups-list" class="space-y-3"></div>
                 </div>
             </div>
         </div>
@@ -293,7 +299,10 @@
                     </button>
                     <div>
                         <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
-                        <p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <p class="text-xs text-slate-500">שלום <span id="dash-nickname" class="font-bold"></span></p>
+                            <div id="ai-battery-indicator" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full border"></div>
+                        </div>
                     </div>
                 </div>
                 <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
@@ -428,7 +437,6 @@
                                 <div id="recipe-pantry-selection" class="bg-white p-3 rounded-xl border border-slate-200 mt-2">
                                     <p class="text-xs text-slate-500 mb-2 font-bold">בחרו מוצרים מהמזווה למתכון:</p>
                                     <div id="recipe-pantry-items-list" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
-                                        <!-- יוזרק דינמית מה-JS -->
                                         <p class="text-xs text-slate-400">טוען מזווה...</p>
                                     </div>
                                     <button type="button" onclick="selectAllRecipePantry()" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg mt-3 hover:bg-blue-100 transition shadow-sm w-full text-center">סמן / בטל הכל</button>
@@ -559,6 +567,16 @@
             <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
         
+        <!-- WHATSAPP SUPPORT BUTTON -->
+        <a href="https://wa.me/972526626619" target="_blank" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-40">
+            <i class="fa-brands fa-whatsapp"></i>
+        </a>
+
+        <!-- ACCESSIBILITY FAB -->
+        <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
+            <i class="fa-solid fa-universal-access"></i>
+        </button>
+
         <!-- MODALS -->
         <!-- Welcome Modal (Global SA setting) -->
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
@@ -568,6 +586,26 @@
                 <h3 class="text-2xl font-bold mb-4 text-slate-800">הודעת מערכת</h3>
                 <p id="welcome-modal-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
                 <button onclick="closeWelcomeModal()" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg hover:scale-105 transition">הבנתי, תודה!</button>
+            </div>
+        </div>
+
+        <!-- AI Battery Empty Modal -->
+        <div id="ai-battery-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden">
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-inner transform -translate-y-2 border-4 border-white overflow-hidden p-2 opacity-70">
+                        <img src="logo.png" alt="familAI" class="w-full h-full object-contain grayscale">
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mb-2 text-slate-800">הסוללה שלי התרוקנה... 🔋💤</h3>
+                <p class="text-sm text-slate-500 mb-6 leading-relaxed">פווו... עבדתי קשה היום! ניצלנו את כל משאבי ה-AI היומיים שלכם. נתראה מחר בבוקר עם סוללה מלאה!</p>
+                
+                <div id="ai-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100">
+                    <p class="text-xs font-bold text-purple-800 mb-2">רוצים להשתמש בי ללא הגבלה?</p>
+                    <button onclick="upgradeToPremium()" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
+                </div>
+                
+                <button onclick="closeAiBatteryModal()" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, נחכה למחר</button>
             </div>
         </div>
 
@@ -583,8 +621,15 @@
             </div>
         </div>
 
+        <!-- MODAL: יצירת משימה / מתכון עם AI -->
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
+                        <img src="logo.png" alt="familAI" class="w-full h-full object-contain">
+                    </div>
+                </div>
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
                 <p class="text-sm text-slate-500 mb-4 text-center">אני אבנה מבחן חדש ומותאם אישית!</p>
                 <label class="text-xs font-bold text-slate-400">לאיזה גיל?</label>
@@ -595,6 +640,7 @@
             </div>
         </div>
 
+        <!-- MODAL: יצירת משימה -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
@@ -610,6 +656,9 @@
                     <div class="flex gap-3 mt-4 pt-2"><button onclick="closeTaskModal()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">צור משימה</button></div>
                 </div>
                 <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
+                    <div class="flex justify-center mb-2">
+                        <img src="logo.png" alt="familAI" class="w-12 h-12 object-contain">
+                    </div>
                     <p class="text-xs text-slate-500 text-center px-2 font-medium">ספרו לי במה צריך עזרה, ואציע משימות ותמחור הוגן שמתאים לגיל הילד!</p>
                     <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
                     <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות</button>
@@ -619,6 +668,7 @@
             </div>
         </div>
 
+        <!-- MODAL: היועצת הפיננסית -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -634,6 +684,7 @@
             </div>
         </div>
 
+        <!-- MODAL: חידון רץ -->
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative">
                 <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -655,6 +706,7 @@
             </div>
         </div>
         
+        <!-- OTHER MODALS -->
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
@@ -793,11 +845,6 @@
                 <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
             </div>
         </div>
-        
-        <!-- ACCESSIBILITY FAB -->
-        <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
-            <i class="fa-solid fa-universal-access"></i>
-        </button>
 
         <!-- ACCESSIBILITY MODAL -->
         <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
