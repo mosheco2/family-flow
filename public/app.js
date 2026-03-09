@@ -1,22 +1,46 @@
-// תיקון סגנונות מקיף לסיור - מונע תקיעות במובייל, מבטל התנגשויות אנימציה, ומבטיח שהבועה בחזית
+// תיקון סגנונות הרמטי לספריית הסיור - משלב פיתרון מושלם למובייל ולמחשב
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    body.introjs-active #main-wrapper, 
-    body.introjs-active #main-wrapper * {
+    .introjs-fixParent {
+        position: static !important;
         transform: none !important;
-        transition: none !important;
-        animation: none !important;
+        filter: none !important;
+        z-index: auto !important;
     }
-    body.introjs-active #main-wrapper .overflow-hidden {
+    .introjs-showElement {
+        position: relative !important;
+        z-index: 9999998 !important;
+    }
+    /* שחרור הגבלות חיתוך כדי שהבועה לא תיעלם או תיחתך */
+    body.introjs-active .slider-container,
+    body.introjs-active .slider-scroll,
+    body.introjs-active .overflow-hidden {
         overflow: visible !important;
     }
+    /* מניעת הסתרה ע"י ההדר העליון */
     body.introjs-active header.sticky {
         z-index: 1 !important;
     }
     .introjs-overlay { z-index: 9999996 !important; }
     .introjs-helperLayer { z-index: 9999997 !important; }
     .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
-    .introjs-tooltip { z-index: 9999999 !important; max-width: 90vw !important; }
+    .introjs-tooltip { z-index: 9999999 !important; }
+
+    /* 🔥 התיקון הקריטי למובייל: הבועה מנותקת מהאלמנט ותמיד במרכז המסך 🔥 */
+    @media (max-width: 768px) {
+        .introjs-tooltip {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            width: 90vw !important;
+            max-width: 350px !important;
+            bottom: auto !important;
+            right: auto !important;
+        }
+        .introjs-arrow { display: none !important; } /* הסתרת החץ שמיותר כשהבועה במרכז */
+    }
 `;
 document.head.appendChild(introStyle);
 
@@ -216,7 +240,7 @@ function closeWelcomeModal() {
         localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
     }
     checkAndStartTour(forceTourStart);
-    forceTourStart = false; // איפוס
+    forceTourStart = false; 
 }
 
 function checkAndStartTour(force = false) {
@@ -230,7 +254,7 @@ function checkAndStartTour(force = false) {
                 else startChildTour();
             }
         } catch(e) { console.error('Tour Start Error:', e); }
-    }, 1500); // ממתין כדי שהכל יספיק להיטען כראוי
+    }, 1000); 
 }
 
 function triggerManualTour() {
@@ -245,7 +269,7 @@ function triggerManualTour() {
     }, 300);
 }
 
-// --- GUIDED TOURS (Intro.js) - FIXED ROUTING & TARGETS ---
+// --- GUIDED TOURS (Intro.js) ---
 function startAdminTour() {
     switchTab('feed');
     const intro = introJs();
@@ -256,32 +280,42 @@ function startAdminTour() {
         disableInteraction: false,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש.", position: 'bottom' },
             { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה.", position: 'top' },
-            { element: '#tour-bank-payday', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם.", position: 'bottom' },
-            { element: '#btn-add-task', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
-            { element: '#academy-admin-view', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!", position: 'bottom' },
-            { element: '#btn-add-budget-cat', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף בעזרת ה-AI.", position: 'bottom' },
-            { element: '#tour-invite-btn', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!", position: 'bottom' }
+            { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
+            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!", position: 'bottom' },
+            { element: '#tab-budget', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף בעזרת ה-AI.", position: 'bottom' },
+            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!", position: 'bottom' }
         ]
     });
 
     intro.onbeforechange(function(targetElement) { 
-        if(!targetElement || !targetElement.closest) return;
+        if(!targetElement) return;
+        const id = targetElement.id;
         
-        // החלפת טאבים חכמה לפי הכפתור/תוכן שהסיור מנסה להאיר!
-        if(targetElement.closest('#content-bank') || targetElement.id === 'tour-bank-payday') switchTab('bank'); 
-        else if(targetElement.closest('#content-tasks') || targetElement.id === 'btn-add-task') switchTab('tasks'); 
-        else if(targetElement.closest('#content-academy') || targetElement.id === 'academy-admin-view') switchTab('academy'); 
-        else if(targetElement.closest('#content-budget') || targetElement.id === 'btn-add-budget-cat') switchTab('budget'); 
-        else if(targetElement.closest('#content-members') || targetElement.id === 'tour-invite-btn') switchTab('members'); 
+        if(id === 'tab-bank') switchTab('bank'); 
+        else if(id === 'tab-tasks') switchTab('tasks'); 
+        else if(id === 'tab-academy') switchTab('academy'); 
+        else if(id === 'tab-budget') switchTab('budget'); 
+        else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // השהייה קטנה שמבטיחה שהטאב נפתח לגמרי לפני ש-IntroJS מצייר את המיקוד
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
+            const scrollContainer = document.getElementById('slider-scroll');
+            if (scrollContainer) {
+                scrollContainer.style.scrollBehavior = 'auto';
+                const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
+                scrollContainer.scrollLeft = scrollPos;
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); 
+            }
+        }
+        
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 200));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -320,10 +354,10 @@ function startChildTour() {
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
+                scrollContainer.style.scrollBehavior = 'auto';
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
-                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50);
             }
         }
         
@@ -347,7 +381,6 @@ async function handleCreate(e) {
     e.preventDefault(); 
     if(!document.getElementById('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך');
     forceTourStart = true; 
-    // במידה ותרצה, ניתן למשוך מפה את val('create-marketing') כדי לשמור בשרת את העדפת הדיוור בהמשך
     authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); 
 }
 async function handleJoin(e) { 
