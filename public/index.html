@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <!-- Intro.js CSS and JS -->
+    <!-- Intro.js CSS and JS for Tours -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
@@ -19,45 +19,69 @@
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .hidden { display: none !important; }
-        
-        /* Preloader */
-        #app-preloader { transition: opacity 0.5s ease-out, visibility 0.5s; position: fixed; inset: 0; background: #f8fafc; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
         .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
         .slider-scroll::-webkit-scrollbar { display: none; }
         .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
+        .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
         .scroll-btn.left { left: 0; }
         .scroll-btn.right { right: 0; }
-        
         .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; outline: none; transition: all 0.2s; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
         .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        
-        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; overflow: hidden; position: relative; }
         .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+        .shop-row { transition: background-color 0.2s; }
+        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
+        .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
+        .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
+        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
+        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
+        .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
+        .wisdom-alert { animation: slideDown 0.3s ease-out; }
+        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
+        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
+        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
+        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
+        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .fab-open #fab-icon { transform: rotate(45deg); }
+        .fab-lifted { transform: translateY(-80px) !important; }
+        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
+        .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
+        .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
+        .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         
-        /* IntroJS Overrides */
-        .introjs-tooltip { border-radius: 1.5rem !important; padding: 10px !important; }
-        .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; }
+        /* IntroJS Overrides for modern look */
+        .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 1.5rem !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important; padding: 10px !important; }
+        .introjs-tooltipbuttons { border-top: 1px solid #f1f5f9 !important; padding-top: 10px !important; }
+        .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: 600 !important; font-family: 'Rubik', sans-serif !important; }
+        .introjs-nextbutton { background-color: #3b82f6 !important; color: white !important; border: none !important; }
+        .introjs-prevbutton { color: #64748b !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
+        .introjs-skipbutton { color: #94a3b8 !important; font-weight: 500 !important; }
+        .introjs-bullets ul li a.active { background: #3b82f6 !important; }
 
-        /* Accessibility */
+        /* Accessibility Styles */
         .acc-contrast { background-color: #000 !important; color: #fff !important; }
-        .acc-contrast * { border-color: #fff !important; color: #fff !important; background-color: transparent !important; }
+        .acc-contrast * { background-color: transparent !important; color: #fff !important; border-color: #fff !important; }
+        .acc-contrast .bg-white, .acc-contrast .bg-slate-50, .acc-contrast .bg-blue-600 { background-color: #000 !important; }
         .acc-grayscale { filter: grayscale(100%) !important; }
         .acc-underlines a, .acc-underlines button { text-decoration: underline !important; }
+        .acc-readable-font { font-family: 'Rubik', sans-serif !important; font-weight: 500 !important; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50">
 
-    <div id="app-preloader">
-        <div class="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-white text-4xl shadow-xl animate-bounce mb-4">
-            <i class="fa-solid fa-wallet"></i>
-        </div>
+    <!-- GLOBAL PRELOADER -->
+    <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
+        <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
+        <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
         <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
-        <p class="text-sm text-slate-500 font-medium animate-pulse">familAI מעבדת נתונים...</p>
+        <p class="text-sm text-slate-500 font-medium animate-pulse">familAI מכינה את הנתונים...</p>
     </div>
 
     <!-- Hidden file inputs for Vision AI -->
@@ -72,16 +96,18 @@
         
         <!-- AUTH CONTAINER -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
-            <!-- אזור התמונה - כרטיס אשראי יוקרתי -->
+            <!-- אזור התמונה - מעוצב ככרטיס אשראי יוקרתי -->
             <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950 sm:rounded-b-[3rem] rounded-b-[2.5rem] shadow-2xl pt-14 pb-10 flex-shrink-0 border-b-4 border-blue-500">
+                <!-- אלמנטים גרפיים של כרטיס אשראי -->
                 <i class="fa-solid fa-wifi absolute top-8 right-8 text-3xl text-white/20 rotate-90"></i>
-                <i class="fa-solid fa-microchip absolute top-8 left-8 text-4xl text-yellow-400/40"></i>
+                <i class="fa-solid fa-microchip absolute top-8 left-8 text-4xl text-yellow-400/40 drop-shadow-sm"></i>
                 <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
                 <div class="absolute -right-10 -top-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl"></div>
                 
                 <div class="relative z-10 mt-2">
                     <div class="bg-white/10 backdrop-blur-md p-4 rounded-3xl inline-block border border-white/10 mb-4 shadow-inner">
-                        <div class="w-16 h-16 flex items-center justify-center text-5xl text-white"><i class="fa-solid fa-face-smile-wink"></i></div>
+                        <img src="logo.png" alt="Logo" class="w-32 h-auto object-contain drop-shadow-2xl transition-transform hover:scale-105" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
+                        <div id="auth-logo-fallback" class="w-20 h-20 flex items-center justify-center text-4xl text-white hidden"><i class="fa-solid fa-wallet"></i></div>
                     </div>
                     <div class="flex flex-col items-center">
                         <span class="text-blue-400 text-[10px] font-mono tracking-widest uppercase mb-1 font-bold">Oneflow Family Card</span>
@@ -90,19 +116,20 @@
                 </div>
             </div>
             
+            <!-- אזור הטופס -->
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center overflow-y-auto">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה">
+                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
                         <span id="btn-login-text">כניסה</span>
                         <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3 pb-8">
                     <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי חדש</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות למשפחה קיימת</button>
+                    <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full text-center">הצטרפות למשפחה קיימת</button>
                     <button onclick="switchView('sa-login')" class="text-[10px] text-slate-300 mt-6 underline block w-full text-center">כניסת מנהל מערכת ראשי</button>
                 </div>
             </div>
@@ -110,64 +137,120 @@
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
+                    <div class="flex gap-3 mb-2">
+                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
+                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
+                    </div>
+                    <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל שלך" class="modern-input">
-                    <input type="text" id="create-nickname" required placeholder="שם הורה" class="modern-input">
-                    <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל שלך (לשחזור וגיבוי)" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="create-nickname" required placeholder="שם (הורה)" class="modern-input">
+                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
+                    </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div class="flex flex-col gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div class="flex items-start gap-2">
-                            <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
-                            <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent p-0">תקנון ותנאי השימוש</button> (חובה)</span>
+                            <label class="cursor-pointer flex items-start gap-2">
+                                <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
+                            </label>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים, טיפים פיננסיים והטבות מ-Oneflow Life (רשות)</span>
+                            </label>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold mt-2 text-lg">סיום והרשמה</button>
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
+                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד משפחה ייחודי עבורכם.</p>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
             
             <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
+                    <input type="hidden" id="join-role" value="MEMBER">
                     <input type="text" id="join-code" required placeholder="קוד משפחה" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
-                    <input type="password" id="join-password" required placeholder="בחר סיסמה" class="modern-input">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
+                    <div class="flex flex-col gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <div class="flex items-start gap-2">
-                            <input type="checkbox" id="join-tos" class="w-4 h-4 accent-indigo-500 mt-0.5">
-                            <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-indigo-600 font-bold underline bg-transparent p-0">תקנון ותנאי השימוש</button> (חובה)</span>
+                            <label class="cursor-pointer flex items-start gap-2">
+                                <input type="checkbox" id="join-tos" class="w-4 h-4 accent-indigo-500 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-indigo-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
+                            </label>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="join-marketing" class="w-4 h-4 accent-indigo-500 mt-0.5">
+                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל עדכונים והטבות למשתמשים (רשות)</span>
+                            </label>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold mt-2 text-lg">שלח בקשה</button>
+                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה</button>
                 </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול</button>
+                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
 
+            <!-- SUPER ADMIN LOGIN VIEW -->
             <div id="view-sa-login" class="px-8 py-10 flex-1 flex flex-col justify-center hidden">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">מנהל מערכת ראשי</h2>
                 <form onsubmit="handleSALogin(event)" class="space-y-4">
-                    <input type="text" id="sa-code" required placeholder="שם משתמש" class="modern-input">
-                    <input type="password" id="sa-password" required placeholder="סיסמה" class="modern-input">
+                    <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input">
+                    <input type="password" id="sa-password" required placeholder="סיסמה (123456)" class="modern-input">
                     <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2">הכנס לניהול</button>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">חזור</button>
             </div>
         </div>
 
-        <!-- MAIN DASHBOARD -->
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen relative">
-            <header class="glass-header rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
+        <!-- SUPER ADMIN DASHBOARD -->
+        <div id="sa-dashboard-container" class="w-full max-w-4xl mx-auto hidden fade-in pb-32 pt-8">
+            <div class="bg-white rounded-[2rem] p-8 shadow-2xl">
+                <div class="flex justify-between items-center mb-8 border-b pb-4">
+                    <h1 class="text-3xl font-bold text-slate-800">ניהול מערכת ראשי ⚙️</h1>
+                    <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Welcome Msg Editor -->
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
+                        <textarea id="sa-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
+                        <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה</h2>
+                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות רשומות</h2>
+                    <div id="sa-groups-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD CONTAINER -->
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
+            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
-                    <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 px-3 py-2 gap-2 text-xs font-bold">
+                    <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
                         <i class="fa-solid fa-bars"></i> תפריט
                     </button>
                     <div>
-                        <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2>
+                        <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
                         <p class="text-xs text-slate-500 mt-1">שלום <span id="dash-nickname" class="font-bold"></span></p>
                     </div>
                 </div>
-                <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
             
             <div class="relative px-2 mb-6 group">
@@ -188,18 +271,26 @@
             </div>
 
             <div class="px-2">
+                <!-- FEED TAB -->
                 <div id="content-feed">
-                    <div id="tour-balance-card-container" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl mb-8 relative overflow-hidden transform transition">
+                    <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
                         <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
                         <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
                     </div>
+                    <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
+                    <div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3><select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none"><option value="all">כל המשפחה</option></select></div>
                     <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                 </div>
 
+                <!-- BANK TAB -->
                 <div id="content-bank" class="hidden">
                     <div id="bank-admin-view" class="hidden space-y-6">
+                        <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
+                            <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
+                        </div>
                         <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                        <div><h3 class="font-bold text-slate-700 text-lg mb-3 px-2">יעדי חיסכון</h3><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
                     </div>
                     <div id="bank-child-view" class="hidden space-y-6">
                         <div class="credit-card p-6 text-white shadow-xl shadow-slate-300">
@@ -207,62 +298,179 @@
                             <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
                             <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                         </div>
-                        <div id="my-goals-list" class="space-y-3"></div>
+                        <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-2 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-2 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
+                        <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
                     </div>
                 </div>
-                <!-- Other content divs (shop, pantry, tasks etc) structures go here as needed -->
+
+                <!-- SHOP TAB -->
+                <div id="content-shop" class="hidden">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
+                        <div class="flex gap-2">
+                            <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
+                            <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold transition"><i class="fa-solid fa-receipt"></i> סרוק</button>
+                            <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold transition shadow-lg shadow-pink-200"><i class="fa-solid fa-plus mr-1"></i> בקש/הוסף</button>
+                        </div>
+                    </div>
+                    <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
+                        <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור</h4>
+                        <div id="shop-requests-list" class="space-y-2"></div>
+                    </div>
+                    <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
+                </div>
+                
+                <!-- PANTRY TAB -->
+                <div id="content-pantry" class="hidden">
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                        <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
+                        <button onclick="openPantryModal()" class="w-full mt-4 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold transition hover:bg-slate-100"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
+                    </div>
+                    <div id="pantry-list" class="space-y-3 pb-20"></div>
+                </div>
+
+                <!-- ACADEMY TAB -->
+                <div id="content-academy" class="hidden">
+                    <div id="academy-admin-view" class="hidden">
+                        <div class="flex justify-between items-center mb-6 px-2">
+                            <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
+                            <div class="flex gap-2">
+                                <button onclick="openAIModal()" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg transition hover:scale-105">✨ יצירת אתגר</button>
+                                <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold transition shadow-lg">הקצאה</button>
+                            </div>
+                        </div>
+                        <div id="admin-assignments-list" class="space-y-3 pb-20"></div>
+                    </div>
+                    <div id="academy-user-view" class="hidden">
+                        <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden text-center">
+                            <h3 class="text-xl font-bold">האקדמיה הפיננסית 🎓</h3>
+                            <button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md transition">🙋‍♂️ הגרל אתגר מהיר</button>
+                        </div>
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
+                        <div id="my-assignments-list" class="space-y-3 pb-20"></div>
+                    </div>
+                </div>
+
+                <!-- BUDGET TAB -->
+                <div id="content-budget" class="hidden">
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-slate-800 text-lg">מעקב תקציב 📊</h3>
+                            <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden"></select>
+                        </div>
+                        <div id="budget-list" class="space-y-6 pb-20"></div>
+                    </div>
+                </div>
+
+                <!-- TASKS TAB -->
+                <div id="content-tasks" class="hidden">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h3 class="font-bold text-slate-700 text-lg text-center w-full">לוח משימות ✅</h3>
+                    </div>
+                    <div id="tasks-list" class="space-y-3 pb-20"></div>
+                </div>
+
+                <!-- MEMBERS TAB -->
+                <div id="content-members" class="hidden space-y-6">
+                    <div class="card-modern bg-white rounded-3xl shadow-sm border border-slate-100">
+                        <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3>
+                            <button onclick="openInviteModal()" id="tour-invite-btn" class="text-green-600 bg-green-100 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> הזמן</button>
+                        </div>
+                        <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
+                    </div>
+                    <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
+                        <div class="p-3 pb-1 text-center"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div>
+                        <div id="pending-list" class="space-y-2 p-2"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Action FABs -->
+        <!-- FOOTER CART -->
+        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center hidden slide-up">
+            <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
+            <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
+        </div>
+        
+        <!-- FAB - LEFT -->
         <div id="fab-container" class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 items-center hidden">
-            <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition border-4 border-white">
-                <i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i>
-                <span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span>
-            </button>
+            <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
+                <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
+                <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
+            </div>
+            <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
 
+        <!-- ACCESSIBILITY FAB - RIGHT -->
         <div id="accessibility-fab" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-center">
-            <button onclick="toggleAccessibilityMenu()" class="w-14 h-14 bg-blue-500 text-white rounded-full shadow-xl flex flex-col items-center justify-center border-4 border-white">
+            <button onclick="toggleAccessibilityMenu()" class="w-14 h-14 bg-blue-500 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95 border-4 border-white">
                 <i class="fa-solid fa-universal-access text-2xl mb-1"></i>
                 <span class="text-[9px] font-bold leading-none mt-[-4px]">נגישות</span>
             </button>
         </div>
-
-        <!-- MODALS -->
-        <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 text-center">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
-                <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
-                <div class="flex-1 overflow-y-auto text-xs text-slate-600 text-justify p-2 leading-relaxed">
-                    <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
-                    <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול תקציב ומשימות משפחתיות. הכסף המוצג אינו פיזי אלא רישום פנימי בלבד.</p>
-                </div>
-                <button onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold">קראתי והבנתי</button>
-            </div>
-        </div>
-
+        
+        <!-- ACCESSIBILITY MENU MODAL -->
         <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 text-center">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-xl font-bold text-slate-800 mb-6 border-b pb-3">תפריט נגישות ♿</h3>
-                <div class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="changeFontSize(1.1)" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2">הגדל טקסט</button>
-                    <button onclick="changeFontSize(0.9)" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2">הקטן טקסט</button>
-                    <button onclick="toggleAccessFeature('acc-contrast')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2">ניגודיות</button>
-                    <button onclick="toggleAccessFeature('acc-grayscale')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2">גווני אפור</button>
+                <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                    <h3 class="text-xl font-bold text-slate-800">תפריט נגישות ♿</h3>
+                    <button onclick="toggleAccessibilityMenu()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
-                <button onclick="resetAccessibility()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold border border-red-100">איפוס הגדרות</button>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="changeFontSize(1.1)" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-font text-lg"></i> הגדל טקסט</button>
+                    <button onclick="changeFontSize(0.9)" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-font text-xs"></i> הקטן טקסט</button>
+                    <button onclick="toggleAccessFeature('acc-contrast')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-circle-half-stroke text-lg"></i> ניגודיות</button>
+                    <button onclick="toggleAccessFeature('acc-grayscale')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-droplet-slash text-lg"></i> גווני אפור</button>
+                    <button onclick="toggleAccessFeature('acc-underlines')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-underline text-lg"></i> הדגשת קישורים</button>
+                    <button onclick="toggleAccessFeature('acc-readable-font')" class="p-4 bg-slate-50 rounded-2xl text-sm font-bold flex flex-col items-center gap-2 border border-slate-100 hover:bg-blue-50 transition"><i class="fa-solid fa-spell-check text-lg"></i> פונט קריא</button>
+                </div>
+                <button onclick="resetAccessibility()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-100">איפוס הגדרות</button>
             </div>
         </div>
 
+        <!-- פופאפ תקנון -->
+        <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
+                <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
+                <div class="flex-1 overflow-y-auto text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
+                    <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
+                    <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב והמשימות המשפחתיות. ה"כסף" המוצג במערכת (בארנק, במשימות וביעדים) אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך חינוך וניהול משפחתי בלבד.</p>
+                    <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
+                    <p><strong>4. פרטיות המידע וקטינים:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. האפליקציה מיועדת לניהול משפחתי; יצירת חשבונות עבור קטינים והזנת נתונים אודותיהם נמצאת באחריות המלאה והבלעדית של ההורה (מנהל הבנק המשפחתי) ועליו לוודא את נכונות התוכן המוצג להם.</p>
+                    <p><strong>5. עדכונים ותקשורת:</strong> במידה ואישרתם קבלת דיוור באזור ההרשמה, נהיה רשאים לשלוח אליכם התראות, טיפים לניהול כלכלת המשפחה והטבות. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>
+                </div>
+                <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
+            </div>
+        </div>
+
+        <!-- פופאפ שינוי סיסמה וניהול פרופיל -->
         <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-xl font-bold mb-4">הפרופיל שלי 👤</h3>
-                <button onclick="triggerManualTour()" class="w-full bg-indigo-50 py-3 rounded-xl font-bold text-indigo-600 mb-3">הפעל סיור מודרך</button>
-                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500">סגור</button>
+                <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
+                <form onsubmit="submitChangePassword(event)" class="space-y-3">
+                    <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
+                    <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg mt-2">שנה סיסמה</button>
+                </form>
+                <button type="button" onclick="triggerManualTour()" class="mt-4 w-full bg-indigo-50 py-3 rounded-xl font-bold text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> התחל סיור מודרך</button>
+                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-3 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
+            </div>
+        </div>
+
+        <!-- OTHER MODALS (Quiz,AI,Goals,Budget) remain same but in the DOM below -->
+        <!-- Quiz Modal -->
+        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative text-center">
+                <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <h2 id="quiz-title" class="text-xl font-bold mb-4 text-slate-800"></h2>
+                <div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8"></h3><div id="q-options" class="space-y-3"></div></div>
+                <div id="quiz-result" class="hidden"><div id="quiz-icon" class="text-6xl mb-4"></div><h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3><p id="quiz-score-display" class="font-bold text-xl mb-4"></p><button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button></div>
             </div>
         </div>
     </div>
 
+    <!-- MAIN SCRIPT -->
     <script src="app.js" defer></script>
 </body>
 </html>
