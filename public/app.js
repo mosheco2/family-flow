@@ -1,18 +1,16 @@
-// תיקון סגנונות הרמטי לספריית הסיור - פותר את העלמות הבועה בטלפון ואת קלקול כפתור הפלוס
+// תיקון סגנונות נקי ובטוח לסיור - מונע חיתוכים מבלי להרוס את מיקום הבועה
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    /* שחרור מיקומים כדי למנוע קלקול אלמנטים צפים (כמו כפתור הפלוס) */
-    .introjs-showElement {
-        z-index: 9999998 !important;
-        transform: none !important;
-    }
     .introjs-fixParent {
-        z-index: auto !important;
-        opacity: 1.0 !important;
+        position: static !important;
         transform: none !important;
         filter: none !important;
+        z-index: auto !important;
     }
-    /* שחרור הגבלות חיתוך כדי שההארה והבועה לא יחתכו בנייד */
+    .introjs-showElement {
+        z-index: 9999998 !important;
+    }
+    /* שחרור הגבלות חיתוך כדי שההארה והבועה לא יחתכו בסרגלי גלילה */
     body.introjs-active .slider-container,
     body.introjs-active .slider-scroll,
     body.introjs-active .overflow-hidden {
@@ -24,23 +22,8 @@ introStyle.innerHTML = `
     }
     .introjs-overlay { z-index: 9999996 !important; }
     .introjs-helperLayer { z-index: 9999997 !important; }
-    
-    /* 🔥 התיקון המנצח למובייל: חלונית ההסבר תמיד באמצע המסך כדי שלא תעוף החוצה 🔥 */
-    @media (max-width: 768px) {
-        .introjs-tooltip {
-            position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            margin: 0 !important;
-            width: 90vw !important;
-            max-width: 350px !important;
-            right: auto !important;
-            bottom: auto !important;
-            z-index: 9999999 !important;
-        }
-        .introjs-arrow { display: none !important; } /* הסתרת החץ כי הבועה מרכזית */
-    }
+    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
+    .introjs-tooltip { z-index: 9999999 !important; }
 `;
 document.head.appendChild(introStyle);
 
@@ -281,7 +264,7 @@ function startAdminTour() {
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
             { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש.", position: 'bottom' },
-            { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה.", position: 'top' },
             { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם.", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
@@ -295,7 +278,7 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
-        // החלפת טאבים בהתאם לצעד בסיור
+        // החלפת טאבים בהתאם לצעד בסיור כדי שהמשתמש יראה את התוכן במקום את הכפתור המוסתר
         if(id === 'tab-bank') switchTab('bank'); 
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
@@ -303,11 +286,11 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית של הסרגל העליון לטאב הנכון
+        // גלילה מיידית (ללא אנימציה) של הסרגל האופקי כדי להבטיח הארה מדויקת על כפתור הטאב
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto'; // ביטול החלקה חלקה
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
                 setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
@@ -333,7 +316,7 @@ function startChildTour() {
         disableInteraction: false,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
-            { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות.", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!", position: 'bottom' },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים.", position: 'bottom' },
@@ -353,10 +336,11 @@ function startChildTour() {
         else if(id === 'tab-shop') switchTab('shop'); 
         else switchTab('feed'); 
         
+        // גלילה מיידית (ללא אנימציה) של הסרגל האופקי כדי להבטיח הארה מדויקת על כפתור הטאב
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto'; // ביטול החלקה חלקה
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
                 setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
