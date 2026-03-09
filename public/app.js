@@ -94,9 +94,8 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 };
 
 window.onload = async () => { 
-    initAccessibility(); // אתחול נגישות מיד בטעינה
+    initAccessibility();
 
-    // FAILSAFE: מנגנון קשיח להסרת ה-Preloader למקרה של תקיעת תקשורת (הוסף בשלב 1)
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -126,7 +125,7 @@ window.onload = async () => {
                     currentUser = await res.json(); 
                     currentGroup = session.group; 
                     localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
-                    clearTimeout(failsafeTimer); // נתונים תקינים - אפשר לבטל את הפיילסייף
+                    clearTimeout(failsafeTimer); 
                     await loadDashboard(); 
                 } else {
                     localStorage.removeItem('ofl_session');
@@ -178,6 +177,7 @@ function logoutSA() {
 }
 
 async function loadSAData() {
+    fetchBanners(); // משיכת באנרים למסך הניהול
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }});
         const data = await res.json();
@@ -298,7 +298,6 @@ function triggerManualTour() {
     }, 300);
 }
 
-// --- GUIDED TOURS (Intro.js) (עודכן בשלב 1: טקסטים עשירים והוספת חלונות חסרים) ---
 function startAdminTour() {
     switchTab('feed');
     const intro = introJs();
@@ -327,7 +326,6 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
-        // החלפת טאבים בהתאם לצעד בסיור 
         if(id === 'tab-shop') switchTab('shop'); 
         else if(id === 'tab-pantry') switchTab('pantry'); 
         else if(id === 'tab-bank') switchTab('bank'); 
@@ -338,14 +336,13 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית (ללא אנימציה) של הסרגל האופקי 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
+                scrollContainer.style.scrollBehavior = 'auto';
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
-                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50);
             }
         }
         
@@ -489,9 +486,9 @@ async function loadDashboard() {
     
     document.getElementById('btn-add-budget-cat').classList.remove('hidden');
     
-    // FAILSAFE: עטיפת משיכות המידע מהשרת כדי למנוע היתקעות מסך הטעינה
     try {
         if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
+        fetchBanners(); // משיכת באנרים למשתמש הרגיל בטעינת הדאשבורד
         await fetchMembers(); 
         if(isAdmin) fetchPendingUsers(); 
         await fetchData();
@@ -1198,7 +1195,6 @@ async function generateRecipe() {
         const data = await res.json();
         
         if (data.success && data.recipe) {
-            // עיצוב בסיסי של טקסט Markdown מ-AI
             let formattedRecipe = data.recipe
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
@@ -1234,5 +1230,69 @@ function copyRecipe() {
         showToast('success', 'המתכון הועתק בהצלחה!');
     } catch (err) {
         showToast('error', 'שגיאה בהעתקה');
+    }
+}
+
+// --- BANNERS MODULE (SUPER ADMIN & UI) ---
+async function fetchBanners() {
+    try {
+        const res = await fetch(`${API}/banners`);
+        const data = await res.json();
+        if(data.success && data.banners) {
+            const saTopText = document.getElementById('sa-banner-top-text');
+            const saTopLink = document.getElementById('sa-banner-top-link');
+            const saBottomText = document.getElementById('sa-banner-bottom-text');
+            const saBottomLink = document.getElementById('sa-banner-bottom-link');
+            
+            if(saTopText) saTopText.value = data.banners.banner_top_text || '';
+            if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || '';
+            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+
+            const appTop = document.getElementById('app-banner-top');
+            const appBottom = document.getElementById('app-banner-bottom');
+
+            if(appTop) {
+                if(data.banners.banner_top_text) {
+                    appTop.innerText = data.banners.banner_top_text;
+                    appTop.href = data.banners.banner_top_link || '#';
+                    if(!data.banners.banner_top_link) { appTop.removeAttribute('target'); appTop.style.cursor = 'default'; } else { appTop.target = '_blank'; appTop.style.cursor = 'pointer'; }
+                    appTop.classList.remove('hidden');
+                } else { appTop.classList.add('hidden'); }
+            }
+
+            if(appBottom) {
+                if(data.banners.banner_bottom_text) {
+                    appBottom.innerText = data.banners.banner_bottom_text;
+                    appBottom.href = data.banners.banner_bottom_link || '#';
+                    if(!data.banners.banner_bottom_link) { appBottom.removeAttribute('target'); appBottom.style.cursor = 'default'; } else { appBottom.target = '_blank'; appBottom.style.cursor = 'pointer'; }
+                    appBottom.classList.remove('hidden');
+                } else { appBottom.classList.add('hidden'); }
+            }
+        }
+    } catch(e) { console.error('Error fetching banners:', e); }
+}
+
+async function saveBanners() {
+    const topText = val('sa-banner-top-text');
+    const topLink = val('sa-banner-top-link');
+    const bottomText = val('sa-banner-bottom-text');
+    const bottomLink = val('sa-banner-bottom-link');
+
+    try {
+        const res = await fetch(`${API}/superadmin/banners`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ topText, topLink, bottomText, bottomLink })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!');
+            fetchBanners(); 
+        } else {
+            showToast('error', 'שגיאה בשמירת הבאנרים');
+        }
+    } catch(e) {
+        showToast('error', 'תקלת רשת מול השרת');
     }
 }
