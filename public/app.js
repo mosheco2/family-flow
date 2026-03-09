@@ -1,14 +1,29 @@
 // תיקון סגנונות מדויק לסיור - מונע התנגשויות בלי לשבור את המיקום של החלונית
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
+    .introjs-fixParent {
+        transform: none !important;
+        overflow: visible !important;
+        z-index: auto !important;
+    }
     .introjs-showElement {
         transform: none !important;
-        animation: none !important;
         z-index: 9999998 !important;
     }
     .introjs-tooltip {
         z-index: 9999999 !important;
         max-width: 90vw !important;
+    }
+    .introjs-overlay {
+        z-index: 9999997 !important;
+    }
+    .introjs-helperLayer {
+        z-index: 9999996 !important;
+    }
+    /* מניעת הסתרה ע"י ההדר בזמן הסיור */
+    body.introjs-active header {
+        position: relative !important;
+        z-index: 1 !important;
     }
 `;
 document.head.appendChild(introStyle);
@@ -264,6 +279,7 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
+        // החלפת טאבים לפי כפתור היעד בסיור כדי שהמשתמש יראה את התוכן!
         if(id === 'tab-bank') switchTab('bank'); 
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
@@ -271,13 +287,9 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית (ללא smooth שגורם להקפה במקום הלא נכון)
+        // גלילה מיידית אל הטאב הנכון אם הוא מחוץ למסך
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
-            const scrollContainer = document.getElementById('slider-scroll');
-            if (scrollContainer) {
-                const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
-                scrollContainer.scrollLeft = scrollPos;
-            }
+            targetElement.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
         }
         
         return new Promise(resolve => setTimeout(() => {
@@ -317,13 +329,9 @@ function startChildTour() {
         else if(id === 'tab-shop') switchTab('shop'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית של תפריט הטאבים
+        // גלילה מיידית אל הטאב הנכון אם הוא מחוץ למסך
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
-            const scrollContainer = document.getElementById('slider-scroll');
-            if (scrollContainer) {
-                const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
-                scrollContainer.scrollLeft = scrollPos;
-            }
+            targetElement.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
         }
         
         return new Promise(resolve => setTimeout(() => {
