@@ -417,12 +417,22 @@
                             </div>
 
                             <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <label class="flex items-center gap-2 cursor-pointer mb-2">
+                                <label class="flex items-center gap-2 cursor-pointer mb-2 pb-2 border-b border-slate-200">
                                     <input type="checkbox" id="recipe-ignore-pantry" class="w-4 h-4 accent-orange-500 rounded" onchange="toggleRecipeCustomInput()">
-                                    <span class="text-sm font-bold text-slate-700">התעלם מהמזווה (אני אקליד מצרכים)</span>
+                                    <span class="text-sm font-bold text-slate-700">התעלם מהמזווה (אני אקליד מצרכים ידנית)</span>
                                 </label>
+                                
                                 <textarea id="recipe-custom-ingredients" class="modern-input text-sm h-20 hidden" placeholder="הקלידו מצרכים חלופיים כאן... (למשל: עוף, אורז, עגבניות)"></textarea>
-                                <p id="recipe-pantry-hint" class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-circle-check text-green-500"></i> המערכת תשתמש אוטומטית במוצרים מהמזווה שלכם.</p>
+                                
+                                <!-- אזור בחירת מצרכים מהמזווה -->
+                                <div id="recipe-pantry-selection" class="bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                                    <p class="text-xs text-slate-500 mb-2 font-bold">בחרו מוצרים מהמזווה למתכון:</p>
+                                    <div id="recipe-pantry-items-list" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
+                                        <!-- יוזרק דינמית מה-JS -->
+                                        <p class="text-xs text-slate-400">טוען מזווה...</p>
+                                    </div>
+                                    <button type="button" onclick="selectAllRecipePantry()" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg mt-3 hover:bg-blue-100 transition shadow-sm w-full text-center">סמן / בטל הכל</button>
+                                </div>
                             </div>
 
                             <button onclick="generateRecipe()" id="btn-generate-recipe" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-200 hover:scale-[1.02] transition flex items-center justify-center gap-2">
@@ -437,7 +447,7 @@
                             <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-scroll text-orange-500"></i> המתכון שלכם</h3>
                             <button onclick="copyRecipe()" class="text-slate-400 hover:text-blue-500 transition" title="העתק מתכון"><i class="fa-regular fa-copy text-lg"></i></button>
                         </div>
-                        <div id="recipe-result-content" class="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed space-y-2"></div>
+                        <div id="recipe-result-content" class="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed space-y-2 text-right dir-rtl"></div>
                     </div>
                 </div>
 
