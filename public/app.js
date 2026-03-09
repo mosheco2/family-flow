@@ -1,8 +1,24 @@
-// תיקון סגנונות לספריית הסיור (מונע תקיעה והסתרת חלוניות במובייל)
+// תיקון סגנונות לספריית הסיור (מונע תקיעה והסתרת חלוניות במובייל ופותר התנגשות עם אנימציות)
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    .introjs-showElement { transform: none !important; transition: none !important; }
-    .introjs-fixParent { position: absolute !important; z-index: auto !important; transform: none !important; }
+    body.introjs-active * {
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+    .introjs-tooltip {
+        z-index: 9999999 !important;
+        max-width: 90vw !important;
+    }
+    .introjs-showElement, .introjs-showElement * {
+        z-index: 9999998 !important;
+    }
+    .introjs-overlay {
+        z-index: 9999997 !important;
+    }
+    .introjs-helperLayer {
+        z-index: 9999996 !important;
+    }
 `;
 document.head.appendChild(introStyle);
 
@@ -201,25 +217,28 @@ function closeWelcomeModal() {
     if (window.pendingWelcomeMsg) {
         localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
     }
-    checkAndStartTour();
+    checkAndStartTour(forceTourStart);
+    forceTourStart = false; // איפוס
 }
 
-function checkAndStartTour() {
+function checkAndStartTour(force = false) {
     setTimeout(() => {
         try {
             const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
-            if (forceTourStart || !localStorage.getItem(tourKey)) {
+            if (force || !localStorage.getItem(tourKey)) {
                 localStorage.setItem(tourKey, 'true');
+                switchTab('feed'); // נוודא שהסיור מתחיל מהטאב הראשי
                 if (currentUser.role === 'ADMIN') startAdminTour();
                 else startChildTour();
             }
         } catch(e) { console.error('Tour Start Error:', e); }
-    }, 1500); // ממתין כדי לוודא שהדאשבורד סיים להופיע לחלוטין
+    }, 1000); 
 }
 
 function triggerManualTour() {
     document.getElementById('profile-modal').classList.add('hidden');
     setTimeout(() => {
+        switchTab('feed');
         if (currentUser.role === 'ADMIN') {
             startAdminTour();
         } else {
@@ -239,8 +258,8 @@ function startAdminTour() {
         disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
-            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור שוב." },
-            { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור שוב." },
+            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
             { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם." },
             { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!" },
@@ -252,17 +271,10 @@ function startAdminTour() {
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
-        const id = targetElement.id;
         
-        // החלפת טאבים לפי כפתור היעד בסיור
-        if(id === 'tab-bank') switchTab('bank'); 
-        else if(id === 'tab-tasks') switchTab('tasks'); 
-        else if(id === 'tab-academy') switchTab('academy'); 
-        else if(id === 'tab-budget') switchTab('budget'); 
-        else if(id === 'tab-members') switchTab('members'); 
-        else switchTab('feed'); 
+        switchTab('feed'); // שומרים על יציבות של המסך הראשי
         
-        // גלילה אוטומטית של תפריט הטאבים אם הוא מחוץ למסך
+        // גלילה אוטומטית של תפריט הטאבים כדי לחשוף כפתורים נסתרים
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
@@ -274,7 +286,7 @@ function startAdminTour() {
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 200));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -290,7 +302,8 @@ function startChildTour() {
         disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
-            { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
+            { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
+            { element: '#slider-scroll', title: "תפריט הניווט", intro: "גללו ימינה ושמאלה כדי לעבור בין האזורים השונים.", position: 'bottom' },
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות." },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
@@ -300,14 +313,9 @@ function startChildTour() {
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
-        const id = targetElement.id;
-
-        if(id === 'tab-bank') switchTab('bank'); 
-        else if(id === 'tab-tasks') switchTab('tasks'); 
-        else if(id === 'tab-academy') switchTab('academy'); 
-        else if(id === 'tab-shop') switchTab('shop'); 
-        else switchTab('feed'); 
         
+        switchTab('feed'); // שומרים על יציבות
+
         // גלילה אוטומטית של תפריט הטאבים
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
@@ -320,7 +328,7 @@ function startChildTour() {
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 200));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -333,6 +341,7 @@ async function handleLogin(e) { e.preventDefault(); forceTourStart = false; auth
 async function handleCreate(e) { e.preventDefault(); forceTourStart = true; authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
 async function handleJoin(e) { 
     e.preventDefault(); 
+    forceTourStart = true;
     const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
     const d=await res.json(); 
     if(d.success) { showToast('success', 'נשלח בהצלחה!'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error);
@@ -370,7 +379,7 @@ async function loadDashboard() {
     const isAdmin = currentUser.role === 'ADMIN';
     
     if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','admin-tasks-hint'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
@@ -388,7 +397,8 @@ async function loadDashboard() {
     const finalizeLoad = async () => {
         const showedWelcome = await checkGlobalWelcome();
         if (!showedWelcome) {
-            checkAndStartTour();
+            checkAndStartTour(forceTourStart);
+            forceTourStart = false;
         }
     };
 
