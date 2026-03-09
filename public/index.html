@@ -280,6 +280,7 @@
                         <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                         <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                         <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                        <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn">שף AI 👨‍🍳</button>
                         <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
                     </div>
                     <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
@@ -353,6 +354,58 @@
                         <button onclick="openPantryModal()" class="w-full mt-2 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
                     </div>
                     <div id="pantry-list" class="space-y-3 pb-20"></div>
+                </div>
+
+                <!-- RECIPES TAB (AI CHEF) -->
+                <div id="content-recipes" class="hidden">
+                    <div class="bg-gradient-to-r from-orange-400 to-red-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                        <h3 class="text-xl font-bold mb-1">השף הפרטי שלכם 👨‍🍳</h3>
+                        <p class="text-orange-50 text-xs opacity-90">familAI תרכיב לכם מתכון מושלם מהמוצרים שיש בבית!</p>
+                        <i class="fa-solid fa-utensils absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                    </div>
+
+                    <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative mb-6">
+                        <div class="space-y-4">
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-500 mb-1 block">סוג ארוחה:</label>
+                                    <select id="recipe-meal-type" class="modern-input py-2 text-sm bg-white">
+                                        <option value="ארוחת צהריים">ארוחת צהריים</option>
+                                        <option value="ארוחת ערב">ארוחת ערב</option>
+                                        <option value="ארוחת בוקר">ארוחת בוקר</option>
+                                        <option value="קינוח">קינוח</option>
+                                        <option value="נשנוש בריא">נשנוש בריא</option>
+                                    </select>
+                                </div>
+                                <div class="w-24">
+                                    <label class="text-xs font-bold text-slate-500 mb-1 block">סועדים:</label>
+                                    <input type="number" id="recipe-diners" class="modern-input py-2 text-sm text-center" value="4" min="1">
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <label class="flex items-center gap-2 cursor-pointer mb-2">
+                                    <input type="checkbox" id="recipe-ignore-pantry" class="w-4 h-4 accent-orange-500 rounded" onchange="toggleRecipeCustomInput()">
+                                    <span class="text-sm font-bold text-slate-700">התעלם מהמזווה (אני אקליד מצרכים)</span>
+                                </label>
+                                <textarea id="recipe-custom-ingredients" class="modern-input text-sm h-20 hidden" placeholder="הקלידו מצרכים חלופיים כאן... (למשל: עוף, אורז, עגבניות)"></textarea>
+                                <p id="recipe-pantry-hint" class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-circle-check text-green-500"></i> המערכת תשתמש אוטומטית במוצרים מהמזווה שלכם.</p>
+                            </div>
+
+                            <button onclick="generateRecipe()" id="btn-generate-recipe" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-200 hover:scale-[1.02] transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Recipe Result Container -->
+                    <div id="recipe-result-container" class="hidden bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 pb-20">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-scroll text-orange-500"></i> המתכון שלכם</h3>
+                            <button onclick="copyRecipe()" class="text-slate-400 hover:text-blue-500 transition" title="העתק מתכון"><i class="fa-regular fa-copy text-lg"></i></button>
+                        </div>
+                        <div id="recipe-result-content" class="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed space-y-2"></div>
+                    </div>
                 </div>
 
                 <!-- ACADEMY TAB -->
