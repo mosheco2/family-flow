@@ -103,7 +103,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link', 'ad_banner_bottom_text', 'ad_banner_bottom_link')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')");
         
         let unifiedActivity = [];
         
@@ -127,10 +127,10 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             users: users.rows,
             activity: unifiedActivity.slice(0, 50),
             welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '',
-            adBannerText: settings.rows.find(r => r.key === 'ad_banner_text')?.value || '',
-            adBannerLink: settings.rows.find(r => r.key === 'ad_banner_link')?.value || '',
-            adBannerBottomText: settings.rows.find(r => r.key === 'ad_banner_bottom_text')?.value || '',
-            adBannerBottomLink: settings.rows.find(r => r.key === 'ad_banner_bottom_link')?.value || ''
+            adBannerTextTop: settings.rows.find(r => r.key === 'ad_banner_text_top')?.value || '',
+            adBannerLinkTop: settings.rows.find(r => r.key === 'ad_banner_link_top')?.value || '',
+            adBannerTextBottom: settings.rows.find(r => r.key === 'ad_banner_text_bottom')?.value || '',
+            adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || ''
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -146,17 +146,17 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
 app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     try {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
-        if (req.body.adBannerText !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerText]);
-        if (req.body.adBannerLink !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLink]);
-        if (req.body.adBannerBottomText !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_bottom_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerBottomText]);
-        if (req.body.adBannerBottomLink !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_bottom_link', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerBottomLink]);
+        if (req.body.adBannerTextTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextTop]);
+        if (req.body.adBannerLinkTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkTop]);
+        if (req.body.adBannerTextBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextBottom]);
+        if (req.body.adBannerLinkBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkBottom]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/settings/config', async (req, res) => {
     try {
-        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link', 'ad_banner_bottom_text', 'ad_banner_bottom_link')");
+        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')");
         const config = {};
         s.rows.forEach(r => config[r.key] = r.value);
         res.json(config);
@@ -252,6 +252,7 @@ app.post('/api/recipes/generate', async (req, res) => {
         const { groupId, mealType, diners, extraIngredients, ignorePantry } = req.body;
         
         let pantryItems = 'None';
+        // אם המשתמש לא סימן "התעלם מהמזווה", נמשוך את המלאי הקיים
         if (!ignorePantry) {
             const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
             pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
@@ -261,7 +262,8 @@ app.post('/api/recipes/generate', async (req, res) => {
         
         let prompt = '';
         if (ignorePantry) {
-            prompt = `You are an expert chef AI. The user wants to cook a meal ONLY using these specific ingredients and quantities: ${extraIngredients || 'No specific ingredients provided'}.
+            prompt = `You are an expert chef AI helping a family decide what to cook.
+            The user wants to cook a meal ONLY using these specific ingredients they provided: ${extraIngredients || 'None provided'}.
             Meal type requested: ${mealType}. Number of diners: ${diners}.
             Suggest 2 delicious, practical recipes they can make strictly using what they provided.
             Output STRICTLY as a JSON array of objects matching this schema exactly:
