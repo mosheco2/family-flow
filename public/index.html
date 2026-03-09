@@ -601,6 +601,21 @@
                 <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-3 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
             </div>
         </div>
+
+        <!-- פופאפ תקנון -->
+        <div id="tos-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
+                <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
+                <div class="flex-1 overflow-y-auto text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
+                    <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
+                    <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב והמשימות המשפחתיות. ה"כסף" המוצג במערכת (בארנק, במשימות וביעדים) אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך חינוך וניהול משפחתי בלבד.</p>
+                    <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
+                    <p><strong>4. פרטיות המידע וקטינים:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. האפליקציה מיועדת לניהול משפחתי; יצירת חשבונות עבור קטינים והזנת נתונים אודותיהם נמצאת באחריות המלאה והבלעדית של ההורה (מנהל הבנק המשפחתי) ועליו לוודא את נכונות התוכן המוצג להם.</p>
+                    <p><strong>5. עדכונים ותקשורת:</strong> במידה ואישרתם קבלת דיוור באזור ההרשמה, נהיה רשאים לשלוח אליכם התראות, טיפים לניהול כלכלת המשפחה והטבות. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>
+                </div>
+                <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
+            </div>
+        </div>
     </div>
 
     <!-- MAIN SCRIPT -->
