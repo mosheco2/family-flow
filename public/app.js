@@ -1,35 +1,29 @@
-// תיקון סגנונות חזק לספריית הסיור - מונע בריחת חלוניות למחוץ למסך ב-RTL ותקיעות במובייל
+// תיקון סגנונות מדויק לסיור - מונע התנגשויות של אנימציות מבלי לשבור את מיקום הבועה
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
     .introjs-fixParent {
-        z-index: auto !important;
-        opacity: 1.0 !important;
         position: static !important;
         transform: none !important;
+        filter: none !important;
+        z-index: auto !important;
     }
-    body.introjs-active .introjs-showElement {
-        z-index: 9999998 !important;
+    .introjs-showElement {
         position: relative !important;
-        transform: none !important; /* חובה כדי למנוע העלמת החלונית במובייל */
+        transform: none !important;
+        z-index: 9999998 !important;
     }
-    .introjs-overlay { z-index: 9999997 !important; }
-    .introjs-helperLayer { z-index: 9999996 !important; }
+    /* שחרור אלמנטים מוסתרים כדי שהבועה לא תיחתך */
+    body.introjs-active .overflow-hidden {
+        overflow: visible !important;
+    }
+    /* מניעת הסתרה ע"י ההדר העליון */
+    body.introjs-active header.sticky {
+        z-index: auto !important;
+    }
+    .introjs-overlay { z-index: 9999996 !important; }
+    .introjs-helperLayer { z-index: 9999997 !important; }
+    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
     .introjs-tooltip { z-index: 9999999 !important; }
-    
-    /* תיקון קריטי: כפיית מרכוז החלונית במובייל כדי שלא תעוף למספרים שליליים בגלל עברית */
-    @media (max-width: 768px) {
-        .introjs-tooltip {
-            left: 0 !important;
-            right: 0 !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            width: 90vw !important;
-            max-width: 350px !important;
-            transform: none !important; 
-            top: 20vh !important; /* קיבוע לגובה הגיוני */
-        }
-        .introjs-arrow { display: none !important; } /* הסתרת החץ שעלול להיראות שבור במובייל מקובע */
-    }
 `;
 document.head.appendChild(introStyle);
 
@@ -39,7 +33,7 @@ let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
-let forceTourStart = false; 
+let forceTourStart = false; // דגל להפעלה מובטחת אחרי הרשמה
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
@@ -258,7 +252,7 @@ function triggerManualTour() {
     }, 300);
 }
 
-// --- GUIDED TOURS (Intro.js) - FIXED ROUTING ---
+// --- GUIDED TOURS (Intro.js) ---
 function startAdminTour() {
     switchTab('feed');
     const intro = introJs();
@@ -266,7 +260,7 @@ function startAdminTour() {
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג',
         showProgress: true, rtl: true, hidePrev: false, showBullets: true,
         scrollToElement: true,
-        disableInteraction: false,
+        disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
             { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש.", position: 'bottom' },
@@ -292,19 +286,21 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית של הסרגל העליון לטאב הנכון
+        // גלילה מיידית וללא החלקה (Smooth) כדי שההארה תהיה מדויקת
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
             }
         }
         
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 150));
+        }, 100)); // ממתין רגע כדי שהדפדפן יתייצב
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -341,15 +337,17 @@ function startChildTour() {
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
             }
         }
         
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 150));
+        }, 100));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
