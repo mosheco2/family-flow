@@ -318,6 +318,7 @@ function startAdminTour() {
             { element: '#tab-tasks', title: "משימות בית ✅", intro: "הגדירו משימות בבית (למשל: סידור החדר) ותמחרו אותן. הילדים יצלמו כשיסיימו, וה-AI יאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
             { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "רוצים שהילדים ילמדו? בקשו מה-AI לייצר אתגר לימודי (בנושא חשבון, חיסכון וכו'). ילד שיענה נכון - יתוגמל בכסף לקופה שלו.", position: 'bottom' },
             { element: '#tab-budget', title: "תקציב 📊", intro: "הגדירו תקרת תקציב לכל קטגוריה (סופר, דלק, מסעדות). היועצת הפיננסית שלנו תנתח את ההוצאות ותיתן לכם טיפים לחיסכון.", position: 'bottom' },
+            { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "לא יודעים מה לבשל? ה-AI יבדוק מה יש לכם במזווה וייצר לכם מתכון מנצח בשניות!", position: 'bottom' },
             { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "הזמינו עכשיו את השותף/ה או הילדים להצטרף אליכם בקליק אחד בוואטסאפ. בהצלחה!", position: 'bottom' }
         ]
     });
@@ -333,6 +334,7 @@ function startAdminTour() {
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
         else if(id === 'tab-budget') switchTab('budget'); 
+        else if(id === 'tab-recipes') switchTab('recipes'); 
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
@@ -372,7 +374,8 @@ function startChildTour() {
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו מתי אתם מקבלים דמי כיס. הכי חשוב: תוכלו לפתוח 'קופת חיסכון' כדי לחסוך למשהו גדול שאתם רוצים לקנות!", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים יכולים להשאיר לכם כאן משימות. סיימתם משימה? צלמו אותה וקבלו את הכסף ישר לארנק!", position: 'bottom' },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "מי אמר שללמוד זה משעמם? כנסו לאקדמיה, ענו נכון על חידונים - ותרוויחו בונוסים שווים.", position: 'bottom' },
-            { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "כאן תוכלו לעקוב אחרי ההוצאות שלכם (על מה בזבזתם החודש) וללמוד לשלוט בכסף שלכם.", position: 'bottom' }
+            { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "כאן תוכלו לעקוב אחרי ההוצאות שלכם (על מה בזבזתם החודש) וללמוד לשלוט בכסף שלכם.", position: 'bottom' },
+            { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "בא לכם משהו טעים? בואו נבדוק איזה מתכון אפשר להכין מהדברים שיש בבית!", position: 'bottom' }
         ]
     });
 
@@ -386,6 +389,7 @@ function startChildTour() {
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
         else if(id === 'tab-budget') switchTab('budget'); 
+        else if(id === 'tab-recipes') switchTab('recipes'); 
         else switchTab('feed'); 
         
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
@@ -454,7 +458,7 @@ function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
 function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','academy','members','budget','pantry'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
     if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
     if (t === 'pantry') renderPantry();
@@ -1144,3 +1148,91 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
+
+// --- RECIPES (AI CHEF) MODULE ---
+function toggleRecipeCustomInput() {
+    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
+    if (isIgnored) {
+        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
+        document.getElementById('recipe-pantry-hint').classList.add('hidden');
+    } else {
+        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
+        document.getElementById('recipe-pantry-hint').classList.remove('hidden');
+    }
+}
+
+async function generateRecipe() {
+    const btn = document.getElementById('btn-generate-recipe');
+    const mealType = document.getElementById('recipe-meal-type').value;
+    const diners = document.getElementById('recipe-diners').value;
+    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
+    const customIngredients = document.getElementById('recipe-custom-ingredients').value;
+    
+    let pantryItemsStr = "";
+    if (!ignorePantry) {
+        if (!pantryCache || pantryCache.length === 0) {
+            return showToast('error', 'המזווה שלכם ריק! הוסיפו מוצרים למזווה או סמנו "התעלם מהמזווה"');
+        }
+        pantryItemsStr = pantryCache.map(p => p.item_name).join(', ');
+    } else if (!customIngredients.trim()) {
+        return showToast('error', 'אנא הזינו מצרכים חלופיים');
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...';
+    document.getElementById('recipe-result-container').classList.add('hidden');
+
+    try {
+        const res = await fetch(`${API}/recipes/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                mealType: mealType,
+                diners: diners,
+                ignorePantry: ignorePantry,
+                customIngredients: customIngredients,
+                pantryItems: pantryItemsStr
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success && data.recipe) {
+            // עיצוב בסיסי של טקסט Markdown מ-AI
+            let formattedRecipe = data.recipe
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
+            document.getElementById('recipe-result-container').classList.remove('hidden');
+            triggerConfetti();
+            
+            setTimeout(() => {
+                document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת המתכון');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו';
+    }
+}
+
+function copyRecipe() {
+    const text = document.getElementById('recipe-result-content').innerText;
+    try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToast('success', 'המתכון הועתק בהצלחה!');
+    } catch (err) {
+        showToast('error', 'שגיאה בהעתקה');
+    }
+}
