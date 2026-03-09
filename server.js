@@ -864,7 +864,92 @@ app.post('/api/academy/submit', async (req, res) => {
         res.status(500).json({ error: e.message });
     } finally { dbClient.release(); }
 });
+app.post('/api/recipes/generate', async (req, res) => {
+    try {
+        const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
+        
+        // וידוא שהגדרנו מפתח API של Gemini
+        if (!genAI) {
+            return res.status(500).json({ error: 'Gemini AI is not configured on the server.' });
+        }
 
+        let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
+        
+        if (ignorePantry) {
+            prompt += `Use primarily these ingredients: ${customIngredients}.\n`;
+        } else {
+            prompt += `The family has these items in their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic pantry staples (salt, pepper, olive oil, water) are available.\n`;
+        }
+        
+        prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging!`;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        res.json({ success: true, recipe: text });
+    } catch (error) {
+        console.error('Recipe Generation Error:', error);
+        res.status(500).json({ error: 'שגיאה ביצירת המתכון מול ה-AI' });
+    }
+});
+
+// ==========================================
+// --- BANNERS ENDPOINTS (Super Admin - Step 4) ---
+// ==========================================
+app.get('/api/banners', async (req, res) => {
+    try {
+        // שליפת הגדרות הבאנרים מהטבלה
+        let result;
+        try {
+            result = await pool.query(`SELECT setting_key as key, setting_value as value FROM system_settings WHERE setting_key IN ('banner_top_text', 'banner_top_link', 'banner_bottom_text', 'banner_bottom_link')`);
+        } catch(err) {
+            // תאימות למקרה שהעמודות במסד הנתונים נקראות key ו-value במקום setting_key
+            result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('banner_top_text', 'banner_top_link', 'banner_bottom_text', 'banner_bottom_link')`);
+        }
+        
+        const banners = {};
+        result.rows.forEach(r => { banners[r.key] = r.value; });
+        res.json({ success: true, banners });
+    } catch(e) {
+        console.error('Banners fetch error:', e);
+        res.json({ success: false, error: 'Table or columns not found', banners: {} });
+    }
+});
+
+app.post('/api/superadmin/banners', async (req, res) => {
+    const { topText, topLink, bottomText, bottomLink } = req.body;
+    const items = [
+        { k: 'banner_top_text', v: topText || '' },
+        { k: 'banner_top_link', v: topLink || '' },
+        { k: 'banner_bottom_text', v: bottomText || '' },
+        { k: 'banner_bottom_link', v: bottomLink || '' }
+    ];
+
+    try {
+        await pool.query('BEGIN');
+        for (let item of items) {
+            try {
+                await pool.query(`INSERT INTO system_settings (setting_key, setting_value) VALUES ($1, $2) ON CONFLICT (setting_key) DO UPDATE SET setting_value = $2`, [item.k, item.v]);
+            } catch(e1) {
+                try {
+                    await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
+                } catch(e2) {
+                    // Fallback במידה ואין אילוצי מפתח ייחודי או שהטבלה מעט שונה
+                    await pool.query(`DELETE FROM system_settings WHERE key = $1 OR setting_key = $1`, [item.k]).catch(()=>null);
+                    await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2)`).catch(()=>null);
+                }
+            }
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await pool.query('ROLLBACK');
+        console.error('Banners save error:', e);
+        res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
+    }
+});
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
