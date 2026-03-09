@@ -163,7 +163,6 @@ app.get('/api/settings/config', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-
 // --- AI ENDPOINTS ---
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
