@@ -249,11 +249,9 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
 app.post('/api/recipes/generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        // קבלת פרמטר ignorePantry
         const { groupId, mealType, diners, extraIngredients, ignorePantry } = req.body;
         
         let pantryItems = 'None';
-        // הבאת פריטי המזווה רק אם לא התבקשנו להתעלם ממנו
         if (!ignorePantry) {
             const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
             pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
@@ -261,7 +259,6 @@ app.post('/api/recipes/generate', async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         
-        // התאמת הפרומפט בהתאם להנחיה
         let prompt = '';
         if (ignorePantry) {
             prompt = `You are an expert chef AI. The user wants to cook a meal ONLY using these specific ingredients and quantities: ${extraIngredients || 'No specific ingredients provided'}.
