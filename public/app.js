@@ -80,6 +80,9 @@ const PRODUCT_DB = {
 };
 const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
+// Accessibility State
+let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
+
 const hidePreloaderAndShowAuth = (view = 'login') => {
     document.getElementById('auth-container').classList.remove('hidden');
     switchView(view);
@@ -91,6 +94,8 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 };
 
 window.onload = async () => { 
+    initAccessibility(); // אתחול נגישות מיד בטעינה
+
     // FAILSAFE: מנגנון קשיח להסרת ה-Preloader למקרה של תקיעת תקשורת (הוסף בשלב 1)
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
@@ -1112,3 +1117,30 @@ async function deleteUser(id, name) {
         if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
 }
+
+// --- ACCESSIBILITY MODULE ---
+function initAccessibility() {
+    const saved = localStorage.getItem('ofl_accessibility');
+    if(saved) {
+        try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) { console.error('Accessibility Init Error:', e); }
+    }
+}
+
+function applyAccessibility() {
+    Object.keys(accState).forEach(key => {
+        const btn = document.getElementById(`acc-${key}`);
+        if(accState[key]) {
+            document.body.classList.add(`acc-${key}`);
+            if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        } else {
+            document.body.classList.remove(`acc-${key}`);
+            if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        }
+    });
+    localStorage.setItem('ofl_accessibility', JSON.stringify(accState));
+}
+
+function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
+function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
+function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
+function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
