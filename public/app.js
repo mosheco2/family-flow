@@ -1,17 +1,18 @@
-// תיקון סגנונות הרמטי לספריית הסיור - משלב פיתרון מושלם למובייל ולמחשב
+// תיקון סגנונות הרמטי לספריית הסיור - פותר את העלמות הבועה בטלפון ואת קלקול כפתור הפלוס
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
+    /* שחרור מיקומים כדי למנוע קלקול אלמנטים צפים (כמו כפתור הפלוס) */
+    .introjs-showElement {
+        z-index: 9999998 !important;
+        transform: none !important;
+    }
     .introjs-fixParent {
-        position: static !important;
+        z-index: auto !important;
+        opacity: 1.0 !important;
         transform: none !important;
         filter: none !important;
-        z-index: auto !important;
     }
-    .introjs-showElement {
-        position: relative !important;
-        z-index: 9999998 !important;
-    }
-    /* שחרור הגבלות חיתוך כדי שהבועה לא תיעלם או תיחתך */
+    /* שחרור הגבלות חיתוך כדי שההארה והבועה לא יחתכו בנייד */
     body.introjs-active .slider-container,
     body.introjs-active .slider-scroll,
     body.introjs-active .overflow-hidden {
@@ -23,10 +24,8 @@ introStyle.innerHTML = `
     }
     .introjs-overlay { z-index: 9999996 !important; }
     .introjs-helperLayer { z-index: 9999997 !important; }
-    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
-    .introjs-tooltip { z-index: 9999999 !important; }
-
-    /* 🔥 התיקון הקריטי למובייל: הבועה מנותקת מהאלמנט ותמיד במרכז המסך 🔥 */
+    
+    /* 🔥 התיקון המנצח למובייל: חלונית ההסבר תמיד באמצע המסך כדי שלא תעוף החוצה 🔥 */
     @media (max-width: 768px) {
         .introjs-tooltip {
             position: fixed !important;
@@ -36,10 +35,11 @@ introStyle.innerHTML = `
             margin: 0 !important;
             width: 90vw !important;
             max-width: 350px !important;
-            bottom: auto !important;
             right: auto !important;
+            bottom: auto !important;
+            z-index: 9999999 !important;
         }
-        .introjs-arrow { display: none !important; } /* הסתרת החץ שמיותר כשהבועה במרכז */
+        .introjs-arrow { display: none !important; } /* הסתרת החץ כי הבועה מרכזית */
     }
 `;
 document.head.appendChild(introStyle);
@@ -240,7 +240,7 @@ function closeWelcomeModal() {
         localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
     }
     checkAndStartTour(forceTourStart);
-    forceTourStart = false; 
+    forceTourStart = false; // איפוס
 }
 
 function checkAndStartTour(force = false) {
@@ -295,6 +295,7 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
+        // החלפת טאבים בהתאם לצעד בסיור
         if(id === 'tab-bank') switchTab('bank'); 
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
@@ -302,13 +303,14 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
+        // גלילה מיידית של הסרגל העליון לטאב הנכון
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto';
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול החלקה חלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
-                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); 
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
             }
         }
         
@@ -354,10 +356,10 @@ function startChildTour() {
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
-                scrollContainer.style.scrollBehavior = 'auto';
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול החלקה חלקה
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
                 scrollContainer.scrollLeft = scrollPos;
-                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50);
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
             }
         }
         
