@@ -1,23 +1,14 @@
-// תיקון סגנונות לספריית הסיור (מונע תקיעה והסתרת חלוניות במובייל ופותר התנגשות עם אנימציות)
+// תיקון סגנונות מדויק לסיור - מונע התנגשויות בלי לשבור את המיקום של החלונית
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    body.introjs-active * {
+    .introjs-showElement {
         transform: none !important;
-        transition: none !important;
         animation: none !important;
+        z-index: 9999998 !important;
     }
     .introjs-tooltip {
         z-index: 9999999 !important;
         max-width: 90vw !important;
-    }
-    .introjs-showElement, .introjs-showElement * {
-        z-index: 9999998 !important;
-    }
-    .introjs-overlay {
-        z-index: 9999997 !important;
-    }
-    .introjs-helperLayer {
-        z-index: 9999996 !important;
     }
 `;
 document.head.appendChild(introStyle);
@@ -258,8 +249,8 @@ function startAdminTour() {
         disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
-            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור שוב." },
-            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש." },
+            { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
             { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם." },
             { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!" },
@@ -271,15 +262,21 @@ function startAdminTour() {
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
+        const id = targetElement.id;
         
-        switchTab('feed'); // שומרים על יציבות של המסך הראשי
+        if(id === 'tab-bank') switchTab('bank'); 
+        else if(id === 'tab-tasks') switchTab('tasks'); 
+        else if(id === 'tab-academy') switchTab('academy'); 
+        else if(id === 'tab-budget') switchTab('budget'); 
+        else if(id === 'tab-members') switchTab('members'); 
+        else switchTab('feed'); 
         
-        // גלילה אוטומטית של תפריט הטאבים כדי לחשוף כפתורים נסתרים
+        // גלילה מיידית (ללא smooth שגורם להקפה במקום הלא נכון)
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
-                scrollContainer.scrollTo({ left: scrollPos, behavior: 'smooth' });
+                scrollContainer.scrollLeft = scrollPos;
             }
         }
         
@@ -302,8 +299,7 @@ function startChildTour() {
         disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
-            { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
-            { element: '#slider-scroll', title: "תפריט הניווט", intro: "גללו ימינה ושמאלה כדי לעבור בין האזורים השונים.", position: 'bottom' },
+            { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף יש לכם עכשיו בחשבון." },
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות." },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
@@ -313,15 +309,20 @@ function startChildTour() {
 
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return;
-        
-        switchTab('feed'); // שומרים על יציבות
+        const id = targetElement.id;
 
-        // גלילה אוטומטית של תפריט הטאבים
+        if(id === 'tab-bank') switchTab('bank'); 
+        else if(id === 'tab-tasks') switchTab('tasks'); 
+        else if(id === 'tab-academy') switchTab('academy'); 
+        else if(id === 'tab-shop') switchTab('shop'); 
+        else switchTab('feed'); 
+        
+        // גלילה מיידית של תפריט הטאבים
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
                 const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
-                scrollContainer.scrollTo({ left: scrollPos, behavior: 'smooth' });
+                scrollContainer.scrollLeft = scrollPos;
             }
         }
         
