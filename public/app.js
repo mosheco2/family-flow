@@ -1,4 +1,4 @@
-// תיקון סגנונות הרמטי לסיור - מונע התנגשויות אנימציה ומקבע את הבועה למרכז במובייל
+// תיקון סגנונות לספריית הסיור - מונע הסתרות מחוץ למסך ופותר התנגשויות אנימציה
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
     .introjs-fixParent {
@@ -9,36 +9,23 @@ introStyle.innerHTML = `
     }
     .introjs-showElement {
         position: relative !important;
+        transform: none !important;
         z-index: 9999998 !important;
     }
+    /* שחרור הגבלות חיתוך כדי שהבועה לא תיעלם בנייד כשהיא מאירה טאבים */
+    body.introjs-active .slider-container,
+    body.introjs-active .slider-scroll,
     body.introjs-active .overflow-hidden {
         overflow: visible !important;
     }
+    /* מניעת הסתרה ע"י ההדר העליון */
     body.introjs-active header.sticky {
-        z-index: auto !important;
+        z-index: 1 !important;
     }
     .introjs-overlay { z-index: 9999996 !important; }
     .introjs-helperLayer { z-index: 9999997 !important; }
-    
-    /* ✨ הפיתרון המנצח למובייל ✨ */
-    /* מנתק את הבועה ממיקום האלמנט כדי למנוע היעלמות שלה מחוץ למסך בגלל סרגלי גלילה */
-    @media (max-width: 768px) {
-        .introjs-tooltip {
-            position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            margin: 0 !important;
-            width: 90vw !important;
-            max-width: 350px !important;
-            bottom: auto !important;
-            right: auto !important;
-            z-index: 9999999 !important;
-        }
-        .introjs-arrow {
-            display: none !important; /* מסתיר את החץ מאחר והבועה מרכזית כעת */
-        }
-    }
+    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
+    .introjs-tooltip { z-index: 9999999 !important; }
 `;
 document.head.appendChild(introStyle);
 
@@ -278,14 +265,14 @@ function startAdminTour() {
         disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
-            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש.", position: 'bottom' },
-            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
-            { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה.", position: 'top' },
-            { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
-            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!", position: 'bottom' },
-            { element: '#tab-budget', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף בעזרת ה-AI.", position: 'bottom' },
-            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!", position: 'bottom' }
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש." },
+            { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון." },
+            { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה." },
+            { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם." },
+            { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!" },
+            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "צרו לילדים מבחנים מותאמים אישית בעזרת ה-AI שלנו בנושאים פיננסיים. ילד שלומד ועונה נכון - מרוויח!" },
+            { element: '#tab-budget', title: "תקציב 📊", intro: "כאן תוכלו להגדיר יעדים לכל סוג של הוצאה (סופר, דלק) ולעקוב אחריהם באופן שוטף בעזרת ה-AI." },
+            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "כאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולמשפחה. בהצלחה!" }
         ]
     });
 
@@ -293,7 +280,7 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
-        // החלפת טאבים בהתאם לצעד בסיור כדי שהמשתמש יראה את התוכן במקום את הכפתור המוסתר
+        // החלפת התוכן למטה כדי שהמשתמש יראה על מה הטאב מדבר
         if(id === 'tab-bank') switchTab('bank'); 
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
@@ -301,7 +288,7 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה אוטומטית של תפריט הטאבים אם הוא מחוץ למסך
+        // גלילה מיידית (ללא אנימציה) של הסרגל האופקי כדי להבטיח הארה מדויקת על כפתור הטאב
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
@@ -328,14 +315,14 @@ function startChildTour() {
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג',
         showProgress: true, rtl: true, hidePrev: false, showBullets: true,
         scrollToElement: true,
-        disableInteraction: false,
+        disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
-            { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!", position: 'bottom' },
-            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים.", position: 'bottom' },
-            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים.", position: 'bottom' }
+            { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון." },
+            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות." },
+            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" },
+            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
+            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים." }
         ]
     });
 
@@ -349,7 +336,7 @@ function startChildTour() {
         else if(id === 'tab-shop') switchTab('shop'); 
         else switchTab('feed'); 
         
-        // גלילה אוטומטית של תפריט הטאבים
+        // גלילה מיידית (ללא אנימציה) של הסרגל האופקי כדי להבטיח הארה מדויקת על כפתור הטאב
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
