@@ -154,13 +154,64 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.get('/api/settings/config', async (req, res) => {
+app.get('/api/settings/welcome', async (req, res) => {
     try {
-        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')");
-        const config = {};
-        s.rows.forEach(r => config[r.key] = r.value);
-        res.json(config);
+        const s = await pool.query("SELECT value FROM system_settings WHERE key = 'welcome_msg'");
+        res.json({ message: s.rows.length > 0 ? s.rows[0].value : '' });
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// ==========================================
+// --- BANNERS ENDPOINTS (Super Admin - Step 4) ---
+// ==========================================
+app.get('/api/banners', async (req, res) => {
+    try {
+        let result;
+        try {
+            result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')`);
+        } catch(err) {
+            console.error(err);
+            return res.json({ success: false, error: 'Table or columns not found', banners: {} });
+        }
+        const banners = {};
+        result.rows.forEach(r => { banners[r.key.replace('ad_', '')] = r.value; });
+        // Map to expected structure
+        res.json({ 
+            success: true, 
+            banners: {
+                banner_top_text: banners['banner_text_top'],
+                banner_top_link: banners['banner_link_top'],
+                banner_bottom_text: banners['banner_text_bottom'],
+                banner_bottom_link: banners['banner_link_bottom']
+            } 
+        });
+    } catch(e) {
+        console.error('Banners fetch error:', e);
+        res.json({ success: false, error: e.message, banners: {} });
+    }
+});
+
+app.post('/api/superadmin/banners', async (req, res) => {
+    const { topText, topLink, bottomText, bottomLink } = req.body;
+    const items = [
+        { k: 'ad_banner_text_top', v: topText || '' },
+        { k: 'ad_banner_link_top', v: topLink || '' },
+        { k: 'ad_banner_text_bottom', v: bottomText || '' },
+        { k: 'ad_banner_link_bottom', v: bottomLink || '' }
+    ];
+
+    try {
+        await pool.query('BEGIN');
+        for (let item of items) {
+            await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await pool.query('ROLLBACK');
+        console.error('Banners save error:', e);
+        res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
+    }
 });
 
 // --- AI ENDPOINTS ---
@@ -245,40 +296,38 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// RECIPES GENERATOR AI
+// ==========================================
+// --- RECIPES (AI CHEF) ENDPOINT ---
+// ==========================================
 app.post('/api/recipes/generate', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const { groupId, mealType, diners, extraIngredients, ignorePantry } = req.body;
+        const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
         
-        let pantryItems = 'None';
-        if (!ignorePantry) {
-            const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
-            pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
+        if (!genAI) {
+            return res.status(500).json({ error: 'מפתח API של בינה מלאכותית חסר בשרת' });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
         
-        let prompt = '';
         if (ignorePantry) {
-            prompt = `You are an expert chef AI. The user wants to cook a meal ONLY using these specific ingredients and quantities: ${extraIngredients || 'No specific ingredients provided'}.
-            Meal type requested: ${mealType}. Number of diners: ${diners}.
-            Suggest 2 delicious, practical recipes they can make strictly using what they provided.
-            Output STRICTLY as a JSON array of objects matching this schema exactly:
-            [ { "name": "Recipe Name in Hebrew", "missing_items": [], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+            prompt += `Use primarily these ingredients requested by the user: ${customIngredients}.\n`;
         } else {
-            prompt = `You are an expert chef AI helping a family decide what to cook.
-            Available ingredients in their pantry: ${pantryItems || 'None'}.
-            Extra ingredients they want to use: ${extraIngredients || 'None'}.
-            Meal type requested: ${mealType}. Number of diners: ${diners}.
-            Suggest 2 delicious, practical recipes they can make mostly using what they have.
-            Output STRICTLY as a JSON array of objects matching this schema exactly:
-            [ { "name": "Recipe Name in Hebrew", "missing_items": ["item1", "item2"], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+            prompt += `The family wants to cook using these specific items from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic pantry staples (salt, pepper, olive oil, water) are available.\n`;
         }
+        
+        prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging!`;
 
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent(prompt);
-        res.json({ success: true, recipes: JSON.parse(result.response.text()) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        
+        // תיקון השליפה כדי למנוע את קריסת המערכת
+        const text = result.response.text();
+
+        res.json({ success: true, recipe: text });
+    } catch (error) {
+        console.error('Recipe Generation Error:', error);
+        res.status(500).json({ error: 'שגיאה ביצירת המתכון מול ה-AI' });
+    }
 });
 
 app.post('/api/tasks/vision-verify', async (req, res) => {
@@ -864,93 +913,7 @@ app.post('/api/academy/submit', async (req, res) => {
         res.status(500).json({ error: e.message });
     } finally { dbClient.release(); }
 });
-app.post('/api/recipes/generate', async (req, res) => {
-    try {
-        const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
-        
-        // וידוא שהגדרנו מפתח API של Gemini
-        if (!genAI) {
-            return res.status(500).json({ error: 'Gemini AI is not configured on the server.' });
-        }
 
-        let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
-        
-        if (ignorePantry) {
-            prompt += `Use primarily these ingredients: ${customIngredients}.\n`;
-        } else {
-            prompt += `The family wants to use these specific items from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic pantry staples (salt, pepper, olive oil, water) are available.\n`;
-        }
-        
-        prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging!`;
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent(prompt);
-        
-        // התיקון כאן: משיכת הטקסט בצורה בטוחה
-        const text = result.response.text();
-
-        res.json({ success: true, recipe: text });
-    } catch (error) {
-        console.error('Recipe Generation Error:', error);
-        res.status(500).json({ error: 'שגיאה ביצירת המתכון מול ה-AI' });
-    }
-});
-
-// ==========================================
-// --- BANNERS ENDPOINTS (Super Admin - Step 4) ---
-// ==========================================
-app.get('/api/banners', async (req, res) => {
-    try {
-        // שליפת הגדרות הבאנרים מהטבלה
-        let result;
-        try {
-            result = await pool.query(`SELECT setting_key as key, setting_value as value FROM system_settings WHERE setting_key IN ('banner_top_text', 'banner_top_link', 'banner_bottom_text', 'banner_bottom_link')`);
-        } catch(err) {
-            // תאימות למקרה שהעמודות במסד הנתונים נקראות key ו-value במקום setting_key
-            result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('banner_top_text', 'banner_top_link', 'banner_bottom_text', 'banner_bottom_link')`);
-        }
-        
-        const banners = {};
-        result.rows.forEach(r => { banners[r.key] = r.value; });
-        res.json({ success: true, banners });
-    } catch(e) {
-        console.error('Banners fetch error:', e);
-        res.json({ success: false, error: 'Table or columns not found', banners: {} });
-    }
-});
-
-app.post('/api/superadmin/banners', async (req, res) => {
-    const { topText, topLink, bottomText, bottomLink } = req.body;
-    const items = [
-        { k: 'banner_top_text', v: topText || '' },
-        { k: 'banner_top_link', v: topLink || '' },
-        { k: 'banner_bottom_text', v: bottomText || '' },
-        { k: 'banner_bottom_link', v: bottomLink || '' }
-    ];
-
-    try {
-        await pool.query('BEGIN');
-        for (let item of items) {
-            try {
-                await pool.query(`INSERT INTO system_settings (setting_key, setting_value) VALUES ($1, $2) ON CONFLICT (setting_key) DO UPDATE SET setting_value = $2`, [item.k, item.v]);
-            } catch(e1) {
-                try {
-                    await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
-                } catch(e2) {
-                    // Fallback במידה ואין אילוצי מפתח ייחודי או שהטבלה מעט שונה
-                    await pool.query(`DELETE FROM system_settings WHERE key = $1 OR setting_key = $1`, [item.k]).catch(()=>null);
-                    await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2)`).catch(()=>null);
-                }
-            }
-        }
-        await pool.query('COMMIT');
-        res.json({ success: true });
-    } catch (e) {
-        await pool.query('ROLLBACK');
-        console.error('Banners save error:', e);
-        res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
-    }
-});
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
