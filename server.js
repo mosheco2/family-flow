@@ -40,6 +40,44 @@ const generateGroupCode = () => {
     return code;
 };
 
+// --- פונקציית ניהול "סוללת AI" ומנויי Premium ---
+async function handleAITokens(groupId) {
+    try {
+        // 1. איפוס לילי (Lazy Reset): אם התאריך האחרון אינו היום, איפוס ל-10 טוקנים ועדכון התאריך
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [groupId]);
+        
+        // 2. שליפת הנתונים העדכניים
+        const res = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
+        if(res.rows.length === 0) return false;
+        
+        const group = res.rows[0];
+        
+        // 3. אם המשפחה שדרגה ל-Pro, אפשר תמיד
+        if(group.is_premium) return true;
+        
+        // 4. אם יש טוקנים חינמיים, הורד 1 ואשר
+        if(group.ai_tokens > 0) {
+            await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
+            return true;
+        }
+        
+        // 5. הסוללה ריקה
+        return false;
+    } catch (e) {
+        console.error('Error handling AI tokens:', e);
+        return false;
+    }
+}
+
+// פונקציית עזר לטיפול בשגיאות AI
+const handleAIError = (e, res, defaultMsg) => {
+    console.error('AI Error:', e);
+    if (e.message && e.message.includes('429')) {
+        return res.status(429).json({ error: 'מערכת ה-AI עמוסה כרגע (מגבלת בקשות). אנא המתינו כדקה ונסו שוב.' });
+    }
+    res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
+};
+
 // --- SYSTEM SETUP ---
 app.get('/setup-db', async (req, res) => {
     try {
@@ -61,7 +99,7 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS system_settings CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -76,7 +114,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (AI Tokens added)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -170,7 +208,6 @@ app.get('/api/banners', async (req, res) => {
         try {
             result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')`);
         } catch(err) {
-            console.error(err);
             return res.json({ success: false, error: 'Table or columns not found', banners: {} });
         }
         const banners = {};
@@ -185,7 +222,6 @@ app.get('/api/banners', async (req, res) => {
             } 
         });
     } catch(e) {
-        console.error('Banners fetch error:', e);
         res.json({ success: false, error: e.message, banners: {} });
     }
 });
@@ -208,21 +244,48 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         await pool.query('ROLLBACK');
-        console.error('Banners save error:', e);
         res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
     }
 });
+
+// ==========================================
+// --- SUBSCRIPTION / PREMIUM ENDPOINTS ---
+// ==========================================
+
+// הערה למפתח: כאן ימוקם בעתיד הראוט שבונה את בקשת התשלום מול חברת הסליקה (למשל Stripe/Meshulam)
+// כרגע הראוט הזה מדמה תשלום מוצלח ומעדכן את מסד הנתונים ישירות לשם הדגמה.
+app.post('/api/premium/simulate-checkout', async (req, res) => {
+    try {
+        const { groupId, userId } = req.body;
+        // בדיקה שרק מנהל משפחה יכול לשדרג
+        const userCheck = await pool.query('SELECT role FROM users WHERE id = $1 AND group_id = $2', [userId, groupId]);
+        if(userCheck.rows.length === 0 || userCheck.rows[0].role !== 'ADMIN') {
+            return res.status(403).json({ error: 'רק מנהל הבנק יכול לשדרג למנוי Pro' });
+        }
+        
+        // כאן אמורה להיות הפניה לסליקה. בגלל שזו סימולציה: אנחנו מעדכנים את מסד הנתונים.
+        await pool.query('UPDATE family_groups SET is_premium = TRUE WHERE id = $1', [groupId]);
+        
+        res.json({ success: true, message: 'החשבון שודרג בהצלחה ל-Oneflow Pro!' });
+    } catch (e) {
+        res.status(500).json({ error: 'שגיאה בשדרוג החשבון' });
+    }
+});
+
 
 // ==========================================
 // --- RECIPES (AI CHEF) ENDPOINT ---
 // ==========================================
 app.post('/api/recipes/generate', async (req, res) => {
     try {
-        if (!genAI) {
-            return res.status(500).json({ error: 'מפתח API של בינה מלאכותית חסר בשרת' });
-        }
-
         const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
+        if (!genAI) return res.status(500).json({ error: 'מפתח API של בינה מלאכותית חסר בשרת' });
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
@@ -240,17 +303,22 @@ app.post('/api/recipes/generate', async (req, res) => {
 
         res.json({ success: true, recipe: text });
     } catch (error) {
-        console.error('Recipe Generation Error:', error);
-        res.status(500).json({ error: 'שגיאה ביצירת המתכון מול ה-AI. נסה שוב בעוד מספר שניות.' });
+        handleAIError(error, res, 'שגיאה ביצירת המתכון מול ה-AI.');
     }
 });
 
 // --- AI ENDPOINTS ---
 app.post('/api/academy/ai-generate', async (req, res) => {
     try {
+        const { ageGroup, topic, groupId } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const { ageGroup, topic } = req.body;
+        
         const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
         Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly:
         { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
@@ -268,14 +336,22 @@ app.post('/api/academy/ai-generate', async (req, res) => {
             await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
         }
         res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה ביצירת המבחן');
+    }
 });
 
 app.post('/api/tasks/ai-generate', async (req, res) => {
     try {
+        const { age, topic, groupId } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const { age, topic } = req.body;
+        
         const prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
         Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
 
@@ -296,15 +372,19 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
 
         res.json({ success: true, tasks: parsedTasks });
     } catch (e) { 
-        console.error('Task AI Error:', e);
-        res.status(500).json({ error: 'שגיאה ביצירת המשימות, נסה שוב בעוד רגע.' }); 
+        handleAIError(e, res, 'שגיאה ביצירת המשימות');
     }
 });
 
 app.post('/api/goals/familai-advice', async (req, res) => {
     try {
+        const { userId, goalId, groupId } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const { userId, goalId } = req.body;
         const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
         const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
 
@@ -316,38 +396,59 @@ app.post('/api/goals/familai-advice', async (req, res) => {
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, advice: result.response.text().trim() });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה ביצירת עצה');
+    }
 });
 
 app.post('/api/budget/familai-insight', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { groupId } = req.body;
+
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בניתוח התקציב');
+    }
 });
 
 app.post('/api/pantry/familai-insight', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { groupId } = req.body;
+
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const pantryRes = await pool.query('SELECT item_name, quantity, updated_at FROM pantry WHERE group_id=$1', [groupId]);
         const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בניתוח המזווה');
+    }
 });
 
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
+        const { taskId, title, imageBase64, mimeType, groupId } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const { taskId, title, imageBase64, mimeType } = req.body;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
@@ -359,13 +460,24 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
             await pool.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', taskId]);
         }
         res.json({ success: true, verified: feedback.verified, message: feedback.message });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בניתוח התמונה');
+    }
 });
 
 app.post('/api/shopping/scan-receipt', async (req, res) => {
     try {
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { imageBase64, mimeType, userId } = req.body;
+        
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
@@ -377,26 +489,34 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
             const normResult = await model.generateContent(normPrompt);
             normalizedArray = JSON.parse(normResult.response.text());
         } catch(e) { console.error(e); }
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        
         for (let i = 0; i < items.length; i++) {
              const item = items[i];
              const normName = normalizedArray[i] || item.name;
              await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
         }
         res.json({ success: true, count: items.length });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בקריאת הקבלה');
+    }
 });
 
 app.post('/api/academy/tutor', async (req, res) => {
     try {
+        const { question, wrongAnswer, correctAnswer, groupId } = req.body;
+        
+        // ⚡ בדיקת טוקנים של AI ⚡
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const { question, wrongAnswer, correctAnswer } = req.body;
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בהבאת ההסבר');
+    }
 });
 
 // --- BASIC API ENDPOINTS ---
@@ -473,6 +593,10 @@ app.get('/api/data/:userId', async (req, res) => {
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
+        // שליפת מידע על המשפחה וסוללת ה-AI
+        const gRes = await pool.query('SELECT ai_tokens, is_premium, last_token_reset FROM family_groups WHERE id=$1', [user.group_id]);
+        const groupData = gRes.rows[0] || { ai_tokens: 10, is_premium: false };
+
         let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]}, pantryRes={rows:[]};
         try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ }
         
@@ -525,7 +649,7 @@ app.get('/api/data/:userId', async (req, res) => {
         }
 
         res.json({
-            user: user, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes.rows || [],
+            user: user, group: groupData, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes.rows || [],
             weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || [], pantry: pantryRes.rows || []
         });
     } catch (e) { res.status(500).json({error: e.message}); }
@@ -689,6 +813,8 @@ app.post('/api/shopping/add', async (req, res) => {
         const user = uRes.rows[0];
         const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
         let normalizedName = req.body.itemName;
+        
+        // עקיפת מכסת AI עבור פעולה זו (היא נסתרת למשתמש) אבל נבדוק בבטיחות
         if (genAI) {
             try {
                 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
