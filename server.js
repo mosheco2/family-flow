@@ -249,19 +249,35 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
 app.post('/api/recipes/generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-        const { groupId, mealType, diners, extraIngredients } = req.body;
+        // קבלת פרמטר ignorePantry
+        const { groupId, mealType, diners, extraIngredients, ignorePantry } = req.body;
         
-        const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
-        const pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
+        let pantryItems = 'None';
+        // הבאת פריטי המזווה רק אם לא התבקשנו להתעלם ממנו
+        if (!ignorePantry) {
+            const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
+            pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
+        }
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are an expert chef AI helping a family decide what to cook.
-        Available ingredients in their pantry: ${pantryItems || 'None'}.
-        Extra ingredients they want to use: ${extraIngredients || 'None'}.
-        Meal type requested: ${mealType}. Number of diners: ${diners}.
-        Suggest 2 delicious, practical recipes they can make mostly using what they have.
-        Output STRICTLY as a JSON array of objects matching this schema exactly:
-        [ { "name": "Recipe Name in Hebrew", "missing_items": ["item1", "item2"], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+        
+        // התאמת הפרומפט בהתאם להנחיה
+        let prompt = '';
+        if (ignorePantry) {
+            prompt = `You are an expert chef AI. The user wants to cook a meal ONLY using these specific ingredients and quantities: ${extraIngredients || 'No specific ingredients provided'}.
+            Meal type requested: ${mealType}. Number of diners: ${diners}.
+            Suggest 2 delicious, practical recipes they can make strictly using what they provided.
+            Output STRICTLY as a JSON array of objects matching this schema exactly:
+            [ { "name": "Recipe Name in Hebrew", "missing_items": [], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+        } else {
+            prompt = `You are an expert chef AI helping a family decide what to cook.
+            Available ingredients in their pantry: ${pantryItems || 'None'}.
+            Extra ingredients they want to use: ${extraIngredients || 'None'}.
+            Meal type requested: ${mealType}. Number of diners: ${diners}.
+            Suggest 2 delicious, practical recipes they can make mostly using what they have.
+            Output STRICTLY as a JSON array of objects matching this schema exactly:
+            [ { "name": "Recipe Name in Hebrew", "missing_items": ["item1", "item2"], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+        }
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, recipes: JSON.parse(result.response.text()) });
