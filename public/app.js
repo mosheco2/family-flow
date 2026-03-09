@@ -458,7 +458,10 @@ async function fetchData() {
     try {
         if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
         const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-        if (!data || !data.user) return;
+        if (!data || !data.user) {
+            hidePreloader(); // וידוא שהמסך יורד אם המשתמש לא חוקי
+            return;
+        }
         
         currentUser.balance = data.user.balance; 
         const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance}`;
