@@ -31,6 +31,8 @@ pool.connect()
   .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
+const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
+
 const generateGroupCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -101,7 +103,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT value FROM system_settings WHERE key='welcome_msg'");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link')");
         
         let unifiedActivity = [];
         
@@ -134,7 +136,9 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             groups: groups.rows,
             users: users.rows,
             activity: unifiedActivity.slice(0, 50),
-            welcomeMsg: settings.rows.length > 0 ? settings.rows[0].value : ''
+            welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '',
+            adBannerText: settings.rows.find(r => r.key === 'ad_banner_text')?.value || '',
+            adBannerLink: settings.rows.find(r => r.key === 'ad_banner_link')?.value || ''
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -155,15 +159,19 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
 
 app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     try {
-        await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
+        if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
+        if (req.body.adBannerText !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerText]);
+        if (req.body.adBannerLink !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLink]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.get('/api/settings/welcome', async (req, res) => {
+app.get('/api/settings/config', async (req, res) => {
     try {
-        const s = await pool.query("SELECT value FROM system_settings WHERE key='welcome_msg'");
-        res.json({message: s.rows.length > 0 ? s.rows[0].value : null});
+        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link')");
+        const config = {};
+        s.rows.forEach(r => config[r.key] = r.value);
+        res.json(config);
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
@@ -249,6 +257,31 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// NEW ENDPOINT: Recipes Generator
+app.post('/api/recipes/generate', async (req, res) => {
+    try {
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        const { groupId, mealType, diners, extraIngredients } = req.body;
+        
+        // Fetch current pantry items
+        const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
+        const pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const prompt = `You are an expert chef AI helping a family decide what to cook.
+        Available ingredients in their pantry: ${pantryItems || 'None'}.
+        Extra ingredients they want to use: ${extraIngredients || 'None'}.
+        Meal type requested: ${mealType}. Number of diners: ${diners}.
+        Suggest 2 delicious, practical recipes they can make mostly using what they have.
+        Output STRICTLY as a JSON array of objects matching this schema exactly:
+        [ { "name": "Recipe Name in Hebrew", "missing_items": ["item1", "item2"], "instructions": "Step by step instructions in Hebrew (plain text with line breaks)" } ]`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, recipes: JSON.parse(result.response.text()) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
