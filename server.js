@@ -236,7 +236,6 @@ app.post('/api/recipes/generate', async (req, res) => {
         prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging! Make sure to output simple Markdown TEXT, do not output JSON.`;
 
         const result = await model.generateContent(prompt);
-        // שימוש נכון ובטוח בחילוץ הטקסט מה-AI שמונע את הקריסה
         const text = result.response.text();
 
         res.json({ success: true, recipe: text });
@@ -277,12 +276,29 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const { age, topic } = req.body;
-        const prompt = `You are familAI, a parenting and financial education expert. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
-        Output STRICTLY as a JSON array of objects matching this schema exactly: [ { "title": "Task description in Hebrew", "reward": 15 } ]`;
+        const prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
+        Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
 
         const result = await model.generateContent(prompt);
-        res.json({ success: true, tasks: JSON.parse(result.response.text()) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        const textResult = result.response.text();
+        
+        let parsedTasks;
+        try {
+            parsedTasks = JSON.parse(textResult);
+            if (!Array.isArray(parsedTasks)) {
+                if (parsedTasks.tasks && Array.isArray(parsedTasks.tasks)) parsedTasks = parsedTasks.tasks;
+                else parsedTasks = Object.values(parsedTasks).find(val => Array.isArray(val)) || [];
+            }
+        } catch (parseError) {
+             console.error("Failed to parse AI response for tasks:", textResult);
+             throw new Error("AI returned invalid JSON format");
+        }
+
+        res.json({ success: true, tasks: parsedTasks });
+    } catch (e) { 
+        console.error('Task AI Error:', e);
+        res.status(500).json({ error: 'שגיאה ביצירת המשימות, נסה שוב בעוד רגע.' }); 
+    }
 });
 
 app.post('/api/goals/familai-advice', async (req, res) => {
@@ -766,6 +782,7 @@ app.post('/api/pantry/add', async (req, res) => {
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.post('/api/pantry/update', async (req, res) => {
     try {
         const { itemId, quantity } = req.body;
@@ -773,6 +790,7 @@ app.post('/api/pantry/update', async (req, res) => {
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.delete('/api/pantry/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch (e) { res.status(500).json({ error: e.message }); }
