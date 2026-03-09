@@ -358,6 +358,11 @@
                                 <label class="text-xs font-bold text-slate-500 mb-1 block">מרכיבים מיוחדים להוסיף? (אופציונלי)</label>
                                 <input type="text" id="recipe-extra" class="modern-input py-2 text-sm bg-slate-50" placeholder="למשל: תפוחי אדמה, פטריות...">
                             </div>
+                            <!-- הוספת תיבת הסימון להתעלמות מהמזווה -->
+                            <div class="flex items-center gap-2 mt-1">
+                                <input type="checkbox" id="recipe-ignore-pantry" class="w-4 h-4 accent-orange-500 cursor-pointer">
+                                <label for="recipe-ignore-pantry" class="text-[11px] font-bold text-slate-600 cursor-pointer">התעלם מהמזווה (הצע מתכונים רק ממה שכתבתי למעלה)</label>
+                            </div>
                             <button onclick="generateRecipes()" id="btn-recipe-gen" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 transition flex items-center justify-center gap-2">
                                 <span id="btn-recipe-gen-text">הצע לי מתכונים!</span>
                                 <span id="btn-recipe-gen-loader" class="hidden"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
