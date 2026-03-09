@@ -1,52 +1,37 @@
-// תיקון סגנונות הרמטי לספריית הסיור - מונע בריחת חלוניות בטלפון ומבטל אנימציות רק בזמן הסיור
+// תיקון סגנונות הרמטי לספריית הסיור - מונע בריחת חלוניות ושומר על מיקום כפתורים מרחפים
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    .introjs-fixParent {
-        position: static !important;
-        transform: none !important;
-        filter: none !important;
-        z-index: auto !important;
-    }
-    /* 🔥 התיקון הקריטי למובייל: הבועה מנותקת מהאלמנט ותמיד במרכז המסך 🔥 */
+    .introjs-showElement { z-index: 9999998 !important; transform: none !important; }
+    .introjs-fixParent { z-index: auto !important; opacity: 1.0 !important; transform: none !important; filter: none !important; }
+    body.introjs-active .slider-container, body.introjs-active .slider-scroll, body.introjs-active .overflow-hidden { overflow: visible !important; }
+    body.introjs-active header.sticky { z-index: 1 !important; }
+    .introjs-overlay { z-index: 9999996 !important; }
+    .introjs-helperLayer { z-index: 9999997 !important; }
+    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
+    .introjs-tooltip { z-index: 9999999 !important; }
+
     @media (max-width: 768px) {
+        .introjs-tooltipReferenceLayer {
+            position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important;
+            margin: 0 !important; right: auto !important; bottom: auto !important; width: 90vw !important;
+        }
         .introjs-tooltip {
-            position: fixed !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            margin: 0 !important;
-            width: 90vw !important;
-            max-width: 350px !important;
-            bottom: auto !important;
-            right: auto !important;
-            z-index: 9999999 !important;
+            position: relative !important; max-width: 350px !important; margin: 0 auto !important;
+            left: auto !important; right: auto !important; top: auto !important; bottom: auto !important;
         }
         .introjs-arrow { display: none !important; }
-        .introjs-tooltipReferenceLayer { display: none !important; }
     }
-    /* כיבוי אנימציות של אלמנטים מוארים בזמן הסיור למניעת בריחה */
-    body.introjs-active .introjs-showElement {
-        transform: none !important;
-        transition: none !important;
-        animation: none !important;
-    }
-    /* פתיחת חיתוך כדי שהסיור לא ייחתך */
-    body.introjs-active .slider-container,
-    body.introjs-active .slider-scroll,
-    body.introjs-active .overflow-hidden,
-    body.introjs-active [class*="overflow-hidden"] {
-        overflow: visible !important;
-    }
+    body.introjs-active .introjs-showElement { transition: none !important; animation: none !important; }
 `;
 document.head.appendChild(introStyle);
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null;
+let currentUser = null; let currentGroup = null; let forceTourStart = false;
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
-let forceTourStart = false; 
+let pollInterval = null; let saToken = null;
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
@@ -68,12 +53,15 @@ const PRODUCT_DB = {
 const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
 
 // --- PRELOADER SAFETY ---
+let preloaderFallbackTimer;
+
 function hidePreloader() {
     const preloader = document.getElementById('app-preloader');
     if (preloader && !preloader.classList.contains('hidden')) {
-        preloader.classList.add('opacity-0', 'pointer-events-none');
+        preloader.style.opacity = '0';
         setTimeout(() => preloader.classList.add('hidden'), 500);
     }
+    if (preloaderFallbackTimer) clearTimeout(preloaderFallbackTimer);
 }
 
 function hidePreloaderAndShowAuth(view = 'login') {
@@ -84,21 +72,20 @@ function hidePreloaderAndShowAuth(view = 'login') {
 }
 
 window.onload = async () => { 
-    // שסתום ביטחון - אם אחרי 4 שניות האפליקציה לא נפתחה, נכבה את מסך הטעינה בכוח
-    const fallbackTimer = setTimeout(() => {
-        const preloader = document.getElementById('app-preloader');
-        if (preloader && !preloader.classList.contains('hidden')) {
-            hidePreloaderAndShowAuth('login');
-        }
+    preloaderFallbackTimer = setTimeout(() => {
+        hidePreloaderAndShowAuth('login');
     }, 4000); 
 
     const urlParams = new URLSearchParams(window.location.search);
     const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
     
     if (inviteCode) { 
-        document.getElementById('join-code').value = inviteCode; 
-        if(inviteRole) document.getElementById('join-role').value = inviteRole; 
-        clearTimeout(fallbackTimer);
+        const joinCodeInput = document.getElementById('join-code');
+        if(joinCodeInput) joinCodeInput.value = inviteCode; 
+        if(inviteRole) {
+            const roleInput = document.getElementById('join-role');
+            if(roleInput) roleInput.value = inviteRole; 
+        }
         hidePreloaderAndShowAuth('join');
         return; 
     }
@@ -110,26 +97,14 @@ window.onload = async () => {
             if(session && session.user && session.user.id) { 
                 const res = await fetch(`${API}/users/${session.user.id}`); 
                 if(res.ok) { 
-                    clearTimeout(fallbackTimer); // עבר בהצלחה
                     currentUser = await res.json(); 
                     currentGroup = session.group; 
                     localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
                     await loadDashboard(); 
-                } else {
-                    localStorage.removeItem('ofl_session');
-                    hidePreloaderAndShowAuth('login');
-                }
-            } else {
-                localStorage.removeItem('ofl_session');
-                hidePreloaderAndShowAuth('login');
-            }
-        } catch(e) { 
-            localStorage.removeItem('ofl_session');
-            hidePreloaderAndShowAuth('login');
-        } 
-    } else { 
-        hidePreloaderAndShowAuth('login');
-    }
+                } else { hidePreloaderAndShowAuth('login'); }
+            } else { hidePreloaderAndShowAuth('login'); }
+        } catch(e) { hidePreloaderAndShowAuth('login'); } 
+    } else { hidePreloaderAndShowAuth('login'); }
 };
 
 // --- ACCESSIBILITY ---
@@ -140,8 +115,8 @@ function toggleAccessFeature(className) { document.body.classList.toggle(classNa
 function resetAccessibility() { currentFontSize = 1.0; document.documentElement.style.fontSize = '100%'; document.body.classList.remove('acc-contrast', 'acc-grayscale', 'acc-underlines', 'acc-readable-font'); }
 
 // --- AUTH & SETUP ---
-function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
-function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
+function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => { const el = document.getElementById(`view-${v}`); if(el) el.classList.add('hidden'); }); const target = document.getElementById(`view-${view}`); if(target) target.classList.remove('hidden'); }
+function selectType(t) { const input = document.getElementById('create-type'); if(input) input.value = t; const tf = document.getElementById('type-family'); if(tf) tf.className=`flex-1 p-4 rounded-2xl border-2 text-center font-bold transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600':'border-slate-100 text-slate-400'}`; const tg = document.getElementById('type-group'); if(tg) tg.className=`flex-1 p-4 rounded-2xl border-2 text-center font-bold transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600':'border-slate-100 text-slate-400'}`; }
 
 function openTosModal(e) { 
     if(e) { e.preventDefault(); e.stopPropagation(); }
@@ -179,60 +154,70 @@ async function authAction(endpoint, body) {
             currentGroup = data.group; 
             localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             await loadDashboard(); 
-        } else showToast('error', data.error); 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+        } else {
+            showToast('error', data.error); 
+            hidePreloader();
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאה בחיבור לשרת'); 
+        hidePreloader();
+    } finally { 
+        toggleLoader('login', false); 
+    } 
 }
 
 function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
-function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
+function scrollTabs(direction) { const sc = document.getElementById('slider-scroll'); if(sc) sc.scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
     ['feed','tasks','shop','bank','academy','members','budget','pantry', 'recipes'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     const target = document.getElementById(`content-${t}`); if(target) target.classList.remove('hidden');
     const tabBtn = document.getElementById(`tab-${t}`); if(tabBtn) tabBtn.classList.add('tab-active'); 
-    if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
-    if (t === 'pantry') renderPantry();
+    
+    const footer = document.getElementById('cart-footer');
+    const fabContainer = document.getElementById('fab-container');
+    if (t !== 'shop') { if (footer) footer.classList.add('hidden'); if(fabContainer) fabContainer.classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
+    if (t === 'pantry') { try { renderPantry(); } catch(e) {} }
 }
 
 async function loadDashboard() {
-    document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
-        document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    
-    document.getElementById('btn-add-budget-cat').classList.remove('hidden');
-    
-    if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
-    
     try {
+        document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+        document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
+
+        const isAdmin = currentUser.role === 'ADMIN';
+        
+        if(isAdmin) { 
+            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'btn-add-budget-cat'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+            document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
+        } else { 
+            ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+            document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
+            document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
+        }
+        
+        if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
+        
         await fetchMembers(); 
         if(isAdmin) fetchPendingUsers(); 
         await fetchData();
         
         const showedWelcome = await checkGlobalSettings();
-        hidePreloader();
+        hidePreloader(); // המסך יורד בוודאות אם הכל עבר
         
         setTimeout(() => {
             const tourKey = `ofl_tour_v3_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
             if (forceTourStart || !localStorage.getItem(tourKey)) {
-                localStorage.setItem(tourKey, 'true');
+                localStorage.setItem(tourKey, 'done');
                 if (!showedWelcome) {
                     if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour();
                 }
             }
         }, 1000);
-    } catch (e) {
-        hidePreloader(); // וידוא הורדת מסך במקרה שגיאה
+    } catch(e) {
+        console.error(e);
+        hidePreloader(); // במקרה של שגיאה - נוריד את מסך הטעינה כדי לא להיתקע
     }
 }
 
@@ -336,10 +321,10 @@ async function loadSAData() {
         }
 
         document.getElementById('sa-welcome-msg').value = data.welcomeMsg || '';
-        document.getElementById('sa-ad-banner-text-top').value = data.adBannerText || '';
-        document.getElementById('sa-ad-banner-link-top').value = data.adBannerLink || '';
-        document.getElementById('sa-ad-banner-text-bottom').value = data.adBannerBottomText || '';
-        document.getElementById('sa-ad-banner-link-bottom').value = data.adBannerBottomLink || '';
+        document.getElementById('sa-ad-banner-text-top').value = data.adBannerTextTop || '';
+        document.getElementById('sa-ad-banner-link-top').value = data.adBannerLinkTop || '';
+        document.getElementById('sa-ad-banner-text-bottom').value = data.adBannerTextBottom || '';
+        document.getElementById('sa-ad-banner-link-bottom').value = data.adBannerLinkBottom || '';
         
         const actList = document.getElementById('sa-activity-list');
         actList.innerHTML = data.activity.map(a => {
@@ -398,10 +383,10 @@ async function saveGlobalSettings() {
         headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
         body: JSON.stringify({ 
             welcomeMsg: msg, 
-            adBannerText: bannerTextTop, 
-            adBannerLink: bannerLinkTop,
-            adBannerBottomText: bannerTextBottom,
-            adBannerBottomLink: bannerLinkBottom
+            adBannerTextTop: bannerTextTop, 
+            adBannerLinkTop: bannerLinkTop,
+            adBannerTextBottom: bannerTextBottom,
+            adBannerLinkBottom: bannerLinkBottom
         })
     });
     showToast('success', 'הגדרות המערכת נשמרו בהצלחה!');
@@ -417,16 +402,16 @@ async function checkGlobalSettings() {
         const adTextTop = document.getElementById('ad-banner-text-top');
         const adLinkTop = document.getElementById('ad-banner-link-top');
         
-        if (config.ad_banner_text && config.ad_banner_text.trim() !== '') {
-            adTextTop.innerText = config.ad_banner_text;
-            if (config.ad_banner_link && config.ad_banner_link.trim() !== '') {
-                adLinkTop.href = config.ad_banner_link;
+        if (config.ad_banner_text_top && config.ad_banner_text_top.trim() !== '') {
+            if(adTextTop) adTextTop.innerText = config.ad_banner_text_top;
+            if (config.ad_banner_link_top && config.ad_banner_link_top.trim() !== '') {
+                if(adLinkTop) adLinkTop.href = config.ad_banner_link_top;
             } else {
-                adLinkTop.removeAttribute('href');
+                if(adLinkTop) adLinkTop.removeAttribute('href');
             }
-            adBannerTop.classList.remove('hidden');
+            if(adBannerTop) adBannerTop.classList.remove('hidden');
         } else {
-            adBannerTop.classList.add('hidden');
+            if(adBannerTop) adBannerTop.classList.add('hidden');
         }
 
         // Bottom Ad Banner
@@ -434,28 +419,30 @@ async function checkGlobalSettings() {
         const adTextBottom = document.getElementById('ad-banner-text-bottom');
         const adLinkBottom = document.getElementById('ad-banner-link-bottom');
         
-        if (config.ad_banner_bottom_text && config.ad_banner_bottom_text.trim() !== '') {
-            adTextBottom.innerText = config.ad_banner_bottom_text;
-            if (config.ad_banner_bottom_link && config.ad_banner_bottom_link.trim() !== '') {
-                adLinkBottom.href = config.ad_banner_bottom_link;
+        if (config.ad_banner_text_bottom && config.ad_banner_text_bottom.trim() !== '') {
+            if(adTextBottom) adTextBottom.innerText = config.ad_banner_text_bottom;
+            if (config.ad_banner_link_bottom && config.ad_banner_link_bottom.trim() !== '') {
+                if(adLinkBottom) adLinkBottom.href = config.ad_banner_link_bottom;
             } else {
-                adLinkBottom.removeAttribute('href');
+                if(adLinkBottom) adLinkBottom.removeAttribute('href');
             }
-            adBannerBottom.classList.remove('hidden');
+            if(adBannerBottom) adBannerBottom.classList.remove('hidden');
         } else {
-            adBannerBottom.classList.add('hidden');
+            if(adBannerBottom) adBannerBottom.classList.add('hidden');
         }
 
         // Welcome Msg
         if (config.welcome_msg && config.welcome_msg.trim() !== '') {
             const tourKey = `ofl_welcome_${currentUser.id}_${currentGroup.group_code}`;
             if (localStorage.getItem(tourKey) !== config.welcome_msg) {
-                document.getElementById('welcome-modal-text').innerText = config.welcome_msg;
-                document.getElementById('welcome-modal').classList.remove('hidden');
+                const wm = document.getElementById('welcome-modal-text');
+                if(wm) wm.innerText = config.welcome_msg;
+                const mw = document.getElementById('welcome-modal');
+                if(mw) mw.classList.remove('hidden');
                 localStorage.setItem(tourKey, config.welcome_msg); return true;
             }
         }
-    } catch(e) {} return false;
+    } catch(e) { console.error(e); } return false;
 }
 
 function closeWelcomeModal() {
@@ -483,8 +470,7 @@ function startAdminTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג',
         showProgress: true, rtl: true, hidePrev: false, showBullets: true,
-        scrollToElement: true,
-        disableInteraction: true,
+        scrollToElement: true, disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "אני familAI, העוזרת הדיגיטלית שלכם. בואו נעשה סיור קצר ונלמד איך לנהל את הכלכלה המשפחתית בקלות!" },
             { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו תמיד את היתרה הפנויה של המשפחה. כשהמספר ירוק - הכל מצוין!", position: 'bottom' },
@@ -495,8 +481,8 @@ function startAdminTour() {
             { element: '#tab-bank', title: "הבנק המשפחתי 🏦", intro: "כאן תוכלו לחלק דמי כיס לילדים בלחיצת כפתור, להגדיר להם ריביות, ולעקוב אחרי יעדי החיסכון שלהם." },
             { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "ידע שווה כסף! אני איצור עבור הילדים אתגרים ומבחנים, ומי שיענה נכון יזכה בבונוסים כספיים." },
             { element: '#tab-budget', title: "ניהול תקציב 📊", intro: "הגדירו יעדים חודשיים לכל סוג של הוצאה (כמו דלק או מסעדות) ואני אעזור לכם לעמוד בהם." },
-            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "הגדירו לילדים משימות בבית (כמו לסדר את החדר) עם תגמול כספי. הם יצלמו שסיימו, ואני אאשר להם את התשלום!" },
-            { element: '#tab-members', title: "בני הבית 👨‍👩‍👧‍👦", intro: "כאן מזמינים את שאר בני המשפחה. שלחו להם קישור בוואטסאפ והתחילו לנהל את הכסף יחד!" }
+            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "הגדירו לילדים משימות בבית עם תגמול כספי. הם יצלמו שסיימו, ואני אאשר להם את התשלום!" },
+            { element: '#tab-members', title: "בני הבית 👨‍👩‍👧‍👦", intro: "כאן מזמינים את שאר בני המשפחה ומנהלים את החשבונות שלהם." }
         ]
     });
 
@@ -524,10 +510,7 @@ function startAdminTour() {
             }
         }
         
-        return new Promise(resolve => setTimeout(() => {
-            intro.refresh(); 
-            resolve();
-        }, 150));
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -539,16 +522,15 @@ function startChildTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג',
         showProgress: true, rtl: true, hidePrev: false, showBullets: true,
-        scrollToElement: true,
-        disableInteraction: true,
+        scrollToElement: true, disableInteraction: true,
         steps: [
             { title: "היי! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
             { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תמיד תראו כמה כסף יש לכם בחשבון ברגע זה.", position: 'bottom' },
             { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים." },
             { element: '#tab-recipes', title: "שף AI 🍳", intro: "בואו תגלו איזה אוכל טעים אפשר להכין ממה שיש עכשיו במזווה!" },
-            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את דמי הכיס שלכם ותפתחו 'קופות חיסכון' לדברים שאתם חולמים לקנות." },
+            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את דמי הכיס שלכם ותפתחו קופות חיסכון לדברים שאתם חולמים לקנות." },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים." },
-            { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "כאן תוכלו לעקוב אחרי ההוצאות שלכם מול היעדים שהוגדרו ולשלוט בכסף שלכם." },
+            { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "כאן תוכלו לעקוב אחרי ההוצאות שלכם מול היעדים." },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!" }
         ]
     });
@@ -575,10 +557,7 @@ function startChildTour() {
             }
         }
         
-        return new Promise(resolve => setTimeout(() => {
-            intro.refresh(); 
-            resolve();
-        }, 150));
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -651,40 +630,4 @@ async function fetchData() {
                 if(data.goals && data.goals.length > 0) { 
                     if(goalsContainer) goalsContainer.classList.remove('hidden'); 
                     data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
-            }
-        } catch(e) { console.error('Goals err:', e); }
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-            }
-        } catch(e) { console.error('Stats err:', e); }
-
-        try {
-            const limit = currentUser.role === 'ADMIN' ? 50 : 20; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) allTransactions = Array.isArray(await transRes.json()) ? await transRes.json() : [];
-        } catch(e) { allTransactions = []; console.error('Transactions err:', e); }
-
-        try { renderChildTodo(); buildAndRenderFeed(); } catch(e) { console.error('Feed err:', e); }
-    } catch(e) { console.error('FetchData err:', e); }
-}
-
-function showFamilAIModal(title, text) {
-    document.getElementById('familai-advisor-modal').classList.remove('hidden'); document.getElementById('familai-modal-subtitle').innerText = title;
-    if (text) { document.getElementById('familai-advisor-loading').classList.add('hidden'); document.getElementById('familai-advice-text').innerText = text; document.getElementById('familai-advisor-content').classList.remove('hidden'); } 
-    else { document.getElementById('familai-advisor-loading').classList.remove('hidden'); document.getElementById('familai-advisor-content').classList.add('hidden'); }
-}
-
-function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
-async function generateAIQuiz() {
-    const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
-    try {
-        const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup:
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-
