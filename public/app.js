@@ -6,7 +6,6 @@ introStyle.innerHTML = `
         z-index: 9999998 !important;
         transform: none !important;
     }
-    /* ביטול position: static כדי לא להרוס את מיקום ה-FAB */
     .introjs-fixParent {
         z-index: auto !important;
         opacity: 1.0 !important;
@@ -30,24 +29,17 @@ introStyle.innerHTML = `
 
     /* 🔥 התיקון המנצח למובייל: הבועה תמיד במרכז המסך ולא בורחת בגלל כיוון ימין-לשמאל 🔥 */
     @media (max-width: 768px) {
-        .introjs-tooltipReferenceLayer {
+        .introjs-tooltip {
             position: fixed !important;
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
             margin: 0 !important;
-            right: auto !important;
-            bottom: auto !important;
             width: 90vw !important;
-        }
-        .introjs-tooltip {
-            position: relative !important;
             max-width: 350px !important;
-            margin: 0 auto !important;
-            left: auto !important;
             right: auto !important;
-            top: auto !important;
             bottom: auto !important;
+            z-index: 9999999 !important;
         }
         .introjs-arrow { display: none !important; } /* הסתרת החץ כי הבועה מרכזית */
     }
@@ -133,6 +125,30 @@ window.onload = async () => {
         hidePreloaderAndShowAuth('login');
     }
 };
+
+// --- ACCESSIBILITY LOGIC ---
+let currentFontSize = 1.0;
+function toggleAccessibilityMenu() {
+    const modal = document.getElementById('accessibility-modal');
+    modal.classList.toggle('hidden');
+}
+
+function changeFontSize(delta) {
+    currentFontSize *= delta;
+    if (currentFontSize > 1.5) currentFontSize = 1.5;
+    if (currentFontSize < 0.8) currentFontSize = 0.8;
+    document.documentElement.style.fontSize = `${currentFontSize * 100}%`;
+}
+
+function toggleAccessFeature(className) {
+    document.body.classList.toggle(className);
+}
+
+function resetAccessibility() {
+    currentFontSize = 1.0;
+    document.documentElement.style.fontSize = '100%';
+    document.body.classList.remove('acc-contrast', 'acc-grayscale', 'acc-underlines', 'acc-readable-font');
+}
 
 // --- SUPER ADMIN LOGIC ---
 async function handleSALogin(e) {
@@ -906,7 +922,7 @@ async function submitAnswer(selectedIdx) {
     setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000);
 }
 
-async function finishQuiz() {
+async function finishQuiz(userId) {
     const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold;
     document.getElementById('question-container').classList.add('hidden'); document.getElementById('quiz-text-container').classList.add('hidden'); document.getElementById('quiz-result').classList.remove('hidden');
     document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚'; document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...'; document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
