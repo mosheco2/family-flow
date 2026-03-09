@@ -103,30 +103,20 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link', 'ad_banner_bottom_text', 'ad_banner_bottom_link')");
         
         let unifiedActivity = [];
         
         activity.rows.forEach(a => {
             unifiedActivity.push({
-                date: a.date,
-                group_name: a.group_name,
-                user_name: a.user_name,
-                description: a.description,
-                amount: a.amount,
-                is_financial: true
+                date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true
             });
         });
         
         groups.rows.forEach(g => {
             const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
             unifiedActivity.push({
-                date: g.created_at,
-                group_name: g.name,
-                user_name: adminUser ? adminUser.nickname : 'מנהל',
-                description: '🎉 פתח/ה משפחה חדשה',
-                amount: 0,
-                is_financial: false
+                date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה משפחה חדשה', amount: 0, is_financial: false
             });
         });
         
@@ -138,23 +128,19 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             activity: unifiedActivity.slice(0, 50),
             welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '',
             adBannerText: settings.rows.find(r => r.key === 'ad_banner_text')?.value || '',
-            adBannerLink: settings.rows.find(r => r.key === 'ad_banner_link')?.value || ''
+            adBannerLink: settings.rows.find(r => r.key === 'ad_banner_link')?.value || '',
+            adBannerBottomText: settings.rows.find(r => r.key === 'ad_banner_bottom_text')?.value || '',
+            adBannerBottomLink: settings.rows.find(r => r.key === 'ad_banner_bottom_link')?.value || ''
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.delete('/api/superadmin/groups/:id', verifySA, async (req, res) => {
-    try {
-        await pool.query('DELETE FROM family_groups WHERE id=$1', [req.params.id]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try { await pool.query('DELETE FROM family_groups WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
-    try {
-        await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.post('/api/superadmin/settings', verifySA, async (req, res) => {
@@ -162,19 +148,20 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
         if (req.body.adBannerText !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerText]);
         if (req.body.adBannerLink !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLink]);
+        if (req.body.adBannerBottomText !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_bottom_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerBottomText]);
+        if (req.body.adBannerBottomLink !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_bottom_link', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerBottomLink]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/settings/config', async (req, res) => {
     try {
-        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link')");
+        const s = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text', 'ad_banner_link', 'ad_banner_bottom_text', 'ad_banner_bottom_link')");
         const config = {};
         s.rows.forEach(r => config[r.key] = r.value);
         res.json(config);
     } catch(e) { res.status(500).json({error: e.message}); }
 });
-
 
 // --- AI ENDPOINTS ---
 app.post('/api/academy/ai-generate', async (req, res) => {
@@ -258,13 +245,12 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// NEW ENDPOINT: Recipes Generator
+// RECIPES GENERATOR AI
 app.post('/api/recipes/generate', async (req, res) => {
     try {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const { groupId, mealType, diners, extraIngredients } = req.body;
         
-        // Fetch current pantry items
         const pantryRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id=$1', [groupId]);
         const pantryItems = pantryRes.rows.map(r => `${r.item_name} (${r.quantity})`).join(', ');
 
@@ -281,7 +267,6 @@ app.post('/api/recipes/generate', async (req, res) => {
         res.json({ success: true, recipes: JSON.parse(result.response.text()) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
