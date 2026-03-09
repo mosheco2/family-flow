@@ -878,15 +878,16 @@ app.post('/api/recipes/generate', async (req, res) => {
         if (ignorePantry) {
             prompt += `Use primarily these ingredients: ${customIngredients}.\n`;
         } else {
-            prompt += `The family has these items in their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic pantry staples (salt, pepper, olive oil, water) are available.\n`;
+            prompt += `The family wants to use these specific items from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic pantry staples (salt, pepper, olive oil, water) are available.\n`;
         }
         
         prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging!`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        
+        // התיקון כאן: משיכת הטקסט בצורה בטוחה
+        const text = result.response.text();
 
         res.json({ success: true, recipe: text });
     } catch (error) {
