@@ -97,21 +97,29 @@
         <!-- AUTH CONTAINER -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
             <!-- אזור התמונה - מעוצב ככרטיס אשראי יוקרתי -->
-            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950 sm:rounded-b-[3rem] rounded-b-[2.5rem] shadow-2xl pt-14 pb-10 flex-shrink-0 border-b-4 border-blue-500">
-                <!-- אלמנטים גרפיים של כרטיס אשראי -->
-                <i class="fa-solid fa-wifi absolute top-8 right-8 text-3xl text-white/20 rotate-90"></i>
-                <i class="fa-solid fa-microchip absolute top-8 left-8 text-4xl text-yellow-400/40 drop-shadow-sm"></i>
+            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950 sm:rounded-b-[3rem] rounded-b-[2.5rem] shadow-2xl pt-12 pb-8 flex-shrink-0 border-b-4 border-blue-500">
+                <!-- רקע לכרטיס -->
                 <div class="absolute -left-10 -bottom-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
                 <div class="absolute -right-10 -top-10 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl"></div>
                 
-                <div class="relative z-10 mt-2">
-                    <div class="bg-white/10 backdrop-blur-md p-4 rounded-3xl inline-block border border-white/10 mb-4 shadow-inner">
-                        <img src="logo.png" alt="Logo" class="w-32 h-auto object-contain drop-shadow-2xl transition-transform hover:scale-105" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
-                        <div id="auth-logo-fallback" class="w-20 h-20 flex items-center justify-center text-4xl text-white hidden"><i class="fa-solid fa-wallet"></i></div>
+                <!-- אלמנטים של כרטיס אשראי -->
+                <div class="flex justify-between items-start w-full px-2 mb-4 relative z-10">
+                    <i class="fa-solid fa-microchip text-4xl text-yellow-400/80 drop-shadow-sm"></i>
+                    <i class="fa-solid fa-wifi text-3xl text-white/40 rotate-90"></i>
+                </div>
+                
+                <div class="relative z-10 mb-4 text-left px-2">
+                     <div class="text-slate-300 font-mono text-xl tracking-[0.2em] opacity-90 dir-ltr text-left">**** **** **** 2026</div>
+                </div>
+                
+                <div class="relative z-10 flex justify-between items-end px-2">
+                    <div class="text-left dir-ltr">
+                        <div class="text-[8px] text-slate-400 uppercase tracking-wider mb-0.5 text-left">Valid Thru</div>
+                        <div class="text-sm text-slate-200 font-mono text-left">12/30</div>
                     </div>
-                    <div class="flex flex-col items-center">
-                        <span class="text-blue-400 text-[10px] font-mono tracking-widest uppercase mb-1 font-bold">Oneflow Family Card</span>
-                        <h1 class="text-white text-lg font-bold tracking-wide">ניהול פיננסי חכם למשפחה</h1>
+                    <div class="flex flex-col items-end">
+                        <span class="text-blue-400 text-[10px] font-mono tracking-widest uppercase mb-1 font-bold">Oneflow Family</span>
+                        <h1 class="text-white text-sm font-bold tracking-wide">ניהול פיננסי חכם</h1>
                     </div>
                 </div>
             </div>
@@ -124,7 +132,7 @@
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
                     <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
                         <span id="btn-login-text">כניסה</span>
-                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                        <span id="btn-login-loader" class="hidden"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3 pb-8">
@@ -217,17 +225,25 @@
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <!-- Welcome Msg Editor -->
+                    <!-- Global Settings Editor -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
-                        <textarea id="sa-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
-                        <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הגדרות מערכת</h2>
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">הודעת פתיחה גלובלית (פופ-אפ):</label>
+                        <textarea id="sa-welcome-msg" class="w-full p-3 rounded-xl border border-slate-300 h-24 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">טקסט לבאנר עליון (פרסומת/הודעה):</label>
+                        <input type="text" id="sa-ad-banner-text" class="w-full p-3 rounded-xl border border-slate-300 mb-3 text-sm" placeholder="למשל: סדנה חדשה להתנהלות פיננסית...">
+                        
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לבאנר עליון (אופציונלי):</label>
+                        <input type="url" id="sa-ad-banner-link" class="w-full p-3 rounded-xl border border-slate-300 mb-4 text-sm" placeholder="https://...">
+
+                        <button onclick="saveGlobalSettings()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הגדרות</button>
                     </div>
                     
                     <!-- Recent Activity -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה</h2>
-                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
+                        <div id="sa-activity-list" class="space-y-2 h-80 overflow-y-auto pr-2"></div>
                     </div>
                 </div>
 
@@ -240,7 +256,16 @@
 
         <!-- MAIN DASHBOARD CONTAINER -->
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
-            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
+            
+            <!-- GLOBAL NARROW AD BANNER -->
+            <div id="global-ad-banner" class="hidden bg-indigo-600 text-white text-center py-1.5 px-4 text-xs font-bold shadow-md z-40 sticky top-0 w-full">
+                <a id="ad-banner-link" href="#" target="_blank" class="hover:underline flex items-center justify-center gap-2">
+                    <span id="ad-banner-text"></span>
+                    <i class="fa-solid fa-external-link-alt text-[10px]"></i>
+                </a>
+            </div>
+
+            <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
                     <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
                         <i class="fa-solid fa-bars"></i> תפריט
@@ -260,6 +285,7 @@
                         <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                         <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
                         <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מזווה 📦</button>
+                        <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn">מתכונים 🍳</button>
                         <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
                         <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                         <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
@@ -327,6 +353,41 @@
                         <button onclick="openPantryModal()" class="w-full mt-4 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold transition hover:bg-slate-100"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
                     </div>
                     <div id="pantry-list" class="space-y-3 pb-20"></div>
+                </div>
+
+                <!-- RECIPES TAB (NEW) -->
+                <div id="content-recipes" class="hidden">
+                    <div class="bg-gradient-to-r from-orange-400 to-amber-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                        <h3 class="text-xl font-bold mb-1">שף AI 🍳</h3>
+                        <p class="text-orange-50 text-xs opacity-90">מה אוכלים היום? המזווה שלכם, המתכונים שלי!</p>
+                        <i class="fa-solid fa-utensils absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                    </div>
+                    <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 mb-4">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 mb-1 block">איזו ארוחה?</label>
+                                <select id="recipe-meal-type" class="modern-input py-2 text-sm bg-slate-50">
+                                    <option value="בוקר">בוקר</option>
+                                    <option value="צהריים">צהריים</option>
+                                    <option value="ערב">ערב</option>
+                                    <option value="נשנוש">נשנוש / אחר</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 mb-1 block">לכמה אנשים?</label>
+                                <input type="number" id="recipe-diners" class="modern-input py-2 text-sm bg-slate-50" value="4" min="1">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 mb-1 block">מרכיבים מיוחדים להוסיף? (אופציונלי)</label>
+                                <input type="text" id="recipe-extra" class="modern-input py-2 text-sm bg-slate-50" placeholder="למשל: תפוחי אדמה, פטריות...">
+                            </div>
+                            <button onclick="generateRecipes()" id="btn-recipe-gen" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 transition flex items-center justify-center gap-2">
+                                <span id="btn-recipe-gen-text">הצע לי מתכונים!</span>
+                                <span id="btn-recipe-gen-loader" class="hidden"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="recipes-results" class="hidden space-y-4 pb-20"></div>
                 </div>
 
                 <!-- ACADEMY TAB -->
@@ -458,7 +519,7 @@
             </div>
         </div>
 
-        <!-- OTHER MODALS (Quiz,AI,Goals,Budget) remain same but in the DOM below -->
+        <!-- OTHER MODALS -->
         <!-- Quiz Modal -->
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-50 flex flex-col items-center justify-center p-6">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative text-center">
