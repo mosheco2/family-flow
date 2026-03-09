@@ -298,28 +298,39 @@ function startChildTour() {
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
             { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
-            { element: '#tour-bank-card', title: "החשבון שלי 🏦", intro: "כאן תראו את תנאי דמי הכיס שלכם והריבית שתקבלו על חסכונות.", position: 'bottom' },
-            { element: '#tour-child-goals', title: "יעדי חיסכון 🎯", intro: "תפתחו קופות חיסכון למטרות שונות, ו-familAI תעזור לכם להגיע אליהן!", position: 'bottom' },
-            { element: '#btn-self-task', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!", position: 'bottom' },
-            { element: '#academy-user-view', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים.", position: 'bottom' },
-            { element: '#content-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים.", position: 'top' }
+            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!", position: 'bottom' },
+            { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים.", position: 'bottom' },
+            { element: '#tab-budget', title: "מעקב תקציב 📊", intro: "כאן תוכלו לעקוב אחרי ההוצאות שלכם מול היעדים שהוגדרו ולשלוט בכסף שלכם.", position: 'bottom' },
+            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לכם משהו טעים? בקשו להוסיף אותו לרשימת הקניות של ההורים.", position: 'bottom' }
         ]
     });
 
     intro.onbeforechange(function(targetElement) { 
-        if(!targetElement || !targetElement.closest) return;
+        if(!targetElement) return;
+        const id = targetElement.id;
 
-        // החלפת טאבים חכמה לפי הכפתור/תוכן שהסיור מנסה להאיר!
-        if(targetElement.closest('#content-bank') || targetElement.id === 'tour-bank-card' || targetElement.id === 'tour-child-goals') switchTab('bank'); 
-        else if(targetElement.closest('#content-tasks') || targetElement.id === 'btn-self-task') switchTab('tasks'); 
-        else if(targetElement.closest('#content-academy') || targetElement.id === 'academy-user-view') switchTab('academy'); 
-        else if(targetElement.closest('#content-shop')) switchTab('shop'); 
+        if(id === 'tab-bank') switchTab('bank'); 
+        else if(id === 'tab-tasks') switchTab('tasks'); 
+        else if(id === 'tab-academy') switchTab('academy'); 
+        else if(id === 'tab-budget') switchTab('budget'); 
+        else if(id === 'tab-shop') switchTab('shop'); 
         else switchTab('feed'); 
+        
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
+            const scrollContainer = document.getElementById('slider-scroll');
+            if (scrollContainer) {
+                scrollContainer.style.scrollBehavior = 'auto'; // ביטול זמני של ההחלקה
+                const scrollPos = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2);
+                scrollContainer.scrollLeft = scrollPos;
+                setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); // החזרת ההחלקה
+            }
+        }
         
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 200));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
