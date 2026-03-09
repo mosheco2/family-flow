@@ -1,4 +1,4 @@
-// תיקון סגנונות מדויק לסיור - מונע התנגשויות של אנימציות מבלי לשבור את מיקום הבועה
+// תיקון סגנונות הרמטי לסיור - מונע התנגשויות אנימציה ומקבע את הבועה למרכז במובייל
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
     .introjs-fixParent {
@@ -9,21 +9,36 @@ introStyle.innerHTML = `
     }
     .introjs-showElement {
         position: relative !important;
-        transform: none !important;
         z-index: 9999998 !important;
     }
-    /* שחרור אלמנטים מוסתרים כדי שהבועה לא תיחתך */
     body.introjs-active .overflow-hidden {
         overflow: visible !important;
     }
-    /* מניעת הסתרה ע"י ההדר העליון */
     body.introjs-active header.sticky {
         z-index: auto !important;
     }
     .introjs-overlay { z-index: 9999996 !important; }
     .introjs-helperLayer { z-index: 9999997 !important; }
-    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
-    .introjs-tooltip { z-index: 9999999 !important; }
+    
+    /* ✨ הפיתרון המנצח למובייל ✨ */
+    /* מנתק את הבועה ממיקום האלמנט כדי למנוע היעלמות שלה מחוץ למסך בגלל סרגלי גלילה */
+    @media (max-width: 768px) {
+        .introjs-tooltip {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+            width: 90vw !important;
+            max-width: 350px !important;
+            bottom: auto !important;
+            right: auto !important;
+            z-index: 9999999 !important;
+        }
+        .introjs-arrow {
+            display: none !important; /* מסתיר את החץ מאחר והבועה מרכזית כעת */
+        }
+    }
 `;
 document.head.appendChild(introStyle);
 
@@ -264,7 +279,7 @@ function startAdminTour() {
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life. בואו נעשה סיור קצר כדי להכיר את המערכת." },
             { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה הייחודי שלכם - אותו תשלחו לשאר בני הבית. לחיצה על כפתור 'תפריט' תאפשר לשנות סיסמה ולהפעיל את הסיור מחדש.", position: 'bottom' },
-            { element: '#tour-balance-card', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תראו את היתרה הפנויה של המשפחה בכל רגע נתון.", position: 'bottom' },
             { element: '#fab-container', title: "הוספה מהירה ⚡", intro: "לחיצה כאן תאפשר לכם לרשום הוצאה או הכנסה מכל מסך באפליקציה.", position: 'top' },
             { element: '#tab-bank', title: "ניהול הבנק 🏦", intro: "כאן תוכלו לחלק דמי כיס וריביות לכל הילדים בלחיצת כפתור אחת, ולעקוב אחרי החסכונות שלהם.", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות לילדים ✅", intro: "הגדירו משימות בבית ותמחרו אותן. הילדים יצלמו את הביצוע ו-familAI תאשר את העברת התגמול לארנק שלהם!", position: 'bottom' },
@@ -278,7 +293,7 @@ function startAdminTour() {
         if(!targetElement) return;
         const id = targetElement.id;
         
-        // החלפת טאבים בהתאם לצעד בסיור
+        // החלפת טאבים בהתאם לצעד בסיור כדי שהמשתמש יראה את התוכן במקום את הכפתור המוסתר
         if(id === 'tab-bank') switchTab('bank'); 
         else if(id === 'tab-tasks') switchTab('tasks'); 
         else if(id === 'tab-academy') switchTab('academy'); 
@@ -286,7 +301,7 @@ function startAdminTour() {
         else if(id === 'tab-members') switchTab('members'); 
         else switchTab('feed'); 
         
-        // גלילה מיידית וללא החלקה (Smooth) כדי שההארה תהיה מדויקת
+        // גלילה אוטומטית של תפריט הטאבים אם הוא מחוץ למסך
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
@@ -300,7 +315,7 @@ function startAdminTour() {
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 100)); // ממתין רגע כדי שהדפדפן יתייצב
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
@@ -316,7 +331,7 @@ function startChildTour() {
         disableInteraction: false,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "מוכנים לנהל את הכסף שלכם כמו גדולים? בואו נכיר את האפליקציה!" },
-            { element: '#tour-balance-card', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק שלי 💳", intro: "כאן תוכלו לראות בדיוק כמה כסף פנוי יש לכם עכשיו בחשבון.", position: 'bottom' },
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "כאן תראו את תנאי דמי הכיס ותפתחו 'קופות חיסכון' למטרות שונות.", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "ההורים ביקשו עזרה? סיימו משימות, צלמו אותן - וקבלו תגמול ישר לארנק!", position: 'bottom' },
             { element: '#tab-academy', title: "האקדמיה הפיננסית 🎓", intro: "בצעו אתגרי למידה קצרים ומעניינים ותרוויחו בונוסים שווים.", position: 'bottom' },
@@ -334,6 +349,7 @@ function startChildTour() {
         else if(id === 'tab-shop') switchTab('shop'); 
         else switchTab('feed'); 
         
+        // גלילה אוטומטית של תפריט הטאבים
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) {
             const scrollContainer = document.getElementById('slider-scroll');
             if (scrollContainer) {
@@ -347,7 +363,7 @@ function startChildTour() {
         return new Promise(resolve => setTimeout(() => {
             intro.refresh(); 
             resolve();
-        }, 100));
+        }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed'));
     intro.start();
