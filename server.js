@@ -802,7 +802,7 @@ app.post('/api/loans/action', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         await dbClient.query('BEGIN');
-        const { loanId, action } = req.body; // 'approve' or 'reject'
+        const { loanId, action } = req.body;
         const l = (await dbClient.query('SELECT * FROM loans WHERE id=$1', [loanId])).rows[0];
         if (action === 'approve') {
             await dbClient.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
