@@ -1099,35 +1099,53 @@ async function fetchBanners() {
         const res = await fetch(`${API}/banners`);
         const data = await res.json();
         if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link');
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link');
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImage = document.getElementById('sa-banner-top-image');
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImage = document.getElementById('sa-banner-bottom-image');
+            
+            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
+            if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
+            if(saTopImage) saTopImage.value = data.banners.banner_top_image || '';
+            
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
+            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+            if(saBottomImage) saBottomImage.value = data.banners.banner_bottom_image || '';
 
-            const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
-            if(appTop) {
-                if(data.banners.banner_top_text) {
-                    appTop.innerText = data.banners.banner_top_text; appTop.href = data.banners.banner_top_link || '#';
-                    if(!data.banners.banner_top_link) { appTop.removeAttribute('target'); appTop.style.cursor = 'default'; } else { appTop.target = '_blank'; appTop.style.cursor = 'pointer'; }
-                    appTop.classList.remove('hidden');
-                } else { appTop.classList.add('hidden'); }
-            }
-            if(appBottom) {
-                if(data.banners.banner_bottom_text) {
-                    appBottom.innerText = data.banners.banner_bottom_text; appBottom.href = data.banners.banner_bottom_link || '#';
-                    if(!data.banners.banner_bottom_link) { appBottom.removeAttribute('target'); appBottom.style.cursor = 'default'; } else { appBottom.target = '_blank'; appBottom.style.cursor = 'pointer'; }
-                    appBottom.classList.remove('hidden');
-                } else { appBottom.classList.add('hidden'); }
-            }
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
+            
+            const updateAppBanner = (el, text, link, image, baseClasses) => {
+                if(!el) return;
+                if(text || image) {
+                    el.href = link || '#';
+                    el.target = link ? '_blank' : '';
+                    el.style.cursor = link ? 'pointer' : 'default';
+                    el.classList.remove('hidden');
+                    
+                    if(image) {
+                        el.className = "w-full block shadow-sm mb-4 hover:opacity-90 transition relative overflow-hidden rounded-xl bg-slate-100 min-h-[40px] flex items-center justify-center";
+                        let inner = `<img src="/${image}" class="w-full h-auto max-h-24 object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('bg-pink-500');">`;
+                        if(text) inner += `<div class="absolute inset-0 flex items-center justify-center bg-black/30 p-2"><span class="text-white font-bold text-sm text-center drop-shadow-md">${text}</span></div>`;
+                        el.innerHTML = inner;
+                    } else {
+                        el.className = baseClasses;
+                        el.innerHTML = text;
+                    }
+                } else {
+                    el.classList.add('hidden');
+                }
+            };
+
+            updateAppBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image, "bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center py-2 px-4 text-xs font-bold w-full block shadow-sm mb-4 hover:opacity-90 transition rounded-xl");
+            updateAppBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image, "bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center py-3 px-4 text-sm font-bold w-full block rounded-2xl shadow-lg hover:opacity-90 transition mb-6");
         }
     } catch(e) {}
 }
 
 async function saveBanners() {
-    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link');
-    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link');
+    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImage = val('sa-banner-top-image');
+    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImage = val('sa-banner-bottom-image');
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, bottomText, bottomLink }) });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, topImage, bottomText, bottomLink, bottomImage }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
