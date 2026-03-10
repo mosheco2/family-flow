@@ -26,6 +26,29 @@ const pool = new Pool({
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
+      
+      // מנגנון ריפוי עצמי למסד הנתונים - לא פוגע בנתונים קיימים!
+      try {
+          await client.query(`
+              CREATE TABLE IF NOT EXISTS loans (
+                  id SERIAL PRIMARY KEY,
+                  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                  group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                  original_amount DECIMAL(10,2),
+                  remaining_amount DECIMAL(10,2),
+                  reason VARCHAR(255),
+                  status VARCHAR(20) DEFAULT 'pending',
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              );
+              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10;
+              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE;
+              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
+          `);
+          console.log('✅ Safe DB Migration Completed - All tables up to date');
+      } catch(e) {
+          console.error('DB Migration Warning:', e.message);
+      }
+      
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -101,7 +124,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (AI Tokens added)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -815,7 +838,6 @@ app.post('/api/loans/action', async (req, res) => {
         res.json({ success: true });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
-
 
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
