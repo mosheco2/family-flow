@@ -965,7 +965,6 @@ async function deleteUser(id, name) {
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
 }
 
-// --- ACCESSIBILITY MODULE ---
 function initAccessibility() {
     const saved = localStorage.getItem('ofl_accessibility');
     if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
@@ -988,7 +987,6 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
 
-// --- RECIPES (AI CHEF) MODULE ---
 function toggleRecipeCustomInput() {
     const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
     if (isIgnored) {
@@ -1078,7 +1076,6 @@ function copyRecipe() {
     } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
 }
 
-// --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
     try {
         const res = await fetch(`${API}/banners`);
