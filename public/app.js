@@ -307,11 +307,26 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
 
 async function upgradeToPremium() {
-    showToast('success', 'בקרוב! אפשרות השדרוג תפתח מיד לאחר חיבור מערכת סליקה מאובטחת.');
-    const aiModal = document.getElementById('ai-battery-modal');
-    if (aiModal) aiModal.classList.add('hidden');
-    const profileModal = document.getElementById('profile-modal');
-    if (profileModal) profileModal.classList.add('hidden');
+    const btn = document.getElementById('btn-upgrade-premium');
+    if(btn) { btn.disabled = true; btn.innerText = 'מעביר לתשלום... ⏳'; }
+    const profileBtn = document.getElementById('btn-profile-upgrade');
+    if(profileBtn) { profileBtn.disabled = true; profileBtn.innerText = 'מעביר...'; }
+    try {
+        const res = await fetch(`${API}/premium/simulate-checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id }) });
+        const data = await res.json();
+        if(data.success) {
+            closeAiBatteryModal();
+            document.getElementById('profile-modal').classList.add('hidden');
+            showToast('success', data.message);
+            triggerConfetti();
+            fetchData();
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) { showToast('error', 'תקלה במעבר לתשלום'); } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'שדרגו ל-Pro 🚀'; }
+        if(profileBtn) { profileBtn.disabled = false; profileBtn.innerText = 'שדרגו למנוי פרימיום (9.90₪)'; }
+    }
 }
 
 async function loadDashboard() {
@@ -436,6 +451,44 @@ async function fetchData() {
                         goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
                     }); 
                 } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
+            }
+        } catch(e) {}
+
+        try {
+            const myLoansList = document.getElementById('my-loans-list');
+            const adminLoansList = document.getElementById('admin-loans-list');
+            const adminLoansContainer = document.getElementById('admin-loans-container');
+
+            if(currentUser.role === 'ADMIN') {
+                if(adminLoansList && adminLoansContainer) {
+                    const pendingLoans = data.loans.filter(l => l.status === 'pending');
+                    if(pendingLoans.length > 0) {
+                        adminLoansContainer.classList.remove('hidden');
+                        let lHtml = '';
+                        pendingLoans.forEach(l => {
+                            lHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-purple-100 mb-2"><div><span class="font-bold text-slate-700">${l.user_name} מבקש/ת ₪${l.original_amount}</span><p class="text-xs text-slate-500">למטרה: ${l.reason}</p></div><div class="flex gap-2"><button onclick="handleLoanAction(${l.id}, 'approve')" class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-600 transition shadow-sm"><i class="fa-solid fa-check"></i></button><button onclick="handleLoanAction(${l.id}, 'reject')" class="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-sm"><i class="fa-solid fa-xmark"></i></button></div></div>`;
+                        });
+                        adminLoansList.innerHTML = lHtml;
+                    } else {
+                        adminLoansContainer.classList.add('hidden');
+                    }
+                }
+            } else {
+                if(myLoansList) {
+                    if(data.loans && data.loans.length > 0) {
+                        myLoansList.innerHTML = '';
+                        data.loans.forEach(l => {
+                            let statusHtml = '';
+                            if(l.status === 'pending') statusHtml = '<span class="text-[10px] bg-orange-100 text-orange-600 px-2 py-1 rounded-lg font-bold border border-orange-200">ממתין להורה</span>';
+                            else if(l.status === 'approved') statusHtml = '<span class="text-[10px] bg-green-100 text-green-600 px-2 py-1 rounded-lg font-bold border border-green-200">אושר</span>';
+                            else statusHtml = '<span class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold border border-red-200">נדחה</span>';
+
+                            myLoansList.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div><h4 class="font-bold text-slate-800 text-sm">הלוואה: ₪${l.original_amount}</h4><p class="text-[10px] text-slate-500">למטרה: ${l.reason}</p></div>${statusHtml}</div>`;
+                        });
+                    } else {
+                        myLoansList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא ביקשת הלוואות עדיין</p>';
+                    }
+                }
             }
         } catch(e) {}
         
@@ -893,7 +946,16 @@ function openTransactionModal(t) { document.getElementById('trans-type').value=t
 async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
 function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); fetchData(); }
+async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת הלוואה נשלחה בהצלחה!'); fetchData(); }
+
+async function handleLoanAction(id, action) {
+    try {
+        await fetch(`${API}/loans/action`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId: id, action: action }) });
+        showToast('success', action === 'approve' ? 'ההלוואה אושרה והכסף הועבר לארנק!' : 'בקשת ההלוואה נדחתה');
+        if(action === 'approve') triggerConfetti();
+        fetchData();
+    } catch(e) { showToast('error', 'שגיאה בביצוע הפעולה'); }
+}
 
 async function fetchBudget() {
     const cat = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
@@ -965,6 +1027,7 @@ async function deleteUser(id, name) {
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
 }
 
+// --- ACCESSIBILITY MODULE ---
 function initAccessibility() {
     const saved = localStorage.getItem('ofl_accessibility');
     if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
@@ -987,6 +1050,7 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
 
+// --- RECIPES (AI CHEF) MODULE ---
 function toggleRecipeCustomInput() {
     const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
     if (isIgnored) {
@@ -1076,85 +1140,42 @@ function copyRecipe() {
     } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
 }
 
+// --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
     try {
         const res = await fetch(`${API}/banners`);
         const data = await res.json();
         if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); 
-            const saTopLink = document.getElementById('sa-banner-top-link'); 
-            const saTopImage = document.getElementById('sa-banner-top-image');
-            
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); 
-            const saBottomLink = document.getElementById('sa-banner-bottom-link'); 
-            const saBottomImage = document.getElementById('sa-banner-bottom-image');
-            
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
-            if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
-            if(saTopImage) saTopImage.value = data.banners.banner_top_image || '';
-            
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
-            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
-            if(saBottomImage) saBottomImage.value = data.banners.banner_bottom_image || '';
+            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link');
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link');
+            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
 
-            const appTop = document.getElementById('app-banner-top'); 
-            const appBottom = document.getElementById('app-banner-bottom');
-            
-            const updateAppBanner = (el, text, link, image, baseClasses) => {
-                if(!el) return;
-                if(text || image) {
-                    el.href = link || '#';
-                    el.target = link ? '_blank' : '';
-                    el.style.cursor = link ? 'pointer' : 'default';
-                    el.classList.remove('hidden');
-                    
-                    let innerHtml = '';
-                    
-                    if (image) {
-                        el.className = "w-full block shadow-sm hover:opacity-90 transition relative overflow-hidden rounded-xl bg-white p-3 border border-slate-100 text-center mb-4";
-                        if (text) {
-                            innerHtml += `<div class="w-full text-center font-bold text-slate-800 mb-2">${text}</div>`;
-                        }
-                        innerHtml += `<img src="/${image}" class="w-full h-auto max-h-32 object-contain rounded-lg mx-auto" onerror="this.style.display='none'; this.parentElement.classList.add('bg-pink-500');">`;
-                        el.innerHTML = innerHtml;
-                    } else {
-                        el.className = baseClasses;
-                        el.innerHTML = text;
-                    }
-                } else {
-                    el.classList.add('hidden');
-                }
-            };
-
-            updateAppBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image, "bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center py-2 px-4 text-xs font-bold w-full block shadow-sm mb-4 hover:opacity-90 transition rounded-xl");
-            updateAppBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image, "bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center py-3 px-4 text-sm font-bold w-full block rounded-2xl shadow-lg hover:opacity-90 transition mb-6");
+            const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
+            if(appTop) {
+                if(data.banners.banner_top_text) {
+                    appTop.innerText = data.banners.banner_top_text; appTop.href = data.banners.banner_top_link || '#';
+                    if(!data.banners.banner_top_link) { appTop.removeAttribute('target'); appTop.style.cursor = 'default'; } else { appTop.target = '_blank'; appTop.style.cursor = 'pointer'; }
+                    appTop.classList.remove('hidden');
+                } else { appTop.classList.add('hidden'); }
+            }
+            if(appBottom) {
+                if(data.banners.banner_bottom_text) {
+                    appBottom.innerText = data.banners.banner_bottom_text; appBottom.href = data.banners.banner_bottom_link || '#';
+                    if(!data.banners.banner_bottom_link) { appBottom.removeAttribute('target'); appBottom.style.cursor = 'default'; } else { appBottom.target = '_blank'; appBottom.style.cursor = 'pointer'; }
+                    appBottom.classList.remove('hidden');
+                } else { appBottom.classList.add('hidden'); }
+            }
         }
     } catch(e) {}
 }
 
 async function saveBanners() {
-    const topText = val('sa-banner-top-text'); 
-    const topLink = val('sa-banner-top-link'); 
-    const topImage = val('sa-banner-top-image');
-    
-    const bottomText = val('sa-banner-bottom-text'); 
-    const bottomLink = val('sa-banner-bottom-link'); 
-    const bottomImage = val('sa-banner-bottom-image');
-    
+    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link');
+    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link');
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify({ topText, topLink, topImage, bottomText, bottomLink, bottomImage }) 
-        });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, bottomText, bottomLink }) });
         const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
-            fetchBanners(); 
-        } else { 
-            showToast('error', 'שגיאה בשמירת הבאנרים'); 
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת רשת מול השרת'); 
-    }
+        if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
+    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
