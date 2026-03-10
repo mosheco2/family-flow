@@ -194,7 +194,8 @@ function startAdminTour() {
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים! 👋", intro: "איזה כיף שהצטרפתם ל-Oneflow Life." },
-            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה. לחיצה על 'תפריט' תאפשר לשנות סיסמה ולהפעיל סיור מחדש.", position: 'bottom' },
+            { element: '#tour-header', title: "האזור שלכם", intro: "כאן תראו את קוד המשפחה. לחיצה על 'תפריט' תאפשר לשנות סיסמה, להפעיל סיור מחדש ולנהל את מנוי ה-Pro.", position: 'bottom' },
+            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת פועלת בעזרת בינה מלאכותית. כאן תוכלו לראות כמה בקשות AI נותרו לכם להיום (הסוללה מתמלאת כל לילה).", position: 'bottom' },
             { element: '#user-balance', title: "הארנק המשותף 💳", intro: "היתרה הפנויה של המשפחה.", position: 'bottom' },
             { element: '#tour-fab-btn', title: "הוספה מהירה ⚡", intro: "רישום הוצאה או הכנסה מהיר.", position: 'top' },
             { element: '#tab-shop', title: "סופר חכם 🛒", intro: "רשימת הקניות המשפחתית וסריקת קבלות.", position: 'bottom' },
@@ -222,6 +223,7 @@ function startChildTour() {
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "בואו נכיר את האפליקציה!" },
+            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת שלנו חכמה! כאן אפשר לראות כמה כוח נשאר ל-familAI כדי לעזור לכם היום.", position: 'bottom' },
             { element: '#user-balance', title: "הארנק שלי 💳", intro: "כמה כסף פנוי יש לך עכשיו בחשבון.", position: 'bottom' },
             { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "בקשו להוסיף דברים לרשימת הקניות.", position: 'bottom' },
             { element: '#tab-pantry', title: "מה יש בבית? 📦", intro: "הציצו במזווה לראות מה קיים.", position: 'bottom' },
@@ -305,19 +307,25 @@ function closeAiBatteryModal() { document.getElementById('ai-battery-modal').cla
 
 async function upgradeToPremium() {
     const btn = document.getElementById('btn-upgrade-premium');
-    btn.disabled = true; btn.innerText = 'מעביר לתשלום... ⏳';
+    if(btn) { btn.disabled = true; btn.innerText = 'מעביר לתשלום... ⏳'; }
+    const profileBtn = document.getElementById('btn-profile-upgrade');
+    if(profileBtn) { profileBtn.disabled = true; profileBtn.innerText = 'מעביר...'; }
     try {
         const res = await fetch(`${API}/premium/simulate-checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id }) });
         const data = await res.json();
         if(data.success) {
             closeAiBatteryModal();
+            document.getElementById('profile-modal').classList.add('hidden');
             showToast('success', data.message);
             triggerConfetti();
             fetchData();
         } else {
             showToast('error', data.error);
         }
-    } catch(e) { showToast('error', 'תקלה במעבר לתשלום'); } finally { btn.disabled = false; btn.innerText = 'שדרגו ל-Pro 🚀'; }
+    } catch(e) { showToast('error', 'תקלה במעבר לתשלום'); } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'שדרגו ל-Pro 🚀'; }
+        if(profileBtn) { profileBtn.disabled = false; profileBtn.innerText = 'שדרג עכשיו'; }
+    }
 }
 
 async function loadDashboard() {
@@ -327,10 +335,11 @@ async function loadDashboard() {
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
     }
