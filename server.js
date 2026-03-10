@@ -125,7 +125,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_image_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_image_bottom')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
@@ -140,10 +140,8 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
             welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '',
             adBannerTextTop: settings.rows.find(r => r.key === 'ad_banner_text_top')?.value || '',
             adBannerLinkTop: settings.rows.find(r => r.key === 'ad_banner_link_top')?.value || '',
-            adBannerImageTop: settings.rows.find(r => r.key === 'ad_banner_image_top')?.value || '',
             adBannerTextBottom: settings.rows.find(r => r.key === 'ad_banner_text_bottom')?.value || '',
-            adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || '',
-            adBannerImageBottom: settings.rows.find(r => r.key === 'ad_banner_image_bottom')?.value || ''
+            adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || ''
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -161,10 +159,8 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
         if (req.body.adBannerTextTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextTop]);
         if (req.body.adBannerLinkTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkTop]);
-        if (req.body.adBannerImageTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_image_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerImageTop]);
         if (req.body.adBannerTextBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextBottom]);
         if (req.body.adBannerLinkBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkBottom]);
-        if (req.body.adBannerImageBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_image_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerImageBottom]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -178,30 +174,16 @@ app.get('/api/settings/welcome', async (req, res) => {
 
 app.get('/api/banners', async (req, res) => {
     try {
-        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_image_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_image_bottom')`);
+        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')`);
         const banners = {};
         result.rows.forEach(r => { banners[r.key.replace('ad_', '')] = r.value; });
-        res.json({ success: true, banners: { 
-            banner_top_text: banners['banner_text_top'], 
-            banner_top_link: banners['banner_link_top'], 
-            banner_top_image: banners['banner_image_top'], 
-            banner_bottom_text: banners['banner_text_bottom'], 
-            banner_bottom_link: banners['banner_link_bottom'],
-            banner_bottom_image: banners['banner_image_bottom']
-        } });
+        res.json({ success: true, banners: { banner_top_text: banners['banner_text_top'], banner_top_link: banners['banner_link_top'], banner_bottom_text: banners['banner_text_bottom'], banner_bottom_link: banners['banner_link_bottom'] } });
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
 });
 
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
-    const { topText, topLink, topImage, bottomText, bottomLink, bottomImage } = req.body;
-    const items = [ 
-        { k: 'ad_banner_text_top', v: topText || '' }, 
-        { k: 'ad_banner_link_top', v: topLink || '' }, 
-        { k: 'ad_banner_image_top', v: topImage || '' }, 
-        { k: 'ad_banner_text_bottom', v: bottomText || '' }, 
-        { k: 'ad_banner_link_bottom', v: bottomLink || '' },
-        { k: 'ad_banner_image_bottom', v: bottomImage || '' }
-    ];
+    const { topText, topLink, bottomText, bottomLink } = req.body;
+    const items = [ { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' } ];
     try {
         await pool.query('BEGIN');
         for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
