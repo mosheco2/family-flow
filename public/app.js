@@ -461,7 +461,7 @@ async function fetchData() {
 
             if(currentUser.role === 'ADMIN') {
                 if(adminLoansList && adminLoansContainer) {
-                    const pendingLoans = data.loans.filter(l => l.status === 'pending');
+                    const pendingLoans = data.loans ? data.loans.filter(l => l.status === 'pending') : [];
                     if(pendingLoans.length > 0) {
                         adminLoansContainer.classList.remove('hidden');
                         let lHtml = '';
@@ -490,7 +490,7 @@ async function fetchData() {
                     }
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.error('Loans Error:', e); }
         
         try {
             if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
@@ -946,7 +946,7 @@ function openTransactionModal(t) { document.getElementById('trans-type').value=t
 async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
 function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת הלוואה נשלחה בהצלחה!'); fetchData(); }
+async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת הלוואה נשלחה למנהל/ת!'); fetchData(); }
 
 async function handleLoanAction(id, action) {
     try {
