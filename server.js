@@ -463,7 +463,7 @@ app.get('/api/data/:userId', async (req, res) => {
         const gRes = await pool.query('SELECT ai_tokens, is_premium, last_token_reset FROM family_groups WHERE id=$1', [user.group_id]);
         const groupData = gRes.rows[0] || { ai_tokens: 10, is_premium: false };
 
-        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]}, pantryRes={rows:[]};
+        let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]}, pantryRes={rows:[]}, loansRes={rows:[]};
         try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ }
         
         try { 
@@ -490,12 +490,14 @@ app.get('/api/data/:userId', async (req, res) => {
 
         if(user.role === 'ADMIN') {
             try { goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]); } catch(e){}
+            try { loansRes = await pool.query(`SELECT l.*, u.nickname as user_name FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id=$1 ORDER BY l.id DESC`, [user.group_id]); } catch(e){}
             try { 
                 const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.id DESC`, [user.group_id]); 
                 userBundles = ubRes.rows;
             } catch(e){ }
         } else {
             try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
+            try { loansRes = await pool.query(`SELECT * FROM loans WHERE user_id=$1 ORDER BY id DESC`, [user.id]); } catch(e){}
             try { 
                 const spentRes = await pool.query(`SELECT COALESCE(SUM(amount),0) as spent FROM transactions WHERE user_id=$1 AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [user.id]);
                 const limitRes = await pool.query(`SELECT COALESCE(amount_limit, 0) as limit FROM budget_allocations WHERE target_user_id=$1 AND category='allowance_spend'`, [user.id]);
@@ -516,7 +518,7 @@ app.get('/api/data/:userId', async (req, res) => {
 
         res.json({
             user: user, group: groupData, tasks: tasksRes.rows || [], shopping_list: shopRes.rows || [], goals: goalsRes.rows || [],
-            weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || [], pantry: pantryRes.rows || []
+            loans: loansRes.rows || [], weekly_stats: weeklyStats, quiz_bundles: userBundles || [], all_bundles: allBRes.rows || [], pantry: pantryRes.rows || []
         });
     } catch (e) { res.status(500).json({error: e.message}); }
 });
@@ -785,6 +787,35 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// --- LOANS ENDPOINTS ---
+app.post('/api/loans/request', async (req, res) => {
+    try {
+        const { userId, amount, reason } = req.body;
+        const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
+        await pool.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)`, [userId, u.group_id, amount, amount, reason]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/loans/action', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { loanId, action } = req.body; // 'approve' or 'reject'
+        const l = (await dbClient.query('SELECT * FROM loans WHERE id=$1', [loanId])).rows[0];
+        if (action === 'approve') {
+            await dbClient.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
+            await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [l.original_amount, l.user_id]);
+            await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, [l.user_id, l.group_id, l.original_amount, `אישור הלוואה: ${l.reason}`]);
+        } else {
+            await dbClient.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', loanId]);
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
 
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
