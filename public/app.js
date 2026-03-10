@@ -307,15 +307,26 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
 
 async function upgradeToPremium() {
-    // מציג הודעת "בקרוב" במקום להפעיל סליקה
-    showToast('success', 'בקרוב! אפשרות השדרוג תפתח מיד לאחר חיבור מערכת סליקה מאובטחת.');
-    
-    // סגירת חלונות קופצים אם הם פתוחים
-    const aiModal = document.getElementById('ai-battery-modal');
-    if (aiModal) aiModal.classList.add('hidden');
-    
-    const profileModal = document.getElementById('profile-modal');
-    if (profileModal) profileModal.classList.add('hidden');
+    const btn = document.getElementById('btn-upgrade-premium');
+    if(btn) { btn.disabled = true; btn.innerText = 'מעביר לתשלום... ⏳'; }
+    const profileBtn = document.getElementById('btn-profile-upgrade');
+    if(profileBtn) { profileBtn.disabled = true; profileBtn.innerText = 'מעביר...'; }
+    try {
+        const res = await fetch(`${API}/premium/simulate-checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id }) });
+        const data = await res.json();
+        if(data.success) {
+            closeAiBatteryModal();
+            document.getElementById('profile-modal').classList.add('hidden');
+            showToast('success', data.message);
+            triggerConfetti();
+            fetchData();
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) { showToast('error', 'תקלה במעבר לתשלום'); } finally { 
+        if(btn) { btn.disabled = false; btn.innerText = 'שדרגו ל-Pro 🚀'; }
+        if(profileBtn) { profileBtn.disabled = false; profileBtn.innerText = 'שדרגו למנוי פרימיום (9.90₪)'; }
+    }
 }
 
 async function loadDashboard() {
@@ -1088,13 +1099,8 @@ async function fetchBanners() {
         const res = await fetch(`${API}/banners`);
         const data = await res.json();
         if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); 
-            const saTopLink = document.getElementById('sa-banner-top-link'); 
-            const saTopImage = document.getElementById('sa-banner-top-image');
-            
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); 
-            const saBottomLink = document.getElementById('sa-banner-bottom-link'); 
-            const saBottomImage = document.getElementById('sa-banner-bottom-image');
+            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImage = document.getElementById('sa-banner-top-image');
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImage = document.getElementById('sa-banner-bottom-image');
             
             if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
             if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
@@ -1115,18 +1121,12 @@ async function fetchBanners() {
                     el.style.cursor = link ? 'pointer' : 'default';
                     el.classList.remove('hidden');
                     
-                    let innerHtml = '';
-                    
-                    if (image) {
-                        // עיצוב כאשר יש תמונה
-                        el.className = "w-full block shadow-sm mb-4 hover:opacity-90 transition relative overflow-hidden rounded-xl bg-white p-3 border border-slate-100 text-center";
-                        if (text) {
-                            innerHtml += `<div class="w-full text-center font-bold text-slate-800 mb-2">${text}</div>`;
-                        }
-                        innerHtml += `<img src="/${image}" class="w-full h-auto max-h-32 object-contain rounded-lg mx-auto" onerror="this.style.display='none'; this.parentElement.classList.add('bg-pink-500');">`;
-                        el.innerHTML = innerHtml;
+                    if(image) {
+                        el.className = "w-full block shadow-sm mb-4 hover:opacity-90 transition relative overflow-hidden rounded-xl bg-slate-100 min-h-[40px] flex items-center justify-center";
+                        let inner = `<img src="/${image}" class="w-full h-auto max-h-24 object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('bg-pink-500');">`;
+                        if(text) inner += `<div class="absolute inset-0 flex items-center justify-center bg-black/30 p-2"><span class="text-white font-bold text-sm text-center drop-shadow-md">${text}</span></div>`;
+                        el.innerHTML = inner;
                     } else {
-                        // עיצוב למצב של טקסט בלבד
                         el.className = baseClasses;
                         el.innerHTML = text;
                     }
@@ -1142,28 +1142,11 @@ async function fetchBanners() {
 }
 
 async function saveBanners() {
-    const topText = val('sa-banner-top-text'); 
-    const topLink = val('sa-banner-top-link'); 
-    const topImage = val('sa-banner-top-image');
-    
-    const bottomText = val('sa-banner-bottom-text'); 
-    const bottomLink = val('sa-banner-bottom-link'); 
-    const bottomImage = val('sa-banner-bottom-image');
-    
+    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImage = val('sa-banner-top-image');
+    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImage = val('sa-banner-bottom-image');
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify({ topText, topLink, topImage, bottomText, bottomLink, bottomImage }) 
-        });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, topImage, bottomText, bottomLink, bottomImage }) });
         const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
-            fetchBanners(); 
-        } else { 
-            showToast('error', 'שגיאה בשמירת הבאנרים'); 
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת רשת מול השרת'); 
-    }
+        if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
+    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
