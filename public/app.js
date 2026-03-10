@@ -307,26 +307,15 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
 
 async function upgradeToPremium() {
-    const btn = document.getElementById('btn-upgrade-premium');
-    if(btn) { btn.disabled = true; btn.innerText = 'מעביר לתשלום... ⏳'; }
-    const profileBtn = document.getElementById('btn-profile-upgrade');
-    if(profileBtn) { profileBtn.disabled = true; profileBtn.innerText = 'מעביר...'; }
-    try {
-        const res = await fetch(`${API}/premium/simulate-checkout`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id }) });
-        const data = await res.json();
-        if(data.success) {
-            closeAiBatteryModal();
-            document.getElementById('profile-modal').classList.add('hidden');
-            showToast('success', data.message);
-            triggerConfetti();
-            fetchData();
-        } else {
-            showToast('error', data.error);
-        }
-    } catch(e) { showToast('error', 'תקלה במעבר לתשלום'); } finally { 
-        if(btn) { btn.disabled = false; btn.innerText = 'שדרגו ל-Pro 🚀'; }
-        if(profileBtn) { profileBtn.disabled = false; profileBtn.innerText = 'שדרגו למנוי פרימיום (9.90₪)'; }
-    }
+    // מציג הודעת "בקרוב" במקום להפעיל סליקה
+    showToast('success', 'בקרוב! אפשרות השדרוג תפתח מיד לאחר חיבור מערכת סליקה מאובטחת.');
+    
+    // סגירת חלונות קופצים אם הם פתוחים
+    const aiModal = document.getElementById('ai-battery-modal');
+    if (aiModal) aiModal.classList.add('hidden');
+    
+    const profileModal = document.getElementById('profile-modal');
+    if (profileModal) profileModal.classList.add('hidden');
 }
 
 async function loadDashboard() {
@@ -1099,36 +1088,82 @@ async function fetchBanners() {
         const res = await fetch(`${API}/banners`);
         const data = await res.json();
         if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link');
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link');
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+            const saTopText = document.getElementById('sa-banner-top-text'); 
+            const saTopLink = document.getElementById('sa-banner-top-link'); 
+            const saTopImage = document.getElementById('sa-banner-top-image');
+            
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); 
+            const saBottomLink = document.getElementById('sa-banner-bottom-link'); 
+            const saBottomImage = document.getElementById('sa-banner-bottom-image');
+            
+            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
+            if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
+            if(saTopImage) saTopImage.value = data.banners.banner_top_image || '';
+            
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
+            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+            if(saBottomImage) saBottomImage.value = data.banners.banner_bottom_image || '';
 
-            const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
-            if(appTop) {
-                if(data.banners.banner_top_text) {
-                    appTop.innerText = data.banners.banner_top_text; appTop.href = data.banners.banner_top_link || '#';
-                    if(!data.banners.banner_top_link) { appTop.removeAttribute('target'); appTop.style.cursor = 'default'; } else { appTop.target = '_blank'; appTop.style.cursor = 'pointer'; }
-                    appTop.classList.remove('hidden');
-                } else { appTop.classList.add('hidden'); }
-            }
-            if(appBottom) {
-                if(data.banners.banner_bottom_text) {
-                    appBottom.innerText = data.banners.banner_bottom_text; appBottom.href = data.banners.banner_bottom_link || '#';
-                    if(!data.banners.banner_bottom_link) { appBottom.removeAttribute('target'); appBottom.style.cursor = 'default'; } else { appBottom.target = '_blank'; appBottom.style.cursor = 'pointer'; }
-                    appBottom.classList.remove('hidden');
-                } else { appBottom.classList.add('hidden'); }
-            }
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
+            
+            const updateAppBanner = (el, text, link, image, baseClasses) => {
+                if(!el) return;
+                if(text || image) {
+                    el.href = link || '#';
+                    el.target = link ? '_blank' : '';
+                    el.style.cursor = link ? 'pointer' : 'default';
+                    el.classList.remove('hidden');
+                    
+                    let innerHtml = '';
+                    
+                    if (image) {
+                        // עיצוב כאשר יש תמונה
+                        el.className = "w-full block shadow-sm mb-4 hover:opacity-90 transition relative overflow-hidden rounded-xl bg-white p-3 border border-slate-100 text-center";
+                        if (text) {
+                            innerHtml += `<div class="w-full text-center font-bold text-slate-800 mb-2">${text}</div>`;
+                        }
+                        innerHtml += `<img src="/${image}" class="w-full h-auto max-h-32 object-contain rounded-lg mx-auto" onerror="this.style.display='none'; this.parentElement.classList.add('bg-pink-500');">`;
+                        el.innerHTML = innerHtml;
+                    } else {
+                        // עיצוב למצב של טקסט בלבד
+                        el.className = baseClasses;
+                        el.innerHTML = text;
+                    }
+                } else {
+                    el.classList.add('hidden');
+                }
+            };
+
+            updateAppBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image, "bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center py-2 px-4 text-xs font-bold w-full block shadow-sm mb-4 hover:opacity-90 transition rounded-xl");
+            updateAppBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image, "bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center py-3 px-4 text-sm font-bold w-full block rounded-2xl shadow-lg hover:opacity-90 transition mb-6");
         }
     } catch(e) {}
 }
 
 async function saveBanners() {
-    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link');
-    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link');
+    const topText = val('sa-banner-top-text'); 
+    const topLink = val('sa-banner-top-link'); 
+    const topImage = val('sa-banner-top-image');
+    
+    const bottomText = val('sa-banner-bottom-text'); 
+    const bottomLink = val('sa-banner-bottom-link'); 
+    const bottomImage = val('sa-banner-bottom-image');
+    
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, bottomText, bottomLink }) });
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ topText, topLink, topImage, bottomText, bottomLink, bottomImage }) 
+        });
         const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
+        if(data.success) { 
+            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
+            fetchBanners(); 
+        } else { 
+            showToast('error', 'שגיאה בשמירת הבאנרים'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת מול השרת'); 
+    }
 }
