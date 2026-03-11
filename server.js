@@ -123,14 +123,27 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_title_top', 'ad_banner_title_bottom', 'ad_banner_image_top', 'ad_banner_image_bottom')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
         groups.rows.forEach(g => { const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN'); unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה משפחה חדשה', amount: 0, is_financial: false }); });
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        res.json({ groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '', adBannerTextTop: settings.rows.find(r => r.key === 'ad_banner_text_top')?.value || '', adBannerLinkTop: settings.rows.find(r => r.key === 'ad_banner_link_top')?.value || '', adBannerTextBottom: settings.rows.find(r => r.key === 'ad_banner_text_bottom')?.value || '', adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || '' });
+        res.json({ 
+            groups: groups.rows, 
+            users: users.rows, 
+            activity: unifiedActivity.slice(0, 50), 
+            welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '', 
+            adBannerTextTop: settings.rows.find(r => r.key === 'ad_banner_text_top')?.value || '', 
+            adBannerLinkTop: settings.rows.find(r => r.key === 'ad_banner_link_top')?.value || '', 
+            adBannerTitleTop: settings.rows.find(r => r.key === 'ad_banner_title_top')?.value || '', 
+            adBannerImageTop: settings.rows.find(r => r.key === 'ad_banner_image_top')?.value || '', 
+            adBannerTextBottom: settings.rows.find(r => r.key === 'ad_banner_text_bottom')?.value || '', 
+            adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || '',
+            adBannerTitleBottom: settings.rows.find(r => r.key === 'ad_banner_title_bottom')?.value || '',
+            adBannerImageBottom: settings.rows.find(r => r.key === 'ad_banner_image_bottom')?.value || ''
+        });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
@@ -145,17 +158,24 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
 });
 
 app.get('/api/settings/welcome', async (req, res) => { try { const s = await pool.query("SELECT value FROM system_settings WHERE key = 'welcome_msg'"); res.json({ message: s.rows.length > 0 ? s.rows[0].value : '' }); } catch(e) { res.status(500).json({error: e.message}); } });
+
 app.get('/api/banners', async (req, res) => {
     try {
-        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom')`);
+        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_title_top', 'ad_banner_title_bottom', 'ad_banner_image_top', 'ad_banner_image_bottom')`);
         const banners = {}; result.rows.forEach(r => { banners[r.key.replace('ad_', '')] = r.value; });
-        res.json({ success: true, banners: { banner_top_text: banners['banner_text_top'], banner_top_link: banners['banner_link_top'], banner_bottom_text: banners['banner_text_bottom'], banner_bottom_link: banners['banner_link_bottom'] } });
+        res.json({ success: true, banners: { 
+            banner_top_title: banners['banner_title_top'], banner_top_text: banners['banner_text_top'], banner_top_link: banners['banner_link_top'], banner_top_image: banners['banner_image_top'], 
+            banner_bottom_title: banners['banner_title_bottom'], banner_bottom_text: banners['banner_text_bottom'], banner_bottom_link: banners['banner_link_bottom'], banner_bottom_image: banners['banner_image_bottom'] 
+        }});
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
 });
 
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
-    const { topText, topLink, bottomText, bottomLink } = req.body;
-    const items = [ { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' } ];
+    const { topTitle, topText, topLink, topImage, bottomTitle, bottomText, bottomLink, bottomImage } = req.body;
+    const items = [ 
+        { k: 'ad_banner_title_top', v: topTitle || '' }, { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_image_top', v: topImage || '' }, 
+        { k: 'ad_banner_title_bottom', v: bottomTitle || '' }, { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' }, { k: 'ad_banner_image_bottom', v: bottomImage || '' } 
+    ];
     try { await pool.query('BEGIN'); for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]); await pool.query('COMMIT'); res.json({ success: true }); } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירה' }); }
 });
 
@@ -368,11 +388,11 @@ app.get('/api/data/:userId', async (req, res) => {
                 const item = shopRes.rows[i];
                 const searchName = item.normalized_name || item.item_name;
                 
-                // חוכמת המשפחה - מחיר הכי טוב שלנו
+                // חוכמת המשפחה
                 const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3) ORDER BY sti.price_per_unit ASC LIMIT 1`, [user.group_id, searchName, searchName]);
                 if (bestPriceRes.rows.length > 0) item.best_price = bestPriceRes.rows[0];
                 
-                // חוכמת ההמונים - מחיר הכי טוב בכל המערכת (לא כולל הקבוצה הנוכחית)
+                // חוכמת ההמונים
                 const crowdPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE (sti.normalized_name = $1 OR sti.item_name = $2) AND st.group_id != $3 ORDER BY sti.price_per_unit ASC LIMIT 1`, [searchName, searchName, user.group_id]);
                 if (crowdPriceRes.rows.length > 0) item.crowd_price = crowdPriceRes.rows[0];
             }
@@ -565,17 +585,14 @@ app.post('/api/goals/break', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// --- UPDATED ADD TO SHOPPING ROUTE (SUPPORTING NORMALIZED_NAME) ---
 app.post('/api/shopping/add', async (req, res) => {
     try {
         const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [req.body.userId]);
         const user = uRes.rows[0]; const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
-        
         let normalizedName = req.body.normalizedName || req.body.itemName;
         if (!req.body.normalizedName && genAI) { 
             try { const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); const prompt = `Normalize this grocery product name to a generic, brand-less Hebrew name. For example: 'חלב תנובה 3% קרטון' -> 'חלב 3%'. Product: "${req.body.itemName}". Output JSON: {"normalized": "..."}`; const result = await model.generateContent(prompt); const data = JSON.parse(result.response.text()); if(data.normalized) normalizedName = data.normalized; } catch(e) {} 
         }
-        
         const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
         res.json({ success: true, id: iRes.rows[0].id, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -615,7 +632,6 @@ app.post('/api/pantry/add', async (req, res) => { try { const { groupId, itemNam
 app.post('/api/pantry/update', async (req, res) => { try { const { itemId, quantity } = req.body; await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.delete('/api/pantry/delete/:id', async (req, res) => { try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 
-// --- LOANS ENDPOINTS ---
 app.post('/api/loans/request', async (req, res) => { try { const { userId, amount, reason } = req.body; const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0]; await pool.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)`, [userId, u.group_id, amount, amount, reason]); res.json({ success: true }); } catch (e) { res.status(500).json({ error: e.message }); } });
 app.post('/api/loans/action', async (req, res) => {
     const dbClient = await pool.connect();
