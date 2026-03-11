@@ -56,7 +56,6 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 };
 
 window.onload = async () => { 
-    initAccessibility();
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -66,6 +65,7 @@ window.onload = async () => {
     }, 7000);
 
     try {
+        initAccessibility();
         const urlParams = new URLSearchParams(window.location.search);
         const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
         if (inviteCode) { 
@@ -125,6 +125,14 @@ async function loadSAData() {
         saAllGroups = data.groups;
         saAllUsers = data.users;
         renderSAGroups();
+        
+        // Populate Admin Banner Fields
+        const fb = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+        fb('sa-banner-top-title', data.adBannerTitleTop); fb('sa-banner-top-text', data.adBannerTextTop);
+        fb('sa-banner-top-link', data.adBannerLinkTop); fb('sa-banner-top-image', data.adBannerImageTop);
+        fb('sa-banner-bottom-title', data.adBannerTitleBottom); fb('sa-banner-bottom-text', data.adBannerTextBottom);
+        fb('sa-banner-bottom-link', data.adBannerLinkBottom); fb('sa-banner-bottom-image', data.adBannerImageBottom);
+
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
@@ -930,62 +938,59 @@ function filterSuggestions(val) {
             li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; 
             li.onclick = () => { 
                 document.getElementById('shop-item').value = p.name; 
-                document.getElementById('shop-normalized-name').value = p.name; // שומר את השם המקורי כעוגן
+                const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = p.name;
                 list.classList.add('hidden'); 
-                checkCrowdPrice(p.name);
             }; 
             list.appendChild(li); 
         }); 
     } else { 
         // אפשרות להוסיף מוצר חדש ולהצמיד אותו למוצר מוכר מתוך הרשימה
         list.classList.remove('hidden');
+        let optionsHtml = '<option value="">-- אל תצמיד, הוסף כמו שהוא --</option>';
+        FLAT_PRODUCTS.forEach(p => { optionsHtml += `<option value="${p.name}">${p.name} (${p.category})</option>`; });
+        
         list.innerHTML = `
             <div class="p-3 bg-orange-50 border-b border-orange-100 text-xs text-orange-800">
-                <i class="fa-solid fa-circle-info"></i> המוצר לא נמצא במאגר שלנו.
-                <br>האם תרצה להצמיד אותו לקטגוריה קיימת כדי שנוכל לחפש מחירים בעתיד?
+                <i class="fa-solid fa-circle-info"></i> המוצר לא במאגר שלנו.
+                <br>תרצה להצמיד אותו לקטגוריה קיימת לטובת מעקב מחירים עתידי?
             </div>
-            <div class="p-2 space-y-1">
-                <p class="text-[10px] text-slate-500 font-bold px-1">בחר למה זה הכי דומה:</p>
-                <select id="manual-normalize-select" class="w-full text-xs p-2 rounded border border-slate-200 mb-2">
-                    <option value="">-- אל תצמיד, הוסף כמו שהוא --</option>
-                    ${FLAT_PRODUCTS.map(p => `<option value="${p.name}">${p.name} (${p.category})</option>`).join('')}
+            <div class="p-2 space-y-2">
+                <select id="manual-normalize-select" class="w-full text-xs p-2 rounded border border-slate-200">
+                    ${optionsHtml}
                 </select>
-                <button onclick="selectManualShopItem()" class="w-full bg-orange-500 text-white py-1.5 rounded-lg text-xs font-bold shadow-sm">אשר והוסף</button>
+                <button onclick="selectManualShopItem()" class="w-full bg-orange-500 text-white py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-orange-600 transition">אשר וסגור</button>
             </div>
         `;
     } 
 }
 
-function selectManualShopItem() {
+// Attach manual selection to window so inline onclick works
+window.selectManualShopItem = function() {
     const rawVal = document.getElementById('shop-item').value;
     const normVal = document.getElementById('manual-normalize-select').value;
+    const snn = document.getElementById('shop-normalized-name');
     if (normVal) {
-        document.getElementById('shop-normalized-name').value = normVal;
+        if(snn) snn.value = normVal;
         showToast('success', `"${rawVal}" הוצמד למעקב כ-"${normVal}"`);
     } else {
-        document.getElementById('shop-normalized-name').value = rawVal;
+        if(snn) snn.value = rawVal;
     }
     document.getElementById('suggestions').classList.add('hidden');
-}
-
-// פונקציה לבדיקת מחיר חוכמת ההמונים עוד לפני ההוספה (יוצג באלרט קטן)
-async function checkCrowdPrice(itemName) {
-    // ניתן להרחיב בעתיד, כרגע הנתונים נמשכים אוטומטית ברמת ה-Dashboard ומוצגים בשורה.
 }
 
 async function submitShopItem() { 
     const itemInput = document.getElementById('shop-item'); 
     const normInput = document.getElementById('shop-normalized-name');
     const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
-    const item = itemInput.value; 
-    const norm = normInput ? normInput.value : item;
+    const item = itemInput ? itemInput.value : ''; 
+    const norm = (normInput && normInput.value) ? normInput.value : item;
     const qty = val('shop-quantity'); 
     const est = val('shop-est-price'); 
     
     if(!item) return; 
-    if (btn.disabled) return; 
+    if (btn && btn.disabled) return; 
     
-    btn.disabled = true; btn.innerText = 'מוסיף...'; 
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מוסיף...'; }
     try { 
         const res = await fetch(`${API}/shopping/add`, { 
             method:'POST', 
@@ -1001,7 +1006,7 @@ async function submitShopItem() {
         const data = await res.json(); 
         if (data.success) { 
             document.getElementById('shop-modal').classList.add('hidden'); 
-            itemInput.value = ''; 
+            if(itemInput) itemInput.value = ''; 
             if(normInput) normInput.value = '';
             document.getElementById('shop-est-price').value = ''; 
             document.getElementById('shop-quantity').value = 1; 
@@ -1010,7 +1015,8 @@ async function submitShopItem() {
             showToast('success', 'נוסף לרשימה'); 
             fetchData(); 
         } 
-    } finally { btn.disabled = false; btn.innerText = 'הוסף לעגלה'; } 
+    } catch(e) { console.error('Error adding item', e); }
+    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cart-arrow-down"></i> הוסף לעגלה'; } } 
 }
 
 async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
@@ -1049,16 +1055,18 @@ function renderShopList() {
         if (i.best_price && i.best_price.price_per_unit > 0) { 
             const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
             const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); 
-            insightHtml += `<div class="text-[9px] text-green-700 font-bold bg-green-100 px-2 py-1 rounded-lg mt-1 w-fit border border-green-200"><i class="fa-solid fa-house-chimney"></i> המחיר הכי טוב שלנו: ₪${bestP} (${i.best_price.store_name}, ${dDate})</div>`; 
+            insightHtml += `<div class="text-[9px] text-green-700 font-bold bg-green-100 px-2 py-1 rounded-lg mt-1 w-fit border border-green-200 shadow-sm"><i class="fa-solid fa-house-chimney"></i> המחיר הכי טוב שלנו: ₪${bestP} (${i.best_price.store_name}, ${dDate})</div>`; 
         }
         
         if (i.crowd_price && i.crowd_price.price_per_unit > 0) { 
             const crowdP = parseFloat(i.crowd_price.price_per_unit).toFixed(2); 
             const cDate = new Date(i.crowd_price.trip_date).toLocaleDateString('he-IL'); 
-            insightHtml += `<div class="text-[9px] text-purple-700 font-bold bg-purple-100 px-2 py-1 rounded-lg mt-1 w-fit border border-purple-200"><i class="fa-solid fa-users"></i> חוכמת המונים: נרכש ב-₪${crowdP} (${i.crowd_price.store_name}, ${cDate})</div>`; 
+            insightHtml += `<div class="text-[9px] text-purple-700 font-bold bg-purple-100 px-2 py-1 rounded-lg mt-1 w-fit border border-purple-200 shadow-sm"><i class="fa-solid fa-users"></i> חוכמת המונים: נרכש ב-₪${crowdP} (${i.crowd_price.store_name}, ${cDate})</div>`; 
         }
+
+        const normBadge = (i.normalized_name && i.normalized_name !== i.item_name) ? `<span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ml-1 font-normal">סיווג: ${i.normalized_name}</span>` : '';
         
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name} ${i.normalized_name && i.normalized_name !== i.item_name ? `<span class="text-[9px] text-slate-400 font-normal ml-1">(מעקב: ${i.normalized_name})</span>` : ''}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">${i.requester_name}</span><div class="flex flex-col gap-1">${insightHtml}</div><div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span><input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button></div></div>`;
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name} ${normBadge}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">${i.requester_name}</span><div class="flex flex-col gap-1 mt-1">${insightHtml}</div><div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span><input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }
@@ -1135,8 +1143,8 @@ async function breakGoal(goalId, title) {
 function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
 async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
 function openShopModal() { 
-    document.getElementById('shop-normalized-name').value = '';
-    document.getElementById('shop-modal').classList.remove('hidden'); 
+    const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = '';
+    const sm = document.getElementById('shop-modal'); if(sm) sm.classList.remove('hidden'); 
 }
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
 async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשה נשלחה!'); fetchData(); }
@@ -1206,10 +1214,11 @@ async function fetchPendingUsers() {
     try {
         if(!currentGroup || !currentGroup.id) return;
         const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json();
-        const list = document.getElementById('pending-list'); const container = document.getElementById('admin-panel');
+        const list = document.getElementById('pending-list'); const container = document.getElementById('pending-users-container');
         if (users && users.length > 0) {
-            container.classList.remove('hidden'); list.innerHTML = '';
-            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
+            if(container) container.classList.remove('hidden'); 
+            if(list) list.innerHTML = '';
+            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; if(list) list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
         } else { if(container) container.classList.add('hidden'); }
     } catch(e) { console.error(e); }
 }
@@ -1356,35 +1365,52 @@ async function fetchBanners() {
         const res = await fetch(`${API}/banners`);
         const data = await res.json();
         if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link');
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link');
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; if(saTopLink) saTopLink.value = data.banners.banner_top_link || '';
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || '';
+            const fb = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+            fb('sa-banner-top-title', data.banners.banner_top_title); fb('sa-banner-top-text', data.banners.banner_top_text);
+            fb('sa-banner-top-link', data.banners.banner_top_link); fb('sa-banner-top-image', data.banners.banner_top_image);
+            fb('sa-banner-bottom-title', data.banners.banner_bottom_title); fb('sa-banner-bottom-text', data.banners.banner_bottom_text);
+            fb('sa-banner-bottom-link', data.banners.banner_bottom_link); fb('sa-banner-bottom-image', data.banners.banner_bottom_image);
 
-            const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
-            if(appTop) {
-                if(data.banners.banner_top_text) {
-                    appTop.innerText = data.banners.banner_top_text; appTop.href = data.banners.banner_top_link || '#';
-                    if(!data.banners.banner_top_link) { appTop.removeAttribute('target'); appTop.style.cursor = 'default'; } else { appTop.target = '_blank'; appTop.style.cursor = 'pointer'; }
-                    appTop.classList.remove('hidden');
-                } else { appTop.classList.add('hidden'); }
-            }
-            if(appBottom) {
-                if(data.banners.banner_bottom_text) {
-                    appBottom.innerText = data.banners.banner_bottom_text; appBottom.href = data.banners.banner_bottom_link || '#';
-                    if(!data.banners.banner_bottom_link) { appBottom.removeAttribute('target'); appBottom.style.cursor = 'default'; } else { appBottom.target = '_blank'; appBottom.style.cursor = 'pointer'; }
-                    appBottom.classList.remove('hidden');
-                } else { appBottom.classList.add('hidden'); }
-            }
+            const configureBanner = (id, title, text, link, image) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                
+                if (title || text || image) {
+                    el.classList.remove('hidden');
+                    const titleEl = document.getElementById(id + '-title');
+                    const textEl = document.getElementById(id + '-text');
+                    const overlay = document.getElementById(id + '-overlay');
+                    
+                    if(titleEl) { if(title) { titleEl.innerText = title; titleEl.classList.remove('hidden'); } else { titleEl.classList.add('hidden'); } }
+                    if(textEl) { if(text) { textEl.innerText = text; textEl.classList.remove('hidden'); } else { textEl.classList.add('hidden'); } }
+                    
+                    if (image) {
+                        el.style.backgroundImage = `url('${image}')`;
+                        el.classList.add('bg-cover', 'bg-center');
+                        if (overlay && (title || text)) overlay.classList.remove('hidden'); 
+                    } else {
+                        el.style.backgroundImage = 'none';
+                        if (overlay) overlay.classList.add('hidden');
+                    }
+
+                    if (link) { el.href = link; el.target = '_blank'; el.style.cursor = 'pointer'; } 
+                    else { el.removeAttribute('href'); el.removeAttribute('target'); el.style.cursor = 'default'; }
+                } else {
+                    el.classList.add('hidden');
+                }
+            };
+
+            configureBanner('app-banner-top', data.banners.banner_top_title, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image);
+            configureBanner('app-banner-bottom', data.banners.banner_bottom_title, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image);
         }
     } catch(e) {}
 }
 
 async function saveBanners() {
-    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link');
-    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link');
+    const topTitle = val('sa-banner-top-title'); const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImage = val('sa-banner-top-image');
+    const bottomTitle = val('sa-banner-bottom-title'); const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImage = val('sa-banner-bottom-image');
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, bottomText, bottomLink }) });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topTitle, topText, topLink, topImage, bottomTitle, bottomText, bottomLink, bottomImage }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
