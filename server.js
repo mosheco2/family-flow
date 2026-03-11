@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// ייבוא מאגר המבחנים המובנה
+const defaultQuizzes = require('./seed_quizzes');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -27,7 +30,6 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // מנגנון ריפוי עצמי למסד הנתונים - מוודא שהטבלאות והעמודות קיימות
       try {
           await client.query(`
               CREATE TABLE IF NOT EXISTS loans (
@@ -43,12 +45,14 @@ pool.connect()
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10;
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE;
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
-              
-              -- BATCH 5: New Columns for Email & Marketing
               ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
               ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN DEFAULT FALSE;
           `);
-          console.log('✅ Safe DB Migration Completed - All tables up to date');
+          console.log('✅ Safe DB Migration Completed');
+          
+          // הפעלת מנגנון זריעת הנתונים (Seeding)
+          await seedDatabaseIfNeeded(client);
+          
       } catch(e) {
           console.error('DB Migration Warning:', e.message);
       }
@@ -56,6 +60,36 @@ pool.connect()
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
+
+
+// הפונקציה ששותלת את המבחנים אם המאגר ריק
+async function seedDatabaseIfNeeded(client) {
+    try {
+        const checkRes = await client.query('SELECT COUNT(*) FROM quiz_bundles');
+        if (parseInt(checkRes.rows[0].count) === 0) {
+            console.log('🌱 Database is empty of quizzes. Seeding initial data from seed_quizzes.js...');
+            for (let quiz of defaultQuizzes) {
+                const bundleRes = await client.query(
+                    `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) 
+                     VALUES ($1, $2, $3, $4, $5, $6, 'SYSTEM') RETURNING id`,
+                    [quiz.type, quiz.age_group, quiz.title, quiz.text_content, quiz.threshold, quiz.reward]
+                );
+                const bundleId = bundleRes.rows[0].id;
+                for (let q of quiz.questions) {
+                    await client.query(
+                        `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
+                        [bundleId, q.q, JSON.stringify(q.options), q.correct]
+                    );
+                }
+            }
+            console.log('✅ Initial quizzes seeded successfully!');
+        } else {
+            console.log('ℹ️ Quizzes already exist in DB. Skipping seed.');
+        }
+    } catch(e) {
+        console.error('Error seeding database:', e.message);
+    }
+}
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
@@ -113,7 +147,13 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+        
+        // אחרי שאיפסנו, נפעיל שוב את הזריעה
+        const client = await pool.connect();
+        await seedDatabaseIfNeeded(client);
+        client.release();
+        
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and default quizzes seeded!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -338,11 +378,9 @@ app.post('/api/groups', async (req, res) => {
     try {
         await dbClient.query('BEGIN');
         let code = generateGroupCode();
-        // Saving the admin email from the request
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
         
-        // Save user along with email and marketing consent
         const marketingConsent = req.body.marketing === true;
         const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5, $6) RETURNING *`, 
             [group.id, req.body.adminNickname, req.body.birthYear, req.body.password, req.body.adminEmail, marketingConsent]);
@@ -412,11 +450,9 @@ app.get('/api/data/:userId', async (req, res) => {
                 const item = shopRes.rows[i];
                 const searchName = item.normalized_name || item.item_name;
                 
-                // חוכמת המשפחה
                 const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3) ORDER BY sti.price_per_unit ASC LIMIT 1`, [user.group_id, searchName, searchName]);
                 if (bestPriceRes.rows.length > 0) item.best_price = bestPriceRes.rows[0];
                 
-                // חוכמת ההמונים
                 const crowdPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE (sti.normalized_name = $1 OR sti.item_name = $2) AND st.group_id != $3 ORDER BY sti.price_per_unit ASC LIMIT 1`, [searchName, searchName, user.group_id]);
                 if (crowdPriceRes.rows.length > 0) item.crowd_price = crowdPriceRes.rows[0];
             }
