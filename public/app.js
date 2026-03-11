@@ -56,6 +56,7 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 };
 
 window.onload = async () => { 
+    initAccessibility();
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -65,8 +66,7 @@ window.onload = async () => {
     }, 7000);
 
     try {
-        initAccessibility();
-        const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = newSearchParams(window.location.search);
         const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
         if (inviteCode) { 
             const elCode = document.getElementById('join-code'); if (elCode) elCode.value = inviteCode; 
@@ -244,14 +244,13 @@ function startChildTour() {
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
             { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף, לחסוך נכון, ולעזור בבית כמו גדולים. בואו נתחיל!" },
-            { element: '#tour-header', title: "התפריט שלך", intro: "לחץ כאן כדי לבדוק את סוללת ה-AI, לשנות הגדרות או להגדיר נגישות.", position: 'bottom' },
+            { element: '#tour-header', title: "התפריט שלך", intro: "לחץ כאן כדי לשנות הגדרות או להגדיר נגישות.", position: 'bottom' },
             { element: '#tour-balance-card', title: "הארנק האישי שלך 💳", intro: "כאן מופיע כל הכסף שהרווחת מביצוע משימות ומדמי הכיס. זה הזמן לחשוב על מה כדאי לחסוך!", position: 'bottom' },
             { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לך חטיף או ארטיק? אין צורך לשגע את ההורים, פשוט בקש להוסיף את זה לרשימת הקניות כאן.", position: 'bottom' },
             { element: '#tab-pantry', title: "המזווה 📦", intro: "בא לך לנשנש משהו? כאן אפשר לבדוק בקלות אילו ממתקים או מוצרים טעימים כבר מחכים לכם בבית.", position: 'bottom' },
             { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "המקום שבו הכסף שלך צומח! פתח 'קופת חיסכון' למטרה שאתה חולם עליה, ותראה את הריבית מצטברת.", position: 'bottom' },
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "רוצה להרוויח כסף? בחר משימה, סיים אותה, צלם הוכחה - וקבל את התגמול ישר לארנק!", position: 'bottom' },
             { element: '#tab-academy', title: "האקדמיה 🎓", intro: "מי אמר שללמוד זה משעמם? היכנס לכאן כדי לענות על חידונים כיפיים ותרוויח בונוסים על תשובות נכונות.", position: 'bottom' },
-            { element: '#tab-budget', title: "לאן הכסף הולך? 📊", intro: "כאן תוכל לראות על מה בזבזת את דמי הכיס החודש, וללמוד לתכנן קניות חכם יותר.", position: 'bottom' },
             { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "רוצה להפתיע את המשפחה? בחר מוצרים שיש במטבח, והשף החכם ייתן לך מתכון מנצח וקל להכנה!", position: 'bottom' }
         ]
     });
@@ -270,9 +269,13 @@ function switchView(view) {
 }
 
 function selectType(t) { 
+    if (t === 'GROUP') {
+        showToast('error', 'בקרוב! כרגע המערכת תומכת בניהול משפחה בלבד.');
+        return;
+    }
     const cType = document.getElementById('create-type'); if(cType) cType.value=t; 
-    const famBtn = document.getElementById('type-family'); if(famBtn) famBtn.className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
-    const grpBtn = document.getElementById('type-group'); if(grpBtn) grpBtn.className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
+    const famBtn = document.getElementById('type-family'); if(famBtn) famBtn.className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
+    const grpBtn = document.getElementById('type-group'); if(grpBtn) grpBtn.className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
 }
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
@@ -352,6 +355,12 @@ function updateBatteryUI() {
     const indicator = document.getElementById('ai-battery-indicator');
     if(!indicator || !currentGroup) return;
     
+    // מוסתר לילדים
+    if (currentUser && currentUser.role !== 'ADMIN') {
+        indicator.classList.add('hidden');
+        return;
+    }
+    
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
     
     if (currentGroup.is_premium) {
@@ -399,24 +408,38 @@ async function loadDashboard() {
         const dgn = document.getElementById('dash-group-name'); if(dgn) dgn.innerHTML = `${currentGroup.name || 'משפחה'} ${codeBadge}`; 
         
         const isAdmin = currentUser.role === 'ADMIN';
-        const roleBadge = isAdmin ? '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mr-2 font-bold shadow-sm">מנהל</span>' : '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full mr-2 font-bold shadow-sm">ילד</span>';
-        const dnn = document.getElementById('dash-nickname'); if(dnn) dnn.innerHTML = `${currentUser.nickname || 'משתמש'} ${roleBadge}`; 
+        
+        // --- חלוקה הרמטית בין ממשק הורה לממשק ילד ---
+        const adminSpecificEls = [
+            'admin-panel', 'btn-add-task', 'budget-filter', 'bank-admin-view', 
+            'academy-admin-view', 'admin-shop-tools', 'btn-budget-insight', 
+            'admin-tasks-hint', 'profile-upgrade-section', 'btn-pantry-insight', 
+            'btn-email-creds', 'pending-users-container', 'tab-members', 
+            'fab-income', 'fab-expense', 'btn-add-budget-cat', 'btn-checkout-shop',
+            'feed-user-filter'
+        ];
+        const childSpecificEls = [
+            'btn-self-task', 'bank-child-view', 'academy-user-view', 'child-todo-section'
+        ];
+        
+        // הסתרה והצגה קשיחה למניעת באגים במעבר בין משתמשים
+        adminSpecificEls.forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden', !isAdmin); });
+        childSpecificEls.forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden', isAdmin); });
+        // ------------------------------------------------
+
         const ub = document.getElementById('user-balance'); if(ub) ub.innerText = `₪${currentUser.balance || 0}`;
 
         if(isAdmin) { 
-            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'btn-pantry-insight', 'btn-email-creds'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
             const reqT = document.getElementById('req-title'); if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
             const profileUp = document.getElementById('profile-upgrade-section');
             if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
         } else { 
-            ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
-            const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
             const cN = document.getElementById('card-name'); if(cN) cN.innerText = (currentUser.nickname || 'USER').toUpperCase(); 
             const cA = document.getElementById('card-allowance'); if(cA) cA.innerText = `₪${currentUser.allowance_amount || 0}`; 
             const cI = document.getElementById('card-interest'); if(cI) cI.innerText = `${currentUser.interest_rate || 0}%`; 
             const reqT = document.getElementById('req-title'); if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
         }
-        const btnAddB = document.getElementById('btn-add-budget-cat'); if(btnAddB) btnAddB.classList.remove('hidden');
+        
         updateBatteryUI();
         
         if(!pollInterval) pollInterval = setInterval(() => { fetchData(); if(isAdmin) fetchPendingUsers(); }, 30000);
@@ -691,9 +714,17 @@ function openTaskModal(isSelf = false) {
     const r = document.getElementById('ai-task-results'); if(r) r.classList.add('hidden');
     setTaskMode('manual');
     const toggles = document.getElementById('task-mode-toggles'); const assigneeContainer = document.getElementById('task-assignee-container'); const rewardGroup = document.getElementById('task-reward-group'); const assigneeSelect = document.getElementById('task-assignee');
-    if(isSelf) { const tTitle = document.getElementById('task-modal-title'); if(tTitle) tTitle.innerText = 'משימה אישית'; if(toggles) toggles.classList.add('hidden'); if(assigneeContainer) assigneeContainer.classList.add('hidden'); if(rewardGroup) rewardGroup.classList.add('hidden'); } 
+    if(isSelf) { 
+        const tTitle = document.getElementById('task-modal-title'); if(tTitle) tTitle.innerText = 'דיווח על עזרה בבית'; 
+        if(toggles) toggles.classList.add('hidden'); 
+        if(assigneeContainer) assigneeContainer.classList.add('hidden'); 
+        if(rewardGroup) rewardGroup.classList.add('hidden'); 
+    } 
     else { 
-        const tTitle = document.getElementById('task-modal-title'); if(tTitle) tTitle.innerText = 'יצירת משימה'; if(toggles) toggles.classList.remove('hidden'); if(assigneeContainer) assigneeContainer.classList.remove('hidden'); if(rewardGroup) rewardGroup.classList.remove('hidden'); 
+        const tTitle = document.getElementById('task-modal-title'); if(tTitle) tTitle.innerText = 'יצירת משימה'; 
+        if(toggles) toggles.classList.remove('hidden'); 
+        if(assigneeContainer) assigneeContainer.classList.remove('hidden'); 
+        if(rewardGroup) rewardGroup.classList.remove('hidden'); 
         if(membersCache && assigneeSelect) {
             assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; let hasChildren = false;
             membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; hasChildren = true; } });
@@ -869,553 +900,4 @@ function renderUnifiedFeed() {
     list.innerHTML = html;
 }
 
-function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { document.getElementById('assign-reward').value = bundle.reward; } }
-function openAssignModal() {
-    const cSelect = document.getElementById('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
-    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; }); }
-    const bSelect = document.getElementById('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
-    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${b.title} (${b.age_group})</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>'; }
-    document.getElementById('assign-reward').value = ''; document.getElementById('assign-days').value = ''; document.getElementById('assign-quiz-modal').classList.remove('hidden');
-}
-function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() => { const select = document.getElementById('assign-bundle-select'); if (select) { select.value = bundleId; updateAssignDetails(); } }, 100); }
-async function submitAssignQuiz() {
-    const childId = document.getElementById('assign-child-select').value; const bundleId = document.getElementById('assign-bundle-select').value; const reward = document.getElementById('assign-reward').value; const days = document.getElementById('assign-days').value;
-    if(!childId) return showToast('error', 'אנא בחר ילד להקצאה'); if(!bundleId) return showToast('error', 'אנא בחר אתגר להקצאה');
-    await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days }) });
-    document.getElementById('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData();
-}
-
-// UPDATED FOR BATCH 6: Admin Academy filtering logic
-function renderAdminAcademy() {
-    const list = document.getElementById('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
-    
-    // FILTERS
-    const ageFilterEl = document.getElementById('admin-lib-age-filter');
-    const catFilterEl = document.getElementById('admin-lib-cat-filter');
-    const ageFilter = ageFilterEl ? ageFilterEl.value : 'all'; 
-    const catFilter = catFilterEl ? catFilterEl.value : 'all';
-    
-    let filteredBundles = Array.isArray(allBundles) ? [...allBundles] : [];
-    if (ageFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.age_group === ageFilter); 
-    if (catFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.type === catFilter);
-
-    let html = '';
-    
-    // LIBRARY SECTION
-    if (filteredBundles.length === 0) { 
-        html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים התואמים לסינון. נסה לשנות את הסינון או צור אתגר חדש ב-AI!</p>'; 
-    } else {
-        html += '<div class="space-y-2 mb-8">';
-        filteredBundles.forEach(b => {
-            const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה</button></div>`;
-        }); html += '</div>';
-    }
-    
-    // ASSIGNED SECTION
-    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
-    if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
-        html += '<div class="space-y-2 pb-20">';
-        bundlesCache.forEach(b => {
-            let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${b.title}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
-        }); html += '</div>';
-    } 
-    
-    list.innerHTML = html;
-}
-
-function renderLibrary() {
-    try {
-        const libList = document.getElementById('library-list'); if (!libList) return;
-        const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all'; const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
-        let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
-        if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
-        if(Array.isArray(bundlesCache)) { const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id)); filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id))); }
-        if (filtered.length === 0) { libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>'; return; }
-        const getIcon = (type) => { if (type === 'math') return '<i class="fa-solid fa-calculator"></i>'; if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>'; return '<i class="fa-solid fa-chart-line"></i>'; };
-        let libHtml = '';
-        filtered.forEach(b => {
-            const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button></div>`;
-        }); libList.innerHTML = libHtml;
-    } catch(err) { console.error(err); }
-}
-
-async function requestChallenge(bundleId = null) {
-    const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
-    try {
-        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId }) }); const data = await res.json();
-        if (data.success) { triggerConfetti(); showToast('success', 'המבחן נוסף בהצלחה!'); fetchData(); } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
-}
-
-async function startQuiz(bundleId) {
-    const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
-    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; 
-    document.getElementById('quiz-title').innerText = bundle.title; document.getElementById('btn-tutor').classList.add('hidden'); 
-    const textContainer = document.getElementById('quiz-text-container');
-    if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
-    document.getElementById('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
-}
-
-function renderQuestion() {
-    const q = currentQuizData.questions[currentQuestionIndex];
-    document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; document.getElementById('q-text').innerText = q.q;
-    const optsContainer = document.getElementById('q-options'); optsContainer.innerHTML = '';
-    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; });
-}
-
-async function submitAnswer(selectedIdx) {
-    const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option');
-    btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
-    if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); }
-    if(isCorrect) quizScore++;
-    setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000);
-}
-
-async function finishQuiz() {
-    const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold;
-    document.getElementById('question-container').classList.add('hidden'); document.getElementById('quiz-text-container').classList.add('hidden'); document.getElementById('quiz-result').classList.remove('hidden');
-    document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚'; document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...'; document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
-    if (!passed && currentWrongAnswers.length > 0) document.getElementById('btn-tutor').classList.remove('hidden');
-    if (passed) triggerConfetti();
-    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore }) });
-    fetchData(); 
-}
-
-function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); document.getElementById('question-container').classList.remove('hidden'); document.getElementById('quiz-result').classList.add('hidden'); }
-
-// --- SHOPPING SUGGESTIONS & SEARCH WITH CROWD WISDOM ---
-function filterSuggestions(val) { 
-    const list = document.getElementById('suggestions'); list.innerHTML = ''; 
-    if (!val) { list.classList.add('hidden'); return; } 
-    
-    const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); 
-    
-    if (filtered.length > 0) { 
-        list.classList.remove('hidden'); 
-        filtered.forEach(p => { 
-            const li = document.createElement('div'); li.className = 'suggestion-item'; 
-            li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; 
-            li.onclick = () => { 
-                document.getElementById('shop-item').value = p.name; 
-                const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = p.name;
-                list.classList.add('hidden'); 
-            }; 
-            list.appendChild(li); 
-        }); 
-    } else { 
-        list.classList.remove('hidden');
-        let optionsHtml = '<option value="">-- אל תצמיד, הוסף כמו שהוא --</option>';
-        FLAT_PRODUCTS.forEach(p => { optionsHtml += `<option value="${p.name}">${p.name} (${p.category})</option>`; });
-        
-        list.innerHTML = `
-            <div class="p-3 bg-orange-50 border-b border-orange-100 text-xs text-orange-800">
-                <i class="fa-solid fa-circle-info"></i> המוצר לא במאגר שלנו.
-                <br>תרצה להצמיד אותו לקטגוריה קיימת לטובת מעקב מחירים עתידי?
-            </div>
-            <div class="p-2 space-y-2">
-                <select id="manual-normalize-select" class="w-full text-xs p-2 rounded border border-slate-200">
-                    ${optionsHtml}
-                </select>
-                <button onclick="selectManualShopItem()" class="w-full bg-orange-500 text-white py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-orange-600 transition">אשר וסגור</button>
-            </div>
-        `;
-    } 
-}
-
-window.selectManualShopItem = function() {
-    const rawVal = document.getElementById('shop-item').value;
-    const normVal = document.getElementById('manual-normalize-select').value;
-    const snn = document.getElementById('shop-normalized-name');
-    if (normVal) {
-        if(snn) snn.value = normVal;
-        showToast('success', `"${rawVal}" הוצמד למעקב כ-"${normVal}"`);
-    } else {
-        if(snn) snn.value = rawVal;
-    }
-    document.getElementById('suggestions').classList.add('hidden');
-}
-
-async function submitShopItem() { 
-    const itemInput = document.getElementById('shop-item'); 
-    const normInput = document.getElementById('shop-normalized-name');
-    const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
-    const item = itemInput ? itemInput.value : ''; 
-    const norm = (normInput && normInput.value) ? normInput.value : item;
-    const qty = val('shop-quantity'); 
-    const est = val('shop-est-price'); 
-    
-    if(!item) return; 
-    if (btn && btn.disabled) return; 
-    
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מוסיף...'; }
-    try { 
-        const res = await fetch(`${API}/shopping/add`, { 
-            method:'POST', 
-            headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({
-                itemName: item, 
-                normalizedName: norm,
-                quantity: qty, 
-                estimatedPrice: est, 
-                userId: currentUser.id
-            }) 
-        }); 
-        const data = await res.json(); 
-        if (data.success) { 
-            document.getElementById('shop-modal').classList.add('hidden'); 
-            if(itemInput) itemInput.value = ''; 
-            if(normInput) normInput.value = '';
-            document.getElementById('shop-est-price').value = ''; 
-            document.getElementById('shop-quantity').value = 1; 
-            document.getElementById('suggestions').classList.add('hidden'); 
-            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
-            showToast('success', 'נוסף לרשימה'); 
-            fetchData(); 
-        } 
-    } catch(e) { console.error('Error adding item', e); }
-    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cart-arrow-down"></i> הוסף לעגלה'; } } 
-}
-
-async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
-
-function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
-
-function renderShopList() {
-    if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
-    const list = document.getElementById('shop-list'); const reqList = document.getElementById('shop-requests-list'); const reqContainer = document.getElementById('shop-requests-container');
-    const activeItems = []; const requestedItems = [];
-    shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
-    
-    let reqHtml = '';
-    if (requestedItems.length > 0) {
-        reqContainer.classList.remove('hidden');
-        requestedItems.forEach(i => {
-            const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להורה</span>`;
-            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${i.item_name}</span><span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span></div>${actions}</div>`;
-        });
-        reqList.innerHTML = reqHtml;
-    } else { reqContainer.classList.add('hidden'); }
-
-    if(activeItems.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); return; }
-    document.getElementById('cart-footer').classList.remove('hidden'); document.getElementById('fab-container').classList.add('fab-lifted');
-    
-    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
-    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
-    let currentCat = ''; let shopHtml = '';
-    
-    activeItems.forEach(i => {
-        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
-        const isChecked = i.status === 'in_cart'; const val = i.estimated_price > 0 ? i.estimated_price : ''; const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
-        const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * i.quantity;
-        
-        let insightHtml = '';
-        if (i.best_price && i.best_price.price_per_unit > 0) { 
-            const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
-            const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); 
-            insightHtml += `<div class="text-[9px] text-green-700 font-bold bg-green-100 px-2 py-1 rounded-lg mt-1 w-fit border border-green-200 shadow-sm"><i class="fa-solid fa-house-chimney"></i> המחיר הכי טוב שלנו: ₪${bestP} (${i.best_price.store_name}, ${dDate})</div>`; 
-        }
-        
-        if (i.crowd_price && i.crowd_price.price_per_unit > 0) { 
-            const crowdP = parseFloat(i.crowd_price.price_per_unit).toFixed(2); 
-            const cDate = new Date(i.crowd_price.trip_date).toLocaleDateString('he-IL'); 
-            insightHtml += `<div class="text-[9px] text-purple-700 font-bold bg-purple-100 px-2 py-1 rounded-lg mt-1 w-fit border border-purple-200 shadow-sm"><i class="fa-solid fa-users"></i> חוכמת המונים: נרכש ב-₪${crowdP} (${i.crowd_price.store_name}, ${cDate})</div>`; 
-        }
-
-        const normBadge = (i.normalized_name && i.normalized_name !== i.item_name) ? `<span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ml-1 font-normal">סיווג: ${i.normalized_name}</span>` : '';
-        
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name} ${normBadge}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">${i.requester_name}</span><div class="flex flex-col gap-1 mt-1">${insightHtml}</div><div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ליח'</span><input type="number" id="price-${i.id}" value="${val}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(0)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">x${i.quantity}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button></div></div>`;
-    });
-    list.innerHTML = shopHtml; calcRunningTotal();
-}
-
-async function updateRow(id, type, value) {
-    if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
-    else if (type === 'check') { const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * item.quantity; const totalEl = document.getElementById(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(0)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); const data = await res.json(); const freshWisdomDiv = document.getElementById(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = value; } 
-    if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
-}
-
-function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
-function calcRunningTotal() { let total = 0; document.querySelectorAll('.shop-row').forEach(row => { const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); if (isChecked && !isMissing) { const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; }
-
-function openCheckoutSummary() { let count = 0; let missing = 0; let total = 0; document.querySelectorAll('.shop-row').forEach(row => { if (row.classList.contains('missing')) missing++; else if (row.querySelector('input[type="checkbox"]').checked) { count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? itemData.quantity : 1; total += (unitPrice * qty); } }); if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } document.getElementById('summ-count').innerText = count; document.getElementById('summ-missing').innerText = missing; document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; document.getElementById('confirm-checkout-modal').classList.remove('hidden'); }
-
-async function submitFinalCheckout() {
-    const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = [];
-    document.querySelectorAll('.shop-row').forEach(row => {
-        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
-        if (row.classList.contains('missing')) { missingItems.push({ id }); } 
-        else if (row.querySelector('input[type="checkbox"]').checked) {
-            const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; const qty = itemData ? itemData.quantity : 1; const rowTotal = unitPrice * qty; total += rowTotal;
-            boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
-        }
-    });
-    triggerShake();
-    await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
-    document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData();
-}
-
-async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
-
-function openInviteModal() { const codeSpan = document.getElementById('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } document.getElementById('invite-modal').classList.remove('hidden'); }
-
-function sendWhatsAppInvite(role) { 
-    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); 
-    const url = window.location.origin; 
-    const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
-    let text = role === 'ADMIN' 
-        ? `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nקוד המשפחה שלנו הוא: *${currentGroup.group_code}*\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}` 
-        : `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nקוד המשפחה שלנו הוא: *${currentGroup.group_code}*\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`; 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); 
-    document.getElementById('invite-modal').classList.add('hidden'); 
-}
-
-async function sendCredentialsEmail() {
-    if (!confirm('האם לשלוח את פרטי הגישה של כל בני המשפחה למייל שלך?')) return;
-    const btn = document.getElementById('btn-email-creds');
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
-    try {
-        const res = await fetch(`${API}/admin/email-credentials`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', `נשלח בהצלחה לכתובת: ${data.email}`);
-            triggerConfetti();
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת המייל');
-        }
-    } catch (e) {
-        showToast('error', 'שגיאת תקשורת מול השרת');
-    } finally {
-        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-regular fa-envelope"></i> שלח לי למייל פרטי גישה של כולם'; }
-    }
-}
-
-function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
-function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
-function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-function triggerConfetti() { try{ confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){} }
-function triggerShake() { const app = document.getElementById('main-wrapper'); if(app) { app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); } }
-
-async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity})</span><span class="font-bold">₪${i.price_per_unit || 0}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button></div></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
-function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
-async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
-async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
-function openGoalModal() { if(currentUser.role === 'ADMIN') { document.getElementById('goal-user-select-container').classList.remove('hidden'); } document.getElementById('goal-title').value = ''; document.getElementById('goal-target').value = ''; document.getElementById('goal-modal').classList.remove('hidden'); }
-function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
-async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
-
-async function breakGoal(goalId, title) {
-    if (!confirm(`לשבור את הקופה ולמשוך את הכסף חזרה לארנק הפנוי? \n(היעד "${title}" יימחק)`)) return;
-    try {
-        const res = await fetch(`${API}/goals/break`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ goalId: goalId })
-        });
-        const data = await res.json();
-        if (data.success) {
-            triggerConfetti();
-            showToast('success', 'הקופה נשברה! הכסף הועבר לארנק.');
-            fetchData();
-        } else {
-            showToast('error', data.error || 'שגיאה בשבירת הקופה');
-        }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-}
-
-
-function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
-function openShopModal() { 
-    const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = '';
-    const sm = document.getElementById('shop-modal'); if(sm) sm.classList.remove('hidden'); 
-}
-function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
-async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשה נשלחה!'); fetchData(); }
-
-async function handleLoanAction(id, action) {
-    try {
-        await fetch(`${API}/loans/action`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId: id, action: action }) });
-        showToast('success', action === 'approve' ? 'ההלוואה אושרה והכסף הועבר לארנק!' : 'בקשת ההלוואה נדחתה');
-        if(action === 'approve') triggerConfetti();
-        fetchData();
-    } catch(e) { showToast('error', 'שגיאה בביצוע הפעולה'); }
-}
-
-async function fetchBudget() {
-    const cat = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
-    const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`);
-    const data = await res.json();
-    const list = document.getElementById('budget-list'); list.innerHTML = '';
-    
-    const baseCategories = CATEGORIES.expense.map(c => c.value);
-    data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
-    baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
-
-    let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
-    data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
-
-    const createRow = (category, spent, limit, isSub = false) => {
-        const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-green-500'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
-        const limitDisplay = limit > 0 ? `₪${limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[category] || category;
-        const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">ערוך יעד</button>` : '';
-        const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-indigo-200 pr-2 mb-3' : 'mb-5';
-        return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
-    };
-
-    if (childrenItems.length > 0) {
-        const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-indigo-500'; if (pct > 80) color = 'bg-indigo-400'; if (pct > 100) color = 'bg-purple-600';
-        const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
-        const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'הוצאות על הילדים' : 'הכנסות מההורים';
-        list.innerHTML += `<div class="mb-8 bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100/60 shadow-sm transition-all hover:bg-indigo-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-indigo-900 flex items-center gap-2"><i class="fa-solid fa-child-reaching text-indigo-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-100">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-indigo-100">${subItemsHtml}</div></div>`;
-    }
-    otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
-}
-
-function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
-
-async function submitBudgetUpdate() { 
-    const cat = document.getElementById('budget-cat-id').value; 
-    const limit = document.getElementById('budget-limit').value; 
-    const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; 
-    
-    if (limit === "" || limit === "0" || limit === null) {
-        if(confirm('האם למחוק קטגוריה זו מהתקציב?')) {
-            await fetch(`${API}/budget/delete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, targetUserId: target})});
-        }
-    } else {
-        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); 
-    }
-    
-    document.getElementById('budget-modal').classList.add('hidden'); 
-    fetchBudget(); 
-}
-
-function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
-async function submitNewBudgetCat() { const catName = document.getElementById('new-budget-cat-name').value; if(!catName) return; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); document.getElementById('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); }
-
-async function fetchPendingUsers() {
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json();
-        const list = document.getElementById('pending-list'); const container = document.getElementById('pending-users-container');
-        if (users && users.length > 0) {
-            if(container) container.classList.remove('hidden'); 
-            if(list) list.innerHTML = '';
-            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; if(list) list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
-        } else { if(container) container.classList.add('hidden'); }
-    } catch(e) { console.error(e); }
-}
-
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
-
-function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
-
-async function submitChangePassword(e) {
-    e.preventDefault();
-    const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value;
-    const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...';
-    try {
-        const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
-        const data = await res.json();
-        if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); }
-    } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'שנה סיסמה'; }
-}
-
-async function deleteUser(id, name) {
-    if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
-    try {
-        const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
-        if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
-}
-
-// --- ACCESSIBILITY MODULE ---
-function initAccessibility() {
-    const saved = localStorage.getItem('ofl_accessibility');
-    if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
-}
-function applyAccessibility() {
-    Object.keys(accState).forEach(key => {
-        const btn = document.getElementById(`acc-${key}`);
-        if(accState[key]) {
-            document.body.classList.add(`acc-${key}`);
-            if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
-        } else {
-            document.body.classList.remove(`acc-${key}`);
-            if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
-        }
-    });
-    localStorage.setItem('ofl_accessibility', JSON.stringify(accState));
-}
-function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
-function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
-function openAccessibilityModal() { const m = document.getElementById('accessibility-modal'); if(m) m.classList.remove('hidden'); }
-function closeAccessibilityModal() { const m = document.getElementById('accessibility-modal'); if(m) m.classList.add('hidden'); }
-
-// --- BANNERS MODULE (SUPER ADMIN & UI) ---
-async function fetchBanners() {
-    try {
-        const res = await fetch(`${API}/banners`);
-        const data = await res.json();
-        if(data.success && data.banners) {
-            const fb = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
-            fb('sa-banner-top-title', data.banners.banner_top_title); fb('sa-banner-top-text', data.banners.banner_top_text);
-            fb('sa-banner-top-link', data.banners.banner_top_link); fb('sa-banner-top-image', data.banners.banner_top_image);
-            fb('sa-banner-bottom-title', data.banners.banner_bottom_title); fb('sa-banner-bottom-text', data.banners.banner_bottom_text);
-            fb('sa-banner-bottom-link', data.banners.banner_bottom_link); fb('sa-banner-bottom-image', data.banners.banner_bottom_image);
-
-            const configureBanner = (id, title, text, link, image) => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                
-                if (title || text || image) {
-                    el.classList.remove('hidden');
-                    const titleEl = document.getElementById(id + '-title');
-                    const textEl = document.getElementById(id + '-text');
-                    const overlay = document.getElementById(id + '-overlay');
-                    
-                    if(titleEl) { if(title) { titleEl.innerText = title; titleEl.classList.remove('hidden'); } else { titleEl.classList.add('hidden'); } }
-                    if(textEl) { if(text) { textEl.innerText = text; textEl.classList.remove('hidden'); } else { textEl.classList.add('hidden'); } }
-                    
-                    if (image) {
-                        el.style.backgroundImage = `url('${image}')`;
-                        el.classList.add('bg-cover', 'bg-center');
-                        if (overlay && (title || text)) overlay.classList.remove('hidden'); 
-                    } else {
-                        el.style.backgroundImage = 'none';
-                        if (overlay) overlay.classList.add('hidden');
-                    }
-
-                    if (link) { el.href = link; el.target = '_blank'; el.style.cursor = 'pointer'; } 
-                    else { el.removeAttribute('href'); el.removeAttribute('target'); el.style.cursor = 'default'; }
-                } else {
-                    el.classList.add('hidden');
-                }
-            };
-
-            configureBanner('app-banner-top', data.banners.banner_top_title, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image);
-            configureBanner('app-banner-bottom', data.banners.banner_bottom_title, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image);
-        }
-    } catch(e) {}
-}
-
-async function saveBanners() {
-    const topTitle = val('sa-banner-top-title'); const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImage = val('sa-banner-top-image');
-    const bottomTitle = val('sa-banner-bottom-title'); const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImage = val('sa-banner-bottom-image');
-    try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topTitle, topText, topLink, topImage, bottomTitle, bottomText, bottomLink, bottomImage }) });
-        const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
-}
+function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle)
