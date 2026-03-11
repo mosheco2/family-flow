@@ -126,7 +126,6 @@ async function loadSAData() {
         saAllUsers = data.users;
         renderSAGroups();
         
-        // Populate Admin Banner Fields
         const fb = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
         fb('sa-banner-top-title', data.adBannerTitleTop); fb('sa-banner-top-text', data.adBannerTextTop);
         fb('sa-banner-top-link', data.adBannerLinkTop); fb('sa-banner-top-image', data.adBannerImageTop);
@@ -280,8 +279,52 @@ function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } co
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
 async function handleLogin(e) { e.preventDefault(); forceTourStart = false; authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); }
-async function handleCreate(e) { e.preventDefault(); const t = document.getElementById('create-tos'); if(t && !t.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
-async function handleJoin(e) { e.preventDefault(); const t = document.getElementById('join-tos'); if(t && !t.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); if(d.success) { showToast('success', 'נשלח בהצלחה!'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); }
+
+async function handleCreate(e) { 
+    e.preventDefault(); 
+    const t = document.getElementById('create-tos'); 
+    if(t && !t.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    forceTourStart = true; 
+    const marketing = document.getElementById('create-marketing') ? document.getElementById('create-marketing').checked : false;
+    authAction('groups', { 
+        type: val('create-type'), 
+        groupName: val('create-group-name'), 
+        adminEmail: val('create-email'), 
+        adminNickname: val('create-nickname'), 
+        birthYear: val('create-year'), 
+        password: val('create-password'),
+        marketing: marketing
+    }); 
+}
+
+async function handleJoin(e) { 
+    e.preventDefault(); 
+    const t = document.getElementById('join-tos'); 
+    if(t && !t.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    forceTourStart = true; 
+    const marketing = document.getElementById('join-marketing') ? document.getElementById('join-marketing').checked : false;
+    const email = document.getElementById('join-email') ? document.getElementById('join-email').value : '';
+    
+    const res = await fetch(`${API}/join`, { 
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body:JSON.stringify({ 
+            groupCode: val('join-code'), 
+            role: val('join-role'), 
+            nickname: val('join-nickname'), 
+            birthYear: val('join-year'), 
+            password: val('join-password'),
+            email: email,
+            marketing: marketing
+        }) 
+    }); 
+    const d = await res.json(); 
+    if(d.success) { 
+        showToast('success', 'נשלח בהצלחה!'); 
+        window.history.replaceState({}, document.title, window.location.pathname); 
+        switchView('login'); 
+    } else { showToast('error', d.error); } 
+}
 
 async function authAction(endpoint, body) { 
     toggleLoader('login', true); 
@@ -361,7 +404,7 @@ async function loadDashboard() {
         const ub = document.getElementById('user-balance'); if(ub) ub.innerText = `₪${currentUser.balance || 0}`;
 
         if(isAdmin) { 
-            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'btn-pantry-insight'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'btn-pantry-insight', 'btn-email-creds'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
             const reqT = document.getElementById('req-title'); if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
             const profileUp = document.getElementById('profile-upgrade-section');
             if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
@@ -1102,7 +1145,44 @@ async function submitFinalCheckout() {
 async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
 
 function openInviteModal() { const codeSpan = document.getElementById('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } document.getElementById('invite-modal').classList.remove('hidden'); }
-function sendWhatsAppInvite(role) { if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; let text = role === 'ADMIN' ? `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}` : `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); document.getElementById('invite-modal').classList.add('hidden'); }
+
+// UPDATED: WhatsApp invite explicitly includes the group code
+function sendWhatsAppInvite(role) { 
+    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); 
+    const url = window.location.origin; 
+    const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
+    let text = role === 'ADMIN' 
+        ? `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nקוד המשפחה שלנו הוא: *${currentGroup.group_code}*\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}` 
+        : `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nקוד המשפחה שלנו הוא: *${currentGroup.group_code}*\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`; 
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); 
+    document.getElementById('invite-modal').classList.add('hidden'); 
+}
+
+// NEW: Request Email with Credentials (ADMIN only)
+async function sendCredentialsEmail() {
+    if (!confirm('האם לשלוח את פרטי הגישה של כל בני המשפחה למייל שלך?')) return;
+    const btn = document.getElementById('btn-email-creds');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
+    try {
+        const res = await fetch(`${API}/admin/email-credentials`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `נשלח בהצלחה לכתובת: ${data.email}`);
+            triggerConfetti();
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת המייל');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-regular fa-envelope"></i> שלח לי למייל פרטי גישה של כולם'; }
+    }
+}
+
 function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
 function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
