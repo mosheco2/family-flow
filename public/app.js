@@ -885,16 +885,34 @@ async function submitAssignQuiz() {
     document.getElementById('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData();
 }
 
+// UPDATED FOR BATCH 6: Admin Academy filtering logic
 function renderAdminAcademy() {
     const list = document.getElementById('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
-    let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
-    if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>'; } else {
+    
+    // FILTERS
+    const ageFilterEl = document.getElementById('admin-lib-age-filter');
+    const catFilterEl = document.getElementById('admin-lib-cat-filter');
+    const ageFilter = ageFilterEl ? ageFilterEl.value : 'all'; 
+    const catFilter = catFilterEl ? catFilterEl.value : 'all';
+    
+    let filteredBundles = Array.isArray(allBundles) ? [...allBundles] : [];
+    if (ageFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.age_group === ageFilter); 
+    if (catFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.type === catFilter);
+
+    let html = '';
+    
+    // LIBRARY SECTION
+    if (filteredBundles.length === 0) { 
+        html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים התואמים לסינון. נסה לשנות את הסינון או צור אתגר חדש ב-AI!</p>'; 
+    } else {
         html += '<div class="space-y-2 mb-8">';
-        allBundles.forEach(b => {
+        filteredBundles.forEach(b => {
             const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
-            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button></div>`;
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה</button></div>`;
         }); html += '</div>';
     }
+    
+    // ASSIGNED SECTION
     html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
     if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
         html += '<div class="space-y-2 pb-20">';
@@ -902,7 +920,9 @@ function renderAdminAcademy() {
             let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
             html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${b.title}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
         }); html += '</div>';
-    } list.innerHTML = html;
+    } 
+    
+    list.innerHTML = html;
 }
 
 function renderLibrary() {
@@ -971,7 +991,6 @@ function filterSuggestions(val) {
     const list = document.getElementById('suggestions'); list.innerHTML = ''; 
     if (!val) { list.classList.add('hidden'); return; } 
     
-    // חיפוש חכם במאגר
     const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); 
     
     if (filtered.length > 0) { 
@@ -987,7 +1006,6 @@ function filterSuggestions(val) {
             list.appendChild(li); 
         }); 
     } else { 
-        // אפשרות להוסיף מוצר חדש ולהצמיד אותו למוצר מוכר מתוך הרשימה
         list.classList.remove('hidden');
         let optionsHtml = '<option value="">-- אל תצמיד, הוסף כמו שהוא --</option>';
         FLAT_PRODUCTS.forEach(p => { optionsHtml += `<option value="${p.name}">${p.name} (${p.category})</option>`; });
@@ -1007,7 +1025,6 @@ function filterSuggestions(val) {
     } 
 }
 
-// Attach manual selection to window so inline onclick works
 window.selectManualShopItem = function() {
     const rawVal = document.getElementById('shop-item').value;
     const normVal = document.getElementById('manual-normalize-select').value;
@@ -1146,7 +1163,6 @@ async function copyList(tripId) { if(!confirm('האם להעתיק את כל ה�
 
 function openInviteModal() { const codeSpan = document.getElementById('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } document.getElementById('invite-modal').classList.remove('hidden'); }
 
-// UPDATED: WhatsApp invite explicitly includes the group code
 function sendWhatsAppInvite(role) { 
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); 
     const url = window.location.origin; 
@@ -1158,7 +1174,6 @@ function sendWhatsAppInvite(role) {
     document.getElementById('invite-modal').classList.add('hidden'); 
 }
 
-// NEW: Request Email with Credentials (ADMIN only)
 async function sendCredentialsEmail() {
     if (!confirm('האם לשלוח את פרטי הגישה של כל בני המשפחה למייל שלך?')) return;
     const btn = document.getElementById('btn-email-creds');
@@ -1199,7 +1214,6 @@ function openDepositModal(id, title) { document.getElementById('deposit-goal-id'
 async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
 async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
 
-// Break Goal Function
 async function breakGoal(goalId, title) {
     if (!confirm(`לשבור את הקופה ולמשוך את הכסף חזרה לארנק הפנוי? \n(היעד "${title}" יימחק)`)) return;
     try {
@@ -1348,96 +1362,6 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { const m = document.getElementById('accessibility-modal'); if(m) m.classList.remove('hidden'); }
 function closeAccessibilityModal() { const m = document.getElementById('accessibility-modal'); if(m) m.classList.add('hidden'); }
-
-// --- RECIPES (AI CHEF) MODULE ---
-function toggleRecipeCustomInput() {
-    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
-    if (isIgnored) {
-        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
-        document.getElementById('recipe-pantry-selection').classList.add('hidden');
-    } else {
-        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
-        document.getElementById('recipe-pantry-selection').classList.remove('hidden');
-    }
-}
-
-function renderRecipePantrySelection() {
-    const listContainer = document.getElementById('recipe-pantry-items-list');
-    if (!listContainer) return;
-    if (!pantryCache || pantryCache.length === 0) {
-        listContainer.innerHTML = '<p class="text-xs text-slate-400">המזווה שלכם ריק. הוסיפו מוצרים למזווה כדי לייצר מהם מתכונים!</p>';
-        return;
-    }
-    let html = '';
-    pantryCache.forEach(p => {
-        html += `<label class="recipe-pantry-item-label flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-orange-300 transition shadow-sm"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3.5 h-3.5 accent-orange-500"><span class="text-xs text-slate-700 font-medium">${p.item_name} <span class="text-[10px] text-slate-400">(${p.quantity})</span></span></label>`;
-    });
-    listContainer.innerHTML = html;
-}
-
-let isAllRecipePantrySelected = true;
-function selectAllRecipePantry() {
-    isAllRecipePantrySelected = !isAllRecipePantrySelected;
-    document.querySelectorAll('.recipe-pantry-checkbox').forEach(cb => { cb.checked = isAllRecipePantrySelected; });
-}
-
-async function generateRecipe() {
-    const btn = document.getElementById('btn-generate-recipe');
-    const mealType = val('recipe-meal-type');
-    const diners = val('recipe-diners');
-    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
-    const customIngredients = val('recipe-custom-ingredients-input');
-    
-    let pantryItemsStr = "";
-    if (!ignorePantry) {
-        const selectedItems = [];
-        document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(cb => { selectedItems.push(cb.value); });
-        if (selectedItems.length === 0) return showToast('error', 'לא סימנתם אף מוצר מהמזווה!');
-        pantryItemsStr = selectedItems.join(', ');
-    } else if (!customIngredients.trim()) {
-        return showToast('error', 'אנא הזינו מצרכים חלופיים');
-    }
-
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...'; }
-    document.getElementById('recipe-result-container').classList.add('hidden');
-
-    try {
-        const res = await fetch(`${API}/recipes/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, mealType: mealType, diners: diners, ignorePantry: ignorePantry, customIngredients: customIngredients, pantryItems: pantryItemsStr })
-        });
-        const data = await res.json();
-        
-        if(!handleAIResponseCheck(data)) return;
-
-        if (data.success && data.recipe) {
-            let formattedRecipe = data.recipe
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/## /g, '<h3 class="text-lg font-bold text-slate-800 mt-4 mb-2">')
-                .replace(/# /g, '<h2 class="text-xl font-bold text-orange-600 mt-2 mb-2">');
-            
-            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
-            document.getElementById('recipe-result-container').classList.remove('hidden');
-            triggerConfetti();
-            setTimeout(() => document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' }), 300);
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת המתכון');
-        }
-    } catch (e) { showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)'); } 
-    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; } }
-}
-
-function copyRecipe() {
-    const text = document.getElementById('recipe-result-content').innerText;
-    try {
-        const textArea = document.createElement("textarea"); textArea.value = text;
-        document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea);
-        showToast('success', 'המתכון הועתק בהצלחה!');
-    } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
-}
 
 // --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
