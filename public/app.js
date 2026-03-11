@@ -503,7 +503,7 @@ async function fetchData() {
         const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance}`;
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        allBundles = Array.isArray(data.all_bundles) ? data.all_bundles : [];
 
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
@@ -633,7 +633,7 @@ async function generateAIQuiz() {
         const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
         const data = await res.json();
         if(!handleAIResponseCheck(data)) return;
-        if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); const m = document.getElementById('ai-modal'); if(m) m.classList.add('hidden'); const top = document.getElementById('ai-topic'); if(top) top.value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
+        if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); const m = document.getElementById('ai-modal'); if(m) m.classList.add('hidden'); const top = document.getElementById('ai-topic'); if(top) top.value = ''; await fetchData(); openAssignModalSpecific(data.bundleId); } 
         else showToast('error', data.error || 'שגיאה ביצירת המבחן');
     } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
 }
