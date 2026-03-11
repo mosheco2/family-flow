@@ -27,7 +27,7 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // מנגנון ריפוי עצמי למסד הנתונים - לא פוגע בנתונים קיימים
+      // מנגנון ריפוי עצמי למסד הנתונים - מוודא שהטבלאות והעמודות קיימות
       try {
           await client.query(`
               CREATE TABLE IF NOT EXISTS loans (
@@ -43,6 +43,10 @@ pool.connect()
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10;
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE;
               ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
+              
+              -- BATCH 5: New Columns for Email & Marketing
+              ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+              ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN DEFAULT FALSE;
           `);
           console.log('✅ Safe DB Migration Completed - All tables up to date');
       } catch(e) {
@@ -95,7 +99,7 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS user_assignments CASCADE; DROP TABLE IF EXISTS quiz_questions CASCADE; DROP TABLE IF EXISTS quiz_bundles CASCADE; DROP TABLE IF EXISTS budget_allocations CASCADE; DROP TABLE IF EXISTS goals CASCADE; DROP TABLE IF EXISTS loans CASCADE; DROP TABLE IF EXISTS tasks CASCADE; DROP TABLE IF EXISTS transactions CASCADE; DROP TABLE IF EXISTS shopping_list CASCADE; DROP TABLE IF EXISTS shopping_trips CASCADE; DROP TABLE IF EXISTS shopping_trip_items CASCADE; DROP TABLE IF EXISTS pantry CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE; DROP TABLE IF EXISTS system_settings CASCADE;
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
+            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00, email VARCHAR(255), marketing_consent BOOLEAN DEFAULT FALSE);
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00);
@@ -300,9 +304,18 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const items = JSON.parse(result.response.text());
+        let normalizedArray = [];
+        try {
+            const names = items.map(i => i.name);
+            const normPrompt = `Normalize these grocery product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
+            const normResult = await model.generateContent(normPrompt);
+            normalizedArray = JSON.parse(normResult.response.text());
+        } catch(e) { console.error(e); }
+        
         for (let i = 0; i < items.length; i++) {
              const item = items[i];
-             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, item.name, item.qty || 1, item.price || 0]);
+             const normName = normalizedArray[i] || item.name;
+             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
         }
         res.json({ success: true, count: items.length });
     } catch (e) { handleAIError(e, res, 'שגיאה בקריאת הקבלה'); }
@@ -325,9 +338,15 @@ app.post('/api/groups', async (req, res) => {
     try {
         await dbClient.query('BEGIN');
         let code = generateGroupCode();
+        // Saving the admin email from the request
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
-        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]);
+        
+        // Save user along with email and marketing consent
+        const marketingConsent = req.body.marketing === true;
+        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5, $6) RETURNING *`, 
+            [group.id, req.body.adminNickname, req.body.birthYear, req.body.password, req.body.adminEmail, marketingConsent]);
+            
         await dbClient.query('COMMIT');
         res.json({ success: true, user: uRes.rows[0], group: group });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
@@ -335,12 +354,17 @@ app.post('/api/groups', async (req, res) => {
 
 app.post('/api/join', async (req, res) => {
     try {
-        const { groupCode, nickname, birthYear, password, role } = req.body;
+        const { groupCode, nickname, birthYear, password, role, email, marketing } = req.body;
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
-        await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [group.id, nickname, birthYear, password, reqRole]);
+        const marketingConsent = marketing === true;
+        const userEmail = email || null;
+
+        await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`, 
+            [group.id, nickname, birthYear, password, reqRole, userEmail, marketingConsent]);
+            
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -506,6 +530,30 @@ app.post('/api/admin/payday', async (req, res) => {
         await dbClient.query('COMMIT'); res.json({success: true, totalDistributed});
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
+
+// --- NEW: EMAIL CREDENTIALS API ---
+app.post('/api/admin/email-credentials', async (req, res) => {
+    try {
+        const { groupId, adminId } = req.body;
+        // Verify admin
+        const adminCheck = await pool.query('SELECT role, email FROM users WHERE id = $1 AND group_id = $2', [adminId, groupId]);
+        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין לך הרשאה לבצע פעולה זו' });
+        
+        const groupRes = await pool.query('SELECT name, group_code, admin_email FROM family_groups WHERE id = $1', [groupId]);
+        
+        const targetEmail = adminCheck.rows[0].email || groupRes.rows[0].admin_email;
+        if (!targetEmail) return res.status(400).json({ error: 'לא מוגדרת כתובת מייל לראש המשפחה במערכת' });
+
+        // Here we simulate the actual email sending via NodeMailer or similar in a production environment.
+        console.log(`[SIMULATION] MOCK EMAIL SENT TO: ${targetEmail}`);
+        console.log(`[SIMULATION] Details for Group: ${groupRes.rows[0].name}, Code: ${groupRes.rows[0].group_code}`);
+        
+        res.json({ success: true, email: targetEmail });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
