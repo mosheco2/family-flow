@@ -211,8 +211,14 @@
         <!-- MAIN DASHBOARD CONTAINER -->
         <div id="dashboard-container" class="w-full max-w-md bg-slate-50 sm:rounded-[2.5rem] shadow-2xl overflow-hidden hidden h-[100dvh] sm:h-[90vh] flex flex-col relative fade-in z-10">
             
-            <!-- TOP BANNER CONTAINER -->
-            <a id="app-banner-top" href="#" class="hidden relative overflow-hidden text-center block hover:opacity-95 transition z-40 cursor-pointer"></a>
+            <!-- TOP BANNER CONTAINER (UPDATED) -->
+            <a id="app-banner-top" href="#" class="hidden relative overflow-hidden text-center block hover:opacity-95 transition z-40 cursor-pointer bg-cover bg-center" style="min-h: 40px; background-color: #4f46e5;">
+                <div id="app-banner-top-overlay" class="absolute inset-0 bg-black/40 hidden"></div>
+                <div class="relative z-10 py-2 px-4 flex flex-col items-center justify-center min-h-[40px]">
+                    <h4 id="app-banner-top-title" class="text-white font-bold text-sm hidden drop-shadow-md"></h4>
+                    <p id="app-banner-top-text" class="text-white text-xs font-medium hidden drop-shadow-md"></p>
+                </div>
+            </a>
             
             <!-- App Header -->
             <header class="glass-header sticky top-0 z-40 p-4 flex justify-between items-center" id="tour-header">
@@ -259,15 +265,6 @@
                         </div>
                     </div>
                     
-                    <!-- Admin specific widgets -->
-                    <div id="admin-panel" class="hidden space-y-4">
-                        <div class="bg-indigo-50 p-4 rounded-2xl flex justify-between items-center border border-indigo-100 shadow-sm cursor-pointer hover:bg-indigo-100 transition" onclick="triggerPayday()">
-                            <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 text-lg shadow-sm"><i class="fa-solid fa-coins"></i></div><div><h3 class="font-bold text-indigo-900 text-sm">יום תשלום! (PayDay)</h3><p class="text-xs text-indigo-700">חלוקת דמי כיס וריביות לכל הילדים</p></div></div>
-                            <div id="btn-payday-loader" class="loader hidden border-indigo-600 border-t-transparent w-5 h-5"></div>
-                        </div>
-                        <div id="pending-list" class="space-y-2"></div>
-                    </div>
-
                     <!-- Child specific widgets -->
                     <div id="child-todo-section" class="hidden">
                         <div class="flex justify-between items-end mb-3"><h3 class="font-bold text-slate-700"><i class="fa-solid fa-bolt text-yellow-500"></i> לביצוע</h3></div>
@@ -335,6 +332,12 @@
                     </div>
                     
                     <div id="bank-admin-view" class="hidden space-y-6">
+                        <!-- PAYDAY BUTTON (MOVED HERE FOR ADMIN) -->
+                        <div class="bg-indigo-50 p-4 rounded-2xl flex justify-between items-center border border-indigo-100 shadow-sm cursor-pointer hover:bg-indigo-100 transition" onclick="triggerPayday()">
+                            <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 text-lg shadow-sm"><i class="fa-solid fa-coins"></i></div><div><h3 class="font-bold text-indigo-900 text-sm">יום תשלום! (PayDay)</h3><p class="text-xs text-indigo-700">חלוקת דמי כיס וריביות לכל הילדים</p></div></div>
+                            <div id="btn-payday-loader" class="loader hidden border-indigo-600 border-t-transparent w-5 h-5"></div>
+                        </div>
+
                         <button onclick="openGoalModal()" class="w-full bg-white border border-blue-200 text-blue-600 py-3 rounded-xl font-bold shadow-sm hover:bg-blue-50 transition"><i class="fa-solid fa-plus"></i> פתיחת קופת חיסכון משפחתית</button>
                         
                         <div id="admin-loans-container" class="hidden mb-6 bg-purple-50 p-4 rounded-2xl border border-purple-100">
@@ -460,12 +463,25 @@
                         <i class="fa-solid fa-users-gear text-4xl opacity-50"></i>
                     </div>
                     <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm text-center mb-4"><p class="text-sm text-slate-500 mb-2">קוד המשפחה שלכם:</p><div class="bg-blue-50 text-blue-600 font-mono text-3xl font-bold py-3 rounded-2xl tracking-widest border border-blue-100 mb-4" id="display-group-code"></div><button onclick="openInviteModal()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition w-full"><i class="fa-brands fa-whatsapp"></i> הזמן בוואטסאפ</button></div>
+                    
+                    <!-- PENDING USERS AREA (MOVED HERE FOR ADMIN) -->
+                    <div id="pending-users-container" class="hidden mb-4 bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                        <h3 class="font-bold text-orange-600 mb-3 px-2 flex items-center gap-2"><i class="fa-solid fa-user-clock"></i> ממתינים לאישור</h3>
+                        <div id="pending-list" class="space-y-2"></div>
+                    </div>
+
                     <h3 class="font-bold text-slate-700 mb-2 px-2">חברי המשפחה</h3>
                     <div id="members-list" class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden"></div>
                 </div>
                 
-                <!-- BOTTOM BANNER CONTAINER -->
-                <a id="app-banner-bottom" href="#" class="hidden relative overflow-hidden text-center block hover:scale-[1.02] transition z-40 mt-8 cursor-pointer"></a>
+                <!-- BOTTOM BANNER CONTAINER (UPDATED) -->
+                <a id="app-banner-bottom" href="#" class="hidden relative overflow-hidden text-center block hover:scale-[1.02] transition z-40 mt-8 cursor-pointer rounded-xl shadow-md bg-cover bg-center" style="min-h: 50px; background-color: #db2777;">
+                    <div id="app-banner-bottom-overlay" class="absolute inset-0 bg-black/40 hidden"></div>
+                    <div class="relative z-10 py-3 px-4 flex flex-col items-center justify-center min-h-[50px]">
+                        <h4 id="app-banner-bottom-title" class="text-white font-bold text-sm hidden drop-shadow-md"></h4>
+                        <p id="app-banner-bottom-text" class="text-white text-xs font-medium hidden drop-shadow-md"></p>
+                    </div>
+                </a>
             </div>
 
             <!-- Floating Action Button -->
@@ -726,7 +742,7 @@
             </div>
         </div>
 
-        <!-- SHOPPING ADD MODAL (UPDATED WITH NORMALIZED NAME) -->
+        <!-- SHOPPING ADD MODAL -->
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] hidden flex flex-col justify-end fade-in" onclick="if(event.target === this) this.classList.add('hidden')">
             <div class="bg-white rounded-t-[2rem] w-full max-w-md mx-auto p-6 pb-12 shadow-2xl relative slide-up">
                 <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
