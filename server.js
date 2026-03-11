@@ -62,12 +62,13 @@ pool.connect()
   .catch(err => console.error('Connection Error', err.stack));
 
 
-// הפונקציה ששותלת את המבחנים אם המאגר ריק
+// הפונקציה ששותלת את המבחנים (עודכנה כדי לוודא שתמיד יש 10 מבחני מערכת)
 async function seedDatabaseIfNeeded(client) {
     try {
-        const checkRes = await client.query('SELECT COUNT(*) FROM quiz_bundles');
-        if (parseInt(checkRes.rows[0].count) === 0) {
-            console.log('🌱 Database is empty of quizzes. Seeding initial data from seed_quizzes.js...');
+        const checkRes = await client.query("SELECT COUNT(*) FROM quiz_bundles WHERE created_by = 'SYSTEM'");
+        if (parseInt(checkRes.rows[0].count) < 10) {
+            console.log('🌱 Seeding initial static data from seed_quizzes.js...');
+            await client.query("DELETE FROM quiz_bundles WHERE created_by = 'SYSTEM'"); // ניקוי כפילויות לפני שתילה מחדש
             for (let quiz of defaultQuizzes) {
                 const bundleRes = await client.query(
                     `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) 
@@ -148,7 +149,6 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
         
-        // אחרי שאיפסנו, נפעיל שוב את הזריעה
         const client = await pool.connect();
         await seedDatabaseIfNeeded(client);
         client.release();
@@ -255,7 +255,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}. Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly: { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
         const result = await model.generateContent(prompt); const quizData = JSON.parse(result.response.text());
-        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`, [ageGroup, quizData.title, quizData.text_content || '']);
+        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ('financial', $1, $2, $3, 80, 10.0, 'AI') RETURNING id`, [ageGroup, quizData.title, quizData.text_content || '']);
         for (const q of quizData.questions) await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [bundleRes.rows[0].id, q.q, JSON.stringify(q.options), q.correct]);
         res.json({ success: true, bundleId: bundleRes.rows[0].id });
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת המבחן'); }
@@ -372,15 +372,65 @@ app.post('/api/academy/tutor', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
 });
 
+// --- NEW ACADEMY ROUTES ---
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days } = req.body;
+        let deadline = null;
+        if (days && parseInt(days) > 0) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(days));
+        }
+        const customReward = reward ? parseFloat(reward) : null;
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline, status) VALUES ($1, $2, $3, $4, 'assigned')`, [userId, bundleId, customReward, deadline]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/academy/request-challenge', async (req, res) => {
+    try {
+        const { userId, bundleId } = req.body;
+        let targetBundleId = bundleId;
+        if (!targetBundleId) {
+            const randomRes = await pool.query('SELECT id FROM quiz_bundles ORDER BY RANDOM() LIMIT 1');
+            if (randomRes.rows.length > 0) targetBundleId = randomRes.rows[0].id;
+        }
+        if (!targetBundleId) return res.status(404).json({error: 'אין מבחנים זמינים במאגר כרגע.'});
+        
+        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id, status) VALUES ($1, $2, 'assigned')`, [userId, targetBundleId]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/academy/submit', async (req, res) => {
+    try {
+        const { userId, bundleId, score } = req.body;
+        const bundleRes = await pool.query('SELECT threshold, reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        const bundle = bundleRes.rows[0];
+        const status = score >= bundle.threshold ? 'completed' : 'failed';
+        
+        await pool.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE user_id=$3 AND bundle_id=$4 AND status='assigned'`, [status, score, userId, bundleId]);
+        
+        if (status === 'completed') {
+            await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [bundle.reward, userId]);
+            const u = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`, [userId, u.rows[0].group_id, bundle.reward, 'בונוס הצטיינות באקדמיה']);
+        }
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
 // --- BASIC API ENDPOINTS ---
 app.post('/api/groups', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         await dbClient.query('BEGIN');
         let code = generateGroupCode();
+        // Saving the admin email from the request
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
         
+        // Save user along with email and marketing consent
         const marketingConsent = req.body.marketing === true;
         const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5, $6) RETURNING *`, 
             [group.id, req.body.adminNickname, req.body.birthYear, req.body.password, req.body.adminEmail, marketingConsent]);
@@ -450,9 +500,11 @@ app.get('/api/data/:userId', async (req, res) => {
                 const item = shopRes.rows[i];
                 const searchName = item.normalized_name || item.item_name;
                 
+                // חוכמת המשפחה
                 const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3) ORDER BY sti.price_per_unit ASC LIMIT 1`, [user.group_id, searchName, searchName]);
                 if (bestPriceRes.rows.length > 0) item.best_price = bestPriceRes.rows[0];
                 
+                // חוכמת ההמונים
                 const crowdPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE (sti.normalized_name = $1 OR sti.item_name = $2) AND st.group_id != $3 ORDER BY sti.price_per_unit ASC LIMIT 1`, [searchName, searchName, user.group_id]);
                 if (crowdPriceRes.rows.length > 0) item.crowd_price = crowdPriceRes.rows[0];
             }
