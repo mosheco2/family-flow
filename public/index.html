@@ -211,12 +211,12 @@
         <!-- MAIN DASHBOARD CONTAINER -->
         <div id="dashboard-container" class="w-full max-w-md bg-slate-50 sm:rounded-[2.5rem] shadow-2xl overflow-hidden hidden h-[100dvh] sm:h-[90vh] flex flex-col relative fade-in z-10">
             
-            <!-- TOP BANNER CONTAINER (UPDATED) -->
-            <a id="app-banner-top" href="#" class="hidden relative overflow-hidden text-center block hover:opacity-95 transition z-40 cursor-pointer bg-cover bg-center" style="min-h: 40px; background-color: #4f46e5;">
+            <!-- TOP BANNER CONTAINER (UPDATED HEIGHT) -->
+            <a id="app-banner-top" href="#" class="hidden relative overflow-hidden text-center block hover:opacity-95 transition z-40 cursor-pointer bg-cover bg-center" style="min-h: 80px; background-color: #4f46e5;">
                 <div id="app-banner-top-overlay" class="absolute inset-0 bg-black/40 hidden"></div>
-                <div class="relative z-10 py-2 px-4 flex flex-col items-center justify-center min-h-[40px]">
-                    <h4 id="app-banner-top-title" class="text-white font-bold text-sm hidden drop-shadow-md"></h4>
-                    <p id="app-banner-top-text" class="text-white text-xs font-medium hidden drop-shadow-md"></p>
+                <div class="relative z-10 py-4 px-4 flex flex-col items-center justify-center min-h-[80px] h-full">
+                    <h4 id="app-banner-top-title" class="text-white font-bold text-base hidden drop-shadow-md"></h4>
+                    <p id="app-banner-top-text" class="text-white text-sm font-medium hidden drop-shadow-md"></p>
                 </div>
             </a>
             
@@ -265,6 +265,15 @@
                         </div>
                     </div>
                     
+                    <!-- Admin specific widgets -->
+                    <div id="admin-panel" class="hidden space-y-4">
+                        <div class="bg-indigo-50 p-4 rounded-2xl flex justify-between items-center border border-indigo-100 shadow-sm cursor-pointer hover:bg-indigo-100 transition" onclick="triggerPayday()">
+                            <div class="flex items-center gap-3"><div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 text-lg shadow-sm"><i class="fa-solid fa-coins"></i></div><div><h3 class="font-bold text-indigo-900 text-sm">יום תשלום! (PayDay)</h3><p class="text-xs text-indigo-700">חלוקת דמי כיס וריביות לכל הילדים</p></div></div>
+                            <div id="btn-payday-loader" class="loader hidden border-indigo-600 border-t-transparent w-5 h-5"></div>
+                        </div>
+                        <div id="pending-list" class="space-y-2"></div>
+                    </div>
+
                     <!-- Child specific widgets -->
                     <div id="child-todo-section" class="hidden">
                         <div class="flex justify-between items-end mb-3"><h3 class="font-bold text-slate-700"><i class="fa-solid fa-bolt text-yellow-500"></i> לביצוע</h3></div>
@@ -474,12 +483,12 @@
                     <div id="members-list" class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden"></div>
                 </div>
                 
-                <!-- BOTTOM BANNER CONTAINER (UPDATED) -->
-                <a id="app-banner-bottom" href="#" class="hidden relative overflow-hidden text-center block hover:scale-[1.02] transition z-40 mt-8 cursor-pointer rounded-xl shadow-md bg-cover bg-center" style="min-h: 50px; background-color: #db2777;">
+                <!-- BOTTOM BANNER CONTAINER (UPDATED HEIGHT) -->
+                <a id="app-banner-bottom" href="#" class="hidden relative overflow-hidden text-center block hover:scale-[1.02] transition z-40 mt-8 cursor-pointer rounded-xl shadow-md bg-cover bg-center" style="min-h: 100px; background-color: #db2777;">
                     <div id="app-banner-bottom-overlay" class="absolute inset-0 bg-black/40 hidden"></div>
-                    <div class="relative z-10 py-3 px-4 flex flex-col items-center justify-center min-h-[50px]">
-                        <h4 id="app-banner-bottom-title" class="text-white font-bold text-sm hidden drop-shadow-md"></h4>
-                        <p id="app-banner-bottom-text" class="text-white text-xs font-medium hidden drop-shadow-md"></p>
+                    <div class="relative z-10 py-4 px-4 flex flex-col items-center justify-center min-h-[100px] h-full">
+                        <h4 id="app-banner-bottom-title" class="text-white font-bold text-base hidden drop-shadow-md"></h4>
+                        <p id="app-banner-bottom-text" class="text-white text-sm font-medium hidden drop-shadow-md"></p>
                     </div>
                 </a>
             </div>
@@ -513,7 +522,7 @@
                     <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold shadow-md hover:bg-blue-700">שמור הודעה</button>
                 </div>
                 
-                <!-- Banners Management (UPDATED FOR BATCH 3) -->
+                <!-- Banners Management -->
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                     <h2 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-rectangle-ad text-pink-500"></i> ניהול באנרים מתקדם</h2>
                     <p class="text-xs text-slate-500 mb-4">ניתן להזין כותרת, טקסט, ותמונת רקע (מתוך התיקייה public, למשל <code>banner1.png</code>).</p>
