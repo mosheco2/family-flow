@@ -1,4 +1,4 @@
-// --- עיצוב יוקרתי ומוחלט לסיור המודרך (תואם להודעת הפתיחה) ---
+// --- עיצוב יוקרתי לסיור המודרך ---
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
     .hidden { display: none !important; }
@@ -6,114 +6,33 @@ introStyle.innerHTML = `
     .introjs-fixParent { z-index: auto !important; opacity: 1.0 !important; transform: none !important; filter: none !important; } 
     body.introjs-active .slider-container, body.introjs-active .slider-scroll, body.introjs-active .overflow-hidden { overflow: visible !important; } 
     body.introjs-active header.sticky { z-index: 1 !important; } 
-    
     .introjs-overlay { z-index: 9999996 !important; background-color: rgba(15, 23, 42, 0.75) !important; backdrop-filter: blur(4px) !important; } 
     .introjs-helperLayer { z-index: 9999997 !important; border-radius: 1.5rem !important; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4) !important; } 
     .introjs-tooltipReferenceLayer { z-index: 9999998 !important; } 
-    
-    /* עיצוב חלונית הסיור עצמה */
-    .introjs-tooltip { 
-        z-index: 9999999 !important; 
-        background: white !important; 
-        border-radius: 2rem !important; 
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; 
-        border: none !important; 
-        padding: 0 !important; 
-        overflow: hidden !important; 
-        max-width: 340px !important; 
-        font-family: 'Rubik', sans-serif !important; 
-    } 
-    .introjs-tooltipheader { 
-        background: linear-gradient(to right, #2563eb, #4f46e5) !important; 
-        padding: 1.5rem !important; 
-        margin: 0 !important; 
-        text-align: center !important; 
-        display: flex; 
-        justify-content: center; 
-    } 
-    .introjs-tooltiptitle { 
-        color: white !important; 
-        font-size: 1.25rem !important; 
-        font-weight: 700 !important; 
-        margin: 0 !important; 
-        width: 100% !important; 
-    } 
-    .introjs-skipbutton { 
-        color: rgba(255,255,255,0.8) !important; 
-        position: absolute !important; 
-        top: 15px !important; 
-        right: 15px !important; 
-        font-size: 24px !important; 
-        background: transparent !important; 
-        text-shadow: none !important; 
-        font-weight: normal !important; 
-    } 
+    .introjs-tooltip { z-index: 9999999 !important; background: white !important; border-radius: 2rem !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; border: none !important; padding: 0 !important; overflow: hidden !important; max-width: 340px !important; font-family: 'Rubik', sans-serif !important; } 
+    .introjs-tooltipheader { background: linear-gradient(to right, #2563eb, #4f46e5) !important; padding: 1.5rem !important; margin: 0 !important; text-align: center !important; display: flex; justify-content: center; } 
+    .introjs-tooltiptitle { color: white !important; font-size: 1.25rem !important; font-weight: 700 !important; margin: 0 !important; width: 100% !important; } 
+    .introjs-skipbutton { color: rgba(255,255,255,0.8) !important; position: absolute !important; top: 15px !important; right: 15px !important; font-size: 24px !important; background: transparent !important; text-shadow: none !important; font-weight: normal !important; } 
     .introjs-skipbutton:hover { color: white !important; } 
-    .introjs-tooltiptext { 
-        padding: 1.5rem !important; 
-        color: #334155 !important; 
-        font-size: 1rem !important; 
-        line-height: 1.6 !important; 
-        text-align: center !important; 
-        font-weight: 500 !important; 
-    } 
-    .introjs-tooltipbuttons { 
-        border-top: none !important; 
-        padding: 0 1.5rem 1.5rem 1.5rem !important; 
-        display: flex !important; 
-        gap: 0.75rem !important; 
-        background: white !important; 
-    } 
-    .introjs-button { 
-        border-radius: 0.75rem !important; 
-        padding: 0.75rem 1rem !important; 
-        font-weight: 700 !important; 
-        text-shadow: none !important; 
-        box-shadow: none !important; 
-        border: none !important; 
-        flex: 1 !important; 
-        text-align: center !important; 
-        transition: all 0.2s !important; 
-    } 
+    .introjs-tooltiptext { padding: 1.5rem !important; color: #334155 !important; font-size: 1rem !important; line-height: 1.6 !important; text-align: center !important; font-weight: 500 !important; } 
+    .introjs-tooltipbuttons { border-top: none !important; padding: 0 1.5rem 1.5rem 1.5rem !important; display: flex !important; gap: 0.75rem !important; background: white !important; } 
+    .introjs-button { border-radius: 0.75rem !important; padding: 0.75rem 1rem !important; font-weight: 700 !important; text-shadow: none !important; box-shadow: none !important; border: none !important; flex: 1 !important; text-align: center !important; transition: all 0.2s !important; } 
     .introjs-nextbutton, .introjs-donebutton { background-color: #3b82f6 !important; color: white !important; } 
     .introjs-nextbutton:hover, .introjs-donebutton:hover { background-color: #2563eb !important; } 
     .introjs-prevbutton { background-color: #f1f5f9 !important; color: #475569 !important; } 
     .introjs-prevbutton:hover { background-color: #e2e8f0 !important; } 
-    .introjs-disabled { opacity: 0.5 !important; cursor: not-allowed !important; pointer-events: none !important; } 
     .introjs-bullets { padding-bottom: 1.5rem !important; background: white !important; } 
     .introjs-bullets ul li a { width: 8px !important; height: 8px !important; border-radius: 50% !important; background: #cbd5e1 !important; } 
     .introjs-bullets ul li a.active { background: #3b82f6 !important; width: 16px !important; border-radius: 4px !important; } 
-    
-    @media (max-width: 768px) { 
-        .introjs-tooltipReferenceLayer { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important; right: auto !important; bottom: auto !important; width: 90vw !important; } 
-        .introjs-tooltip { position: relative !important; margin: 0 auto !important; } 
-        .introjs-arrow { display: none !important; } 
-    }
 `;
 document.head.appendChild(introStyle);
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
-// משתנים גלובליים
-let currentUser = null; 
-let currentGroup = null; 
-let pollInterval = null; 
-let saToken = null; 
-let saAllGroups = []; 
-let saAllUsers = [];
-let membersCache = []; 
-let shoppingListCache = []; 
-let wisdomCache = {}; 
-let bundlesCache = []; 
-let allBundles = []; 
-let pantryCache = [];
-let allTasks = []; 
-let allTransactions = []; 
-let feedCache = []; 
-let currentVerifyTaskId = null; 
-let currentVerifyTaskTitle = null; 
-let currentWrongAnswers = []; 
-let forceTourStart = false;
+let currentUser = null, currentGroup = null, pollInterval = null, saToken = null;
+let saAllGroups = [], saAllUsers = [], membersCache = [], shoppingListCache = [], wisdomCache = {};
+let bundlesCache = [], allBundles = [], pantryCache = [], allTasks = [], allTransactions = [], feedCache = [];
+let currentVerifyTaskId = null, currentVerifyTaskTitle = null, currentWrongAnswers = [], forceTourStart = false;
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 
@@ -175,7 +94,6 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 window.onload = async () => { 
     initAccessibility();
     
-    // Failsafe קריטי לוודא שהמסך טעינה יירד תמיד
     const failsafeTimer = setTimeout(() => { 
         const preloader = document.getElementById('app-preloader'); 
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -353,6 +271,12 @@ async function loadDashboard() {
             const el = document.getElementById(id); 
             if(el) el.classList.toggle('hidden', isAdmin); 
         });
+
+        // עדכון תיבות הסינון באקדמיה שיתאימו למאגר המובנה
+        const ageOpts = '<option value="all">כל הגילאים</option><option value="6-8">גילאי 6-8</option><option value="9-11">גילאי 9-11</option><option value="11-13">גילאי 11-13</option><option value="13-15">גילאי 13-15</option><option value="15-18">גילאי 15-18</option>';
+        const catOpts = '<option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="hebrew">עברית</option><option value="finance">חינוך פיננסי</option><option value="business">עסקים ויזמות</option>';
+        ['admin-lib-age-filter', 'lib-age-filter'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ageOpts; });
+        ['admin-lib-cat-filter', 'lib-cat-filter'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = catOpts; });
         // ------------------------------------------------
 
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest shadow-sm">קוד: ${currentGroup.group_code}</span>` : '';
@@ -391,7 +315,6 @@ async function loadDashboard() {
         console.error('Error loading dashboard:', e); 
         showToast('error', 'שגיאה בטעינת הממשק - נא לרענן'); 
     } finally { 
-        // וידוא מוחלט שהפְרילודר יורד תמיד, גם אם הייתה שגיאה
         const preloader = document.getElementById('app-preloader'); 
         const finalizeLoad = async () => { 
             try {
@@ -884,6 +807,11 @@ window.selectManualShopItem = function() {
     const sugg = document.getElementById('suggestions'); if(sugg) sugg.classList.add('hidden'); 
 }
 
+function openShopModal() { 
+    const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = '';
+    const sm = document.getElementById('shop-modal'); if(sm) sm.classList.remove('hidden'); 
+}
+
 async function submitShopItem() { 
     const item = val('shop-item'); const norm = val('shop-normalized-name') || item; 
     if(!item) return; 
@@ -942,7 +870,7 @@ function renderShopList() {
 async function updateRow(id, type, value) { 
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); fetchData(); } 
     else if (type === 'check') { const row = document.getElementById(`row-${id}`); if(row) { row.classList.toggle('in-cart', value); const pi = document.getElementById(`price-${id}`); if(pi) pi.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); calcRunningTotal(); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const total = (parseFloat(value)||0) * item.quantity; const rt = document.getElementById(`row-total-${id}`); if(rt) rt.innerText = `₪${total.toFixed(0)}`; } calcRunningTotal(); } 
+    else if (type === 'price_calc') { const item = shoppingListCache.find(i => String(i.id) === String(id)); if(item) { const total = (parseFloat(value)||0) * item.quantity; const rt = document.getElementById(`row-total-${id}`); if(rt) rt.innerText = `₪${total.toFixed(0)}`; } calcRunningTotal(); } 
 }
 
 function toggleMissingLocal(id) { 
@@ -1035,6 +963,35 @@ async function copyList(tripId) {
     fetchData(); showToast('success', 'הרשימה הועתקה!'); 
 }
 
+function openPantryModal() { 
+    const pi = document.getElementById('pantry-item'); if(pi) pi.value = ''; 
+    const pq = document.getElementById('pantry-quantity'); if(pq) pq.value = 1; 
+    const m = document.getElementById('pantry-modal'); if(m) m.classList.remove('hidden'); 
+}
+
+async function submitPantryItem() {
+    const name = val('pantry-item'); const qty = val('pantry-quantity'); if(!name) return;
+    await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty}) });
+    const m = document.getElementById('pantry-modal'); if(m) m.classList.add('hidden'); 
+    fetchData(); showToast('success', 'המוצר נוסף למזווה');
+}
+
+async function updatePantryQty(id, newQty) {
+    if(newQty <= 0) { 
+        if(!confirm('המוצר נגמר! האם למחוק אותו מהמזווה?')) return; 
+        await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); 
+    } else { 
+        await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); 
+    }
+    fetchData();
+}
+
+async function movePantryToCart(pantryId, itemName) {
+    await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, estimatedPrice: 0, userId: currentUser.id}) });
+    await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); 
+    showToast('success', 'המוצר הועבר לרשימת הקניות!'); fetchData();
+}
+
 // --- GENERAL MODALS & UTILS ---
 function toggleFab() { const el = document.getElementById('fab-container'); if(el) el.classList.toggle('fab-open'); }
 function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
@@ -1096,15 +1053,42 @@ async function fetchBudget() {
         const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`);
         if(!res.ok) return;
         const data = await res.json(); 
+        
+        const baseCategories = CATEGORIES.expense.map(c => c.value);
+        data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
+        baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); 
+        const childrenCategories = ['allowance', 'tasks', 'academy']; 
+        childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
+
         const list = document.getElementById('budget-list'); if(!list) return;
         list.innerHTML = ''; 
-        data.forEach(b => { 
-            const pct = b.limit>0 ? (b.spent/b.limit)*100 : 0; 
-            const c = pct>100?'bg-red-500':(pct>80?'bg-orange-500':'bg-green-500'); 
-            const catName = BUDGET_LABELS[b.category]||b.category;
-            list.innerHTML += `<div class="mb-5"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700">${catName} <button onclick="openBudgetModal('${b.category}')" class="text-[10px] text-blue-600 bg-blue-50 px-2 rounded">ערוך</button></span><span class="text-xs text-slate-500">₪${b.spent} / ${b.limit>0?`₪${b.limit}`:'לא הוגדר'}</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="${c} h-2.5 rounded-full" style="width: ${Math.min(100,pct)}%"></div></div></div>`; 
-        }); 
-    } catch(e){}
+        
+        let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
+        data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
+
+        const createRow = (category, spent, limit, isSub = false) => {
+            const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+            let color = 'bg-green-500'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+            const limitDisplay = limit > 0 ? `₪${limit}` : 'לא הוגדר'; 
+            const catName = BUDGET_LABELS[category] || category;
+            const editBtn = (category !== 'allocations' && currentUser.role === 'ADMIN') ? `<button onclick="openBudgetModal('${category}')" class="text-[10px] text-blue-600 bg-blue-50 px-2 rounded">ערוך</button>` : '';
+            const textSize = isSub ? 'text-sm' : 'text-base'; 
+            const containerClass = isSub ? 'pl-2 border-r-2 border-indigo-200 pr-2 mb-3' : 'mb-5';
+            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+        };
+
+        if (childrenItems.length > 0) {
+            const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; 
+            let color = 'bg-indigo-500'; if (pct > 80) color = 'bg-indigo-400'; if (pct > 100) color = 'bg-purple-600';
+            const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; 
+            let subItemsHtml = ''; 
+            childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'הוצאות על הילדים' : 'הכנסות מההורים';
+            list.innerHTML += `<div class="mb-8 bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100/60 shadow-sm transition-all hover:bg-indigo-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-indigo-900 flex items-center gap-2"><i class="fa-solid fa-child-reaching text-indigo-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-100">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-indigo-100">${subItemsHtml}</div></div>`;
+        }
+        otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
+
+    } catch(e){ console.error(e); }
 }
 
 function openBudgetModal(catId) { const idEl = document.getElementById('budget-cat-id'); if(idEl) idEl.value = catId; const mod = document.getElementById('budget-modal'); if(mod) mod.classList.remove('hidden'); }
