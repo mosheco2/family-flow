@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const defaultQuizzes = require('./seed_quizzes.js'); // יבוא מבחני הבסיס
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -15,60 +16,6 @@ app.use(express.static('public'));
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
-// --- מאגר מבחנים מובנה (VOD) ---
-const defaultQuizzes = [
-    {
-        type: 'math', age_group: '6-8', title: 'חשבון בסיסי - חיבור וחיסור', text_content: 'ברוכים הבאים לאתגר החשבון! בואו נבדוק כמה מהר אתם יודעים לחבר ולחסר.', reward: 10, threshold: 80,
-        questions: [
-            { q: 'כמה זה 5 + 4?', options: ['8', '9', '10', '7'], correct: 1 },
-            { q: 'ליעל היו 10 סוכריות, היא נתנה 3 לאחיה. כמה נשארו לה?', options: ['7', '6', '8', '5'], correct: 0 },
-            { q: 'כמה זה 12 - 5?', options: ['6', '8', '7', '9'], correct: 2 },
-            { q: 'איזה מספר גדול יותר?', options: ['15', '12', '19', '17'], correct: 2 },
-            { q: 'כמה זה 10 + 10?', options: ['20', '100', '30', '15'], correct: 0 }
-        ]
-    },
-    {
-        type: 'english', age_group: '9-11', title: 'ABC - מילים ראשונות באנגלית', text_content: 'Let\'s learn English! בואו נלמד חיות וצבעים באנגלית.', reward: 15, threshold: 80,
-        questions: [
-            { q: 'איך אומרים "כלב" באנגלית?', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 1 },
-            { q: 'מה הפירוש של המילה Red?', options: ['כחול', 'ירוק', 'אדום', 'צהוב'], correct: 2 },
-            { q: 'איך אומרים "תפוח"?', options: ['Banana', 'Orange', 'Apple', 'Grape'], correct: 2 },
-            { q: 'מה הפירוש של Hello?', options: ['להתראות', 'שלום', 'תודה', 'בבקשה'], correct: 1 },
-            { q: 'איזה צבע הוא Blue?', options: ['כחול', 'שחור', 'לבן', 'סגול'], correct: 0 }
-        ]
-    },
-    {
-        type: 'hebrew', age_group: '11-13', title: 'הבנת הנקרא ופתגמים', text_content: 'קראו היטב את השאלות ובחרו בתשובה הנכונה ביותר.', reward: 20, threshold: 80,
-        questions: [
-            { q: 'מה הפירוש של הפתגם "אל תסתכל בקנקן אלא במה שיש בתוכו"?', options: ['חשוב לשתות מים', 'החיצוניות אינה הדבר החשוב אלא הפנימיות', 'קנקנים הם כלים שבירים', 'צריך להסתכל טוב לפני שקונים משהו'], correct: 1 },
-            { q: 'איזו מילה היא מילה נרדפת ל"שמש"?', options: ['ירח', 'כוכב', 'חמה', 'ענן'], correct: 2 },
-            { q: 'מה ההפך מהמילה "אמיץ"?', options: ['גיבור', 'פחדן', 'חזק', 'חלש'], correct: 1 },
-            { q: 'סמנו את המשפט התקין:', options: ['אני ילך מחר לבית הספר', 'אני אלך מחר לבית הספר', 'אני הולך מחר לבית הספר', 'אני הלכתי מחר לבית הספר'], correct: 1 },
-            { q: 'איזה סימן פיסוק מתאים בסוף משפט שאלה?', options: ['נקודה', 'פסיק', 'סימן קריאה', 'סימן שאלה'], correct: 3 }
-        ]
-    },
-    {
-        type: 'finance', age_group: '13-15', title: 'מושגי יסוד בכסף', text_content: 'חינוך פיננסי מתחיל כאן. בואו נבין איך כסף באמת עובד.', reward: 25, threshold: 80,
-        questions: [
-            { q: 'מהי משמעות המילה "חיסכון"?', options: ['לבזבז את כל הכסף', 'לשמור חלק מהכסף לשימוש עתידי', 'לקחת הלוואה מהבנק', 'לתת כסף במתנה'], correct: 1 },
-            { q: 'מהי "ריבית" על חיסכון?', options: ['קנס שמשלמים לבנק', 'סכום שהבנק או ההורים נותנים לך כפרס על כך שחסכת את הכסף ולא בזבזת', 'מס לממשלה', 'דמי ניהול חשבון'], correct: 1 },
-            { q: 'דני מקבל 50 ש"ח בשבוע. הוא מוציא 30 ש"ח. כמה הוא יחסוך בחודש (4 שבועות)?', options: ['20 ש"ח', '80 ש"ח', '120 ש"ח', '200 ש"ח'], correct: 1 },
-            { q: 'מה זה "תקציב"?', options: ['תוכנית שמגדירה כמה כסף מותר להוציא על כל דבר', 'כרטיס אשראי', 'הלוואה גדולה', 'כסף שמקבלים ליום הולדת'], correct: 0 },
-            { q: 'למה עדיף לשלם במזומן ולא בתשלומים על דברים קטנים?', options: ['כי אי אפשר אחרת', 'כדי שלא נצבור חובות עתידיים על צריכה שוטפת', 'כי זה יקר יותר', 'כי תשלומים מביאים מזל רע'], correct: 1 }
-        ]
-    },
-    {
-        type: 'business', age_group: '15-18', title: 'יזמות: מרווחים והכנסות', text_content: 'חושבים כמו יזמים! בואו נלמד מושגים בסיסיים בעסקים.', reward: 30, threshold: 80,
-        questions: [
-            { q: 'נועה קנתה חומרי גלם להכנת צמידים ב-100 ש"ח. היא מכרה צמידים ב-250 ש"ח. מהו ה"רווח" שלה?', options: ['250 ש"ח', '350 ש"ח', '150 ש"ח', '100 ש"ח'], correct: 2 },
-            { q: 'מהן "הוצאות קבועות" בעסק?', options: ['הוצאות שלא משתנות לא משנה כמה מכרנו (כמו שכר דירה)', 'הוצאות על חומרי גלם', 'משכורות בונוס', 'מסים'], correct: 0 },
-            { q: 'מה זה "הכנסות" (Revenues)?', options: ['הכסף שנשאר בכיס בסוף', 'סך כל הכסף שנכנס לעסק ממכירות לפני שהורדנו הוצאות', 'הלוואה מהבנק', 'כסף שמשלמים לספקים'], correct: 1 },
-            { q: 'איך קוראים למי שמקים עסק חדש מתוך רעיון שלו?', options: ['מנהל עבודה', 'יזם (Entrepreneur)', 'פקיד', 'לקוח'], correct: 1 },
-            { q: 'למה חשוב לעשות "חקר שוק" לפני שפותחים עסק?', options: ['כדי להעתיק מהמתחרים', 'כדי להבין אם יש לקוחות שרוצים לקנות את המוצר', 'כדי למצוא עובדים', 'כדי לקבל רישיון'], correct: 1 }
-        ]
-    }
-];
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -77,51 +24,45 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-pool.connect()
-  .then(async (client) => {
-      console.log('✅ Connected to DB (Pool)');
-      try {
-          await client.query(`
-              CREATE TABLE IF NOT EXISTS loans (
-                  id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-              );
-              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10;
-              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE;
-              ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
-              ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-              ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN DEFAULT FALSE;
-          `);
-          console.log('✅ Safe DB Migration Completed');
-          await seedDatabaseIfNeeded(client);
-      } catch(e) { console.error('DB Migration Warning:', e.message); }
-      client.release();
-  })
-  .catch(err => console.error('Connection Error', err.stack));
-
-async function seedDatabaseIfNeeded(client) {
+// פונקציה להזרקת מבחני הבסיס ל-DB
+async function seedDatabase() {
     try {
-        const checkRes = await client.query("SELECT COUNT(*) FROM quiz_bundles WHERE created_by = 'SYSTEM'");
-        if (parseInt(checkRes.rows[0].count) < 5) {
-            console.log('🌱 Seeding initial static data...');
-            await client.query("DELETE FROM quiz_bundles WHERE created_by = 'SYSTEM'"); 
-            for (let quiz of defaultQuizzes) {
-                const bundleRes = await client.query(
+        // נוודא קודם שהטבלה קיימת כדי למנוע קריסה לפני הרצת setup-db
+        const tableCheck = await pool.query(`SELECT to_regclass('public.quiz_bundles')`);
+        if (!tableCheck.rows[0].to_regclass) return;
+
+        const res = await pool.query(`SELECT COUNT(*) FROM quiz_bundles WHERE created_by = 'SYSTEM'`);
+        if (parseInt(res.rows[0].count) === 0) {
+            console.log('🌱 Seeding default quizzes...');
+            for (const quiz of defaultQuizzes) {
+                const bRes = await pool.query(
                     `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) 
                      VALUES ($1, $2, $3, $4, $5, $6, 'SYSTEM') RETURNING id`,
                     [quiz.type, quiz.age_group, quiz.title, quiz.text_content, quiz.threshold, quiz.reward]
                 );
-                const bundleId = bundleRes.rows[0].id;
-                for (let q of quiz.questions) {
-                    await client.query(
-                        `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
+                const bundleId = bRes.rows[0].id;
+                for (const q of quiz.questions) {
+                    await pool.query(
+                        `INSERT INTO quiz_questions (bundle_id, q, options, correct) 
+                         VALUES ($1, $2, $3, $4)`,
                         [bundleId, q.q, JSON.stringify(q.options), q.correct]
                     );
                 }
             }
-            console.log('✅ Initial quizzes seeded successfully!');
-        } else { console.log('ℹ️ Quizzes already exist in DB. Skipping seed.'); }
-    } catch(e) { console.error('Error seeding database:', e.message); }
+            console.log('✅ Default quizzes seeded successfully.');
+        }
+    } catch (err) {
+        console.error('Error seeding database:', err.message);
+    }
 }
+
+pool.connect()
+  .then(async (client) => {
+      console.log('✅ Connected to DB (Pool)');
+      client.release();
+      await seedDatabase(); // הרצת בדיקת ה-Seed בעליית השרת
+  })
+  .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
@@ -141,9 +82,15 @@ async function handleAITokens(groupId) {
         if(res.rows.length === 0) return false;
         const group = res.rows[0];
         if(group.is_premium) return true;
-        if(group.ai_tokens > 0) { await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]); return true; }
+        if(group.ai_tokens > 0) {
+            await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
+            return true;
+        }
         return false;
-    } catch (e) { return false; }
+    } catch (e) {
+        console.error('Error handling AI tokens:', e);
+        return false;
+    }
 }
 
 const handleAIError = (e, res, defaultMsg) => {
@@ -156,7 +103,22 @@ const handleAIError = (e, res, defaultMsg) => {
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`
-            DROP TABLE IF EXISTS user_assignments CASCADE; DROP TABLE IF EXISTS quiz_questions CASCADE; DROP TABLE IF EXISTS quiz_bundles CASCADE; DROP TABLE IF EXISTS budget_allocations CASCADE; DROP TABLE IF EXISTS goals CASCADE; DROP TABLE IF EXISTS loans CASCADE; DROP TABLE IF EXISTS tasks CASCADE; DROP TABLE IF EXISTS transactions CASCADE; DROP TABLE IF EXISTS shopping_list CASCADE; DROP TABLE IF EXISTS shopping_trips CASCADE; DROP TABLE IF EXISTS shopping_trip_items CASCADE; DROP TABLE IF EXISTS pantry CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE; DROP TABLE IF EXISTS system_settings CASCADE;
+            DROP TABLE IF EXISTS user_assignments CASCADE;
+            DROP TABLE IF EXISTS quiz_questions CASCADE;
+            DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE;
+            DROP TABLE IF EXISTS goals CASCADE;
+            DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE;
+            DROP TABLE IF EXISTS transactions CASCADE;
+            DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE;
+            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
+            DROP TABLE IF EXISTS pantry CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS family_groups CASCADE;
+            DROP TABLE IF EXISTS system_settings CASCADE;
+
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00, email VARCHAR(255), marketing_consent BOOLEAN DEFAULT FALSE);
@@ -173,9 +135,9 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        const client = await pool.connect();
-        await seedDatabaseIfNeeded(client);
-        client.release();
+        
+        await seedDatabase(); // הזרקת המבחנים מיד לאחר איפוס המסד
+
         res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
@@ -262,6 +224,19 @@ app.get('/api/banners', async (req, res) => {
         result.rows.forEach(r => { banners[r.key.replace('ad_', '')] = r.value; });
         res.json({ success: true, banners: { banner_top_text: banners['banner_text_top'], banner_top_link: banners['banner_link_top'], banner_bottom_text: banners['banner_text_bottom'], banner_bottom_link: banners['banner_link_bottom'] } });
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
+});
+
+app.post('/api/superadmin/banners', verifySA, async (req, res) => {
+    const { topText, topLink, bottomText, bottomLink } = req.body;
+    const items = [ { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' } ];
+    try {
+        await pool.query('BEGIN');
+        for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
+    }
 });
 
 app.post('/api/premium/simulate-checkout', async (req, res) => {
@@ -456,10 +431,7 @@ app.post('/api/academy/tutor', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
 });
 
-// ============================================================
 // --- BASIC API ENDPOINTS ---
-// ============================================================
-
 app.post('/api/groups', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -467,11 +439,7 @@ app.post('/api/groups', async (req, res) => {
         let code = generateGroupCode();
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
-        
-        const marketingConsent = req.body.marketing === true;
-        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5, $6) RETURNING *`, 
-            [group.id, req.body.adminNickname, req.body.birthYear, req.body.password, req.body.adminEmail, marketingConsent]);
-            
+        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, 'ADMIN', 'active', $5, $6) RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password, req.body.adminEmail, req.body.marketingConsent || false]);
         await dbClient.query('COMMIT');
         res.json({ success: true, user: uRes.rows[0], group: group });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
@@ -479,17 +447,12 @@ app.post('/api/groups', async (req, res) => {
 
 app.post('/api/join', async (req, res) => {
     try {
-        const { groupCode, nickname, birthYear, password, role, email, marketing } = req.body;
+        const { groupCode, nickname, birthYear, password, role, marketingConsent } = req.body;
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
-        const marketingConsent = marketing === true;
-        const userEmail = email || null;
-
-        await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)`, 
-            [group.id, nickname, birthYear, password, reqRole, userEmail, marketingConsent]);
-            
+        await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, marketing_consent) VALUES ($1, $2, $3, $4, $5, 'pending', $6)`, [group.id, nickname, birthYear, password, reqRole, marketingConsent || false]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -516,7 +479,10 @@ app.get('/api/users/:id', async (req, res) => {
 app.post('/api/users/:id/password', async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;
-        const updateRes = await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2 AND password_hash = $3 RETURNING id", [newPassword, req.params.id, oldPassword]);
+        const updateRes = await pool.query(
+            "UPDATE users SET password_hash = $1 WHERE id = $2 AND password_hash = $3 RETURNING id",
+            [newPassword, req.params.id, oldPassword]
+        );
         if (updateRes.rows.length === 0) return res.status(400).json({error: "סיסמה נוכחית שגויה"});
         res.json({success: true});
     } catch (e) { res.status(500).json({error: e.message}); }
@@ -551,7 +517,13 @@ app.get('/api/data/:userId', async (req, res) => {
             for (let i = 0; i < shopRes.rows.length; i++) {
                 const item = shopRes.rows[i];
                 const searchName = item.normalized_name || item.item_name;
-                const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3) ORDER BY sti.price_per_unit ASC LIMIT 1`, [user.group_id, searchName, searchName]);
+                const bestPriceRes = await pool.query(`
+                    SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date
+                    FROM shopping_trip_items sti
+                    JOIN shopping_trips st ON sti.trip_id = st.id
+                    WHERE st.group_id = $1 AND (sti.normalized_name = $2 OR sti.item_name = $3)
+                    ORDER BY sti.price_per_unit ASC LIMIT 1
+                `, [user.group_id, searchName, searchName]);
                 if (bestPriceRes.rows.length > 0) item.best_price = bestPriceRes.rows[0];
             }
         } catch(e){ }
@@ -563,7 +535,10 @@ app.get('/api/data/:userId', async (req, res) => {
 
         if(user.role === 'ADMIN') {
             try { goalsRes = await pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [user.id, user.group_id]); } catch(e){}
-            try { const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.id DESC`, [user.group_id]); userBundles = ubRes.rows; } catch(e){ }
+            try { 
+                const ubRes = await pool.query(`SELECT ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, ua.user_id as assigned_to_user, qb.id as bundle_id, qb.title, qb.type, qb.threshold, qb.reward as default_reward, qb.text_content, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id = $1 ORDER BY ua.id DESC`, [user.group_id]); 
+                userBundles = ubRes.rows;
+            } catch(e){ }
         } else {
             try { goalsRes = await pool.query(`SELECT * FROM goals WHERE target_user_id=$1`, [user.id]); } catch(e){}
             try { 
@@ -577,7 +552,9 @@ app.get('/api/data/:userId', async (req, res) => {
                 const activeBundleIds = userBundles.filter(b => b.status === 'assigned').map(b => b.bundle_id);
                 if (activeBundleIds.length > 0) {
                     const qRes = await pool.query(`SELECT id, bundle_id, q, options, correct FROM quiz_questions WHERE bundle_id = ANY($1::int[])`, [activeBundleIds]);
-                    userBundles.forEach(b => { if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id); });
+                    userBundles.forEach(b => {
+                        if (b.status === 'assigned') b.questions = qRes.rows.filter(q => q.bundle_id === b.bundle_id);
+                    });
                 }
             } catch(e){ }
         }
@@ -745,17 +722,50 @@ app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
         if (!groupId || groupId === 'undefined') return res.json([]);
+
         let allocations, spent;
+
         if (!targetUserId || targetUserId === 'all') {
-            allocations = await pool.query(`SELECT category, COALESCE(SUM(amount_limit), 0) AS lim FROM budget_allocations WHERE group_id = $1 GROUP BY category`, [groupId]);
-            spent = await pool.query(`SELECT category, COALESCE(SUM(amount), 0) AS spent FROM transactions WHERE group_id = $1 AND type = 'expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [groupId]);
+            allocations = await pool.query(
+                `SELECT category, COALESCE(SUM(amount_limit), 0) AS lim
+                 FROM budget_allocations WHERE group_id = $1
+                 GROUP BY category`,
+                [groupId]
+            );
+            spent = await pool.query(
+                `SELECT category, COALESCE(SUM(amount), 0) AS spent
+                 FROM transactions
+                 WHERE group_id = $1 AND type = 'expense'
+                   AND date >= date_trunc('month', CURRENT_DATE)
+                 GROUP BY category`,
+                [groupId]
+            );
         } else {
-            allocations = await pool.query(`SELECT category, COALESCE(amount_limit, 0) AS lim FROM budget_allocations WHERE group_id = $1 AND target_user_id = $2`, [groupId, targetUserId]);
-            spent = await pool.query(`SELECT category, COALESCE(SUM(amount), 0) AS spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= date_trunc('month', CURRENT_DATE) GROUP BY category`, [targetUserId]);
+            allocations = await pool.query(
+                `SELECT category, COALESCE(amount_limit, 0) AS lim
+                 FROM budget_allocations
+                 WHERE group_id = $1 AND target_user_id = $2`,
+                [groupId, targetUserId]
+            );
+            spent = await pool.query(
+                `SELECT category, COALESCE(SUM(amount), 0) AS spent
+                 FROM transactions
+                 WHERE user_id = $1 AND type = 'expense'
+                   AND date >= date_trunc('month', CURRENT_DATE)
+                 GROUP BY category`,
+                [targetUserId]
+            );
         }
+
         const result = {};
-        allocations.rows.forEach(r => { result[r.category] = { category: r.category, limit: parseFloat(r.lim) || 0, spent: 0 }; });
-        spent.rows.forEach(r => { if (!result[r.category]) result[r.category] = { category: r.category, limit: 0, spent: 0 }; result[r.category].spent = parseFloat(r.spent) || 0; });
+        allocations.rows.forEach(r => {
+            result[r.category] = { category: r.category, limit: parseFloat(r.lim) || 0, spent: 0 };
+        });
+        spent.rows.forEach(r => {
+            if (!result[r.category]) result[r.category] = { category: r.category, limit: 0, spent: 0 };
+            result[r.category].spent = parseFloat(r.spent) || 0;
+        });
+
         res.json(Object.values(result));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -764,14 +774,31 @@ app.post('/api/budget/update', async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
         if (!groupId || !category) return res.status(400).json({ error: 'חסרים פרמטרים' });
+
         const lim = parseFloat(limit) || 0;
+
         if (!targetUserId || targetUserId === 'all') {
-            const members = await pool.query(`SELECT id FROM users WHERE group_id = $1 AND status = 'active'`, [groupId]);
+            const members = await pool.query(
+                `SELECT id FROM users WHERE group_id = $1 AND status = 'active'`,
+                [groupId]
+            );
             for (const m of members.rows) {
-                await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, category, m.id, lim]);
+                await pool.query(
+                    `INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (group_id, category, target_user_id)
+                     DO UPDATE SET amount_limit = $4`,
+                    [groupId, category, m.id, lim]
+                );
             }
         } else {
-            await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, category, targetUserId, lim]);
+            await pool.query(
+                `INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (group_id, category, target_user_id)
+                 DO UPDATE SET amount_limit = $4`,
+                [groupId, category, targetUserId, lim]
+            );
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -783,7 +810,11 @@ app.post('/api/loans/request', async (req, res) => {
         if (!userId || !amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום לא תקין' });
         const uRes = await pool.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
-        await pool.query(`INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, 'pending')`, [userId, uRes.rows[0].group_id, parseFloat(amount), reason || '']);
+        await pool.query(
+            `INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status)
+             VALUES ($1, $2, $3, $3, $4, 'pending')`,
+            [userId, uRes.rows[0].group_id, parseFloat(amount), reason || '']
+        );
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -793,8 +824,13 @@ app.get('/api/loans', async (req, res) => {
         const { groupId, userId } = req.query;
         if (!groupId && !userId) return res.json([]);
         let query, params;
-        if (groupId) { query = `SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id = $1 ORDER BY l.created_at DESC`; params = [groupId]; } 
-        else { query = `SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.user_id = $1 ORDER BY l.created_at DESC`; params = [userId]; }
+        if (groupId) {
+            query = `SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id = $1 ORDER BY l.created_at DESC`;
+            params = [groupId];
+        } else {
+            query = `SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.user_id = $1 ORDER BY l.created_at DESC`;
+            params = [userId];
+        }
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -811,7 +847,10 @@ app.post('/api/loans/approve', async (req, res) => {
         if (loanRes.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(404).json({ error: 'הלוואה לא נמצאה או כבר טופלה' }); }
         const loan = loanRes.rows[0];
         await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [loan.original_amount, loan.user_id]);
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'loan', 'income', FALSE)`, [loan.user_id, loan.group_id, loan.original_amount, `הלוואה אושרה: ${loan.reason || 'הלוואה מההורים'}`]);
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'loan', 'income', FALSE)`,
+            [loan.user_id, loan.group_id, loan.original_amount, `הלוואה אושרה: ${loan.reason || 'הלוואה מההורים'}`]
+        );
         await dbClient.query(`UPDATE loans SET status = 'approved' WHERE id = $1`, [loanId]);
         await dbClient.query('COMMIT');
         res.json({ success: true });
@@ -835,7 +874,10 @@ app.post('/api/academy/assign', async (req, res) => {
         let deadline = null;
         if (days && parseInt(days) > 0) { deadline = new Date(); deadline.setDate(deadline.getDate() + parseInt(days)); }
         const customReward = (reward !== '' && reward !== undefined && reward !== null) ? parseFloat(reward) : null;
-        await pool.query(`INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)`, [userId, bundleId, customReward, deadline]);
+        await pool.query(
+            `INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)`,
+            [userId, bundleId, customReward, deadline]
+        );
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -878,7 +920,10 @@ app.post('/api/academy/submit', async (req, res) => {
         if (passed && finalReward > 0) {
             const uRes = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId]);
             await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [finalReward, userId]);
-            await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`, [userId, uRes.rows[0].group_id, finalReward, `תגמול אקדמיה: ${score}%`]);
+            await dbClient.query(
+                `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
+                [userId, uRes.rows[0].group_id, finalReward, `תגמול אקדמיה: ${score}%`]
+            );
         }
         await dbClient.query('COMMIT');
         res.json({ success: true, passed, reward: passed ? finalReward : 0 });
