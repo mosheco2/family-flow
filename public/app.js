@@ -1,7 +1,6 @@
-// --- עיצוב יוקרתי לסיור המודרך ---
+// --- עיצוב יוקרתי לסיור המודרך (Intro.js) ---
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
-    .hidden { display: none !important; }
     .introjs-showElement { z-index: 9999998 !important; transform: none !important; } 
     .introjs-fixParent { z-index: auto !important; opacity: 1.0 !important; transform: none !important; filter: none !important; } 
     body.introjs-active .slider-container, body.introjs-active .slider-scroll, body.introjs-active .overflow-hidden { overflow: visible !important; } 
@@ -21,18 +20,42 @@ introStyle.innerHTML = `
     .introjs-nextbutton:hover, .introjs-donebutton:hover { background-color: #2563eb !important; } 
     .introjs-prevbutton { background-color: #f1f5f9 !important; color: #475569 !important; } 
     .introjs-prevbutton:hover { background-color: #e2e8f0 !important; } 
+    .introjs-disabled { opacity: 0.5 !important; cursor: not-allowed !important; pointer-events: none !important; } 
     .introjs-bullets { padding-bottom: 1.5rem !important; background: white !important; } 
     .introjs-bullets ul li a { width: 8px !important; height: 8px !important; border-radius: 50% !important; background: #cbd5e1 !important; } 
     .introjs-bullets ul li a.active { background: #3b82f6 !important; width: 16px !important; border-radius: 4px !important; } 
+    @media (max-width: 768px) { 
+        .introjs-tooltipReferenceLayer { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important; right: auto !important; bottom: auto !important; width: 90vw !important; } 
+        .introjs-tooltip { position: relative !important; margin: 0 auto !important; } 
+        .introjs-arrow { display: none !important; } 
+    }
 `;
 document.head.appendChild(introStyle);
 
+// --- משתנים גלובליים והגדרות ---
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
-let currentUser = null, currentGroup = null, pollInterval = null, saToken = null;
-let saAllGroups = [], saAllUsers = [], membersCache = [], shoppingListCache = [], wisdomCache = {};
-let bundlesCache = [], allBundles = [], pantryCache = [], allTasks = [], allTransactions = [], feedCache = [];
-let currentVerifyTaskId = null, currentVerifyTaskTitle = null, currentWrongAnswers = [], forceTourStart = false;
+let currentUser = null; 
+let currentGroup = null; 
+let pollInterval = null; 
+let saToken = null; 
+let saAllGroups = []; 
+let saAllUsers = [];
+
+let membersCache = []; 
+let shoppingListCache = []; 
+let wisdomCache = {}; 
+let bundlesCache = []; 
+let allBundles = []; 
+let pantryCache = [];
+let allTasks = []; 
+let allTransactions = []; 
+let feedCache = []; 
+
+let currentVerifyTaskId = null; 
+let currentVerifyTaskTitle = null; 
+let currentWrongAnswers = []; 
+let forceTourStart = false;
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 
@@ -76,7 +99,50 @@ for (const [cat, items] of Object.entries(PRODUCT_DB)) {
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-// --- טעינת מערכת בטוחה ---
+// --- פונקציות עזר וכלים ---
+function val(id) { 
+    const el = document.getElementById(id); 
+    return el ? el.value : ''; 
+}
+
+function showToast(t, m) { 
+    const el = document.getElementById('toast'); 
+    const icon = document.getElementById('toast-icon'); 
+    const msg = document.getElementById('toast-message');
+    if(!el || !icon || !msg) return;
+    el.classList.remove('hidden'); 
+    msg.innerText = m; 
+    icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400'; 
+    setTimeout(() => el.classList.add('hidden'), 3000); 
+}
+
+function toggleLoader(a, s) { 
+    const txt = document.getElementById(`btn-${a}-text`); 
+    const ldr = document.getElementById(`btn-${a}-loader`); 
+    if(txt && ldr) { 
+        txt.classList.toggle('hidden', s); 
+        ldr.classList.toggle('hidden', !s); 
+    } 
+}
+
+function triggerConfetti() { 
+    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){} 
+}
+
+function triggerShake() { 
+    const app = document.getElementById('main-wrapper'); 
+    if(app) { 
+        app.classList.add('shake-effect'); 
+        setTimeout(() => app.classList.remove('shake-effect'), 500); 
+    } 
+}
+
+function toggleFab() { 
+    const el = document.getElementById('fab-container'); 
+    if(el) el.classList.toggle('fab-open'); 
+}
+
+// --- אתחול המערכת (Boot) ---
 const hidePreloaderAndShowAuth = (view = 'login') => { 
     try {
         const authContainer = document.getElementById('auth-container'); 
@@ -94,6 +160,7 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 window.onload = async () => { 
     initAccessibility();
     
+    // מוודאים שמסך הטעינה תמיד ירד גם אם יש תקלת רשת
     const failsafeTimer = setTimeout(() => { 
         const preloader = document.getElementById('app-preloader'); 
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -137,7 +204,8 @@ window.onload = async () => {
 
 // --- התחברות והרשמה ---
 async function handleLogin(e) { 
-    e.preventDefault(); forceTourStart = false; 
+    e.preventDefault(); 
+    forceTourStart = false; 
     authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); 
 }
 
@@ -148,8 +216,13 @@ async function handleCreate(e) {
     forceTourStart = true; 
     const marketing = document.getElementById('create-marketing') ? document.getElementById('create-marketing').checked : false; 
     authAction('groups', { 
-        type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), 
-        adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password'), marketing: marketing 
+        type: val('create-type'), 
+        groupName: val('create-group-name'), 
+        adminEmail: val('create-email'), 
+        adminNickname: val('create-nickname'), 
+        birthYear: val('create-year'), 
+        password: val('create-password'), 
+        marketing: marketing 
     }); 
 }
 
@@ -160,38 +233,69 @@ async function handleJoin(e) {
     forceTourStart = true; 
     const marketing = document.getElementById('join-marketing') ? document.getElementById('join-marketing').checked : false; 
     const email = document.getElementById('join-email') ? document.getElementById('join-email').value : ''; 
-    const res = await fetch(`${API}/join`, { 
-        method:'POST', headers:{'Content-Type':'application/json'}, 
-        body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), email: email, marketing: marketing }) 
-    }); 
-    const d = await res.json(); 
-    if(d.success) { 
-        showToast('success', 'נשלח בהצלחה!'); 
-        window.history.replaceState({}, document.title, window.location.pathname); 
-        switchView('login'); 
-    } else { showToast('error', d.error); } 
+    
+    try {
+        const res = await fetch(`${API}/join`, { 
+            method:'POST', 
+            headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({ 
+                groupCode: val('join-code'), 
+                role: val('join-role'), 
+                nickname: val('join-nickname'), 
+                birthYear: val('join-year'), 
+                password: val('join-password'), 
+                email: email, 
+                marketing: marketing 
+            }) 
+        }); 
+        const d = await res.json(); 
+        if(d.success) { 
+            showToast('success', 'נשלח בהצלחה!'); 
+            window.history.replaceState({}, document.title, window.location.pathname); 
+            switchView('login'); 
+        } else { 
+            showToast('error', d.error); 
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+    }
 }
 
 async function authAction(endpoint, body) { 
     toggleLoader('login', true); 
     try { 
-        const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
+        const res = await fetch(`${API}/${endpoint}`, { 
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) 
+        }); 
         const data = await res.json(); 
         if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; 
+            currentUser = data.user; 
+            currentGroup = data.group; 
             localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             await loadDashboard(); 
-        } else { showToast('error', data.error); } 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } 
-    finally { toggleLoader('login', false); } 
+        } else { 
+            showToast('error', data.error); 
+        } 
+    } catch(e) { 
+        showToast('error', 'שגיאה בחיבור לשרת'); 
+    } finally { 
+        toggleLoader('login', false); 
+    } 
 }
 
-function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
+function logout() { 
+    localStorage.removeItem('ofl_session'); 
+    location.reload(); 
+}
 
-// --- ניווט ופופאפים ---
+// --- ניווט ופופאפים כלליים ---
 function switchView(view) { 
-    ['login','create','join', 'sa-login'].forEach(v => { const el = document.getElementById(`view-${v}`); if(el) el.classList.add('hidden'); }); 
-    const v = document.getElementById(`view-${view}`); if(v) v.classList.remove('hidden'); 
+    ['login','create','join', 'sa-login'].forEach(v => { 
+        const el = document.getElementById(`view-${v}`); 
+        if(el) el.classList.add('hidden'); 
+    }); 
+    const v = document.getElementById(`view-${view}`); 
+    if(v) v.classList.remove('hidden'); 
 }
 
 function selectType(t) { 
@@ -200,10 +304,7 @@ function selectType(t) {
         if (modal) {
             const h3 = modal.querySelector('h3'); if(h3) h3.innerText = 'שותפים / קבוצה - בקרוב!';
             const p = modal.querySelector('p'); if(p) p.innerText = 'אפשרות לניהול קבוצת שותפים, דירת סטודנטים או ועד בית תפתח בעדכונים הקרובים. בינתיים, המערכת מותאמת באופן מושלם לניהול משפחתי.';
-            const icon = modal.querySelector('.fa-rocket'); if(icon) icon.className = 'fa-solid fa-users text-4xl';
             modal.classList.remove('hidden');
-        } else {
-            showToast('info', 'בקרוב! כרגע המערכת תומכת במשפחות.');
         }
         return;
     }
@@ -213,7 +314,19 @@ function selectType(t) {
     const grpBtn = document.getElementById('type-group'); if(grpBtn) grpBtn.className = `flex-1 p-4 rounded-2xl border-2 text-center transition border-slate-100 text-slate-400 font-bold`; 
 }
 
-function scrollTabs(direction) { const s = document.getElementById('slider-scroll'); if(s) s.scrollBy({ left: direction * -150, behavior: 'smooth' }); }
+function openPremiumSoonModal(title, text) {
+    const modal = document.getElementById('premium-soon-modal');
+    if (modal) {
+        const h3 = modal.querySelector('h3'); if(h3) h3.innerText = title;
+        const p = modal.querySelector('p'); if(p) p.innerText = text;
+        modal.classList.remove('hidden');
+    }
+}
+
+function scrollTabs(direction) { 
+    const s = document.getElementById('slider-scroll'); 
+    if(s) s.scrollBy({ left: direction * -150, behavior: 'smooth' }); 
+}
 
 function switchTab(t) { 
     try {
@@ -225,7 +338,9 @@ function switchTab(t) {
         const el = document.getElementById(`content-${t}`); if(el) el.classList.remove('hidden'); 
         const tabBtn = document.getElementById(`tab-${t}`); if(tabBtn) tabBtn.classList.add('tab-active'); 
         
-        const footer = document.getElementById('cart-footer'); const fab = document.getElementById('fab-container'); 
+        const footer = document.getElementById('cart-footer'); 
+        const fab = document.getElementById('fab-container'); 
+        
         if (t !== 'shop') { 
             if (footer) footer.classList.add('hidden'); 
             if(fab) fab.classList.remove('fab-lifted'); 
@@ -238,71 +353,89 @@ function switchTab(t) {
     } catch (e) { console.error("Error switching tab:", e); }
 }
 
-// --- בניית הלוח המרכזי והפרדת הרשאות הרמטית ---
+// --- בניית הלוח המרכזי (Dashboard) והפרדת הרשאות ---
 async function loadDashboard() {
     try {
         if (!currentUser || !currentGroup) throw new Error("Missing session data");
         
-        const authC = document.getElementById('auth-container'); if(authC) authC.classList.add('hidden'); 
-        const dashC = document.getElementById('dashboard-container'); if(dashC) dashC.classList.remove('hidden'); 
-        const fabC = document.getElementById('fab-container'); if(fabC) fabC.classList.remove('hidden');
+        const authC = document.getElementById('auth-container'); 
+        if(authC) authC.classList.add('hidden'); 
+        
+        const dashC = document.getElementById('dashboard-container'); 
+        if(dashC) dashC.classList.remove('hidden'); 
+        
+        const fabC = document.getElementById('fab-container'); 
+        if(fabC) fabC.classList.remove('hidden');
 
         const isAdmin = currentUser.role === 'ADMIN';
         
-        // --- חלוקה קשיחה: הורה יראה רק הורה, וילד יראה רק ילד ---
-        const adminSpecificEls = [
-            'admin-panel', 'btn-add-task', 'budget-filter', 'bank-admin-view', 
-            'academy-admin-view', 'admin-shop-tools', 'btn-budget-insight', 
-            'admin-tasks-hint', 'profile-upgrade-section', 'btn-pantry-insight', 
-            'btn-email-creds', 'pending-users-container', 'tab-members', 
-            'btn-add-budget-cat', 'btn-checkout-shop', 'feed-user-filter'
-        ];
+        // --- חלוקה הרמטית של הממשק בין הורה לילד ---
+        const adminSpecificEls = document.querySelectorAll('.admin-only');
+        const childSpecificEls = document.querySelectorAll('.child-only');
         
-        const childSpecificEls = [
-            'btn-self-task', 'bank-child-view', 'academy-user-view', 'child-todo-section'
-        ];
-        
-        adminSpecificEls.forEach(id => { 
-            const el = document.getElementById(id); 
-            if(el) el.classList.toggle('hidden', !isAdmin); 
+        adminSpecificEls.forEach(el => {
+            if(isAdmin) el.classList.remove('hidden');
+            else el.classList.add('hidden');
         });
         
-        childSpecificEls.forEach(id => { 
-            const el = document.getElementById(id); 
-            if(el) el.classList.toggle('hidden', isAdmin); 
+        childSpecificEls.forEach(el => {
+            if(isAdmin) el.classList.add('hidden');
+            else el.classList.remove('hidden');
         });
-
-        // עדכון תיבות הסינון באקדמיה שיתאימו למאגר המובנה
+        
+        // הזרקת אפשרויות הסינון של האקדמיה כדי להבטיח שהן תמיד קיימות
         const ageOpts = '<option value="all">כל הגילאים</option><option value="6-8">גילאי 6-8</option><option value="9-11">גילאי 9-11</option><option value="11-13">גילאי 11-13</option><option value="13-15">גילאי 13-15</option><option value="15-18">גילאי 15-18</option>';
         const catOpts = '<option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="hebrew">עברית</option><option value="finance">חינוך פיננסי</option><option value="business">עסקים ויזמות</option>';
+        
         ['admin-lib-age-filter', 'lib-age-filter'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = ageOpts; });
         ['admin-lib-cat-filter', 'lib-cat-filter'].forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = catOpts; });
         // ------------------------------------------------
 
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest shadow-sm">קוד: ${currentGroup.group_code}</span>` : '';
-        const dgn = document.getElementById('dash-group-name'); if(dgn) dgn.innerHTML = `${currentGroup.name || 'משפחה'} ${codeBadge}`; 
+        const dgn = document.getElementById('dash-group-name'); 
+        if(dgn) dgn.innerHTML = `${currentGroup.name || 'משפחה'} ${codeBadge}`; 
         
         const roleBadge = isAdmin ? '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mt-1 inline-block font-bold">מנהל/ת משפחה</span>' : '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full mt-1 inline-block font-bold">ילד/ה</span>';
         
-        const pun = document.getElementById('profile-user-name'); if(pun) pun.innerHTML = currentUser.nickname || '';
-        const prb = document.getElementById('profile-role-badge'); if(prb) prb.innerHTML = roleBadge;
-        const ub = document.getElementById('user-balance'); if(ub) ub.innerText = `₪${currentUser.balance || 0}`;
+        const pun = document.getElementById('profile-user-name'); 
+        if(pun) pun.innerHTML = currentUser.nickname || '';
+        
+        const prb = document.getElementById('profile-role-badge'); 
+        if(prb) prb.innerHTML = roleBadge;
+        
+        const ub = document.getElementById('user-balance'); 
+        if(ub) ub.innerText = `₪${currentUser.balance || 0}`;
 
         if(isAdmin) { 
-            const reqT = document.getElementById('req-title'); if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-            const profileUp = document.getElementById('profile-upgrade-section'); if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> חשבון משודרג ל-Pro</p>'; }
+            const reqT = document.getElementById('req-title'); 
+            if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
+            
+            const profileUp = document.getElementById('profile-upgrade-section'); 
+            if (profileUp && currentGroup.is_premium) { 
+                profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> חשבון משודרג ל-Pro</p>'; 
+            }
         } else { 
-            const cN = document.getElementById('card-name'); if(cN) cN.innerText = String(currentUser.nickname || 'USER').toUpperCase(); 
-            const cA = document.getElementById('card-allowance'); if(cA) cA.innerText = `₪${currentUser.allowance_amount || 0}`; 
-            const cI = document.getElementById('card-interest'); if(cI) cI.innerText = `${currentUser.interest_rate || 0}%`; 
-            const reqT = document.getElementById('req-title'); if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי';
+            const cN = document.getElementById('card-name'); 
+            if(cN) cN.innerText = String(currentUser.nickname || 'USER').toUpperCase(); 
+            
+            const cA = document.getElementById('card-allowance'); 
+            if(cA) cA.innerText = `₪${currentUser.allowance_amount || 0}`; 
+            
+            const cI = document.getElementById('card-interest'); 
+            if(cI) cI.innerText = `${currentUser.interest_rate || 0}%`; 
+            
+            const reqT = document.getElementById('req-title'); 
+            if(reqT) reqT.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
         }
         
-        updateBatteryUI(); fetchBanners(); await fetchMembers(); 
+        updateBatteryUI(); 
+        fetchBanners(); 
+        await fetchMembers(); 
         
-        if(isAdmin) { try { await fetchPendingUsers(); } catch(e){} }
-        
-        await fetchData(); // משיכת נתונים ראשונית
+        if(isAdmin) { 
+            try { await fetchPendingUsers(); } catch(e){} 
+        }
+        await fetchData(); 
         
         if(!pollInterval) {
             pollInterval = setInterval(() => { 
@@ -313,7 +446,7 @@ async function loadDashboard() {
         
     } catch (e) { 
         console.error('Error loading dashboard:', e); 
-        showToast('error', 'שגיאה בטעינת הממשק - נא לרענן'); 
+        showToast('error', 'שגיאה בטעינת הממשק - מנסה לרענן'); 
     } finally { 
         const preloader = document.getElementById('app-preloader'); 
         const finalizeLoad = async () => { 
@@ -379,7 +512,9 @@ async function fetchMembers() {
             }
             if (gS) { 
                 const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי)</option>'; 
-                membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`; }); 
+                membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { 
+                    gS.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`; 
+                }); 
                 if(cur) gS.value = cur; 
             }
             
@@ -407,7 +542,9 @@ async function fetchMembers() {
                 c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
             }); 
         }
-    } catch(e) { console.error("Error in fetchMembers: ", e); }
+    } catch(e) {
+        console.error("Error in fetchMembers: ", e);
+    }
 }
 
 async function fetchData() {
@@ -421,7 +558,12 @@ async function fetchData() {
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
-        if(data.group) { currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI(); }
+        
+        if(data.group) { 
+            currentGroup.ai_tokens = data.group.ai_tokens; 
+            currentGroup.is_premium = data.group.is_premium; 
+            updateBatteryUI(); 
+        }
         
         const balEl = document.getElementById('user-balance'); 
         if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
@@ -444,7 +586,7 @@ async function fetchData() {
         
         shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; 
         renderShopList(); 
-        fetchBudget();
+        fetchBudget(); // קריאה חיונית שתעבוד תמיד
         
         const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
         const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
@@ -475,7 +617,9 @@ async function fetchData() {
                 const pendingLoans = data.loans ? data.loans.filter(l => l.status === 'pending') : []; 
                 if(pendingLoans.length > 0) { 
                     adminLoansContainer.classList.remove('hidden'); let lHtml = ''; 
-                    pendingLoans.forEach(l => { lHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-purple-100 mb-2"><div><span class="font-bold text-slate-700">${l.user_name} מבקש/ת ₪${l.original_amount}</span><p class="text-xs text-slate-500">למטרה: ${l.reason}</p></div><div class="flex gap-2"><button onclick="handleLoanAction(${l.id}, 'approve')" class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-600 shadow-sm"><i class="fa-solid fa-check"></i></button><button onclick="handleLoanAction(${l.id}, 'reject')" class="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button></div></div>`; }); 
+                    pendingLoans.forEach(l => { 
+                        lHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-purple-100 mb-2"><div><span class="font-bold text-slate-700">${l.user_name} מבקש/ת ₪${l.original_amount}</span><p class="text-xs text-slate-500">למטרה: ${l.reason}</p></div><div class="flex gap-2"><button onclick="handleLoanAction(${l.id}, 'approve')" class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-600 shadow-sm"><i class="fa-solid fa-check"></i></button><button onclick="handleLoanAction(${l.id}, 'reject')" class="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button></div></div>`; 
+                    }); 
                     adminLoansList.innerHTML = lHtml; 
                 } else { adminLoansContainer.classList.add('hidden'); } 
             } 
@@ -530,7 +674,7 @@ async function fetchData() {
     } catch(e) { console.error("FetchData Error:", e); }
 }
 
-// --- רינדור נתונים למסך ---
+// --- רינדור נתונים ורשימות ---
 function buildAndRenderFeed() { 
     feedCache = []; 
     if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח!', amount: 0 }); } 
@@ -593,13 +737,14 @@ function renderPantry() {
     pantryCache.forEach(p => { list.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4><p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')}</p></div><div class="flex items-center gap-2"><div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3"><button onclick="updatePantryQty(${p.id}, ${p.quantity - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button><span>${p.quantity}</span><button onclick="updatePantryQty(${p.id}, ${p.quantity + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button></div><button onclick="movePantryToCart(${p.id}, '${String(p.item_name).replace(/'/g,"\\'")}')" class="bg-pink-50 text-pink-600 w-8 h-8 rounded-lg flex items-center justify-center shadow-sm"><i class="fa-solid fa-cart-arrow-down"></i></button></div></div>`; }); 
 }
 
-// --- אקדמיה ---
+// --- אקדמיה (ACADEMY) ---
 function renderAdminAcademy() {
     const list = document.getElementById('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
     const ageFilter = val('admin-lib-age-filter') || 'all'; const catFilter = val('admin-lib-cat-filter') || 'all';
     let filteredBundles = Array.isArray(allBundles) ? [...allBundles] : [];
     if (ageFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.age_group === ageFilter); 
     if (catFilter !== 'all') filteredBundles = filteredBundles.filter(b => b.type === catFilter);
+    
     let html = '';
     if (filteredBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים התואמים לסינון.</p>'; } 
     else {
@@ -607,6 +752,7 @@ function renderAdminAcademy() {
         filteredBundles.forEach(b => { const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : (type === 'english' ? '🔤' : '📈')); html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400">גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100">הקצה</button></div>`; }); 
         html += '</div>';
     }
+    
     html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
     if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
         html += '<div class="space-y-2 pb-20">'; bundlesCache.forEach(b => { let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${b.title}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold">${b.assignee_name}</span></p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg">${statusText}</span></div>`; }); html += '</div>';
@@ -620,6 +766,7 @@ function renderLibrary() {
     if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); 
     if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
     if(Array.isArray(bundlesCache)) { const assignedIds = bundlesCache.map(ua => Number(ua.bundle_id)); filtered = filtered.filter(b => !assignedIds.includes(Number(b.id))); }
+    
     if (filtered.length === 0) { libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים כרגע.</p>'; return; }
     let libHtml = ''; filtered.forEach(b => { const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : (type === 'english' ? '🔤' : '📈')); libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400">גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 shadow-sm">התחל</button></div>`; }); libList.innerHTML = libHtml;
 }
@@ -652,43 +799,38 @@ async function startQuiz(bundleId) { const bundle = bundlesCache.find(b => Strin
 
 function renderQuestion() { const q = currentQuizData.questions[currentQuestionIndex]; document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; document.getElementById('q-text').innerText = q.q; const optsContainer = document.getElementById('q-options'); optsContainer.innerHTML = ''; q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; }); }
 
-async function submitAnswer(selectedIdx) { const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option'); btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong'); if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); } if(isCorrect) quizScore++; setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000); }
+async function submitAnswer(selectedIdx) { const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option'); if(btns[selectedIdx]) btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong'); if(!isCorrect) { if(btns[q.correct]) btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); } if(isCorrect) quizScore++; setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000); }
 
-async function finishQuiz() { const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold; document.getElementById('question-container').classList.add('hidden'); document.getElementById('quiz-text-container').classList.add('hidden'); document.getElementById('quiz-result').classList.remove('hidden'); document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚'; document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...'; document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`; if (!passed && currentWrongAnswers.length > 0) document.getElementById('btn-tutor').classList.remove('hidden'); if (passed) triggerConfetti(); await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore }) }); fetchData(); }
+async function finishQuiz() { const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold; const qc = document.getElementById('question-container'); if(qc) qc.classList.add('hidden'); const qtc = document.getElementById('quiz-text-container'); if(qtc) qtc.classList.add('hidden'); const qr = document.getElementById('quiz-result'); if(qr) qr.classList.remove('hidden'); const qi = document.getElementById('quiz-icon'); if(qi) qi.innerHTML = passed ? '🏆' : '📚'; const qmt = document.getElementById('quiz-msg-title'); if(qmt) qmt.innerText = passed ? 'כל הכבוד!' : 'לא נורא...'; const qmd = document.getElementById('quiz-msg-desc'); if(qmd) qmd.innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; const qsd = document.getElementById('quiz-score-display'); if(qsd) qsd.innerText = `ציון: ${finalScore}%`; if (!passed && currentWrongAnswers.length > 0) { const bt = document.getElementById('btn-tutor'); if(bt) bt.classList.remove('hidden'); } if (passed) triggerConfetti(); await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore }) }); fetchData(); }
 
-function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); document.getElementById('question-container').classList.remove('hidden'); document.getElementById('quiz-result').classList.add('hidden'); }
+function closeQuiz() { const mod = document.getElementById('quiz-runner-modal'); if(mod) mod.classList.add('hidden'); const qc = document.getElementById('question-container'); if(qc) qc.classList.remove('hidden'); const qr = document.getElementById('quiz-result'); if(qr) qr.classList.add('hidden'); }
 
-// --- AI ACTIONS ---
-function showFamilAIModal(title, text) { const mod = document.getElementById('familai-advisor-modal'); if(mod) mod.classList.remove('hidden'); const sub = document.getElementById('familai-modal-subtitle'); if(sub) sub.innerText = title; if (text) { document.getElementById('familai-advisor-loading').classList.add('hidden'); document.getElementById('familai-advice-text').innerText = text; document.getElementById('familai-advisor-content').classList.remove('hidden'); } else { document.getElementById('familai-advisor-loading').classList.remove('hidden'); document.getElementById('familai-advisor-content').classList.add('hidden'); } }
+// --- פעולות בינה מלאכותית (AI) ---
+function showFamilAIModal(title, text) { const mod = document.getElementById('familai-advisor-modal'); if(mod) mod.classList.remove('hidden'); const sub = document.getElementById('familai-modal-subtitle'); if(sub) sub.innerText = title; const load = document.getElementById('familai-advisor-loading'); const content = document.getElementById('familai-advisor-content'); const adviceText = document.getElementById('familai-advice-text'); if (text) { if(load) load.classList.add('hidden'); if(adviceText) adviceText.innerText = text; if(content) content.classList.remove('hidden'); } else { if(load) load.classList.remove('hidden'); if(content) content.classList.add('hidden'); } }
 
-function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
+function openAIModal() { const mod = document.getElementById('ai-modal'); if(mod) mod.classList.remove('hidden'); }
 
-async function generateAIQuiz() { const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳'; try { const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) }); const data = await res.json(); if(!handleAIResponseCheck(data)) return; if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); document.getElementById('ai-modal').classList.add('hidden'); document.getElementById('ai-topic').value = ''; await fetchData(); openAssignModalSpecific(data.bundleId); } } catch(e) {} finally { btn.disabled = false; btn.innerText = 'צור אתגר'; } }
+async function generateAIQuiz() { const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); if(btn) { btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳'; } try { const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) }); const data = await res.json(); if(!handleAIResponseCheck(data)) return; if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); const mod = document.getElementById('ai-modal'); if(mod) mod.classList.add('hidden'); const top = document.getElementById('ai-topic'); if(top) top.value = ''; await fetchData(); openAssignModalSpecific(data.bundleId); } } catch(e) {} finally { if(btn) { btn.disabled = false; btn.innerText = 'צור אתגר'; } } }
 
-async function getFamilAIAdvice(childId, goalId) { showFamilAIModal('היועצת הפיננסית של המשפחה', null); document.getElementById('familai-loading-text').innerText = 'מנתחת את הנתונים...'; try { const res = await fetch(`${API}/goals/familai-advice`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, goalId: goalId, groupId: currentGroup.id }) }); const data = await res.json(); if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; } if(data.success && data.advice) { showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice); triggerConfetti(); } else document.getElementById('familai-advisor-modal').classList.add('hidden'); } catch (e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); } }
+async function getFamilAIAdvice(childId, goalId) { showFamilAIModal('היועצת הפיננסית של המשפחה', null); const flt = document.getElementById('familai-loading-text'); if(flt) flt.innerText = 'מנתחת את הנתונים...'; try { const res = await fetch(`${API}/goals/familai-advice`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, goalId: goalId, groupId: currentGroup.id }) }); const data = await res.json(); const mod = document.getElementById('familai-advisor-modal'); if(!handleAIResponseCheck(data)) { if(mod) mod.classList.add('hidden'); return; } if(data.success && data.advice) { showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice); triggerConfetti(); } else { if(mod) mod.classList.add('hidden'); } } catch (e) { const mod = document.getElementById('familai-advisor-modal'); if(mod) mod.classList.add('hidden'); } }
 
-async function getBudgetInsight() { showFamilAIModal('אנליסטית התקציב', null); document.getElementById('familai-loading-text').innerText = 'בודקת על מה הוצאנו החודש...'; try { const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; } if(data.success && data.insight) showFamilAIModal('אנליסטית התקציב', data.insight); } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); } }
+async function getBudgetInsight() { showFamilAIModal('אנליסטית התקציב', null); const flt = document.getElementById('familai-loading-text'); if(flt) flt.innerText = 'בודקת על מה הוצאנו החודש...'; try { const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); const mod = document.getElementById('familai-advisor-modal'); if(!handleAIResponseCheck(data)) { if(mod) mod.classList.add('hidden'); return; } if(data.success && data.insight) showFamilAIModal('אנליסטית התקציב', data.insight); } catch(e) { const mod = document.getElementById('familai-advisor-modal'); if(mod) mod.classList.add('hidden'); } }
 
-async function getPantryInsight() { showFamilAIModal('מנהלת המזווה', null); document.getElementById('familai-loading-text').innerText = 'מחשבת כמויות...'; try { const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; } if(data.success && data.insight) showFamilAIModal('מנהלת המזווה', data.insight); } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); } }
+async function getPantryInsight() { showFamilAIModal('מנהלת המזווה', null); const flt = document.getElementById('familai-loading-text'); if(flt) flt.innerText = 'מחשבת כמויות...'; try { const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); const mod = document.getElementById('familai-advisor-modal'); if(!handleAIResponseCheck(data)) { if(mod) mod.classList.add('hidden'); return; } if(data.success && data.insight) showFamilAIModal('מנהלת המזווה', data.insight); } catch(e) { const mod = document.getElementById('familai-advisor-modal'); if(mod) mod.classList.add('hidden'); } }
 
-async function askTutor() { if(currentWrongAnswers.length === 0) return; const w = currentWrongAnswers[0]; const btn = document.getElementById('btn-tutor'); btn.disabled = true; btn.innerText = 'מכינה הסבר...'; try { const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json(); if(handleAIResponseCheck(data) && data.success) showFamilAIModal('המורה הפרטית שלך', data.explanation); } catch(e) {} finally { btn.disabled = false; btn.innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; } }
+async function askTutor() { if(currentWrongAnswers.length === 0) return; const w = currentWrongAnswers[0]; const btn = document.getElementById('btn-tutor'); if(btn) { btn.disabled = true; btn.innerText = 'מכינה הסבר...'; } try { const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json(); if(handleAIResponseCheck(data) && data.success) showFamilAIModal('המורה הפרטית שלך', data.explanation); } catch(e) {} finally { if(btn) { btn.disabled = false; btn.innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; } } }
 
-// --- TASKS MODULE ---
-function setTaskMode(mode) { const mBtn = document.getElementById('btn-mode-manual'); const aBtn = document.getElementById('btn-mode-ai'); const mDiv = document.getElementById('task-mode-manual'); const aDiv = document.getElementById('task-mode-ai'); if (mode === 'manual') { if(mBtn) mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition'; if(aBtn) aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition'; if(mDiv) mDiv.classList.remove('hidden'); if(aDiv) aDiv.classList.add('hidden'); } else { if(aBtn) aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-purple-600 shadow-sm transition'; if(mBtn) mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-blue-600 transition'; if(aDiv) aDiv.classList.remove('hidden'); if(mDiv) mDiv.classList.add('hidden'); } }
-
-function closeTaskModal() { const m = document.getElementById('task-modal'); if(m) m.classList.add('hidden'); }
-
-function openTaskModal(isSelf = false) { 
+// --- משימות (TASKS) ---
+window.openTaskModal = function(isSelf = false) { 
     const m = document.getElementById('task-modal'); if(m) m.classList.remove('hidden'); 
     const tis = document.getElementById('task-is-self'); if(tis) tis.value = isSelf; 
-    ['task-days','task-title','task-reward','ai-task-topic'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; }); 
+    const d = document.getElementById('task-days'); if(d) d.value = ''; 
+    const tt = document.getElementById('task-title'); if(tt) tt.value = ''; 
+    const tr = document.getElementById('task-reward'); if(tr) tr.value = ''; 
+    const aitt = document.getElementById('ai-task-topic'); if(aitt) aitt.value = ''; 
     const air = document.getElementById('ai-task-results'); if(air) air.classList.add('hidden'); 
     setTaskMode('manual'); 
-    
-    const toggles = document.getElementById('task-mode-toggles');
-    const assigneeContainer = document.getElementById('task-assignee-container');
-    const rewardGroup = document.getElementById('task-reward-group');
-    const tTitle = document.getElementById('task-modal-title');
+    const toggles = document.getElementById('task-mode-toggles'); const assigneeContainer = document.getElementById('task-assignee-container'); const rewardGroup = document.getElementById('task-reward-group'); const tTitle = document.getElementById('task-modal-title'); 
     
     if(isSelf) { 
         if(tTitle) tTitle.innerText = 'דיווח על עזרה בבית'; 
@@ -701,61 +843,43 @@ function openTaskModal(isSelf = false) {
         if(assigneeContainer) assigneeContainer.classList.remove('hidden'); 
         if(rewardGroup) rewardGroup.classList.remove('hidden'); 
         const assigneeSelect = document.getElementById('task-assignee'); 
-        if(assigneeSelect) {
-            assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; 
-            membersCache.forEach(m => { if (m.role !== 'ADMIN') assigneeSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; }); 
-        }
+        if(assigneeSelect) { assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; membersCache.forEach(m => { if (m.role !== 'ADMIN') assigneeSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; }); } 
     } 
 }
+
+function setTaskMode(mode) { const mBtn = document.getElementById('btn-mode-manual'); const aBtn = document.getElementById('btn-mode-ai'); const mDiv = document.getElementById('task-mode-manual'); const aDiv = document.getElementById('task-mode-ai'); if (mode === 'manual') { if(mBtn) mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition'; if(aBtn) aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition'; if(mDiv) mDiv.classList.remove('hidden'); if(aDiv) aDiv.classList.add('hidden'); } else { if(aBtn) aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-purple-600 shadow-sm transition'; if(mBtn) mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-blue-600 transition'; if(aDiv) aDiv.classList.remove('hidden'); if(mDiv) mDiv.classList.add('hidden'); } }
+
+function closeTaskModal() { const mod = document.getElementById('task-modal'); if(mod) mod.classList.add('hidden'); }
 
 async function generateAITasks() { 
     const btn = document.getElementById('btn-ai-task-gen'); const assigneeId = val('task-assignee'); const topic = val('ai-task-topic'); const isSelf = val('task-is-self') === 'true'; 
     let age; 
-    if (isSelf) { age = new Date().getFullYear() - currentUser.birth_year; }
-    else { 
-        if(!assigneeId) return showToast('error', 'בחרו למעלה עבור מי המשימה'); 
-        const child = membersCache.find(m => String(m.id) === String(assigneeId)); 
-        age = new Date().getFullYear() - (child ? child.birth_year : new Date().getFullYear()); 
-    } 
+    if (isSelf) { age = new Date().getFullYear() - currentUser.birth_year; } 
+    else { if(!assigneeId) return showToast('error', 'בחרו למעלה עבור מי המשימה'); const child = membersCache.find(m => String(m.id) === String(assigneeId)); age = new Date().getFullYear() - (child ? child.birth_year : new Date().getFullYear()); } 
     if(!topic) return showToast('error', 'כתבו באיזה נושא לעזור'); 
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; } 
     try { 
         const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); 
         const data = await res.json(); 
         if(handleAIResponseCheck(data) && data.success) { 
             const rc = document.getElementById('ai-task-results'); 
-            if(rc) {
-                rc.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>'; 
-                data.tasks.forEach(t => rc.innerHTML += `<div onclick="selectAITask('${String(t.title).replace(/'/g, "\\'")}', ${t.reward})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border hover:bg-purple-50"><span class="text-sm font-bold">${t.title}</span><span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${t.reward}</span></div>`); 
-                rc.classList.remove('hidden'); 
-            }
+            if(rc) { rc.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>'; data.tasks.forEach(t => rc.innerHTML += `<div onclick="selectAITask('${String(t.title).replace(/'/g, "\\'")}', ${t.reward})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border hover:bg-purple-50"><span class="text-sm font-bold">${t.title}</span><span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${t.reward}</span></div>`); rc.classList.remove('hidden'); } 
         } 
     } catch(e) {} 
-    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>'; } } 
+    finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות'; } } 
 }
 
-function selectAITask(title, reward) { 
-    const t = document.getElementById('task-title'); if(t) t.value = title; 
-    const r = document.getElementById('task-reward'); if(r) r.value = reward; 
-    setTaskMode('manual'); 
-}
+function selectAITask(title, reward) { const t = document.getElementById('task-title'); if(t) t.value = title; const r = document.getElementById('task-reward'); if(r) r.value = reward; setTaskMode('manual'); }
 
 async function submitTask() { 
-    const isSelf = val('task-is-self') === 'true'; 
-    const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = isSelf ? 0 : val('task-reward'); 
-    const title = val('task-title'); 
+    const isSelf = val('task-is-self') === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = isSelf ? 0 : val('task-reward'); const title = val('task-title'); 
     if(!isSelf && !assignee) return showToast('error', 'יש לבחור ילד למשימה'); 
     if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה'); 
     await fetch(`${API}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: reward, assignedTo: assignee, days: val('task-days') }) }); 
-    if(isSelf) triggerConfetti(); 
-    closeTaskModal(); showToast('success', 'משימה נוצרה!'); fetchData(); 
+    if(isSelf) triggerConfetti(); closeTaskModal(); showToast('success', 'משימה נוצרה!'); fetchData(); 
 }
 
-function clickTaskProof(taskId, title) { 
-    currentVerifyTaskId = taskId; currentVerifyTaskTitle = title; 
-    const tpu = document.getElementById('task-proof-upload'); if(tpu) tpu.click(); 
-}
+function clickTaskProof(taskId, title) { currentVerifyTaskId = taskId; currentVerifyTaskTitle = title; const tpu = document.getElementById('task-proof-upload'); if(tpu) tpu.click(); }
 
 function handleTaskProofUpload(event) { 
     const file = event.target.files[0]; if(!file) return; 
@@ -774,10 +898,9 @@ function handleTaskProofUpload(event) {
     reader.readAsDataURL(file); 
 }
 
-// --- SHOPPING MODULE ---
+// --- קניות (SHOPPING) ---
 function filterSuggestions(valTxt) { 
-    const list = document.getElementById('suggestions'); if(!list) return;
-    list.innerHTML = ''; 
+    const list = document.getElementById('suggestions'); if(!list) return; list.innerHTML = ''; 
     if (!valTxt) { list.classList.add('hidden'); return; } 
     const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(valTxt)).slice(0, 8); 
     if (filtered.length > 0) { 
@@ -793,9 +916,7 @@ function filterSuggestions(valTxt) {
             list.appendChild(li); 
         }); 
     } else { 
-        list.classList.remove('hidden'); 
-        let opt = '<option value="">-- הוסף כמו שהוא --</option>'; 
-        FLAT_PRODUCTS.forEach(p => { opt += `<option value="${p.name}">${p.name} (${p.category})</option>`; }); 
+        list.classList.remove('hidden'); let opt = '<option value="">-- הוסף כמו שהוא --</option>'; FLAT_PRODUCTS.forEach(p => { opt += `<option value="${p.name}">${p.name} (${p.category})</option>`; }); 
         list.innerHTML = `<div class="p-3 bg-orange-50 border-b border-orange-100 text-xs">לא מצאנו... לשייך לקטגוריה קיימת?</div><div class="p-2 space-y-2"><select id="manual-normalize-select" class="w-full text-xs p-2 rounded border">${opt}</select><button onclick="selectManualShopItem()" class="w-full bg-orange-500 text-white py-2 rounded-lg text-xs font-bold">אשר</button></div>`; 
     } 
 }
@@ -807,7 +928,7 @@ window.selectManualShopItem = function() {
     const sugg = document.getElementById('suggestions'); if(sugg) sugg.classList.add('hidden'); 
 }
 
-function openShopModal() { 
+window.openShopModal = function() { 
     const snn = document.getElementById('shop-normalized-name'); if(snn) snn.value = '';
     const sm = document.getElementById('shop-modal'); if(sm) sm.classList.remove('hidden'); 
 }
@@ -817,8 +938,7 @@ async function submitShopItem() {
     if(!item) return; 
     await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, normalizedName: norm, quantity: val('shop-quantity'), estimatedPrice: val('shop-est-price'), userId: currentUser.id}) }); 
     const sm = document.getElementById('shop-modal'); if(sm) sm.classList.add('hidden'); 
-    const si = document.getElementById('shop-item'); if(si) si.value=''; 
-    fetchData(); 
+    const si = document.getElementById('shop-item'); if(si) si.value=''; fetchData(); 
 }
 
 function toggleSelectAll() { 
@@ -829,16 +949,13 @@ function toggleSelectAll() {
         row.classList.toggle('in-cart', anyPending); 
         const pInp = row.querySelector('.price-input'); if(pInp) pInp.disabled = !anyPending; 
     }); 
-    calcRunningTotal(); 
-    shoppingListCache.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', anyPending); }); 
+    calcRunningTotal(); shoppingListCache.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', anyPending); }); 
 }
 
 function renderShopList() { 
-    const list = document.getElementById('shop-list'); 
-    const reqList = document.getElementById('shop-requests-list'); 
-    const reqContainer = document.getElementById('shop-requests-container'); 
+    if(document.activeElement && document.activeElement.classList.contains('price-input')) return;
+    const list = document.getElementById('shop-list'); const reqList = document.getElementById('shop-requests-list'); const reqContainer = document.getElementById('shop-requests-container'); 
     if(!list) return;
-    
     const activeItems = []; const requestedItems = []; 
     shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); }); 
     
@@ -847,18 +964,10 @@ function renderShopList() {
         reqList.innerHTML = requestedItems.map(i => `<div class="flex justify-between bg-white p-2 rounded-xl shadow-sm border mb-2"><div><span class="font-bold">${i.item_name}</span><span class="text-xs block">ביקש/ה: ${i.requester_name}</span></div>${currentUser.role==='ADMIN'?`<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full"><i class="fa-solid fa-check"></i></button></div>`:`<span class="text-xs text-orange-500">ממתין להורה</span>`}</div>`).join(''); 
     } else if(reqContainer) { reqContainer.classList.add('hidden'); }
     
-    const cf = document.getElementById('cart-footer');
-    const fab = document.getElementById('fab-container');
-    if(activeItems.length === 0) { 
-        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
-        if(cf) cf.classList.add('hidden'); 
-        if(fab) fab.classList.remove('fab-lifted'); 
-        return; 
-    } 
+    const cf = document.getElementById('cart-footer'); const fab = document.getElementById('fab-container');
+    if(activeItems.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; if(cf) cf.classList.add('hidden'); if(fab) fab.classList.remove('fab-lifted'); return; } 
     
-    if(cf) cf.classList.remove('hidden'); 
-    if(fab) fab.classList.add('fab-lifted'); 
-    
+    if(cf) cf.classList.remove('hidden'); if(fab) fab.classList.add('fab-lifted'); 
     let shopHtml = ''; 
     activeItems.sort((a,b) => String(a.item_name).localeCompare(String(b.item_name))).forEach(i => { 
         const isChecked = i.status === 'in_cart'; const total = (i.estimated_price || 0) * i.quantity; 
@@ -876,71 +985,37 @@ async function updateRow(id, type, value) {
 function toggleMissingLocal(id) { 
     const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); 
     if(!row || !btn) return;
-    const isMissing = row.classList.contains('missing'); 
-    const inp = row.querySelector('input[type="checkbox"]');
+    const isMissing = row.classList.contains('missing'); const inp = row.querySelector('input[type="checkbox"]');
     if (!isMissing) { 
         row.classList.add('missing'); row.classList.remove('in-cart'); 
         if(inp) { inp.checked = false; inp.disabled = true; } 
         const pi = document.getElementById(`price-${id}`); if(pi) pi.disabled = true; 
         btn.classList.add('bg-orange-100', 'text-orange-500'); btn.innerText = 'מבוטל'; 
     } else { 
-        row.classList.remove('missing'); 
-        if(inp) inp.disabled = false; 
+        row.classList.remove('missing'); if(inp) inp.disabled = false; 
         btn.classList.remove('bg-orange-100', 'text-orange-500'); btn.innerText = 'חסר'; 
     } 
     calcRunningTotal(); 
 }
 
 function calcRunningTotal() { 
-    let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const inp = row.querySelector('input[type="checkbox"]');
-        if (inp && inp.checked && !row.classList.contains('missing')) { 
-            const id = row.id.replace('row-', ''); 
-            const item = shoppingListCache.find(i => String(i.id) === String(id)); 
-            const pi = document.getElementById(`price-${id}`);
-            total += ((parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1)); 
-        } 
-    }); 
-    const ctd = document.getElementById('cart-total-display');
-    if(ctd) ctd.innerText = `₪${total.toFixed(2)}`; 
+    let total = 0; document.querySelectorAll('.shop-row').forEach(row => { const inp = row.querySelector('input[type="checkbox"]'); if (inp && inp.checked && !row.classList.contains('missing')) { const id = row.id.replace('row-', ''); const item = shoppingListCache.find(i => String(i.id) === String(id)); const pi = document.getElementById(`price-${id}`); total += ((parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1)); } }); 
+    const ctd = document.getElementById('cart-total-display'); if(ctd) ctd.innerText = `₪${total.toFixed(2)}`; 
 }
 
 function openCheckoutSummary() { 
     let count = 0, missing = 0, total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const inp = row.querySelector('input[type="checkbox"]');
-        if (row.classList.contains('missing')) missing++; 
-        else if (inp && inp.checked) { 
-            count++; 
-            const id = row.id.replace('row-', ''); 
-            const item = shoppingListCache.find(i => String(i.id) === String(id)); 
-            const pi = document.getElementById(`price-${id}`);
-            total += ((parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1)); 
-        } 
-    }); 
+    document.querySelectorAll('.shop-row').forEach(row => { const inp = row.querySelector('input[type="checkbox"]'); if (row.classList.contains('missing')) missing++; else if (inp && inp.checked) { count++; const id = row.id.replace('row-', ''); const item = shoppingListCache.find(i => String(i.id) === String(id)); const pi = document.getElementById(`price-${id}`); total += ((parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1)); } }); 
     if (count===0 && missing===0) return showToast('error', 'לא סימנת כלום'); 
-    
     const sc = document.getElementById('summ-count'); if(sc) sc.innerText = count; 
     const sm = document.getElementById('summ-missing'); if(sm) sm.innerText = missing; 
     const st = document.getElementById('summ-total'); if(st) st.innerText = `₪${total.toFixed(2)}`; 
-    
     const mod = document.getElementById('confirm-checkout-modal'); if(mod) mod.classList.remove('hidden'); 
 }
 
 async function submitFinalCheckout() { 
     const boughtItems = [], missingItems = []; let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const id = row.id.replace('row-', ''); const item = shoppingListCache.find(i => String(i.id) === String(id)); 
-        const inp = row.querySelector('input[type="checkbox"]');
-        if (row.classList.contains('missing')) missingItems.push({ id }); 
-        else if (inp && inp.checked) { 
-            const pi = document.getElementById(`price-${id}`);
-            const rowTotal = (parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1); 
-            total+=rowTotal; 
-            boughtItems.push({ id, name: item?item.item_name:'פריט', quantity: item?item.quantity:1, price: rowTotal }); 
-        } 
-    }); 
+    document.querySelectorAll('.shop-row').forEach(row => { const id = row.id.replace('row-', ''); const item = shoppingListCache.find(i => String(i.id) === String(id)); const inp = row.querySelector('input[type="checkbox"]'); if (row.classList.contains('missing')) missingItems.push({ id }); else if (inp && inp.checked) { const pi = document.getElementById(`price-${id}`); const rowTotal = (parseFloat(pi ? pi.value : 0)||0) * (item?item.quantity:1); total+=rowTotal; boughtItems.push({ id, name: item?item.item_name:'פריט', quantity: item?item.quantity:1, price: rowTotal }); } }); 
     await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: val('checkout-store')||'סופר', branchName: val('checkout-branch'), boughtItems, missingItems }) }); 
     const mod = document.getElementById('confirm-checkout-modal'); if(mod) mod.classList.add('hidden'); 
     triggerConfetti(); fetchData(); 
@@ -949,8 +1024,7 @@ async function submitFinalCheckout() {
 async function openHistoryModal() { 
     try {
         const trips = await (await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`)).json(); 
-        const list = document.getElementById('history-list'); if(!list) return;
-        list.innerHTML = ''; 
+        const list = document.getElementById('history-list'); if(!list) return; list.innerHTML = ''; 
         if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>';
         trips.forEach(t => { list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm mb-2"><div class="flex justify-between"><div><h4 class="font-bold">${t.store_name}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()}</p></div><span class="font-bold text-blue-600">₪${t.total_amount}</span></div><button onclick="copyList(${t.id})" class="mt-2 text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded">העתק רשימה</button></div>`; }); 
         const mod = document.getElementById('history-modal'); if(mod) mod.classList.remove('hidden'); 
@@ -963,7 +1037,8 @@ async function copyList(tripId) {
     fetchData(); showToast('success', 'הרשימה הועתקה!'); 
 }
 
-function openPantryModal() { 
+// --- מזווה (PANTRY) ---
+window.openPantryModal = function() { 
     const pi = document.getElementById('pantry-item'); if(pi) pi.value = ''; 
     const pq = document.getElementById('pantry-quantity'); if(pq) pq.value = 1; 
     const m = document.getElementById('pantry-modal'); if(m) m.classList.remove('hidden'); 
@@ -992,25 +1067,9 @@ async function movePantryToCart(pantryId, itemName) {
     showToast('success', 'המוצר הועבר לרשימת הקניות!'); fetchData();
 }
 
-// --- GENERAL MODALS & UTILS ---
-function toggleFab() { const el = document.getElementById('fab-container'); if(el) el.classList.toggle('fab-open'); }
-function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-function showToast(t,m) { 
-    const el = document.getElementById('toast'); const icon = document.getElementById('toast-icon'); const msg = document.getElementById('toast-message');
-    if(!el || !icon || !msg) return;
-    el.classList.remove('hidden'); msg.innerText=m; 
-    icon.className = t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; 
-    setTimeout(()=>el.classList.add('hidden'),3000); 
-}
-function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
-function triggerConfetti() { try{ confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){} }
-function triggerShake() { const app = document.getElementById('main-wrapper'); if(app) { app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); } }
-
-// --- GOALS & BUDGET ---
-function openGoalModal() { 
-    if(currentUser.role === 'ADMIN') {
-        const gc = document.getElementById('goal-user-select-container'); if(gc) gc.classList.remove('hidden'); 
-    }
+// --- בנק, יעדים ותקציב (BANK & BUDGET) ---
+window.openGoalModal = function() { 
+    if(currentUser.role === 'ADMIN') { const gc = document.getElementById('goal-user-select-container'); if(gc) gc.classList.remove('hidden'); }
     const t = document.getElementById('goal-title'); if(t) t.value = ''; 
     const target = document.getElementById('goal-target'); if(target) target.value = ''; 
     const mod = document.getElementById('goal-modal'); if(mod) mod.classList.remove('hidden'); 
@@ -1023,28 +1082,21 @@ function openDepositModal(id, title) {
 }
 
 async function submitGoal() { await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId: currentUser.role==='ADMIN'?val('goal-target-user'):null, title: val('goal-title'), target: val('goal-target') }) }); const mod = document.getElementById('goal-modal'); if(mod) mod.classList.add('hidden'); fetchData(); }
-
 async function submitDeposit() { await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId: val('deposit-goal-id'), amount: val('deposit-amount') }) }); const mod = document.getElementById('goal-deposit-modal'); if(mod) mod.classList.add('hidden'); fetchData(); }
-
 async function breakGoal(goalId, title) { if (!confirm(`לשבור קופה למשוך חזרה לארנק?`)) return; await fetch(`${API}/goals/break`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ goalId: goalId }) }); fetchData(); }
 
-function openTransactionModal(t) { 
+window.openTransactionModal = function(t) { 
     const typeEl = document.getElementById('trans-type'); if(typeEl) typeEl.value=t; 
     const titleEl = document.getElementById('trans-modal-title'); if(titleEl) titleEl.innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; 
     const s = document.getElementById('trans-cat'); 
-    if(s) {
-        s.innerHTML=''; 
-        if(CATEGORIES[t]) { CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); }
-    }
+    if(s) { s.innerHTML=''; if(CATEGORIES[t]) { CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); } }
     const mod = document.getElementById('transaction-modal'); if(mod) mod.classList.remove('hidden'); 
 }
 
 async function submitTransaction() { await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount: val('trans-amount'), description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); const mod = document.getElementById('transaction-modal'); if(mod) mod.classList.add('hidden'); fetchData(); }
 
-function openLoanModal() { const mod = document.getElementById('loan-modal'); if(mod) mod.classList.remove('hidden'); }
-
+window.openLoanModal = function() { const mod = document.getElementById('loan-modal'); if(mod) mod.classList.remove('hidden'); }
 async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); const mod = document.getElementById('loan-modal'); if(mod) mod.classList.add('hidden'); fetchData(); showToast('success','בקשה נשלחה'); }
-
 async function handleLoanAction(id, action) { await fetch(`${API}/loans/action`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId: id, action: action }) }); fetchData(); }
 
 async function fetchBudget() { 
@@ -1054,6 +1106,7 @@ async function fetchBudget() {
         if(!res.ok) return;
         const data = await res.json(); 
         
+        // יצירת קטגוריות חסרות אם הן לא הוחזרו מהשרת
         const baseCategories = CATEGORIES.expense.map(c => c.value);
         data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
         baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); 
@@ -1092,14 +1145,11 @@ async function fetchBudget() {
 }
 
 function openBudgetModal(catId) { const idEl = document.getElementById('budget-cat-id'); if(idEl) idEl.value = catId; const mod = document.getElementById('budget-modal'); if(mod) mod.classList.remove('hidden'); }
-
 async function submitBudgetUpdate() { const limit = val('budget-limit'); const tUser = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; if(!limit) { await fetch(`${API}/budget/delete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:val('budget-cat-id'), targetUserId: tUser})}); } else { await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:val('budget-cat-id'), limit:limit, targetUserId: tUser})}); } const mod = document.getElementById('budget-modal'); if(mod) mod.classList.add('hidden'); fetchBudget(); }
-
-function openAddBudgetCategoryModal() { const mod = document.getElementById('add-budget-cat-modal'); if(mod) mod.classList.remove('hidden'); }
-
+window.openAddBudgetCategoryModal = function() { const mod = document.getElementById('add-budget-cat-modal'); if(mod) mod.classList.remove('hidden'); }
 async function submitNewBudgetCat() { const tUser = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:val('new-budget-cat-name'), limit:0, targetUserId: tUser})}); const mod = document.getElementById('add-budget-cat-modal'); if(mod) mod.classList.add('hidden'); fetchBudget(); }
 
-// --- ADMIN SETTINGS ---
+// --- הגדרות מנהל ופרופיל (ADMIN SETTINGS) ---
 async function fetchPendingUsers() { try { const users = await (await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`)).json(); const list = document.getElementById('pending-list'); const cont = document.getElementById('pending-users-container'); if(!list || !cont) return; if(users.length>0) { cont.classList.remove('hidden'); list.innerHTML = users.map(u => `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1"><span class="text-sm font-bold text-slate-700">${u.nickname}</span><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded text-xs">אשר</button></div>`).join(''); } else { cont.classList.add('hidden'); } } catch(e){} }
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); fetchPendingUsers(); fetchMembers(); }
 function openProfileModal() { const mod = document.getElementById('profile-modal'); if(mod) mod.classList.remove('hidden'); }
@@ -1112,14 +1162,14 @@ function openInviteModal() { const codeSpan = document.getElementById('display-g
 function sendWhatsAppInvite(role) { const text = `היי! פתחתי בנק משפחתי. קוד המשפחה הוא: *${currentGroup.group_code}*. היכנסו: ${window.location.origin}/?code=${currentGroup.group_code}&role=${role}`; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
 async function sendCredentialsEmail() { await fetch(`${API}/admin/email-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id }) }); showToast('success', 'מייל נשלח'); }
 
-// --- RECIPES ---
+// --- מתכונים (RECIPES) ---
 function toggleRecipeCustomInput() { const cInp = document.getElementById('recipe-custom-ingredients'); const pSel = document.getElementById('recipe-pantry-selection'); const chk = document.getElementById('recipe-ignore-pantry'); if(cInp && pSel && chk) { cInp.classList.toggle('hidden', !chk.checked); pSel.classList.toggle('hidden', chk.checked); } }
 function renderRecipePantrySelection() { const lc = document.getElementById('recipe-pantry-items-list'); if(!lc) return; lc.innerHTML = pantryCache.map(p => `<label class="flex items-center gap-1 bg-white border px-2 py-1 rounded"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3 h-3"><span class="text-xs">${p.item_name}</span></label>`).join(''); }
 function selectAllRecipePantry() { const cbs = document.querySelectorAll('.recipe-pantry-checkbox'); const st = cbs[0] ? !cbs[0].checked : true; cbs.forEach(cb => cb.checked = st); }
 async function generateRecipe() { const btn = document.getElementById('btn-generate-recipe'); if(btn){ btn.disabled = true; btn.innerHTML = 'מרכיב...'; } const ignoreEl = document.getElementById('recipe-ignore-pantry'); const ignore = ignoreEl ? ignoreEl.checked : false; let pStr = ""; if(!ignore) { const s = []; document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(c => s.push(c.value)); pStr = s.join(', '); } try { const res = await fetch(`${API}/recipes/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id, mealType: val('recipe-meal-type'), diners: val('recipe-diners'), ignorePantry: ignore, customIngredients: val('recipe-custom-ingredients-input'), pantryItems: pStr }) }); const data = await res.json(); if(handleAIResponseCheck(data)) { const resCont = document.getElementById('recipe-result-content'); if(resCont) resCont.innerHTML = data.recipe.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); const wrap = document.getElementById('recipe-result-container'); if(wrap) wrap.classList.remove('hidden'); } } catch(e){} if(btn) { btn.disabled = false; btn.innerHTML = 'צור מתכון'; } }
 function copyRecipe() { const t = document.createElement("textarea"); const resC = document.getElementById('recipe-result-content'); if(!resC) return; t.value = resC.innerText; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); showToast('success', 'הועתק'); }
 
-// --- ACCESSIBILITY ---
+// --- נגישות (ACCESSIBILITY) ---
 function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
 function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = document.getElementById(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50'); btn.classList.remove('border-slate-200'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50'); btn.classList.add('border-slate-200'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
 function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
@@ -1127,6 +1177,6 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { const mod = document.getElementById('accessibility-modal'); if(mod) mod.classList.remove('hidden'); }
 function closeAccessibilityModal() { const mod = document.getElementById('accessibility-modal'); if(mod) mod.classList.add('hidden'); }
 
-// --- BANNERS ---
+// --- באנרים (BANNERS) ---
 async function fetchBanners() { try { const data = await (await fetch(`${API}/banners`)).json(); if(data.success && data.banners) { const cb = (id, title, text, link, image) => { const el = document.getElementById(id); if(!el) return; if(title||text||image) { el.classList.remove('hidden'); const tEl = document.getElementById(id+'-title'); if(tEl) tEl.innerText = title||''; const dEl = document.getElementById(id+'-text'); if(dEl) dEl.innerText = text||''; if(image) el.style.backgroundImage = `url('${image}')`; if(link) el.href = link; } else el.classList.add('hidden'); }; cb('app-banner-top', data.banners.banner_top_title, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_image); cb('app-banner-bottom', data.banners.banner_bottom_title, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_image); } } catch(e) {} }
 async function saveBanners() { const topTitle = val('sa-banner-top-title'); const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImage = val('sa-banner-top-image'); const bottomTitle = val('sa-banner-bottom-title'); const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImage = val('sa-banner-bottom-image'); try { const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topTitle, topText, topLink, topImage, bottomTitle, bottomText, bottomLink, bottomImage }) }); const data = await res.json(); if(data.success) { showToast('success', 'הבאנרים נשמרו!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); } } catch(e) { showToast('error', 'תקלת רשת'); } }
