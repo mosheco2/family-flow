@@ -55,13 +55,54 @@
         .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
         .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
         
-        /* IntroJS Overrides for modern look */
-        .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 1.5rem !important; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important; padding: 10px !important; }
-        .introjs-tooltipbuttons { border-top: 1px solid #f1f5f9 !important; padding-top: 10px !important; }
-        .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: 600 !important; font-family: 'Rubik', sans-serif !important; }
-        .introjs-nextbutton { background-color: #3b82f6 !important; color: white !important; border: none !important; }
-        .introjs-prevbutton { color: #64748b !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
-        .introjs-skipbutton { color: #94a3b8 !important; font-weight: 500 !important; }
+        /* IntroJS Overrides for modern modal look */
+        .introjs-tooltip { 
+            font-family: 'Rubik', sans-serif !important; 
+            border-radius: 2rem !important; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; 
+            padding: 1.5rem !important; 
+            border: none !important; 
+            overflow: hidden !important; 
+            text-align: center !important; 
+        }
+        .introjs-tooltip::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; left: 0; right: 0; height: 8px; 
+            background: linear-gradient(to right, #3b82f6, #a855f7); 
+        }
+        .introjs-tooltipbuttons { 
+            border-top: none !important; 
+            padding-top: 1rem !important; 
+            display: flex; 
+            gap: 0.5rem; 
+            justify-content: center; 
+        }
+        .introjs-button { 
+            border-radius: 0.75rem !important; 
+            text-shadow: none !important; 
+            font-weight: bold !important; 
+            font-family: 'Rubik', sans-serif !important; 
+            padding: 0.75rem 1.5rem !important; 
+            flex: 1; 
+            text-align: center; 
+        }
+        .introjs-nextbutton { 
+            background-color: #3b82f6 !important; 
+            color: white !important; 
+            border: none !important; 
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important; 
+        }
+        .introjs-prevbutton { 
+            color: #64748b !important; 
+            background: #f8fafc !important; 
+            border: 1px solid #e2e8f0 !important; 
+        }
+        .introjs-skipbutton { 
+            color: #94a3b8 !important; 
+            font-weight: 500 !important; 
+            background: transparent !important; 
+        }
         .introjs-bullets ul li a.active { background: #3b82f6 !important; }
 
         /* Accessibility Classes */
@@ -146,11 +187,11 @@
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
                         <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="selectType('GROUP')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
+                        <button type="button" onclick="openAlertModal('שותפים', 'אפשרות לניהול קבוצת שותפים תתווסף למערכת בקרוב!')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
                     </div>
                     <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל שלך (לשחזור וגיבוי)" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל מנהל המשפחה (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
                     <div class="flex gap-3">
                         <input type="text" id="create-nickname" required placeholder="שם (הורה)" class="modern-input">
                         <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
@@ -527,6 +568,10 @@
                             </div>
                             <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                         </div>
+                        <div id="admin-members-tools" class="hidden">
+                            <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> שלח פרטי גישה למייל הורה</button>
+                            <p class="text-[10px] text-slate-400 text-center mt-2">ישלח את כל הפרטים והסיסמאות לכתובת המייל של מנהל המשפחה.</p>
+                        </div>
                         <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
                             <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div>
                             <div id="pending-list" class="space-y-2 p-2"></div>
@@ -558,6 +603,16 @@
         <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
             <i class="fa-solid fa-universal-access"></i>
         </button>
+
+        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
+                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
+                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
+                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
+            </div>
+        </div>
 
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
