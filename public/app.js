@@ -1224,15 +1224,18 @@ async function fetchBanners() {
                 if(!el) return;
                 if(text || img) {
                     let html = '';
-                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full max-h-32 object-contain rounded-lg">`;
-                    if(text) html += `<span>${text}</span>`;
+                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover">`;
+                    if(text) html += `<span class="py-1 block">${text}</span>`;
+                    
                     el.innerHTML = html;
                     el.href = link || '#';
                     if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } 
                     else { el.target = '_blank'; el.style.cursor = 'pointer'; }
                     el.classList.remove('hidden');
+                    el.classList.add('flex');
                 } else {
                     el.classList.add('hidden');
+                    el.classList.remove('flex');
                 }
             };
 
