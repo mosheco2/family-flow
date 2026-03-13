@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <!-- Intro.js CSS and JS for Tours -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
@@ -78,7 +77,6 @@
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
-    <!-- GLOBAL PRELOADER -->
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
         <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
@@ -86,20 +84,16 @@
         <p class="text-sm text-slate-500 font-medium animate-pulse">מכינה את הנתונים...</p>
     </div>
 
-    <!-- Hidden file inputs for Vision AI -->
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <!-- TOAST NOTIFICATION - חובה להישאר עליון מעל הכל (z-999999) כדי שההודעות לא יוסתרו -->
     <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
-        <!-- AUTH CONTAINER -->
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
-            <!-- אזור התמונה - כרטיס משפחה יוקרתי -->
             <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 sm:rounded-b-[3rem] shadow-2xl pt-12 pb-10 flex-shrink-0 border-b-4 border-blue-500/30">
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -127,7 +121,6 @@
                 </div>
             </div>
             
-            <!-- אזור הטופס -->
             <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center overflow-y-auto">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
@@ -207,7 +200,6 @@
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
 
-            <!-- SUPER ADMIN LOGIN VIEW -->
             <div id="view-sa-login" class="px-8 py-10 flex-1 flex flex-col justify-center hidden">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">מנהל מערכת ראשי</h2>
                 <form onsubmit="handleSALogin(event)" class="space-y-4">
@@ -219,7 +211,6 @@
             </div>
         </div>
 
-        <!-- SUPER ADMIN DASHBOARD -->
         <div id="sa-dashboard-container" class="w-full max-w-4xl mx-auto hidden fade-in pb-32 pt-8">
             <div class="bg-white rounded-[2rem] p-8 shadow-2xl">
                 <div class="flex justify-between items-center mb-8 border-b pb-4">
@@ -228,7 +219,6 @@
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <!-- Welcome Msg Editor -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
                         <p class="text-xs text-slate-500 mb-3">טקסט זה יופיע בפופ-אפ לכל משתמש שמתחבר למערכת. השאירו ריק כדי לבטל.</p>
@@ -236,13 +226,11 @@
                         <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
                     </div>
                     
-                    <!-- Recent Activity -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
                         <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
                     </div>
 
-                    <!-- Ad Banners Editor -->
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> ניהול באנרים פרסומיים (Top & Bottom)</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -256,6 +244,10 @@
                                     <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
                                     <input type="url" id="sa-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
                                 </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                    <input type="text" id="sa-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner1.png">
+                                </div>
                             </div>
                             <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                                 <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
@@ -267,13 +259,16 @@
                                     <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
                                     <input type="url" id="sa-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
                                 </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                    <input type="text" id="sa-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
+                                </div>
                             </div>
                         </div>
                         <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-pink-200 hover:bg-pink-600 transition hover:scale-[1.01]">שמור ופרסם באנרים במערכת</button>
                     </div>
                 </div>
 
-                <!-- Families List with Search and Accordion -->
                 <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
@@ -287,7 +282,6 @@
             </div>
         </div>
 
-        <!-- MAIN DASHBOARD CONTAINER -->
         <div id="dashboard-container" class="w-full max-w-lg hidden fade-in pb-32 min-h-screen sm:min-h-0 relative">
             <header class="glass-header rounded-b-[1.5rem] sm:rounded-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                 <div class="flex items-center gap-3">
@@ -305,8 +299,7 @@
                 <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
             </header>
             
-            <!-- TOP BANNER (UI) -->
-            <a id="app-banner-top" class="hidden bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center py-2 px-4 text-xs font-bold w-full block shadow-sm mb-4 hover:opacity-90 transition"></a>
+            <a id="app-banner-top" class="hidden bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center py-2 px-4 text-xs font-bold w-full shadow-sm mb-4 hover:opacity-90 transition flex-col items-center justify-center gap-2 overflow-hidden rounded-xl"></a>
 
             <div class="relative px-2 mb-6 group">
                 <div class="slider-container">
@@ -327,7 +320,6 @@
             </div>
 
             <div class="px-2">
-                <!-- FEED TAB -->
                 <div id="content-feed">
                     <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                         <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
@@ -339,7 +331,6 @@
                     <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                 </div>
 
-                <!-- BANK TAB -->
                 <div id="content-bank" class="hidden">
                     <div id="bank-admin-view" class="hidden space-y-6">
                         <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
@@ -347,7 +338,6 @@
                             <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                         </div>
                         <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
-                        <!-- ADMIN LOANS PANEL (NEW) -->
                         <div id="admin-loans-panel" class="hidden bg-orange-50 rounded-[2rem] p-5 border border-orange-100 shadow-sm">
                             <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות הלוואה ממתינות</h3>
                             <div id="admin-loans-list" class="space-y-2"></div>
@@ -367,7 +357,6 @@
                     </div>
                 </div>
 
-                <!-- SHOP TAB -->
                 <div id="content-shop" class="hidden">
                     <div class="flex justify-between items-center mb-4 px-2">
                         <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
@@ -387,7 +376,6 @@
                     <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
                 </div>
                 
-                <!-- PANTRY TAB -->
                 <div id="content-pantry" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                         <button onclick="getPantryInsight()" id="btn-pantry-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות מלאי</button>
@@ -400,7 +388,6 @@
                     <div id="pantry-list" class="space-y-3 pb-20"></div>
                 </div>
 
-                <!-- RECIPES TAB (AI CHEF) -->
                 <div id="content-recipes" class="hidden">
                     <div class="bg-gradient-to-r from-orange-400 to-red-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
                         <h3 class="text-xl font-bold mb-1">השף הפרטי שלכם 👨‍🍳</h3>
@@ -435,7 +422,6 @@
                                 
                                 <textarea id="recipe-custom-ingredients" class="modern-input text-sm h-20 hidden" placeholder="הקלידו מצרכים חלופיים כאן... (למשל: עוף, אורז, עגבניות)"></textarea>
                                 
-                                <!-- אזור בחירת מצרכים מהמזווה -->
                                 <div id="recipe-pantry-selection" class="bg-white p-3 rounded-xl border border-slate-200 mt-2">
                                     <p class="text-xs text-slate-500 mb-2 font-bold">בחרו מוצרים מהמזווה למתכון:</p>
                                     <div id="recipe-pantry-items-list" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
@@ -451,7 +437,6 @@
                         </div>
                     </div>
 
-                    <!-- Recipe Result Container -->
                     <div id="recipe-result-container" class="hidden bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 pb-20">
                         <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
                             <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-scroll text-orange-500"></i> המתכון שלכם</h3>
@@ -461,7 +446,6 @@
                     </div>
                 </div>
 
-                <!-- ACADEMY TAB -->
                 <div id="content-academy" class="hidden">
                     <div id="academy-admin-view" class="hidden">
                         <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-800"><i class="fa-solid fa-circle-info mt-0.5"></i> הקצו מבחנים לילדים כדי שירוויחו כסף מלמידה. familAI יכולה לייצר לכם כל מבחן שרק תבקשו!</div>
@@ -505,7 +489,6 @@
                     </div>
                 </div>
 
-                <!-- BUDGET TAB -->
                 <div id="content-budget" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
                         <button onclick="getBudgetInsight()" id="btn-budget-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות familAI</button>
@@ -519,7 +502,6 @@
                     </div>
                 </div>
 
-                <!-- TASKS TAB -->
                 <div id="content-tasks" class="hidden">
                     <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mx-2 mb-4 hidden"><i class="fa-solid fa-circle-info text-blue-500"></i> צרו משימות לילדים וקבעו תגמול. כשיסיימו, הם יצלמו הוכחה ו-familAI תאשר את התשלום באופן אוטומטי!</p>
                     <div class="flex justify-between items-center mb-4 px-2">
@@ -532,7 +514,6 @@
                     <div id="tasks-list" class="space-y-3 pb-20"></div>
                 </div>
 
-                <!-- MEMBERS TAB -->
                 <div id="content-members" class="hidden space-y-6">
                     <div class="card-modern overflow-hidden">
                         <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
@@ -548,19 +529,16 @@
                 </div>
             </div>
 
-            <!-- BOTTOM BANNER (UI) -->
             <div class="px-2 mt-2">
-                <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center py-3 px-4 text-sm font-bold w-full block rounded-2xl shadow-lg hover:opacity-90 transition mb-6"></a>
+                <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center py-3 px-4 text-sm font-bold w-full rounded-2xl shadow-lg hover:opacity-90 transition mb-6 flex-col items-center justify-center gap-2 overflow-hidden"></a>
             </div>
         </div>
         
-        <!-- FOOTER CART (SHOP) -->
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
             <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
             <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
         </div>
         
-        <!-- FLOATING ACTION BUTTON -->
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                 <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
@@ -569,18 +547,14 @@
             <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
         
-        <!-- WHATSAPP SUPPORT BUTTON -->
         <a href="https://wa.me/972504000024" target="_blank" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-40">
             <i class="fa-brands fa-whatsapp"></i>
         </a>
 
-        <!-- ACCESSIBILITY FAB -->
         <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
             <i class="fa-solid fa-universal-access"></i>
         </button>
 
-        <!-- MODALS (z-50) -->
-        <!-- Welcome Modal (Global SA setting) -->
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
@@ -591,7 +565,6 @@
             </div>
         </div>
 
-        <!-- AI Battery Empty Modal -->
         <div id="ai-battery-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden">
                 <div class="flex justify-center mb-4 relative z-10">
@@ -623,7 +596,6 @@
             </div>
         </div>
 
-        <!-- MODAL: יצירת משימה / מתכון עם AI -->
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
@@ -642,7 +614,6 @@
             </div>
         </div>
 
-        <!-- MODAL: יצירת משימה -->
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
@@ -670,7 +641,6 @@
             </div>
         </div>
 
-        <!-- MODAL: היועצת הפיננסית -->
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
@@ -686,7 +656,6 @@
             </div>
         </div>
 
-        <!-- MODAL: חידון רץ -->
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-[60] flex flex-col items-center justify-center p-6">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative">
                 <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -708,7 +677,6 @@
             </div>
         </div>
         
-        <!-- OTHER MODALS -->
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
@@ -819,12 +787,10 @@
             </div>
         </div>
 
-        <!-- פופאפ שינוי סיסמה וניהול פרופיל -->
         <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
                 <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
                 
-                <!-- PRO UPGRADE SECTION (מוסתר עד שבודקים הרשאות) -->
                 <div id="profile-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100 text-right">
                     <h4 class="font-bold text-purple-800 mb-1 flex items-center justify-center gap-2"><i class="fa-solid fa-crown text-yellow-500"></i> Oneflow Pro</h4>
                     <p class="text-xs text-slate-600 mb-3 leading-relaxed text-center">שדרגו כעת ל-Pro ותיהנו משימוש ללא הגבלה במערכת familAI עבור כל בני המשפחה!</p>
@@ -841,7 +807,6 @@
             </div>
         </div>
 
-        <!-- פופאפ תקנון -->
         <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
                 <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
@@ -856,7 +821,6 @@
             </div>
         </div>
 
-        <!-- ACCESSIBILITY MODAL -->
         <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <div class="flex justify-between items-center mb-6">
@@ -875,7 +839,6 @@
         </div>
     </div>
 
-    <!-- MAIN SCRIPT -->
     <script src="app.js" defer></script>
 </body>
 </html>
