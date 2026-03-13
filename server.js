@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -169,7 +170,6 @@ app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- NEW: SA toggle Premium for a group ---
 app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
     try {
         const enable = req.body.enable === true || req.body.enable === 'true';
@@ -229,6 +229,53 @@ app.post('/api/premium/simulate-checkout', async (req, res) => {
         await pool.query('UPDATE family_groups SET is_premium = TRUE WHERE id = $1', [groupId]);
         res.json({ success: true, message: 'החשבון שודרג בהצלחה ל-Oneflow Pro!' });
     } catch (e) { res.status(500).json({ error: 'שגיאה בשדרוג החשבון' }); }
+});
+
+// --- EMAIL CREDENTIALS (NEW) ---
+app.post('/api/admin/send-credentials', async (req, res) => {
+    try {
+        const { groupId, adminId } = req.body;
+        // אימות שהמשתמש הוא אכן מנהל המשפחה
+        const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל משפחה מורשה לבצע פעולה זו"});
+
+        // שליפת מייל המנהל
+        const groupRes = await pool.query("SELECT admin_email, name FROM family_groups WHERE id = $1", [groupId]);
+        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת למשפחה זו. אנא ודאו שהזנתם מייל בעת ההרשמה."});
+        const adminEmail = groupRes.rows[0].admin_email;
+        const groupName = groupRes.rows[0].name;
+
+        // שליפת המשתמשים
+        const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
+        
+        let emailContent = `שלום מנהל/ת משפחת ${groupName},\n\nלהלן פרטי הגישה של כל בני הבית למערכת Oneflow Life:\n\n`;
+        usersRes.rows.forEach(u => {
+            const roleStr = u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה';
+            emailContent += `שם משתמש: ${u.nickname}\nסיסמה: ${u.password_hash}\nתפקיד: ${roleStr}\n---\n`;
+        });
+        emailContent += `\nבברכה,\nצוות Oneflow Life`;
+
+        // הדפסה לקונסול (כדי לראות שזה עובד גם ללא שרת מייל מוגדר)
+        console.log(`\n======================================\n📨 === EMAIL TO: ${adminEmail} === 📨\n${emailContent}\n======================================\n`);
+
+        // שליחת מייל בפועל (אם מוגדרים משתני סביבה)
+        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail', // ניתן לשנות לספק המייל שלך
+                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+            });
+            await transporter.sendMail({
+                from: `"Oneflow Life" <${process.env.SMTP_USER}>`,
+                to: adminEmail,
+                subject: 'Oneflow Life - פרטי הגישה של המשפחה',
+                text: emailContent
+            });
+        }
+
+        res.json({ success: true });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // --- AI ENDPOINTS ---
@@ -419,6 +466,7 @@ app.post('/api/groups', async (req, res) => {
     try {
         await dbClient.query('BEGIN');
         let code = generateGroupCode();
+        // מזין את כתובת המייל לשדה admin_email בטבלת הקבוצות
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
         const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]);
@@ -701,7 +749,7 @@ app.post('/api/goals/deposit', async (req, res) => {
 });
 
 // ============================================================
-// --- BUDGET ENDPOINTS (NEW) ---
+// --- BUDGET ENDPOINTS ---
 // ============================================================
 
 app.get('/api/budget/filter', async (req, res) => {
@@ -791,7 +839,7 @@ app.post('/api/budget/update', async (req, res) => {
 });
 
 // ============================================================
-// --- LOANS ENDPOINTS (NEW) ---
+// --- LOANS ENDPOINTS ---
 // ============================================================
 
 app.post('/api/loans/request', async (req, res) => {
@@ -858,7 +906,7 @@ app.post('/api/loans/reject', async (req, res) => {
 });
 
 // ============================================================
-// --- ACADEMY ENDPOINTS (NEW) ---
+// --- ACADEMY ENDPOINTS ---
 // ============================================================
 
 app.post('/api/academy/assign', async (req, res) => {
@@ -925,7 +973,7 @@ app.post('/api/academy/submit', async (req, res) => {
 });
 
 // ============================================================
-// --- SHOPPING ENDPOINTS ---
+// --- SHOPPING & PANTRY ENDPOINTS ---
 // ============================================================
 
 app.post('/api/shopping/add', async (req, res) => {
