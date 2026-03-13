@@ -1,4 +1,4 @@
-// תיקון סגנונות הרמטי לספריית הסיור
+// תיקון סגנונות הרמטי לספריית הסיור (מעודכן לעיצוב פופ-אפ עגלגל ומודרני)
 const introStyle = document.createElement('style');
 introStyle.innerHTML = `
     .introjs-showElement { z-index: 9999998 !important; transform: none !important; }
@@ -194,6 +194,18 @@ function closeWelcomeModal() { document.getElementById('welcome-modal').classLis
 function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); } } catch(e) {} }, 1000); }
 function triggerManualTour() { document.getElementById('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); }
 
+// --- GENERAL MODALS ---
+function openAlertModal(title, text) {
+    const titleEl = document.getElementById('generic-alert-title');
+    const textEl = document.getElementById('generic-alert-text');
+    const modal = document.getElementById('generic-alert-modal');
+    if(titleEl && textEl && modal) {
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        modal.classList.remove('hidden');
+    }
+}
+
 // --- GUIDED TOURS ---
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
@@ -251,7 +263,7 @@ function startChildTour() {
 }
 
 function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
-function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-3 rounded-xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
+function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
@@ -342,7 +354,7 @@ async function loadDashboard() {
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) {
@@ -416,6 +428,33 @@ async function fetchMembers() {
             } 
         } catch(err) {}
     } catch(e) {}
+}
+
+async function sendCredentialsEmail() {
+    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של בני המשפחה למייל שלך?')) return;
+    const btn = document.querySelector('#admin-members-tools button');
+    if(!btn) return;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח למייל...';
+    try {
+        const res = await fetch(`${API}/admin/send-credentials`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפרטים נשלחו בהצלחה למייל המנהל!');
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת המייל');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
 }
 
 async function fetchData() {
@@ -1009,7 +1048,6 @@ async function fetchLoans() {
 
 function renderLoans(loans) {
     if (currentUser.role === 'ADMIN') {
-        // הורה – פאנל בקשות ממתינות
         const panel = document.getElementById('admin-loans-panel');
         const list = document.getElementById('admin-loans-list');
         if (!panel || !list) return;
@@ -1029,7 +1067,6 @@ function renderLoans(loans) {
             </div>
         `).join('');
     } else {
-        // ילד – רשימת ההלוואות שלי
         const list = document.getElementById('my-loans-list');
         if (!list) return;
         if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין הלוואות פעילות</p>'; return; }
