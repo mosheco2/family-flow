@@ -1224,8 +1224,8 @@ async function fetchBanners() {
                 if(!el) return;
                 if(text || img) {
                     let html = '';
-                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover">`;
-                    if(text) html += `<span class="py-1 block">${text}</span>`;
+                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`;
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`;
                     
                     el.innerHTML = html;
                     el.href = link || '#';
