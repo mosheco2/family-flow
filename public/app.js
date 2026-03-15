@@ -573,6 +573,7 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
+// עודכן כך שילד יוכל לבקש תגמול בעצמו
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
     document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
@@ -584,7 +585,7 @@ function openTaskModal(isSelf = false) {
         document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
         toggles.classList.add('hidden'); 
         assigneeContainer.classList.add('hidden'); 
-        rewardInput.placeholder = 'כמה מגיע לי? (₪)';
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
     } else { 
         document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
         toggles.classList.remove('hidden'); 
@@ -622,10 +623,11 @@ async function generateAITasks() {
 
 function selectAITask(title, reward) { document.getElementById('task-title').value = title; document.getElementById('task-reward').value = reward; setTaskMode('manual'); }
 
+// עודכן לשמירת סטטוס "done" אוטומטית אם ילד שולח משימה
 async function submitTask() { 
     const isSelf = document.getElementById('task-is-self').value === 'true'; 
     const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = val('task-reward');
+    const reward = val('task-reward'); // נמשך גם אם הילד הזין
     const title = val('task-title'); 
     const days = val('task-days');
     
@@ -686,13 +688,24 @@ function startBarcodeScan(target) {
     currentScanTarget = target;
     document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
-    html5QrCode = new Html5Qrcode("qr-reader");
+    // הוספנו הגדרה ספציפית לחיפוש ברקודים של סופר (EAN/UPC) כדי לזרז את הזיהוי
+    const formatsToSupport = [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.QR_CODE
+    ];
+
+    html5QrCode = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport });
+    
     html5QrCode.start(
         { facingMode: "environment" },
         { 
-            fps: 10, 
-            // שינינו ממרובע למלבן מותאם לברקודים של סופר
-            qrbox: { width: 280, height: 120 } 
+            fps: 15, // העלינו את קצב הרענון
+            qrbox: { width: 280, height: 120 } // שינינו ממרובע למלבן מותאם לברקודים של סופר
         },
         onScanSuccess,
         onScanFailure
