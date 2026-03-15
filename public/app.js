@@ -1,985 +1,1598 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oneflow Life</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+// תיקון סגנונות הרמטי לספריית הסיור (מעודכן לעיצוב פופ-אפ עגלגל ומודרני)
+const introStyle = document.createElement('style');
+introStyle.innerHTML = `
+    .introjs-showElement { z-index: 9999998 !important; transform: none !important; }
+    .introjs-fixParent { z-index: auto !important; opacity: 1.0 !important; transform: none !important; filter: none !important; }
+    body.introjs-active .slider-container, body.introjs-active .slider-scroll, body.introjs-active .overflow-hidden { overflow: visible !important; }
+    body.introjs-active header.sticky { z-index: 1 !important; }
+    .introjs-overlay { z-index: 9999996 !important; }
+    .introjs-helperLayer { z-index: 9999997 !important; }
+    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
+    .introjs-tooltip { z-index: 9999999 !important; }
+    @media (max-width: 768px) {
+        .introjs-tooltipReferenceLayer { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important; right: auto !important; bottom: auto !important; width: 90vw !important; }
+        .introjs-tooltip { position: relative !important; max-width: 350px !important; margin: 0 auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; }
+        .introjs-arrow { display: none !important; }
+    }
+`;
+document.head.appendChild(introStyle);
+
+const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
+let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
+let bundlesCache = []; let allBundles = []; let pantryCache = [];
+let allTasks = []; let allTransactions = []; let feedCache = [];
+let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
+let forceTourStart = false;
+
+let html5QrCode = null;
+let currentScanTarget = ''; 
+let currentScannedBarcode = '';
+
+const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
+const CATEGORIES = { 
+    income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], 
+    expense: [ {value:'food',label:'🍔 מסעדות וטייקאווי'}, {value:'groceries',label:'🛒 סופר ופארם'}, {value:'transport',label:'🚌 תחבורה ודלק'}, {value:'home',label:'🏠 דיור ותחזוקה'}, {value:'bills',label:'📄 חשבונות ותקשורת'}, {value:'fun',label:'🎉 פנאי ובילויים'}, {value:'clothes',label:'👕 ביגוד והנעלה'}, {value:'health',label:'💊 בריאות וביטוחים'}, {value:'education',label:'📚 חינוך וחוגים'}, {value:'vacation',label:'✈️ חופשות וטיולים'}, {value:'pets',label:'🐶 חיות מחמד'}, {value:'gifts',label:'🎁 מתנות ותרומות'}, {value:'other',label:'💸 אחר'} ] 
+};
+const BUDGET_LABELS = { 'food': '🍔 מסעדות', 'groceries': '🛒 סופר ופארם', 'transport': '🚌 תחבורה ודלק', 'home': '🏠 דיור ותחזוקה', 'bills': '📄 חשבונות ותקשורת', 'fun': '🎉 פנאי ובילויים', 'clothes': '👕 ביגוד והנעלה', 'health': '💊 בריאות וביטוחים', 'education': '📚 חינוך וחוגים', 'vacation': '✈️ חופשות', 'pets': '🐶 חיות מחמד', 'gifts': '🎁 מתנות ותרומות', 'other': '💸 אחר', 'allocations': '👶 הפרשות כלליות', 'allowance': '💰 דמי כיס לילדים', 'tasks': '✅ תגמול על משימות', 'academy': '🎓 אתגרי אקדמיה', 'savings': '🐖 הפקדות לחיסכון' };
+const PRODUCT_DB = { 
+    "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "בצל יבש", "תפוחי אדמה", "בננות", "לימון", "תפוח עץ", "אבוקדו"], 
+    "חלב וביצים 🥛": ["חלב 3%", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה", "ביצים L", "יוגורט", "חמאה", "שמנת"], 
+    "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "פיתות", "לחמניות"], 
+    "מזווה ובישול 🍝": ["אורז", "פסטה", "פתיתים", "עדשים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "קפה", "תה"], 
+    "בשר ודגים 🍗": ["חזה עוף", "בשר טחון", "שניצל", "נקניקיות", "סלמון"], 
+    "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נוזל כלים", "אבקת כביסה", "שמפו", "משחת שיניים"], 
+    "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "בייגלה", "עוגיות", "שוקולד"] 
+};
+const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
+
+let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
+
+const hidePreloaderAndShowAuth = (view = 'login') => {
+    document.getElementById('auth-container').classList.remove('hidden');
+    switchView(view);
+    const preloader = document.getElementById('app-preloader');
+    if (preloader) {
+        preloader.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => preloader.classList.add('hidden'), 700);
+    }
+};
+
+window.onload = async () => { 
+    initAccessibility();
+    const failsafeTimer = setTimeout(() => {
+        const preloader = document.getElementById('app-preloader');
+        if (preloader && !preloader.classList.contains('hidden')) {
+            console.warn('Failsafe triggered');
+            hidePreloaderAndShowAuth('login');
+        }
+    }, 7000);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+    if (inviteCode) { 
+        document.getElementById('join-code').value = inviteCode; 
+        if(inviteRole) document.getElementById('join-role').value = inviteRole; 
+        clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
+    }
     
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+    const saved = localStorage.getItem('ofl_session'); 
+    if(saved) { 
+        try { 
+            const session = JSON.parse(saved); 
+            if(session && session.user && session.user.id) { 
+                const res = await fetch(`${API}/users/${session.user.id}`); 
+                if(res.ok) { 
+                    currentUser = await res.json(); currentGroup = session.group; 
+                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
+                    clearTimeout(failsafeTimer); await loadDashboard(); 
+                } else { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
+            } else { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
+        } catch(e) { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); } 
+    } else { clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
+};
 
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+// --- SUPER ADMIN LOGIC ---
+async function handleSALogin(e) {
+    e.preventDefault();
+    try {
+        const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) });
+        const data = await res.json();
+        if(data.success) { saToken = data.token; document.getElementById('auth-container').classList.add('hidden'); document.getElementById('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } 
+        else { showToast('error', data.error); }
+    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
+}
+function logoutSA() { saToken = null; document.getElementById('sa-dashboard-container').classList.add('hidden'); document.getElementById('auth-container').classList.remove('hidden'); switchView('login'); }
+
+async function loadSAData() {
+    fetchBanners();
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+        document.getElementById('sa-welcome-msg').value = data.welcomeMsg || '';
+        const actList = document.getElementById('sa-activity-list');
+        actList.innerHTML = data.activity.map(a => {
+            const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`;
+            return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | משפחת <span class="text-blue-600 font-bold">${a.group_name}</span> | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`;
+        }).join('');
+        if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        
+        saAllGroups = data.groups;
+        saAllUsers = data.users;
+        renderSAGroups();
+    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+}
+
+function renderSAGroups(filterText = '') {
+    const groupsList = document.getElementById('sa-groups-list'); 
+    let gHtml = '';
+    const term = filterText.toLowerCase();
+
+    const filteredGroups = saAllGroups.filter(g => 
+        (g.name && g.name.toLowerCase().includes(term)) || 
+        (g.group_code && g.group_code.toLowerCase().includes(term))
+    );
+
+    if(filteredGroups.length === 0) {
+        groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו משפחות התואמות לחיפוש.</p>';
+        return;
+    }
+
+    filteredGroups.forEach(g => {
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${u.nickname} <span class="text-[10px] text-slate-400">(${u.role})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+        if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים במשפחה זו.</p>';
+        
+        const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
+        const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
+        const proToggleBtn = g.is_premium
+            ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>`
+            : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
+        
+        gHtml += `
+            <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
+                <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid fa-users"></i></div>
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center">${g.name} ${isPro}</h3>
+                            <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens}</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-slate-300"></i>
+                </div>
+                <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
+                    <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
+                        <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
+                        <div class="flex gap-2">
+                            ${proToggleBtn}
+                            <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחק משפחה</button>
+                        </div>
+                    </div>
+                    ${uHtml}
+                </div>
+            </div>
+        `;
+    }); 
+    groupsList.innerHTML = gHtml;
+}
+
+function filterSAGroups() {
+    const term = document.getElementById('sa-search-group').value;
+    renderSAGroups(term);
+}
+
+async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+async function saDeleteGroup(id) { if(!confirm('האם למחוק משפחה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משפחה נמחקה לחלוטין'); loadSAData(); }
+async function saveWelcomeMsg() { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ welcomeMsg: val('sa-welcome-msg') }) }); showToast('success', 'הודעת הפתיחה נשמרה!'); }
+
+async function checkGlobalWelcome() {
+    try {
+        const res = await fetch(`${API}/settings/welcome`); const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
+            if (seen !== data.message) { document.getElementById('welcome-modal-text').innerText = data.message; document.getElementById('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
+        }
+    } catch(e) {} return false;
+}
+function closeWelcomeModal() { document.getElementById('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
+function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); } } catch(e) {} }, 1000); }
+function triggerManualTour() { document.getElementById('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); }
+
+// --- GENERAL MODALS ---
+function openAlertModal(title, text) {
+    const titleEl = document.getElementById('generic-alert-title');
+    const textEl = document.getElementById('generic-alert-text');
+    const modal = document.getElementById('generic-alert-modal');
+    if(titleEl && textEl && modal) {
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        modal.classList.remove('hidden');
+    }
+}
+
+// --- GUIDED TOURS ---
+function startAdminTour() {
+    switchTab('feed'); const intro = introJs();
+    intro.setOptions({
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        steps: [
+            { title: "ברוכים הבאים ל-Oneflow Life! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו המשפחה שלכם מתנהלת פיננסית. בואו נצא לסיור קצר שיעשה לכם סדר." },
+            { element: '#tour-header', title: "מרכז השליטה שלכם", intro: "כאן תמצאו את קוד המשפחה שאיתו תזמינו את הילדים. לחיצה על המד של 'familAI' או על 'תפריט' תפתח את אזור ההגדרות והשדרוגים.", position: 'bottom' },
+            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת שלנו מונעת ע\"י בינה מלאכותית מתקדמת (familAI). כאן תוכלו לראות את כמות הפעולות היומית החינמית שנותרה לכם.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תוכלו לראות בזמן אמת את היתרה הפנויה של המשפחה, כך שתמיד תדעו בדיוק איפה אתם עומדים.", position: 'bottom' },
+            { element: '#tour-fab-btn', title: "פעולה מהירה ⚡", intro: "לחיצה קטנה על כפתור הפלוס מאפשרת לכם לרשום הוצאה או הכנסה מכל מקום באפליקציה, בלי לבזבז זמן.", position: 'top' },
+            { element: '#tab-shop', title: "סופר חכם 🛒", intro: "הסוף לקבוצות וואטסאפ מבולגנות! רשימת קניות משותפת לכולם. בנוסף, תוכלו לצלם את הקבלה מהסופר ו-familAI תזין את הנתונים בעצמה!", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מזווה 📦", intro: "המקרר מתרוקן בלי ששמתם לב? עקבו אחרי המלאי בבית, וכשמוצר נגמר – העבירו אותו לרשימת הקניות בקליק אחד.", position: 'bottom' },
+            { element: '#tab-bank', title: "הבנק המשפחתי 🏦", intro: "כאן בונים עצמאות פיננסית! הגדירו דמי כיס שבועיים אוטומטיים לילדים, חלקו ריביות על חסכונות ולמדו אותם לנהל כסף.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות הבית ✅", intro: "הדרך המושלמת לרתום את הילדים לעזרה: הגדירו משימות, תמחרו אותן, והילדים יצלמו את התוצר לטובת קבלת התגמול.", position: 'bottom' },
+            { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "ללמוד על כסף דרך משחק! יצרו לילדים אתגרים חינוכיים בהתאמה אישית עם ה-AI, ותגמלו אותם על תשובות נכונות.", position: 'bottom' },
+            { element: '#tab-budget', title: "תקציב ושליטה 📊", intro: "הגדירו יעדי הוצאות חודשיים לכל קטגוריה. familAI תנתח את ההוצאות שלכם ותספק לכם תובנות וטיפים יקרי ערך לחיסכון.", position: 'bottom' },
+            { element: '#tab-recipes', title: "השף הפרטי שלכם 👨‍🍳", intro: "נתקעתם בלי רעיון לארוחת ערב? סמנו אילו מוצרים יש לכם במזווה, וה-AI שלנו ירקח עבורכם מתכון מושלם תוך שניות!", position: 'bottom' },
+            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "מכאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולבן/בת הזוג להצטרף. שיהיה בהצלחה!", position: 'bottom' }
+        ]
+    });
+    intro.onbeforechange(function(targetElement) { 
+        if(!targetElement) return; const id = targetElement.id;
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
+    });
+    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+}
+
+function startChildTour() {
+    switchTab('feed'); const intro = introJs();
+    intro.setOptions({
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        steps: [
+            { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף, לחסוך נכון, ולעזור בבית כמו גדולים. בואו נתחיל!" },
+            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "הכירו את familAI - העוזרת החכמה והסודית שלנו! כאן אפשר לראות את מד האנרגיה שלה להיום.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק האישי שלך 💳", intro: "כאן מופיע כל הכסף שהרווחת מביצוע משימות ומדמי הכיס. זה הזמן לחשוב על מה כדאי לחסוך!", position: 'bottom' },
+            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לך חטיף או ארטיק? אין צורך לשגע את ההורים, פשוט בקש להוסיף את זה לרשימת הקניות כאן.", position: 'bottom' },
+            { element: '#tab-pantry', title: "המזווה 📦", intro: "בא לך לנשנש משהו? כאן אפשר לבדוק בקלות אילו ממתקים או מוצרים טעימים כבר מחכים לכם בבית.", position: 'bottom' },
+            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "המקום שבו הכסף שלך צומח! פתח 'קופת חיסכון' למטרה שאתה חולם עליה, ותראה את הריבית מצטברת.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "רוצה להרוויח כסף? בחר משימה, סיים אותה, צלם הוכחה - וקבל את התגמול ישר לארנק!", position: 'bottom' },
+            { element: '#tab-academy', title: "האקדמיה 🎓", intro: "מי אמר שללמוד זה משעמם? היכנס לכאן כדי לענות על חידונים כיפיים ותרוויח בונוסים על תשובות נכונות.", position: 'bottom' },
+            { element: '#tab-budget', title: "לאן הכסף הולך? 📊", intro: "כאן תוכל לראות על מה בזבזת את דמי הכיס החודש, וללמוד לתכנן קניות חכם יותר.", position: 'bottom' },
+            { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "רוצה להפתיע את המשפחה? בחר מוצרים שיש במטבח, והשף החכם ייתן לך מתכון מנצח וקל להכנה!", position: 'bottom' }
+        ]
+    });
+    intro.onbeforechange(function(targetElement) { 
+        if(!targetElement) return; const id = targetElement.id;
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
+    });
+    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+}
+
+function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
+function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
+
+function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
+function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
+
+async function handleLogin(e) { e.preventDefault(); forceTourStart = false; authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); }
+async function handleCreate(e) { e.preventDefault(); if(!document.getElementById('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+async function handleJoin(e) { e.preventDefault(); if(!document.getElementById('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); const d=await res.json(); if(d.success) { showToast('success', 'נשלח בהצלחה!'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); }
+
+async function authAction(endpoint, body) { 
+    toggleLoader('login', true); 
+    try { 
+        const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
+        const data = await res.json(); 
+        if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); await loadDashboard(); } else showToast('error', data.error); 
+    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+}
+
+function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
+function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
+
+function switchTab(t) { 
+    ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
+    if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
+    if (t === 'pantry') renderPantry();
+    if (t === 'recipes') renderRecipePantrySelection();
+}
+
+function updateBatteryUI() {
+    const indicator = document.getElementById('ai-battery-indicator');
+    if(!indicator || !currentGroup) return;
     
-    <style>
-        body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        .hidden { display: none !important; }
-        .slide-up { animation: slideUp 0.3s ease-out forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .slider-container { position: relative; display: flex; align-items: center; padding: 0 40px; height: 50px; }
-        .slider-scroll { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; width: 100%; height: 100%; align-items: center; }
-        .slider-scroll::-webkit-scrollbar { display: none; }
-        .scroll-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 32px; height: 32px; border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; cursor: pointer; border: 1px solid #e2e8f0; }
-        .scroll-btn:hover { color: #3b82f6; border-color: #3b82f6; }
-        .scroll-btn.left { left: 0; }
-        .scroll-btn.right { right: 0; }
-        .tab-btn { flex: 0 0 auto; padding: 0.5rem 1.2rem; border-radius: 99px; font-size: 0.9rem; font-weight: 500; background: white; color: #64748b; border: 1px solid transparent; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .tab-active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: translateY(-1px); }
-        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
-        .modern-input:focus { background: white; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
-        .shop-row { transition: background-color 0.2s; }
-        .shop-row.in-cart { background-color: #f0fdf4; border-color: #bbf7d0; }
-        .shop-row.missing { background-color: #fff7ed; border-color: #ffedd5; opacity: 0.8; }
-        .shop-row.missing .item-name { text-decoration: line-through; color: #fdba74; }
-        .price-input:disabled { background: transparent; border-color: transparent; color: #94a3b8; }
-        .price-input:enabled { background: white; border-color: #cbd5e1; color: #0f172a; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 0 0 1rem 1rem; max-height: 200px; overflow-y: auto; z-index: 50; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .suggestion-item:hover { background-color: #eff6ff; color: #3b82f6; }
-        .category-header { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-top: 1rem; margin-bottom: 0.5rem; padding-right: 0.5rem; border-right: 3px solid #3b82f6; }
-        .wisdom-alert { animation: slideDown 0.3s ease-out; }
-        .quiz-option { transition: all 0.2s; border: 2px solid transparent; }
-        .quiz-option.selected { border-color: #3b82f6; background-color: #eff6ff; }
-        .quiz-option.correct { border-color: #22c55e; background-color: #dcfce7; }
-        .quiz-option.wrong { border-color: #ef4444; background-color: #fee2e2; }
-        .fab-open #fab-menu { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .fab-open #fab-icon { transform: rotate(45deg); }
-        .fab-lifted { transform: translateY(-80px) !important; }
-        .credit-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 1.5rem; position: relative; overflow: hidden; }
-        .radial-progress { position: relative; width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(#3b82f6 var(--pct), #e2e8f0 0deg); display: flex; align-items: center; justify-content: center; }
-        .radial-progress::before { content: ''; position: absolute; width: 50px; height: 50px; background: white; border-radius: 50%; }
-        .radial-progress span { position: relative; z-index: 10; font-size: 10px; font-weight: bold; color: #3b82f6; }
+    indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
+    
+    if (currentGroup.is_premium) {
+        indicator.innerHTML = '⚡ ∞ (Pro)';
+        indicator.classList.add('bg-gradient-to-r', 'from-indigo-500', 'to-purple-500', 'text-white', 'border-transparent');
+    } else {
+        const tokens = currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+        indicator.innerHTML = `⚡ ${tokens}/10`;
+        if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200');
+        else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200');
+        else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
+    }
+}
+
+function handleAIResponseCheck(data) {
+    if (data.error === 'BATTERY_EMPTY') {
+        const modal = document.getElementById('ai-battery-modal');
+        const upgradeSec = document.getElementById('ai-upgrade-section');
+        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden');
+        else upgradeSec.classList.add('hidden');
+        modal.classList.remove('hidden');
+        return false;
+    }
+    return true;
+}
+
+function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
+
+// שונה לטובת הקפצת ההודעה במקום תשלום
+function upgradeToPremium() {
+    closeAiBatteryModal();
+    const profileModal = document.getElementById('profile-modal');
+    if(profileModal) profileModal.classList.add('hidden');
+    openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!');
+}
+
+async function loadDashboard() {
+    document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
+
+    const isAdmin = currentUser.role === 'ADMIN';
+    if(isAdmin) { 
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
+        const profileUp = document.getElementById('profile-upgrade-section');
+        if (profileUp && currentGroup && currentGroup.is_premium) {
+            profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>';
+        }
+    } else { 
+        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
+        document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
+        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
+    }
+    document.getElementById('btn-add-budget-cat').classList.remove('hidden');
+    updateBatteryUI();
+    
+    try {
+        if(!pollInterval) pollInterval = setInterval(() => { fetchData(); fetchLoans(); if(isAdmin) fetchPendingUsers(); }, 30000);
+        fetchBanners();
+        await fetchMembers(); 
+        if(isAdmin) fetchPendingUsers(); 
+        await fetchData();
+        fetchLoans();
+    } catch (e) {
+        console.error('Error fetching dashboard data:', e);
+        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
+    } finally {
+        const preloader = document.getElementById('app-preloader'); 
+        const finalizeLoad = async () => {
+            const showedWelcome = await checkGlobalWelcome();
+            if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; }
+        };
+        if (preloader && !preloader.classList.contains('hidden')) { 
+            preloader.classList.add('opacity-0', 'pointer-events-none'); 
+            setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); 
+        } else { finalizeLoad(); }
+    }
+}
+
+async function fetchMembers() { 
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
+        membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
+        if (currentUser.role === 'ADMIN') { 
+            try {
+                const bF = document.getElementById('budget-filter'); const fF = document.getElementById('feed-user-filter'); const gS = document.getElementById('goal-target-user');
+                if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(cur) bF.value = cur; } 
+                if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(cur) fF.value = cur; }
+                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`; }); if(cur) gS.value = cur; }
+            } catch(err) {}
+        } 
+        try {
+            const c = document.getElementById('members-list'); 
+            if(c) { 
+                c.innerHTML = ''; 
+                membersCache.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
+                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                }); 
+            }
+        } catch(err) {}
+        try {
+            const a = document.getElementById('bank-accounts-list'); 
+            if (a && currentUser.role === 'ADMIN') { 
+                a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
+                if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
+                else children.forEach(m => { 
+                    const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><div class="flex gap-2"><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                }); 
+            } 
+        } catch(err) {}
+    } catch(e) {}
+}
+
+async function sendCredentialsEmail() {
+    if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של בני המשפחה למייל שלך?')) return;
+    const btn = document.querySelector('#admin-members-tools button');
+    if(!btn) return;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח למייל...';
+    try {
+        const res = await fetch(`${API}/admin/send-credentials`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הפרטים נשלחו בהצלחה למייל המנהל!');
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת המייל');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function fetchData() {
+    try {
+        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
+        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
+        if (!data || !data.user) return;
         
-        /* IntroJS Overrides for modern modal look */
-        .introjs-tooltip { 
-            font-family: 'Rubik', sans-serif !important; 
-            border-radius: 2rem !important; 
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; 
-            padding: 1.5rem !important; 
-            border: none !important; 
-            overflow: hidden !important; 
-            text-align: center !important; 
-        }
-        .introjs-tooltip::before { 
-            content: ''; 
-            position: absolute; 
-            top: 0; left: 0; right: 0; height: 8px; 
-            background: linear-gradient(to right, #3b82f6, #a855f7); 
-        }
-        .introjs-tooltipbuttons { 
-            border-top: none !important; 
-            padding-top: 1rem !important; 
-            display: flex; 
-            gap: 0.5rem; 
-            justify-content: center; 
-        }
-        .introjs-button { 
-            border-radius: 0.75rem !important; 
-            text-shadow: none !important; 
-            font-weight: bold !important; 
-            font-family: 'Rubik', sans-serif !important; 
-            padding: 0.75rem 1.5rem !important; 
-            flex: 1; 
-            text-align: center; 
-        }
-        .introjs-nextbutton { 
-            background-color: #3b82f6 !important; 
-            color: white !important; 
-            border: none !important; 
-            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important; 
-        }
-        .introjs-prevbutton { 
-            color: #64748b !important; 
-            background: #f8fafc !important; 
-            border: 1px solid #e2e8f0 !important; 
-        }
-        .introjs-skipbutton { 
-            color: #94a3b8 !important; 
-            font-weight: 500 !important; 
-            background: transparent !important; 
-        }
-        .introjs-bullets ul li a.active { background: #3b82f6 !important; }
-
-        /* Accessibility Classes */
-        body.acc-text-lg { font-size: 110%; }
-        body.acc-text-lg .text-xs { font-size: 0.85rem; }
-        body.acc-text-lg .text-sm { font-size: 1rem; }
-        body.acc-text-lg .text-base { font-size: 1.125rem; }
-        body.acc-grayscale { filter: grayscale(100%); }
-        body.acc-contrast { filter: contrast(125%) saturate(120%); }
-        body.acc-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px; }
-        body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
-
-        /* Hide broken banner images */
-        img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
-    </style>
-</head>
-<body class="text-slate-800 bg-slate-50 relative">
-
-    <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
-        <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
-        <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
-        <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow Life</h2>
-        <p class="text-sm text-slate-500 font-medium animate-pulse">מכינה את הנתונים...</p>
-    </div>
-
-    <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
-    <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
-
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
-    </div>
-
-    <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
-        
-        <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
-            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 sm:rounded-b-[3rem] shadow-2xl pt-12 pb-10 flex-shrink-0 border-b-4 border-blue-500/30">
-                <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                <p class="absolute inset-0 flex items-center justify-center text-white/5 font-mono text-5xl font-bold tracking-[0.2em] pointer-events-none select-none z-0" style="top: 50%; transform: translateY(-50%);">**** ****</p>
-                
-                <div class="relative z-10 flex flex-col items-center" dir="ltr">
-                    <div class="w-full flex justify-between items-center mb-4 px-2">
-                        <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
-                        <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
-                    </div>
-                    
-                    <img src="logo.png" alt="Logo" class="w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
-                    <div id="auth-logo-fallback" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
-                    
-                    <div class="w-full flex justify-between items-end px-2 mt-2">
-                        <div class="text-left flex flex-col items-start">
-                            <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Member</p>
-                            <p class="text-blue-100 text-xs font-medium tracking-widest uppercase">Oneflow Life</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end">
-                            <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Valid Thru</p>
-                            <p class="text-slate-200 text-sm font-mono tracking-widest">12/99</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        currentUser.balance = data.user.balance; 
+        if(data.group) {
+            currentGroup.ai_tokens = data.group.ai_tokens;
+            currentGroup.is_premium = data.group.is_premium;
+            updateBatteryUI();
             
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center overflow-y-auto">
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
-                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
-                    <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
-                        <span id="btn-login-text">כניסה</span>
-                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
-                    </button>
-                </form>
-                <div class="mt-8 text-center text-sm space-y-3 pb-8">
-                    <button onclick="switchView('create')" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת בנק משפחתי חדש</button>
-                    <button onclick="switchView('join')" class="text-slate-400 font-medium block w-full">הצטרפות למשפחה קיימת</button>
-                    <button onclick="switchView('sa-login')" class="text-[10px] text-slate-300 mt-6 underline block w-full text-center">כניסת מנהל מערכת ראשי</button>
+            const profileUp = document.getElementById('profile-upgrade-section');
+            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) {
+                profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>';
+            }
+        }
+
+        const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance}`;
+        
+        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
+        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { fetchBudget(); } catch(e) {}
+        
+        try {
+            const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
+            const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
+            if (goalsList) { 
+                goalsList.innerHTML = ''; 
+                if(data.goals && data.goals.length > 0) { 
+                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                    data.goals.forEach(g => { 
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
+                    }); 
+                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
+            }
+        } catch(e) {}
+        
+        try {
+            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
+                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
+                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
+            }
+        } catch(e) {}
+
+        try {
+            const limit = currentUser.role === 'ADMIN' ? 50 : 20; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            if(transRes.ok) allTransactions = Array.isArray(await transRes.json()) ? await transRes.json() : [];
+        } catch(e) { allTransactions = []; }
+
+        try { renderChildTodo(); buildAndRenderFeed(); } catch(e) {}
+    } catch(e) {}
+}
+
+function showFamilAIModal(title, text) {
+    document.getElementById('familai-advisor-modal').classList.remove('hidden'); document.getElementById('familai-modal-subtitle').innerText = title;
+    if (text) { document.getElementById('familai-advisor-loading').classList.add('hidden'); document.getElementById('familai-advice-text').innerText = text; document.getElementById('familai-advisor-content').classList.remove('hidden'); } 
+    else { document.getElementById('familai-advisor-loading').classList.remove('hidden'); document.getElementById('familai-advisor-content').classList.add('hidden'); }
+}
+
+function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
+async function generateAIQuiz() {
+    const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
+    try {
+        const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
+        const data = await res.json();
+        if(!handleAIResponseCheck(data)) return;
+        if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); document.getElementById('ai-modal').classList.add('hidden'); document.getElementById('ai-topic').value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
+        else showToast('error', data.error || 'שגיאה ביצירת המבחן');
+    } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
+}
+
+async function getFamilAIAdvice(childId, goalId) {
+    showFamilAIModal('היועצת הפיננסית של המשפחה', null); document.getElementById('familai-loading-text').innerText = 'מנתחת את הנתונים שלך...';
+    try {
+        const res = await fetch(`${API}/goals/familai-advice`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, goalId: goalId, groupId: currentGroup.id }) }); const data = await res.json();
+        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+        if(data.success && data.advice) { showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice); triggerConfetti(); fetchData(); } 
+        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'מצטערת, לא הצלחתי לייצר עצה כרגע.'); }
+    } catch (e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'תקלה בתקשורת עם השרת'); }
+}
+
+async function getBudgetInsight() {
+    showFamilAIModal('אנליסטית התקציב', null); document.getElementById('familai-loading-text').innerText = 'בודקת על מה הוצאנו החודש...';
+    try {
+        const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+        if(data.success && data.insight) { showFamilAIModal('אנליסטית התקציב', data.insight); fetchData(); }
+        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה ביצירת תובנות תקציב'); }
+    } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+}
+
+async function getPantryInsight() {
+    showFamilAIModal('מנהלת המזווה', null); document.getElementById('familai-loading-text').innerText = 'מחשבת כמויות ומרגלי קנייה...';
+    try {
+        const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+        if(data.success && data.insight) { showFamilAIModal('מנהלת המזווה', data.insight); fetchData(); }
+        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח המזווה'); }
+    } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+}
+
+async function askTutor() {
+    if(currentWrongAnswers.length === 0) return; const w = currentWrongAnswers[0]; document.getElementById('btn-tutor').disabled = true; document.getElementById('btn-tutor').innerText = 'מכינה הסבר... ⏳';
+    try {
+        const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
+        if(!handleAIResponseCheck(data)) return;
+        if(data.success) { showFamilAIModal('המורה הפרטית שלך', data.explanation); fetchData(); }
+    } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { document.getElementById('btn-tutor').disabled = false; document.getElementById('btn-tutor').innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; }
+}
+
+function setTaskMode(mode) {
+    const mBtn = document.getElementById('btn-mode-manual'); const aBtn = document.getElementById('btn-mode-ai'); const mDiv = document.getElementById('task-mode-manual'); const aDiv = document.getElementById('task-mode-ai');
+    if (mode === 'manual') { mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition'; aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition'; mDiv.classList.remove('hidden'); aDiv.classList.add('hidden'); } 
+    else { aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-purple-600 shadow-sm transition'; mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-blue-600 transition'; aDiv.classList.remove('hidden'); mDiv.classList.add('hidden'); }
+}
+
+function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
+
+// עודכן כך שילד יוכל לבקש תגמול בעצמו
+function openTaskModal(isSelf = false) { 
+    document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
+    document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
+    setTaskMode('manual');
+    const toggles = document.getElementById('task-mode-toggles'); const assigneeContainer = document.getElementById('task-assignee-container'); const rewardGroup = document.getElementById('task-reward-group'); const assigneeSelect = document.getElementById('task-assignee');
+    const rewardInput = document.getElementById('task-reward');
+
+    if(isSelf) { 
+        document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
+        toggles.classList.add('hidden'); 
+        assigneeContainer.classList.add('hidden'); 
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
+    } else { 
+        document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
+        toggles.classList.remove('hidden'); 
+        assigneeContainer.classList.remove('hidden'); 
+        rewardInput.placeholder = 'תגמול (₪)';
+        if(membersCache) {
+            assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; let hasChildren = false;
+            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; hasChildren = true; } });
+            if (!hasChildren) assigneeSelect.innerHTML = '<option value="" disabled selected>אין ילדים רשומים</option>';
+        }
+    } 
+}
+
+async function generateAITasks() {
+    const btn = document.getElementById('btn-ai-task-gen'); const assigneeId = val('task-assignee'); const topic = val('ai-task-topic'); const isSelf = document.getElementById('task-is-self').value === 'true'; 
+    let age;
+    if (isSelf) age = new Date().getFullYear() - currentUser.birth_year;
+    else {
+         if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור מי המשימה 👆');
+         const child = membersCache.find(m => String(m.id) === String(assigneeId)); if(!child) return showToast('error', 'שגיאה במציאת גיל הילד');
+         age = new Date().getFullYear() - child.birth_year;
+    }
+    if(!topic) return showToast('error', 'כתבו ל-familAI באיזה נושא לעזור');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> חושבת...';
+    try {
+        const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); const data = await res.json();
+        if(!handleAIResponseCheck(data)) return;
+        if(data.success && data.tasks && data.tasks.length > 0) {
+            const resultsContainer = document.getElementById('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>';
+            data.tasks.forEach(task => { const safeTitle = (task.title || '').replace(/'/g, "\\'").replace(/"/g, "&quot;"); resultsContainer.innerHTML += `<div onclick="selectAITask('${safeTitle}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-purple-100 hover:bg-purple-50 transition"><span class="text-sm font-bold text-slate-700">${task.title}</span><span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; });
+            resultsContainer.classList.remove('hidden'); triggerConfetti(); fetchData();
+        } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
+    } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות'; }
+}
+
+function selectAITask(title, reward) { document.getElementById('task-title').value = title; document.getElementById('task-reward').value = reward; setTaskMode('manual'); }
+
+// עודכן לשמירת סטטוס "done" אוטומטית אם ילד שולח משימה
+async function submitTask() { 
+    const isSelf = document.getElementById('task-is-self').value === 'true'; 
+    const assignee = isSelf ? currentUser.id : val('task-assignee'); 
+    const reward = val('task-reward'); // נמשך גם אם הילד הזין
+    const title = val('task-title'); 
+    const days = val('task-days');
+    
+    if(!isSelf && !assignee) return showToast('error', 'יש לבחור ילד למשימה'); 
+    if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
+    
+    const statusToSend = isSelf ? 'done' : 'pending';
+
+    await fetch(`${API}/tasks`, {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body:JSON.stringify({ title: title, reward: reward || 0, assignedTo: assignee, days: days, status: statusToSend }) 
+    }); 
+    
+    if(isSelf) triggerConfetti(); 
+    closeTaskModal(); 
+    showToast('success', isSelf ? 'נשלח לאישור ההורה!' : 'משימה נוצרה בהצלחה!'); 
+    fetchData(); 
+}
+
+function clickTaskProof(taskId, title) { currentVerifyTaskId = taskId; currentVerifyTaskTitle = title; document.getElementById('task-proof-upload').click(); }
+
+function handleTaskProofUpload(event) {
+    const file = event.target.files[0]; if(!file || !currentVerifyTaskId) return;
+    showFamilAIModal('בקרת איכות', null); document.getElementById('familai-loading-text').innerText = 'familAI בודקת את התמונה שלך...';
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
+        try {
+            const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: file.type, groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success) { showFamilAIModal('בקרת איכות', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
+        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.'); }
+        event.target.value = '';
+    }; reader.readAsDataURL(file);
+}
+
+function handleReceiptUpload(event) {
+    const file = event.target.files[0]; if(!file) return;
+    showFamilAIModal('קופאית אוטומטית', null); document.getElementById('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
+        try {
+            const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: file.type }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת הקבלה.'); }
+        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.'); }
+        event.target.value = '';
+    }; reader.readAsDataURL(file);
+}
+
+// ==========================================
+// BARCODE SCANNING & PANTRY USE LOGIC
+// ==========================================
+
+function startBarcodeScan(target) {
+    currentScanTarget = target;
+    document.getElementById('barcode-scanner-modal').classList.remove('hidden');
+    
+    html5QrCode = new Html5Qrcode("qr-reader");
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        onScanFailure
+    ).catch(err => {
+        showToast('error', 'לא ניתן לגשת למצלמה');
+        closeBarcodeScanner();
+    });
+}
+
+function onScanFailure(error) { 
+    // Ignore routine scan failures
+}
+
+async function onScanSuccess(decodedText) {
+    if(html5QrCode) {
+        try {
+            await html5QrCode.stop();
+            document.getElementById('barcode-scanner-modal').classList.add('hidden');
+            processBarcode(decodedText);
+        } catch(err) { console.error(err); }
+    }
+}
+
+function closeBarcodeScanner() {
+    if(html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('barcode-scanner-modal').classList.add('hidden');
+        }).catch(err => console.error(err));
+    } else {
+        document.getElementById('barcode-scanner-modal').classList.add('hidden');
+    }
+}
+
+async function processBarcode(barcode) {
+    currentScannedBarcode = barcode;
+    try {
+        const res = await fetch(`${API}/products`);
+        const products = await res.json();
+        const found = products.find(p => p.barcode === barcode);
+        
+        if (found) {
+            if (currentScanTarget === 'shop') {
+                document.getElementById('shop-item').value = found.name;
+                openShopModal();
+            } else {
+                document.getElementById('pantry-item').value = found.name;
+                openPantryModal();
+            }
+        } else {
+            // Unknown product
+            document.getElementById('new-product-barcode').innerText = barcode;
+            document.getElementById('new-product-name').value = '';
+            document.getElementById('new-product-cat').value = 'כללי';
+            document.getElementById('new-product-modal').classList.remove('hidden');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בחיפוש מוצר במאגר');
+    }
+}
+
+async function saveNewProduct() {
+    const name = val('new-product-name');
+    const cat = val('new-product-cat');
+    if(!name) return showToast('error', 'נא להזין שם מוצר');
+    
+    try {
+        await fetch(`${API}/products`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ barcode: currentScannedBarcode, name, category: cat }) 
+        });
+        
+        document.getElementById('new-product-modal').classList.add('hidden');
+        
+        if (currentScanTarget === 'shop') {
+            document.getElementById('shop-item').value = name;
+            openShopModal();
+        } else {
+            document.getElementById('pantry-item').value = name;
+            openPantryModal();
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירת המוצר');
+    }
+}
+
+function openPantryUseModal(name, unit) {
+    document.getElementById('use-pantry-title').innerText = `מה לקחת מ: ${name}?`;
+    document.getElementById('use-pantry-name').value = name;
+    document.getElementById('use-pantry-qty').value = '';
+    document.getElementById('use-pantry-unit-display').innerText = unit || "יח'";
+    document.getElementById('pantry-use-modal').classList.remove('hidden');
+}
+
+async function submitPantryUse() {
+    const name = val('use-pantry-name');
+    const qty = val('use-pantry-qty');
+    if(!qty || parseFloat(qty) <= 0) return showToast('error', 'נא להזין כמות תקינה');
+    
+    try {
+        const res = await fetch(`${API}/pantry/use`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: qty }) 
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'המלאי עודכן בהצלחה');
+            document.getElementById('pantry-use-modal').classList.add('hidden');
+            fetchData();
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בעדכון המלאי');
+    }
+}
+
+function renderPantry() {
+    const list = document.getElementById('pantry-list'); if(!list) return; list.innerHTML = '';
+    if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המזווה ריק. הוסיפו מוצרים כדי לעקוב אחרי המלאי בבית!</p>'; return; }
+    pantryCache.forEach(p => {
+        list.innerHTML += `
+        <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3">
+                        <button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button>
+                        <span>${p.quantity} ${p.unit || "יח'"}</span>
+                        <button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button>
+                    </div>
                 </div>
             </div>
+            <div class="flex gap-2 mt-1 border-t border-slate-50 pt-2">
+                <button onclick="openPantryUseModal('${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-orange-50 text-orange-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-orange-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-utensils"></i> השתמשתי</button>
+                <button onclick="movePantryToCart(${p.id}, '${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-pink-50 text-pink-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-pink-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> חסר (לקניות)</button>
+            </div>
+        </div>`;
+    });
+}
+
+function openPantryModal() { document.getElementById('pantry-modal').classList.remove('hidden'); }
+async function submitPantryItem() {
+    const name = val('pantry-item'); 
+    const qty = val('pantry-quantity'); 
+    const unit = val('pantry-unit') || "יח'";
+    if(!name) return;
+    await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit}) });
+    document.getElementById('pantry-modal').classList.add('hidden'); 
+    val('pantry-item', ''); 
+    val('pantry-quantity', 1); 
+    document.getElementById('pantry-unit').value = "יח'";
+    fetchData(); 
+    showToast('success', 'המוצר נוסף למזווה');
+}
+async function updatePantryQty(id, newQty) {
+    if(newQty <= 0) { if(!confirm('המוצר נגמר! האם למחוק אותו מהמזווה? (מומלץ להוסיף לעגלת הקניות במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
+    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); }
+    fetchData();
+}
+async function movePantryToCart(pantryId, itemName, unit) {
+    await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id}) });
+    await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לרשימת הקניות!'); fetchData();
+}
+
+function renderChildTodo() {
+    const todoSection = document.getElementById('child-todo-section'); const todoList = document.getElementById('child-todo-list');
+    if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
+    let hasItems = false; let htmlStr = '';
+    const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
+    myTasks.forEach(t => {
+        hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
+        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-blue-50 transition mb-2" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${t.title}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • משימה • תגמול: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
+    });
+    const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
+    myQuizzes.forEach(b => {
+        hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
+        if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
+        const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${b.title}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
+    });
+    if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
+}
+
+// פונקציה חדשה לאישור ידני על ידי ההורה
+function openApproveTaskModal(id, title, currentReward) {
+    document.getElementById('approve-task-id').value = id;
+    document.getElementById('approve-task-title').innerText = title;
+    document.getElementById('approve-task-reward').value = currentReward || 0;
+    document.getElementById('approve-task-modal').classList.remove('hidden');
+}
+
+async function submitTaskApproval() {
+    const id = document.getElementById('approve-task-id').value;
+    const finalReward = document.getElementById('approve-task-reward').value;
+    
+    document.getElementById('approve-task-modal').classList.add('hidden');
+    triggerConfetti();
+    
+    await fetch(`${API}/tasks/update`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward })
+    });
+    
+    showToast('success', 'המשימה אושרה והתגמול הועבר!');
+    fetchData();
+}
+
+function renderTasks(tasks) {
+    const list = document.getElementById('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
+    tasks.forEach(t => {
+        const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
+        let statusColor = 'bg-white border-slate-50'; let statusBadge = ''; let actionBtn = '';
+        
+        if (t.status === 'pending') { 
+            if (isMyTask) { 
+                actionBtn = `<button onclick="clickTaskProof(${t.id}, '${t.title.replace(/'/g, "\\'")}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`; 
+            } else {
+                statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לילד</span>`; 
+            }
+        } 
+        else if (t.status === 'done') { 
+            statusColor = 'bg-yellow-50 border-yellow-100'; 
+            if (isAdmin) {
+                // שונה כדי להקפיץ חלון אישור עם אפשרות לערוך שכר
+                actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${t.title.replace(/'/g, "\\'")}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; 
+            } else {
+                statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; 
+            }
+        } 
+        else if (t.status === 'approved') { 
+            statusColor = 'bg-green-50 border-green-100'; 
+            statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`; 
+        }
+        
+        const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
+        let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>`; else deadlineBadge = `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`; }
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
+        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}"><div><p class="font-bold text-slate-800">${t.title} ${deadlineBadge}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${t.assignee_name}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-1">${actionBtn}${statusBadge}</div></div>`;
+    });
+    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; else list.innerHTML = htmlStr;
+}
+
+async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+
+function buildAndRenderFeed() {
+    feedCache = [];
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
+    if(Array.isArray(allTasks)) { allTasks.forEach(t => { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); }); }
+    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
+    feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
+    if(currentUser.role === 'ADMIN') { const filterEl = document.getElementById('feed-user-filter'); if (filterEl) filterEl.classList.remove('hidden'); }
+    renderUnifiedFeed();
+}
+
+function renderUnifiedFeed() {
+    const filterEl = document.getElementById('feed-user-filter'); const list = document.getElementById('unified-feed-list'); if (!list) return;
+    const filterUserId = filterEl ? filterEl.value : 'all'; let filtered = feedCache;
+    if (currentUser.role !== 'ADMIN') filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); else if (filterUserId !== 'all' && filterUserId !== '') filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId) || item.type === 'system');
+    filtered = filtered.slice(0, 30); 
+    if(filtered.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
+    let html = '';
+    filtered.forEach(item => {
+        if(!item.date || isNaN(item.date.getTime())) return;
+        const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); const userNameDisplay = currentUser.role === 'ADMIN' && item.type !== 'system' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
+        const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
+        let contentHtml = '';
+        if (item.type === 'transaction') {
+            const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+            const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; const prefix = item.isIncome ? '+' : '-';
+            contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+        } else if (item.type === 'task') {
+            const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
+            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+        } else if (item.type === 'quiz') {
+            const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
+            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+        } else if (item.type === 'system') {
+            const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
+            contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${item.title}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
+        }
+        html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
+    });
+    list.innerHTML = html;
+}
+
+function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { document.getElementById('assign-reward').value = bundle.reward; } }
+function openAssignModal() {
+    const cSelect = document.getElementById('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר ילד...</option>';
+    if(membersCache) { membersCache.forEach(m => { if(m.role !== 'ADMIN') cSelect.innerHTML += `<option value="${m.id}">${m.nickname}</option>`; }); }
+    const bSelect = document.getElementById('assign-bundle-select'); bSelect.innerHTML = '<option value="" disabled selected>בחר אתגר...</option>';
+    if (allBundles && allBundles.length > 0) { allBundles.forEach(b => { bSelect.innerHTML += `<option value="${b.id}">[${b.type === 'math' ? '🔢' : (b.type === 'reading' ? '📖' : '📈')}] ${b.title} (${b.age_group})</option>`; }); } else { bSelect.innerHTML = '<option disabled>אין מבחנים זמינים</option>'; }
+    document.getElementById('assign-reward').value = ''; document.getElementById('assign-days').value = ''; document.getElementById('assign-quiz-modal').classList.remove('hidden');
+}
+function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() => { const select = document.getElementById('assign-bundle-select'); if (select) { select.value = bundleId; updateAssignDetails(); } }, 100); }
+async function submitAssignQuiz() {
+    const childId = document.getElementById('assign-child-select').value; const bundleId = document.getElementById('assign-bundle-select').value; const reward = document.getElementById('assign-reward').value; const days = document.getElementById('assign-days').value;
+    if(!childId) return showToast('error', 'אנא בחר ילד להקצאה'); if(!bundleId) return showToast('error', 'אנא בחר אתגר להקצאה');
+    await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days }) });
+    document.getElementById('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData();
+}
+
+function renderAdminAcademy() {
+    const list = document.getElementById('admin-assignments-list'); if(!list || currentUser.role !== 'ADMIN') return;
+    let html = '<h4 class="font-bold text-slate-700 mt-2 mb-3">📚 ספריית מבחנים למשפחה</h4>';
+    if (!allBundles || allBundles.length === 0) { html += '<p class="text-sm text-slate-400 mb-6 bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 text-center">אין מבחנים זמינים. לחץ על "יצירת אתגר familAI" למעלה!</p>'; } else {
+        html += '<div class="space-y-2 mb-8">';
+        allBundles.forEach(b => {
+            const getIcon = (type) => type === 'math' ? '🔢' : (type === 'reading' ? '📖' : '📈'); const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center hover:border-blue-100 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • פרס: ₪${b.reward}</p></div></div><button onclick="openAssignModalSpecific(${b.id})" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition">הקצה לילד</button></div>`;
+        }); html += '</div>';
+    }
+    html += '<h4 class="font-bold text-slate-700 mb-3 border-t border-slate-200 pt-6">🎯 מבחנים שהוקצו לאחרונה</h4>';
+    if (!bundlesCache || bundlesCache.length === 0) { html += '<p class="text-sm text-slate-400 text-center bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">לא הוקצו מבחנים לאף ילד עדיין.</p>'; } else {
+        html += '<div class="space-y-2 pb-20">';
+        bundlesCache.forEach(b => {
+            let statusColor = b.status === 'completed' ? 'text-green-500' : (b.status === 'failed' ? 'text-red-500' : 'text-orange-500'); let statusText = b.status === 'completed' ? 'הושלם' : (b.status === 'failed' ? 'נכשל' : 'ממתין'); const aDate = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+            html += `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center"><div><p class="font-bold text-slate-700 text-sm">${b.title}</p><p class="text-[10px] text-slate-500 mt-0.5">הוקצה ל: <span class="font-bold text-slate-700">${b.assignee_name}</span> ב-${aDate}</p></div><span class="text-[10px] font-bold ${statusColor} bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">${statusText}</span></div>`;
+        }); html += '</div>';
+    } list.innerHTML = html;
+}
+
+function renderLibrary() {
+    try {
+        const libList = document.getElementById('library-list'); if (!libList) return;
+        const ageFilter = document.getElementById('lib-age-filter') ? document.getElementById('lib-age-filter').value : 'all'; const catFilter = document.getElementById('lib-cat-filter') ? document.getElementById('lib-cat-filter').value : 'all';
+        let filtered = Array.isArray(allBundles) ? [...allBundles] : [];
+        if (ageFilter !== 'all') filtered = filtered.filter(b => b.age_group === ageFilter); if (catFilter !== 'all') filtered = filtered.filter(b => b.type === catFilter);
+        if(Array.isArray(bundlesCache)) { const assignedBundleIds = bundlesCache.map(ua => Number(ua.bundle_id)); filtered = filtered.filter(b => !assignedBundleIds.includes(Number(b.id))); }
+        if (filtered.length === 0) { libList.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 bg-slate-50 rounded-xl">אין מבחנים חדשים להציג כרגע.</p>'; return; }
+        const getIcon = (type) => { if (type === 'math') return '<i class="fa-solid fa-calculator"></i>'; if (type === 'reading') return '<i class="fa-solid fa-book-open"></i>'; return '<i class="fa-solid fa-chart-line"></i>'; };
+        let libHtml = '';
+        filtered.forEach(b => {
+            const cDate = b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '';
+            libHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-blue-200 transition"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-sm">${getIcon(b.type)}</div><div><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar"></i> ${cDate} • גיל ${b.age_group} • ₪${b.reward}</p></div></div><button onclick="requestChallenge(${b.id})" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition shadow-sm">התחל</button></div>`;
+        }); libList.innerHTML = libHtml;
+    } catch(err) { console.error(err); }
+}
+
+async function requestChallenge(bundleId = null) {
+    const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
+    try {
+        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId }) }); const data = await res.json();
+        if (data.success) { triggerConfetti(); showToast('success', 'המבחן נוסף בהצלחה!'); fetchData(); } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
+}
+
+async function startQuiz(bundleId) {
+    const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
+    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; 
+    document.getElementById('quiz-title').innerText = bundle.title; document.getElementById('btn-tutor').classList.add('hidden'); 
+    const textContainer = document.getElementById('quiz-text-container');
+    if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
+    document.getElementById('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
+}
+
+function renderQuestion() {
+    const q = currentQuizData.questions[currentQuestionIndex];
+    document.getElementById('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; document.getElementById('q-text').innerText = q.q;
+    const optsContainer = document.getElementById('q-options'); optsContainer.innerHTML = '';
+    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; });
+}
+
+async function submitAnswer(selectedIdx) {
+    const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option');
+    btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
+    if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); }
+    if(isCorrect) quizScore++;
+    setTimeout(async () => { currentQuestionIndex++; if (currentQuestionIndex < currentQuizData.questions.length) { renderQuestion(); } else { finishQuiz(); } }, 1000);
+}
+
+async function finishQuiz() {
+    const total = currentQuizData.questions.length; const finalScore = Math.round((quizScore / total) * 100); const passed = finalScore >= currentQuizData.threshold;
+    document.getElementById('question-container').classList.add('hidden'); document.getElementById('quiz-text-container').classList.add('hidden'); document.getElementById('quiz-result').classList.remove('hidden');
+    document.getElementById('quiz-icon').innerHTML = passed ? '🏆' : '📚'; document.getElementById('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא...'; document.getElementById('quiz-msg-desc').innerText = passed ? `עברת את המבחן וזכית ב-₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `צריך ${currentQuizData.threshold}% כדי לעבור. נסה שוב!`; document.getElementById('quiz-score-display').innerText = `ציון: ${finalScore}%`;
+    if (!passed && currentWrongAnswers.length > 0) document.getElementById('btn-tutor').classList.remove('hidden');
+    if (passed) triggerConfetti();
+    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore }) });
+    fetchData(); 
+}
+
+function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); document.getElementById('question-container').classList.remove('hidden'); document.getElementById('quiz-result').classList.add('hidden'); }
+
+function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
+
+async function submitShopItem() { 
+    const itemInput = document.getElementById('shop-item'); 
+    const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
+    const item = itemInput.value; 
+    const qty = val('shop-quantity'); 
+    const est = val('shop-est-price'); 
+    const unit = val('shop-unit') || "יח'"; 
+    if(!item) return; if (btn.disabled) return; 
+    btn.disabled = true; btn.innerText = 'מוסיף...'; 
+    try { 
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, userId: currentUser.id}) }); 
+        const data = await res.json(); 
+        if (data.success) { 
+            document.getElementById('shop-modal').classList.add('hidden'); 
+            itemInput.value = ''; 
+            document.getElementById('shop-est-price').value = ''; 
+            document.getElementById('shop-quantity').value = 1; 
+            document.getElementById('shop-unit').value = "יח'";
+            document.getElementById('suggestions').classList.add('hidden'); 
+            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
+            showToast('success', 'נוסף לרשימה'); 
+            fetchData(); 
+        } 
+    } finally { btn.disabled = false; btn.innerText = 'הוסף'; } 
+}
+
+async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
+
+function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
+
+function renderShopList() {
+    if (document.activeElement.classList.contains('price-input')) return;
+    const list = document.getElementById('shop-list'); const reqList = document.getElementById('shop-requests-list'); const reqContainer = document.getElementById('shop-requests-container');
+    const activeItems = []; const requestedItems = [];
+    shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
+    
+    let reqHtml = '';
+    if (requestedItems.length > 0) {
+        reqContainer.classList.remove('hidden');
+        requestedItems.forEach(i => {
+            const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להורה</span>`;
+            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${i.item_name}</span><span class="text-xs text-slate-500 block">ביקש/ה: ${i.requester_name}</span></div>${actions}</div>`;
+        });
+        reqList.innerHTML = reqHtml;
+    } else { reqContainer.classList.add('hidden'); }
+
+    if(activeItems.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); return; }
+    document.getElementById('cart-footer').classList.remove('hidden'); document.getElementById('fab-container').classList.add('fab-lifted');
+    
+    const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
+    activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
+    let currentCat = ''; let shopHtml = '';
+    activeItems.forEach(i => {
+        const cat = getCatScore(i.item_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
+        const isChecked = i.status === 'in_cart'; const valPrice = i.estimated_price > 0 ? i.estimated_price : ''; 
+        const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
+        const unitPrice = parseFloat(i.estimated_price) || 0; 
+        const totalRowPrice = unitPrice * parseFloat(i.quantity);
+        let bestPriceHtml = '';
+        if (i.best_price && i.best_price.price_per_unit > 0) { const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); bestPriceHtml = `<div class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid fa-tag"></i> זול ביותר בעבר: ₪${bestP}/${i.unit || "יח'"} (${i.best_price.store_name}, ${dDate})</div>`; }
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-pink-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">${i.requester_name}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${i.unit || "יח'"}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-pink-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${i.unit || "יח'"}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר</button></div></div>`;
+    });
+    list.innerHTML = shopHtml; calcRunningTotal();
+}
+
+async function updateRow(id, type, value) {
+    if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
+    else if (type === 'check') { const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
+    else if (type === 'price_calc') { 
+        const item = shoppingListCache.find(i => i.id == id); 
+        if(item) { 
+            const unitPrice = parseFloat(value) || 0; 
+            const total = unitPrice * parseFloat(item.quantity); 
+            const totalEl = document.getElementById(`row-total-${id}`); 
+            if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; 
+        } 
+        calcRunningTotal(); return; 
+    }
+    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); const data = await res.json(); const freshWisdomDiv = document.getElementById(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = value; } 
+    if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
+}
+
+function toggleMissingLocal(id) { const row = document.getElementById(`row-${id}`); const btn = document.getElementById(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; document.getElementById(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר'; } calcRunningTotal(); }
+
+function calcRunningTotal() { 
+    let total = 0; 
+    document.querySelectorAll('.shop-row').forEach(row => { 
+        const isChecked = row.querySelector('input[type="checkbox"]').checked; 
+        const isMissing = row.classList.contains('missing'); 
+        if (isChecked && !isMissing) { 
+            const id = row.id.replace('row-', ''); 
+            const itemData = shoppingListCache.find(i => i.id == id); 
+            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; 
+            const qty = itemData ? parseFloat(itemData.quantity) : 1; 
+            total += (unitPrice * qty); 
+        } 
+    }); 
+    document.getElementById('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
+}
+
+function openCheckoutSummary() { 
+    let count = 0; let missing = 0; let total = 0; 
+    document.querySelectorAll('.shop-row').forEach(row => { 
+        if (row.classList.contains('missing')) missing++; 
+        else if (row.querySelector('input[type="checkbox"]').checked) { 
+            count++; 
+            const id = row.id.replace('row-', ''); 
+            const itemData = shoppingListCache.find(i => i.id == id); 
+            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; 
+            const qty = itemData ? parseFloat(itemData.quantity) : 1; 
+            total += (unitPrice * qty); 
+        } 
+    }); 
+    if (count === 0 && missing === 0) { showToast('error', 'לא סימנת כלום'); return; } 
+    document.getElementById('summ-count').innerText = count; 
+    document.getElementById('summ-missing').innerText = missing; 
+    document.getElementById('summ-total').innerText = `₪${total.toFixed(2)}`; 
+    document.getElementById('confirm-checkout-modal').classList.remove('hidden'); 
+}
+
+async function submitFinalCheckout() {
+    const store = document.getElementById('checkout-store').value || 'סופר כללי'; const branch = document.getElementById('checkout-branch').value; let total = 0; const boughtItems = []; const missingItems = [];
+    document.querySelectorAll('.shop-row').forEach(row => {
+        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
+        if (row.classList.contains('missing')) { missingItems.push({ id }); } 
+        else if (row.querySelector('input[type="checkbox"]').checked) {
+            const unitPrice = parseFloat(document.getElementById(`price-${id}`).value) || 0; 
+            const qty = itemData ? parseFloat(itemData.quantity) : 1; 
+            const rowTotal = unitPrice * qty; 
+            total += rowTotal;
+            boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
+        }
+    });
+    triggerShake();
+    await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
+    document.getElementById('confirm-checkout-modal').classList.add('hidden'); triggerConfetti(); showToast('success', 'הקנייה הושלמה!'); fetchData();
+}
+
+async function copyList(tripId) { if(!confirm('האם להעתיק את כל הפריטים מהרשימה הזו לרשימה הנוכחית?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הרשימה הועתקה!'); fetchData(); }
+
+function openInviteModal() { const codeSpan = document.getElementById('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } document.getElementById('invite-modal').classList.remove('hidden'); }
+function sendWhatsAppInvite(role) { if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; let text = role === 'ADMIN' ? `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nהגדרתי אותך כשותף/מנהל (כמוני).\nלחץ על הקישור כדי להצטרף ולבחור סיסמה:\n🔗 ${joinLink}` : `היי! פתחתי לנו בנק משפחתי באפליקציית Oneflow Life 🚀\n\nלחץ על הקישור כדי להצטרף למשפחה שלנו ולפתוח לעצמך חשבון אישי:\n🔗 ${joinLink}`; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); document.getElementById('invite-modal').classList.add('hidden'); }
+function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
+function val(id) { return document.getElementById(id).value; }
+function showToast(t,m) { const el=document.getElementById('toast'); const icon = document.getElementById('toast-icon'); el.classList.remove('hidden'); document.getElementById('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
+function toggleLoader(a,s) { const txt = document.getElementById(`btn-${a}-text`); const ldr = document.getElementById(`btn-${a}-loader`); if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } }
+function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
+function triggerShake() { const app = document.getElementById('main-wrapper'); app.classList.add('shake-effect'); setTimeout(() => app.classList.remove('shake-effect'), 500); }
+
+async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = document.getElementById('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${i.item_name} (x${i.quantity} ${i.unit || "יח'"})</span><span class="font-bold">₪${i.price_per_unit || 0}/${i.unit || "יח'"}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${t.store_name} ${t.branch_name ? `(${t.branch_name})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • ${t.nickname}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100">העתק רשימה זו</button></div></div>`; }); document.getElementById('history-modal').classList.remove('hidden'); }
+function openBankSettings(id, name, allowance, interest) { document.getElementById('bank-user-id').value = id; document.getElementById('bank-user-name').innerText = `הגדרות עבור ${name}`; document.getElementById('bank-allowance').value = allowance; document.getElementById('bank-interest').value = interest; document.getElementById('bank-settings-modal').classList.remove('hidden'); }
+async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
+async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
+function openGoalModal() { if(currentUser.role === 'ADMIN') { document.getElementById('goal-user-select-container').classList.remove('hidden'); } document.getElementById('goal-title').value = ''; document.getElementById('goal-target').value = ''; document.getElementById('goal-modal').classList.remove('hidden'); }
+function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
+async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
+async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
+
+function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
+async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
+function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
+function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
+async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת ההלוואה נשלחה להורה 📨'); fetchData(); fetchLoans(); }
+
+async function fetchBudget() {
+    const cat = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
+    const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`);
+    const data = await res.json();
+    const list = document.getElementById('budget-list'); list.innerHTML = '';
+    
+    const baseCategories = CATEGORIES.expense.map(c => c.value);
+    data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
+    baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
+
+    let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
+    data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
+
+    const createRow = (category, spent, limit, isSub = false) => {
+        const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-green-500'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+        const limitDisplay = limit > 0 ? `₪${limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[category] || category;
+        const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">ערוך יעד</button>` : '';
+        const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-indigo-200 pr-2 mb-3' : 'mb-5';
+        return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+    };
+
+    if (childrenItems.length > 0) {
+        const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-indigo-500'; if (pct > 80) color = 'bg-indigo-400'; if (pct > 100) color = 'bg-purple-600';
+        const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+        const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'הוצאות על הילדים' : 'הכנסות מההורים';
+        list.innerHTML += `<div class="mb-8 bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100/60 shadow-sm transition-all hover:bg-indigo-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-indigo-900 flex items-center gap-2"><i class="fa-solid fa-child-reaching text-indigo-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-100">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-indigo-100">${subItemsHtml}</div></div>`;
+    }
+    otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
+}
+
+function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
+async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
+function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
+async function submitNewBudgetCat() { const catName = document.getElementById('new-budget-cat-name').value; if(!catName) return; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); document.getElementById('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); }
+
+async function fetchPendingUsers() {
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json();
+        const list = document.getElementById('pending-list'); const container = document.getElementById('admin-panel');
+        if (users && users.length > 0) {
+            container.classList.remove('hidden'); list.innerHTML = '';
+            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
+        } else { if(container) container.classList.add('hidden'); }
+    } catch(e) { console.error(e); }
+}
+
+async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
+
+function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+    const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value;
+    const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...';
+    try {
+        const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); }
+    } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'שנה סיסמה'; }
+}
+
+async function deleteUser(id, name) {
+    if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
+    try {
+        const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
+}
+
+
+// ============================================================
+// --- LOANS MODULE ---
+// ============================================================
+
+async function fetchLoans() {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        let url;
+        if (currentUser.role === 'ADMIN') {
+            url = `${API}/loans?groupId=${currentGroup.id}`;
+        } else {
+            url = `${API}/loans?userId=${currentUser.id}`;
+        }
+        const res = await fetch(url);
+        const loans = await res.json();
+        renderLoans(loans);
+    } catch(e) { console.error('fetchLoans error:', e); }
+}
+
+function renderLoans(loans) {
+    if (currentUser.role === 'ADMIN') {
+        const panel = document.getElementById('admin-loans-panel');
+        const list = document.getElementById('admin-loans-list');
+        if (!panel || !list) return;
+        const pending = loans.filter(l => l.status === 'pending');
+        if (pending.length === 0) { panel.classList.add('hidden'); return; }
+        panel.classList.remove('hidden');
+        list.innerHTML = pending.map(l => `
+            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">${l.nickname} – ₪${l.original_amount}</p>
+                    <p class="text-xs text-slate-500">${l.reason || 'ללא סיבה'}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="approveLoan(${l.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
+                    <button onclick="rejectLoan(${l.id})" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        const list = document.getElementById('my-loans-list');
+        if (!list) return;
+        if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין הלוואות פעילות</p>'; return; }
+        list.innerHTML = loans.map(l => {
+            const statusMap = { pending: { label: 'ממתין לאישור', cls: 'bg-orange-100 text-orange-600' }, approved: { label: 'אושרה ✓', cls: 'bg-green-100 text-green-700' }, rejected: { label: 'נדחתה', cls: 'bg-red-100 text-red-600' } };
+            const s = statusMap[l.status] || { label: l.status, cls: 'bg-slate-100 text-slate-600' };
+            return `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">₪${l.original_amount}</p>
+                    <p class="text-xs text-slate-500">${l.reason || ''} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p>
+                </div>
+                <span class="text-xs font-bold px-2 py-1 rounded-lg ${s.cls}">${s.label}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+async function approveLoan(loanId) {
+    if (!confirm('לאשר הלוואה זו ולהעביר את הכסף לילד?')) return;
+    const res = await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
+    const data = await res.json();
+    if (data.success) { triggerConfetti(); showToast('success', 'ההלוואה אושרה!'); fetchData(); fetchLoans(); }
+    else showToast('error', data.error);
+}
+
+async function rejectLoan(loanId) {
+    if (!confirm('לדחות בקשת הלוואה זו?')) return;
+    await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
+    showToast('success', 'הבקשה נדחתה'); fetchLoans();
+}
+
+// ============================================================
+// --- SA Premium Toggle ---
+// ============================================================
+async function saTogglePremium(groupId, enable) {
+    const label = enable ? 'להפעיל' : 'לבטל';
+    if (!confirm(`האם ${label} מנוי Pro למשפחה זו?`)) return;
+    try {
+        const res = await fetch(`${API}/superadmin/groups/${groupId}/premium`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ enable })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', enable ? 'מנוי Pro הופעל!' : 'מנוי Pro בוטל'); loadSAData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function fetchBundles() {
+    try {
+        const res = await fetch(`${API}/data/${currentUser.id}`);
+        const data = await res.json();
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+    } catch(e) {}
+}
+
+// --- ACCESSIBILITY MODULE ---
+function initAccessibility() {
+    const saved = localStorage.getItem('ofl_accessibility');
+    if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
+}
+function applyAccessibility() {
+    Object.keys(accState).forEach(key => {
+        const btn = document.getElementById(`acc-${key}`);
+        if(accState[key]) {
+            document.body.classList.add(`acc-${key}`);
+            if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        } else {
+            document.body.classList.remove(`acc-${key}`);
+            if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        }
+    });
+    localStorage.setItem('ofl_accessibility', JSON.stringify(accState));
+}
+function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
+function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
+function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
+function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
+
+// --- RECIPES (AI CHEF) MODULE ---
+function toggleRecipeCustomInput() {
+    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
+    if (isIgnored) {
+        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
+        document.getElementById('recipe-pantry-selection').classList.add('hidden');
+    } else {
+        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
+        document.getElementById('recipe-pantry-selection').classList.remove('hidden');
+    }
+}
+
+function renderRecipePantrySelection() {
+    const listContainer = document.getElementById('recipe-pantry-items-list');
+    if (!listContainer) return;
+    if (!pantryCache || pantryCache.length === 0) {
+        listContainer.innerHTML = '<p class="text-xs text-slate-400">המזווה שלכם ריק. הוסיפו מוצרים למזווה כדי לייצר מהם מתכונים!</p>';
+        return;
+    }
+    let html = '';
+    pantryCache.forEach(p => {
+        html += `<label class="recipe-pantry-item-label flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-orange-300 transition shadow-sm"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3.5 h-3.5 accent-orange-500"><span class="text-xs text-slate-700 font-medium">${p.item_name} <span class="text-[10px] text-slate-400">(${p.quantity})</span></span></label>`;
+    });
+    listContainer.innerHTML = html;
+}
+
+let isAllRecipePantrySelected = true;
+function selectAllRecipePantry() {
+    isAllRecipePantrySelected = !isAllRecipePantrySelected;
+    document.querySelectorAll('.recipe-pantry-checkbox').forEach(cb => { cb.checked = isAllRecipePantrySelected; });
+}
+
+async function generateRecipe() {
+    const btn = document.getElementById('btn-generate-recipe');
+    const mealType = document.getElementById('recipe-meal-type').value;
+    const diners = document.getElementById('recipe-diners').value;
+    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
+    const customIngredients = document.getElementById('recipe-custom-ingredients').value;
+    
+    let pantryItemsStr = "";
+    if (!ignorePantry) {
+        const selectedItems = [];
+        document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(cb => { selectedItems.push(cb.value); });
+        if (selectedItems.length === 0) return showToast('error', 'לא סימנתם אף מוצר מהמזווה!');
+        pantryItemsStr = selectedItems.join(', ');
+    } else if (!customIngredients.trim()) {
+        return showToast('error', 'אנא הזינו מצרכים חלופיים');
+    }
+
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...';
+    document.getElementById('recipe-result-container').classList.add('hidden');
+
+    try {
+        const res = await fetch(`${API}/recipes/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, mealType: mealType, diners: diners, ignorePantry: ignorePantry, customIngredients: customIngredients, pantryItems: pantryItemsStr })
+        });
+        const data = await res.json();
+        
+        if(!handleAIResponseCheck(data)) return;
+
+        if (data.success && data.recipe) {
+            let formattedRecipe = data.recipe
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/## /g, '<h3 class="text-lg font-bold text-slate-800 mt-4 mb-2">')
+                .replace(/# /g, '<h2 class="text-xl font-bold text-orange-600 mt-2 mb-2">');
             
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
-                <form onsubmit="handleCreate(event)" class="space-y-4">
-                    <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="openAlertModal('שותפים', 'אפשרות לניהול קבוצת שותפים תתווסף למערכת בקרוב!')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
-                    </div>
-                    <input type="hidden" id="create-type" value="FAMILY">
-                    <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל מנהל המשפחה (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
-                    <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="שם (הורה)" class="modern-input">
-                        <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
-                    </div>
-                    <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
-                    <div class="flex flex-col gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div class="flex items-start gap-2">
-                            <label class="cursor-pointer flex items-start gap-2">
-                                <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-blue-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
-                            </label>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <label class="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים, טיפים פיננסיים והטבות מ-Oneflow Life (רשות)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד משפחה ייחודי עבורכם.</p>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
-            </div>
+            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
+            document.getElementById('recipe-result-container').classList.remove('hidden');
+            triggerConfetti();
+            setTimeout(() => document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' }), 300);
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת המתכון');
+        }
+    } catch (e) { showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)'); } 
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; }
+}
+
+function copyRecipe() {
+    const text = document.getElementById('recipe-result-content').innerText;
+    try {
+        const textArea = document.createElement("textarea"); textArea.value = text;
+        document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea);
+        showToast('success', 'המתכון הועתק בהצלחה!');
+    } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
+}
+
+// --- BANNERS MODULE (SUPER ADMIN & UI) ---
+async function fetchBanners() {
+    try {
+        const res = await fetch(`${API}/banners`);
+        const data = await res.json();
+        if(data.success && data.banners) {
+            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img');
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
             
-            <div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
-                <form onsubmit="handleJoin(event)" class="space-y-4">
-                    <input type="hidden" id="join-role" value="MEMBER">
-                    <input type="text" id="join-code" required placeholder="קוד משפחה" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
-                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
-                    <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
-                    <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
-                    <div class="flex flex-col gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div class="flex items-start gap-2">
-                            <label class="cursor-pointer flex items-start gap-2">
-                                <input type="checkbox" id="join-tos" class="w-4 h-4 accent-indigo-500 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" onclick="openTosModal(event)" class="text-indigo-600 font-bold underline bg-transparent border-none p-0 cursor-pointer">תקנון ותנאי השימוש</button> (חובה)</span>
-                            </label>
-                        </div>
-                        <div class="flex items-start gap-2">
-                            <label class="flex items-start gap-2 cursor-pointer">
-                                <input type="checkbox" id="join-marketing" class="w-4 h-4 accent-indigo-500 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל עדכונים והטבות למשתמשים (רשות)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשה</button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
-            </div>
-
-            <div id="view-sa-login" class="px-8 py-10 flex-1 flex flex-col justify-center hidden">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">מנהל מערכת ראשי</h2>
-                <form onsubmit="handleSALogin(event)" class="space-y-4">
-                    <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input">
-                    <input type="password" id="sa-password" required placeholder="סיסמה (123456)" class="modern-input">
-                    <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2">הכנס לניהול</button>
-                </form>
-                <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">חזור</button>
-            </div>
-        </div>
-
-        <div id="sa-dashboard-container" class="w-full max-w-4xl mx-auto hidden fade-in pb-32 pt-8">
-            <div class="bg-white rounded-[2rem] p-8 shadow-2xl">
-                <div class="flex justify-between items-center mb-8 border-b pb-4">
-                    <h1 class="text-3xl font-bold text-slate-800">ניהול מערכת ראשי ⚙️</h1>
-                    <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
-                        <p class="text-xs text-slate-500 mb-3">טקסט זה יופיע בפופ-אפ לכל משתמש שמתחבר למערכת. השאירו ריק כדי לבטל.</p>
-                        <textarea id="sa-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
-                        <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
-                    </div>
-                    
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
-                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
-                    </div>
-
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> ניהול באנרים פרסומיים (Top & Bottom)</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner)</h3>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
-                                    <input type="text" id="sa-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: מבצע מיוחד לחברי האפליקציה!">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
-                                    <input type="url" id="sa-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
-                                    <input type="text" id="sa-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner1.png">
-                                </div>
-                            </div>
-                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
-                                    <input type="text" id="sa-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
-                                    <input type="url" id="sa-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
-                                    <input type="text" id="sa-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-pink-200 hover:bg-pink-600 transition hover:scale-[1.01]">שמור ופרסם באנרים במערכת</button>
-                    </div>
-                </div>
-
-                <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                        <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
-                        <div class="relative w-full sm:w-64">
-                            <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש לפי קוד או שם משפחה...">
-                        </div>
-                    </div>
-                    <div id="sa-groups-list" class="space-y-3"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
+            if(saTopLink) saTopLink.value = data.banners.banner_top_link || ''; 
+            if(saTopImg) saTopImg.value = data.banners.banner_top_img || '';
             
-            <a id="app-banner-top" class="hidden bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center text-xs font-bold w-full shadow-md hover:opacity-90 transition flex-col items-center justify-center relative z-40 shrink-0 overflow-hidden"></a>
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
+            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || ''; 
+            if(saBottomImg) saBottomImg.value = data.banners.banner_bottom_img || '';
 
-            <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
-                    <div class="flex items-center gap-3">
-                        <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
-                            <i class="fa-solid fa-bars"></i> תפריט
-                        </button>
-                        <div class="flex flex-col items-start">
-                            <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
-                            <div class="flex items-center gap-2 mt-1">
-                                <p class="text-xs text-slate-500">שלום <span id="dash-nickname" class="font-bold"></span></p>
-                                <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition flex items-center gap-1"></button>
-                            </div>
-                        </div>
-                    </div>
-                    <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-right-from-bracket"></i></button>
-                </header>
-                
-                <div class="relative px-2 mb-6 group shrink-0">
-                    <div class="slider-container">
-                        <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
-                        <div class="slider-scroll" id="slider-scroll">
-                            <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
-                            <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
-                            <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מזווה 📦</button>
-                            <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
-                            <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
-                            <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
-                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
-                            <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn">שף AI 👨‍🍳</button>
-                            <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
-                        </div>
-                        <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
-                    </div>
-                </div>
-
-                <div class="px-2 w-full">
-                    <div id="content-feed">
-                        <div id="tour-balance-card" class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-200 mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
-                            <p class="text-blue-100 text-sm font-medium mb-1 opacity-80">יתרה נוכחית</p>
-                            <h1 class="text-5xl font-bold tracking-tight" id="user-balance">₪0</h1>
-                            <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
-                        </div>
-                        <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
-                        <div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3><select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none"><option value="all">כל המשפחה</option></select></div>
-                        <div id="unified-feed-list" class="space-y-3 pb-8"></div>
-                    </div>
-
-                    <div id="content-bank" class="hidden">
-                        <div id="bank-admin-view" class="hidden space-y-6">
-                            <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
-                                <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
-                            </div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
-                            <div id="admin-loans-panel" class="hidden bg-orange-50 rounded-[2rem] p-5 border border-orange-100 shadow-sm">
-                                <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות הלוואה ממתינות</h3>
-                                <div id="admin-loans-list" class="space-y-2"></div>
-                            </div>
-                            <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
-                        </div>
-                        <div id="bank-child-view" class="hidden space-y-6">
-                            <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                                <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                                <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                                <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
-                                <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
-                            <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
-                        </div>
-                    </div>
-
-                    <div id="content-shop" class="hidden">
-                        <div class="flex justify-between items-center mb-4 px-2">
-                            <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
-                            <div class="flex gap-2">
-                                <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
-                                <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold shadow-sm hover:bg-purple-200 transition"><i class="fa-solid fa-receipt"></i> סרוק קבלה</button>
-                                <button onclick="startBarcodeScan('shop')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> ברקוד</button>
-                                <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף</button>
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center mb-2 px-2" id="admin-shop-tools" class="hidden">
-                            <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
-                        </div>
-                        <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
-                            <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור</h4>
-                            <div id="shop-requests-list" class="space-y-2"></div>
-                        </div>
-                        <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
-                    </div>
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
+            
+            const renderBanner = (el, text, link, img) => {
+                if(!el) return;
+                if(text || img) {
+                    let html = '';
+                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`;
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`;
                     
-                    <div id="content-pantry" class="hidden">
-                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
-                            <button onclick="getPantryInsight()" id="btn-pantry-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות מלאי</button>
-                            
-                            <div class="flex justify-between items-center mb-2">
-                                <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
-                            </div>
-                            <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
-                            <div class="flex gap-2">
-                                <button onclick="startBarcodeScan('pantry')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-barcode"></i> סרוק להוספה</button>
-                                <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
-                            </div>
-                        </div>
-                        <div id="pantry-list" class="space-y-3 pb-20"></div>
-                    </div>
+                    el.innerHTML = html;
+                    el.href = link || '#';
+                    if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } 
+                    else { el.target = '_blank'; el.style.cursor = 'pointer'; }
+                    el.classList.remove('hidden');
+                    el.classList.add('flex');
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            };
 
-                    <div id="content-recipes" class="hidden">
-                        <div class="bg-gradient-to-r from-orange-400 to-red-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">השף הפרטי שלכם 👨‍🍳</h3>
-                            <p class="text-orange-50 text-xs opacity-90">familAI תרכיב לכם מתכון מושלם מהמוצרים שיש בבית!</p>
-                            <i class="fa-solid fa-utensils absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
+            renderBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_img);
+            renderBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_img);
+        }
+    } catch(e) {}
+}
 
-                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative mb-6">
-                            <div class="space-y-4">
-                                <div class="flex gap-4">
-                                    <div class="flex-1">
-                                        <label class="text-xs font-bold text-slate-500 mb-1 block">סוג ארוחה:</label>
-                                        <select id="recipe-meal-type" class="modern-input py-2 text-sm bg-white">
-                                            <option value="ארוחת צהריים">ארוחת צהריים</option>
-                                            <option value="ארוחת ערב">ארוחת ערב</option>
-                                            <option value="ארוחת בוקר">ארוחת בוקר</option>
-                                            <option value="קינוח">קינוח</option>
-                                            <option value="נשנוש בריא">נשנוש בריא</option>
-                                        </select>
-                                    </div>
-                                    <div class="w-24">
-                                        <label class="text-xs font-bold text-slate-500 mb-1 block">סועדים:</label>
-                                        <input type="number" id="recipe-diners" class="modern-input py-2 text-sm text-center" value="4" min="1">
-                                    </div>
-                                </div>
-
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                    <label class="flex items-center gap-2 cursor-pointer mb-2 pb-2 border-b border-slate-200">
-                                        <input type="checkbox" id="recipe-ignore-pantry" class="w-4 h-4 accent-orange-500 rounded" onchange="toggleRecipeCustomInput()">
-                                        <span class="text-sm font-bold text-slate-700">התעלם מהמזווה (אני אקליד מצרכים ידנית)</span>
-                                    </label>
-                                    
-                                    <textarea id="recipe-custom-ingredients" class="modern-input text-sm h-20 hidden" placeholder="הקלידו מצרכים חלופיים כאן... (למשל: עוף, אורז, עגבניות)"></textarea>
-                                    
-                                    <div id="recipe-pantry-selection" class="bg-white p-3 rounded-xl border border-slate-200 mt-2">
-                                        <p class="text-xs text-slate-500 mb-2 font-bold">בחרו מוצרים מהמזווה למתכון:</p>
-                                        <div id="recipe-pantry-items-list" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
-                                            <p class="text-xs text-slate-400">טוען מזווה...</p>
-                                        </div>
-                                        <button type="button" onclick="selectAllRecipePantry()" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg mt-3 hover:bg-blue-100 transition shadow-sm w-full text-center">סמן / בטל הכל</button>
-                                    </div>
-                                </div>
-
-                                <button onclick="generateRecipe()" id="btn-generate-recipe" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-200 hover:scale-[1.02] transition flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="recipe-result-container" class="hidden bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 pb-20">
-                            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
-                                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i class="fa-solid fa-scroll text-orange-500"></i> המתכון שלכם</h3>
-                                <button onclick="copyRecipe()" class="text-slate-400 hover:text-blue-500 transition" title="העתק מתכון"><i class="fa-regular fa-copy text-lg"></i></button>
-                            </div>
-                            <div id="recipe-result-content" class="prose prose-sm prose-slate max-w-none text-slate-600 leading-relaxed space-y-2 text-right dir-rtl"></div>
-                        </div>
-                    </div>
-
-                    <div id="content-academy" class="hidden">
-                        <div id="academy-admin-view" class="hidden">
-                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-xs text-blue-800"><i class="fa-solid fa-circle-info mt-0.5"></i> הקצו מבחנים לילדים כדי שירוויחו כסף מלמידה. familAI יכולה לייצר לכם כל מבחן שרק תבקשו!</div>
-                            <div class="flex justify-between items-center mb-6 px-2">
-                                <h3 class="font-bold text-slate-800 text-lg">ניהול למידה 🎓</h3>
-                                <div class="flex gap-2">
-                                    <button onclick="openAIModal()" class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition">✨ יצירת אתגר</button>
-                                    <button onclick="openAssignModal()" class="bg-blue-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-blue-700 transition"><i class="fa-solid fa-user-plus mr-1"></i> הקצאה</button>
-                                </div>
-                            </div>
-                            <div id="academy-pending-container" class="hidden mb-6 bg-orange-50 p-4 rounded-2xl border border-orange-100">
-                                <h4 class="text-sm font-bold text-orange-700 mb-2">בקשות לאישור</h4>
-                                <div id="academy-pending-list" class="space-y-2"></div>
-                            </div>
-                            <div id="admin-assignments-list" class="space-y-3 pb-20"></div>
-                        </div>
-                        <div id="academy-user-view" class="hidden">
-                            <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                                <h3 class="text-xl font-bold mb-1">האקדמיה הפיננסית</h3>
-                                <p class="text-purple-100 text-xs opacity-90">תלמד, תענה נכון - ותרוויח כסף!</p>
-                                <button onclick="requestChallenge()" class="mt-4 bg-white text-purple-600 px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-purple-50 transition">🙋‍♂️ הגרל אתגר מהיר</button>
-                                <i class="fa-solid fa-graduation-cap absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                            </div>
-                            
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">המשימות שלי</h3>
-                            <div id="my-assignments-list" class="space-y-3"></div>
-                            
-                            <div id="academy-history-container" class="mt-6 hidden">
-                                <h3 class="font-bold text-slate-700 mb-3 px-2 text-sm opacity-80">היסטוריית מבחנים</h3>
-                                <div id="academy-history-list" class="space-y-2"></div>
-                            </div>
-
-                            <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg mt-8 border-t border-slate-200 pt-6">📚 ספריית המבחנים</h3>
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                                <div class="flex gap-3 mb-3">
-                                    <select id="lib-age-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הגילאים</option><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option><option value="18+">18+</option></select>
-                                    <select id="lib-cat-filter" onchange="renderLibrary()" class="modern-input py-2 text-xs bg-white h-10"><option value="all">כל הנושאים</option><option value="math">חשבון</option><option value="english">אנגלית</option><option value="reading">קריאה</option><option value="financial">פיננסי</option></select>
-                                </div>
-                            </div>
-                            <div id="library-list" class="space-y-3 pb-20"></div>
-                        </div>
-                    </div>
-
-                    <div id="content-budget" class="hidden">
-                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-                            <button onclick="getBudgetInsight()" id="btn-budget-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 hover:bg-purple-100 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות familAI</button>
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="font-bold text-slate-800 text-lg">מעקב תקציב</h3>
-                                <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden ml-24"></select>
-                            </div>
-                            <p id="budget-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-6"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן מגדירים יעד הוצאות לכל תחום. ה-AI ינתח ויעזור לכם לעמוד ביעדים ולחסוך!</p>
-                            <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition hidden"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
-                            <div id="budget-list" class="space-y-6"></div>
-                        </div>
-                    </div>
-
-                    <div id="content-tasks" class="hidden">
-                        <p id="admin-tasks-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mx-2 mb-4 hidden"><i class="fa-solid fa-circle-info text-blue-500"></i> צרו משימות לילדים וקבעו תגמול. כשיסיימו, הם יצלמו הוכחה ו-familAI תאשר את התשלום באופן אוטומטי, או שתוכלו לאשר ולתגמל בעצמכם!</p>
-                        <div class="flex justify-between items-center mb-4 px-2">
-                            <h3 class="font-bold text-slate-700 text-lg">לוח משימות</h3>
-                            <div class="flex gap-2">
-                                <button onclick="openTaskModal(true)" id="btn-self-task" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-200 transition hidden"><i class="fa-solid fa-star mr-1 text-yellow-500"></i> עשיתי מעשה טוב</button>
-                                <button onclick="openTaskModal()" id="btn-add-task" class="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition hidden"><i class="fa-solid fa-plus mr-1"></i> חדשה</button>
-                            </div>
-                        </div>
-                        <div id="tasks-list" class="space-y-3 pb-20"></div>
-                    </div>
-
-                    <div id="content-members" class="hidden space-y-6">
-                        <div class="card-modern overflow-hidden">
-                            <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-                                <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-user-group text-blue-500"></i> בני הבית</h3>
-                                <button onclick="openInviteModal()" id="tour-invite-btn" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> הזמן</button>
-                            </div>
-                            <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
-                        </div>
-                        <div id="admin-members-tools" class="hidden">
-                            <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> שלח פרטי גישה למייל הורה</button>
-                            <p class="text-[10px] text-slate-400 text-center mt-2">ישלח את כל הפרטים והסיסמאות לכתובת המייל של מנהל המשפחה.</p>
-                        </div>
-                        <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
-                            <div class="p-3 pb-1"><h3 class="font-bold text-yellow-700 text-sm">בקשות הצטרפות</h3></div>
-                            <div id="pending-list" class="space-y-2 p-2"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden"></a>
-        </div>
-        
-        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
-            <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
-            <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
-        </div>
-        
-        <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
-            <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
-                <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
-                <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
-            </div>
-            <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
-        </div>
-        
-        <a href="https://wa.me/972504000024" target="_blank" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-40">
-            <i class="fa-brands fa-whatsapp"></i>
-        </a>
-
-        <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
-            <i class="fa-solid fa-universal-access"></i>
-        </button>
-
-        <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
-                <button onclick="closeBarcodeScanner()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-bold mb-4 text-center text-slate-800 flex items-center justify-center gap-2"><i class="fa-solid fa-barcode text-blue-500"></i> סריקת מוצר</h3>
-                <div id="qr-reader" class="w-full overflow-hidden rounded-xl border border-slate-200 mb-2"></div>
-                <p id="barcode-status-text" class="text-xs text-slate-500 text-center mt-2 font-medium">כוון את המצלמה אל הברקוד</p>
-            </div>
-        </div>
-
-        <div id="new-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-lg font-bold mb-2">מוצר חדש זוהה! ✨</h3>
-                <p class="text-xs text-slate-500 mb-4">ברקוד: <span id="new-product-barcode" class="font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded"></span></p>
-                <input type="text" id="new-product-name" class="modern-input mb-3" placeholder="מה שם המוצר? (למשל: במבה)">
-                <select id="new-product-cat" class="modern-input mb-6 bg-white py-3">
-                    <option value="כללי">כללי</option>
-                    <option value="ירקות ופירות 🍎">ירקות ופירות 🍎</option>
-                    <option value="חלב וביצים 🥛">חלב וביצים 🥛</option>
-                    <option value="לחם ומאפים 🍞">לחם ומאפים 🍞</option>
-                    <option value="מזווה ובישול 🍝">מזווה ובישול 🍝</option>
-                    <option value="בשר ודגים 🍗">בשר ודגים 🍗</option>
-                    <option value="ניקיון וטואלטיקה 🧻">ניקיון וטואלטיקה 🧻</option>
-                    <option value="חטיפים ומתוקים 🍫">חטיפים ומתוקים 🍫</option>
-                </select>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('new-product-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="saveNewProduct()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">שמור והמשך</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="pantry-use-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-lg font-bold mb-2">שימוש במוצר 🍳</h3>
-                <p id="use-pantry-title" class="text-sm text-slate-500 mb-6 font-bold"></p>
-                <input type="hidden" id="use-pantry-name">
-                <div class="relative mb-6">
-                    <input type="number" id="use-pantry-qty" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl text-center font-bold outline-none focus:border-blue-500 transition" placeholder="כמה לקחת?" min="0.1" step="0.1">
-                    <span id="use-pantry-unit-display" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></span>
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('pantry-use-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
-                    <button onclick="submitPantryUse()" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 transition hover:bg-orange-600">עדכן מלאי</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
-                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
-                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
-                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
-            </div>
-        </div>
-
-        <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <i class="fa-solid fa-bullhorn text-4xl text-blue-500 mb-4 mt-2"></i>
-                <h3 class="text-2xl font-bold mb-4 text-slate-800">הודעת מערכת</h3>
-                <p id="welcome-modal-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
-                <button onclick="closeWelcomeModal()" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg hover:scale-105 transition">הבנתי, תודה!</button>
-            </div>
-        </div>
-
-        <div id="ai-battery-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden">
-                <div class="flex justify-center mb-4 relative z-10">
-                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-inner transform -translate-y-2 border-4 border-white overflow-hidden p-2 opacity-70">
-                        <img src="logo.png" alt="familAI" class="w-full h-full object-contain grayscale">
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mb-2 text-slate-800">הסוללה שלי התרוקנה... 🔋💤</h3>
-                <p class="text-sm text-slate-500 mb-6 leading-relaxed">פווו... עבדתי קשה היום! ניצלנו את כל משאבי ה-AI היומיים שלכם. נתראה מחר בבוקר עם סוללה מלאה!</p>
-                
-                <div id="ai-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100">
-                    <p class="text-xs font-bold text-purple-800 mb-2">רוצים להשתמש בי ללא הגבלה?</p>
-                    <button onclick="openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!')" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
-                </div>
-                
-                <button onclick="closeAiBatteryModal()" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, נחכה למחר</button>
-            </div>
-        </div>
-
-        <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
-                <p class="text-sm text-slate-500 mb-6">קוד המשפחה שלכם: <span id="display-group-code" class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded tracking-widest">---</span></p>
-                <div class="space-y-3">
-                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-indigo-50 border border-indigo-100 text-indigo-700 py-3.5 rounded-xl font-bold hover:bg-indigo-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-user-tie"></i> הורה / בן זוג (מנהל)</button>
-                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-green-50 border border-green-100 text-green-700 py-3.5 rounded-xl font-bold hover:bg-green-100 transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-child"></i> ילד / בת (רגיל)</button>
-                </div>
-                <button onclick="document.getElementById('invite-modal').classList.add('hidden')" class="mt-6 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול וסגירה</button>
-            </div>
-        </div>
-
-        <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
-                <div class="flex justify-center mb-4 relative z-10">
-                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
-                        <img src="logo.png" alt="familAI" class="w-full h-full object-contain">
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת אתגר עם familAI ✨</h3>
-                <p class="text-sm text-slate-500 mb-4 text-center">אני אבנה מבחן חדש ומותאם אישית!</p>
-                <label class="text-xs font-bold text-slate-400">לאיזה גיל?</label>
-                <select id="ai-age" class="modern-input mb-3 bg-white"><option value="6-8">גיל 6-8</option><option value="8-10">גיל 8-10</option><option value="10-13">גיל 10-13</option><option value="13-15">גיל 13-15</option><option value="15-18">גיל 15-18</option></select>
-                <label class="text-xs font-bold text-slate-400">על מה המבחן?</label>
-                <input type="text" id="ai-topic" class="modern-input mb-6" placeholder="למשל: חיסכון, חיות, יזמות...">
-                <div class="flex gap-3"><button onclick="document.getElementById('ai-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="generateAIQuiz()" id="btn-ai-gen" class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg">צור אתגר</button></div>
-            </div>
-        </div>
-
-        <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
-                <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
-                <input type="hidden" id="task-is-self" value="false">
-                <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
-                    <div id="task-assignee-container"><label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label><select id="task-assignee" class="modern-input bg-white py-2 text-sm"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">תוקף (ימים - אופציונלי):</label><input type="number" id="task-days" class="modern-input py-2 text-sm" placeholder="ללא תוקף"></div>
-                </div>
-                <div id="task-mode-toggles" class="flex gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl"><button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition">✍️ הזנה ידנית</button><button onclick="setTaskMode('ai')" id="btn-mode-ai" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition">✨ familAI</button></div>
-                <div id="task-mode-manual" class="space-y-3 flex-1 flex flex-col justify-end">
-                    <div><input type="text" id="task-title" class="modern-input text-sm" placeholder="מה לעשות? (למשל: לארגן את הסלון)"></div>
-                    
-                    <div id="task-reward-group">
-                        <input type="number" id="task-reward" class="modern-input text-sm" placeholder="תגמול (₪)">
-                    </div>
-                    
-                    <div class="flex gap-3 mt-4 pt-2"><button onclick="closeTaskModal()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">צור משימה</button></div>
-                </div>
-                <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
-                    <div class="flex justify-center mb-2">
-                        <img src="logo.png" alt="familAI" class="w-12 h-12 object-contain">
-                    </div>
-                    <p class="text-xs text-slate-500 text-center px-2 font-medium leading-relaxed mb-2">תנו ל-familAI לעשות את העבודה הקשה! ספרו לנו במה אתם צריכים עזרה, והעוזרת החכמה שלנו תייצר משימות ותמליץ על תגמול הוגן.</p>
-                    <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
-                    <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות</button>
-                    <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 mt-2 pt-2 border-t border-slate-100"></div>
-                    <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-auto">ביטול וסגירה</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="approve-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-lg font-bold mb-2">אישור משימה ✅</h3>
-                <p id="approve-task-title" class="text-sm text-slate-500 mb-4"></p>
-                <input type="hidden" id="approve-task-id">
-                <label class="text-xs font-bold text-slate-400 block mb-1">תגמול סופי לאישור (₪):</label>
-                <input type="number" id="approve-task-reward" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום">
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('approve-task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
-                    <button onclick="submitTaskApproval()" class="flex-1 bg-green-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 transition hover:bg-green-600">אשר ושלם</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
-                <div class="flex justify-center mb-4 relative z-10">
-                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
-                        <img src="logo.png" alt="familAI" class="w-full h-full object-contain">
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mb-1 text-center text-slate-800">היי, אני familAI!</h3>
-                <p id="familai-modal-subtitle" class="text-xs text-slate-400 mb-6 text-center">היועצת הפיננסית של המשפחה</p>
-                <div id="familai-advisor-loading" class="text-center py-6"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500 mb-3"></i><p class="text-sm text-slate-500 font-medium" id="familai-loading-text">מנתחת את הנתונים שלך...</p></div>
-                <div id="familai-advisor-content" class="hidden"><div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 mb-6 relative"><i class="fa-solid fa-quote-right absolute top-2 right-3 text-indigo-200 text-2xl"></i><p id="familai-advice-text" class="text-sm text-indigo-900 font-medium leading-relaxed relative z-10"></p></div><button onclick="document.getElementById('familai-advisor-modal').classList.add('hidden')" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">הבנתי, תודה!</button></div>
-            </div>
-        </div>
-
-        <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-[60] flex flex-col items-center justify-center p-6">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative">
-                <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-                <div id="quiz-content" class="text-center">
-                    <h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2>
-                    <div id="quiz-text-container" class="bg-blue-50 p-3 rounded-xl mb-4 text-sm text-slate-600 max-h-40 overflow-y-auto text-right hidden leading-relaxed border border-blue-100"></div>
-                    <div id="question-container"><div class="flex justify-between text-xs text-slate-400 font-bold mb-4 uppercase tracking-widest"><span>שאלה</span><span id="q-progress">1 / 5</span></div><h3 id="q-text" class="text-xl font-bold mb-8 min-h-[60px] flex items-center justify-center leading-relaxed"></h3><div id="q-options" class="space-y-3"></div></div>
-                    <div id="quiz-result" class="hidden">
-                        <div id="quiz-icon" class="text-6xl mb-4"></div>
-                        <h3 id="quiz-msg-title" class="text-2xl font-bold mb-2"></h3>
-                        <p id="quiz-msg-desc" class="text-slate-500 mb-6"></p>
-                        <p id="quiz-score-display" class="font-bold text-xl mb-4"></p> 
-                        <button id="btn-tutor" class="hidden mb-4 w-full bg-purple-50 border border-purple-200 text-purple-700 py-3 rounded-xl font-bold shadow-sm hover:bg-purple-100 transition flex items-center justify-center gap-2" onclick="askTutor()">
-                            <img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?
-                        </button> 
-                        <button onclick="closeQuiz()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">סיום</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
-                <div class="space-y-4">
-                    <div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div>
-                        <div class="w-20 relative"><input type="number" id="shop-quantity" class="modern-input text-center px-1" value="1" min="0.1" step="0.1"><span class="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">כמות</span></div>
-                        <div class="w-24 relative"><select id="shop-unit" class="modern-input text-center px-1 py-3 text-sm bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
-                    </div>
-                </div>
-                <div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div>
-            </div>
-        </div>
-        
-        <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">הוספה למזווה</h3>
-                <div class="space-y-4">
-                    <input type="text" id="pantry-item" class="modern-input" placeholder="שם המוצר...">
-                    <div class="flex gap-2">
-                        <div class="flex-1 relative"><input type="number" id="pantry-quantity" class="modern-input text-center" value="1" min="0.1" step="0.1"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div>
-                        <div class="flex-1 relative"><select id="pantry-unit" class="modern-input text-center px-1 py-3 bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
-                    </div>
-                </div>
-                <div class="flex gap-3 mt-6"><button onclick="document.getElementById('pantry-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitPantryItem()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף למלאי</button></div>
-            </div>
-        </div>
-
-        <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3>
-                <p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p>
-                <div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div>
-                <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים בעגלה:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-blue-600" id="summ-total">₪0.00</span></div></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">אשר ושלם</button></div>
-            </div>
-        </div>
-        
-        <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]">
-                <h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3>
-                <div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
-                <button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button>
-            </div>
-        </div>
-        
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
-                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
-                <input type="hidden" id="trans-type">
-                <div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div>
-                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
-                <select id="trans-cat" class="modern-input mb-8 bg-white"></select>
-                <div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div>
-            </div>
-        </div>
-        
-        <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3>
-                <div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div>
-                <input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)">
-                <div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div>
-            </div>
-        </div>
-        
-        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3>
-                <p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id">
-                <div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">הפקד</button></div>
-            </div>
-        </div>
-        
-        <div id="bank-settings-modal" class="fixed fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3>
-                <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
-                <div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div>
-            </div>
-        </div>
-        
-        <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">יעד תקציב</h3>
-                <p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id">
-                <input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי">
-                <div class="flex gap-3"><button onclick="document.getElementById('budget-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBudgetUpdate()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">עדכן</button></div>
-            </div>
-        </div>
-        
-        <div id="add-budget-cat-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">קטגוריה חדשה לתקציב</h3>
-                <input type="text" id="new-budget-cat-name" class="modern-input mb-6 text-center" placeholder="שם הקטגוריה (למשל: דלק, חוגים)">
-                <div class="flex gap-3"><button onclick="document.getElementById('add-budget-cat-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitNewBudgetCat()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף</button></div>
-            </div>
-        </div>
-
-        <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3>
-                <input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?">
-                <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div>
-            </div>
-        </div>
-        
-        <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3>
-                <label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select>
-                <label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white" onchange="updateAssignDetails()"></select>
-                <div class="flex gap-2 mb-6"><div class="flex-1"><label class="text-xs font-bold text-slate-400">בונוס (₪):</label><input type="number" id="assign-reward" class="modern-input text-center"></div><div class="flex-1"><label class="text-xs font-bold text-slate-400">תוקף (ימים):</label><input type="number" id="assign-days" class="modern-input text-center" placeholder="ללא"></div></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('assign-quiz-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitAssignQuiz()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הקצאה</button></div>
-            </div>
-        </div>
-
-        <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
-                
-                <div id="profile-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100 text-right">
-                    <h4 class="font-bold text-purple-800 mb-1 flex items-center justify-center gap-2"><i class="fa-solid fa-crown text-yellow-500"></i> Oneflow Pro</h4>
-                    <p class="text-xs text-slate-600 mb-3 leading-relaxed text-center">שדרגו כעת ל-Pro ותיהנו משימוש ללא הגבלה במערכת familAI עבור כל בני המשפחה!</p>
-                    <button id="btn-profile-upgrade" type="button" onclick="openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!')" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">שדרגו כעת (9.90₪)</button>
-                </div>
-
-                <form onsubmit="submitChangePassword(event)" class="space-y-3">
-                    <input type="password" id="old-password" required placeholder="סיסמה נוכחית" class="modern-input">
-                    <input type="password" id="new-password" required placeholder="סיסמה חדשה" class="modern-input">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg mt-2">שנה סיסמה</button>
-                </form>
-                <button type="button" onclick="triggerManualTour()" class="mt-4 w-full bg-indigo-50 py-3 rounded-xl font-bold text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> התחל סיור מודרך</button>
-                <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-3 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
-            </div>
-        </div>
-
-        <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
-                <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
-                <div class="flex-1 overflow-y-auto text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
-                    <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
-                    <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב והמשימות המשפחתיות. ה"כסף" המוצג במערכת (בארנק, במשימות וביעדים) אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך חינוך וניהול משפחתי בלבד.</p>
-                    <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
-                    <p><strong>4. פרטיות המידע וקטינים:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. האפליקציה מיועדת לניהול משפחתי; יצירת חשבונות עבור קטינים והזנת נתונים אודותיהם נמצאת באחריות המלאה והבלעדית של ההורה (מנהל הבנק המשפחתי) ועליו לוודא את נכונות התוכן המוצג להם.</p>
-                    <p><strong>5. עדכונים ותקשורת:</strong> במידה ואישרתם קבלת דיוור באזור ההרשמה, נהיה רשאים לשלוח אליכם התראות, טיפים לניהול כלכלת המשפחה והטבות. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>
-                </div>
-                <button type="button" onclick="closeTosModal()" class="mt-6 w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קראתי והבנתי</button>
-            </div>
-        </div>
-
-        <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-universal-access text-blue-600"></i> נגישות</h3>
-                    <button onclick="closeAccessibilityModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="toggleAccess('text-lg')" id="acc-text-lg" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>הגדלת טקסט</span> <i class="fa-solid fa-font text-lg"></i></button>
-                    <button onclick="toggleAccess('grayscale')" id="acc-grayscale" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>גווני אפור</span> <i class="fa-solid fa-circle-half-stroke text-lg"></i></button>
-                    <button onclick="toggleAccess('contrast')" id="acc-contrast" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>ניגודיות גבוהה</span> <i class="fa-solid fa-adjust text-lg"></i></button>
-                    <button onclick="toggleAccess('readable-font')" id="acc-readable-font" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>פונט קריא (Arial)</span> <i class="fa-solid fa-text-height text-lg"></i></button>
-                    <button onclick="toggleAccess('highlight-links')" id="acc-highlight-links" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>הדגשת קישורים</span> <i class="fa-solid fa-link text-lg"></i></button>
-                </div>
-                <button onclick="resetAccessibility()" class="w-full mt-6 bg-red-50 text-red-500 py-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-100">איפוס הגדרות</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js" defer></script>
-</body>
-</html>
+async function saveBanners() {
+    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImg = val('sa-banner-top-img');
+    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImg = val('sa-banner-bottom-img');
+    
+    try {
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg }) 
+        });
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
+            fetchBanners(); 
+        } else { 
+            showToast('error', 'שגיאה בשמירת הבאנרים'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת מול השרת'); 
+    }
+}
