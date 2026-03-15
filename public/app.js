@@ -25,6 +25,10 @@ let allTasks = []; let allTransactions = []; let feedCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
+let html5QrCode = null;
+let currentScanTarget = ''; 
+let currentScannedBarcode = '';
+
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
     income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], 
@@ -354,7 +358,6 @@ async function loadDashboard() {
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
-        // הוספנו את 'btn-pantry-insight' לחישוב כדי שהכפתור יופיע
         ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
         const profileUp = document.getElementById('profile-upgrade-section');
@@ -662,11 +665,160 @@ function handleReceiptUpload(event) {
     }; reader.readAsDataURL(file);
 }
 
+// ==========================================
+// BARCODE SCANNING & PANTRY USE LOGIC
+// ==========================================
+
+function startBarcodeScan(target) {
+    currentScanTarget = target;
+    document.getElementById('barcode-scanner-modal').classList.remove('hidden');
+    
+    html5QrCode = new Html5Qrcode("qr-reader");
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        onScanFailure
+    ).catch(err => {
+        showToast('error', 'לא ניתן לגשת למצלמה');
+        closeBarcodeScanner();
+    });
+}
+
+function onScanFailure(error) { 
+    // Ignore routine scan failures
+}
+
+async function onScanSuccess(decodedText) {
+    if(html5QrCode) {
+        try {
+            await html5QrCode.stop();
+            document.getElementById('barcode-scanner-modal').classList.add('hidden');
+            processBarcode(decodedText);
+        } catch(err) { console.error(err); }
+    }
+}
+
+function closeBarcodeScanner() {
+    if(html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('barcode-scanner-modal').classList.add('hidden');
+        }).catch(err => console.error(err));
+    } else {
+        document.getElementById('barcode-scanner-modal').classList.add('hidden');
+    }
+}
+
+async function processBarcode(barcode) {
+    currentScannedBarcode = barcode;
+    try {
+        const res = await fetch(`${API}/products`);
+        const products = await res.json();
+        const found = products.find(p => p.barcode === barcode);
+        
+        if (found) {
+            if (currentScanTarget === 'shop') {
+                document.getElementById('shop-item').value = found.name;
+                openShopModal();
+            } else {
+                document.getElementById('pantry-item').value = found.name;
+                openPantryModal();
+            }
+        } else {
+            // Unknown product
+            document.getElementById('new-product-barcode').innerText = barcode;
+            document.getElementById('new-product-name').value = '';
+            document.getElementById('new-product-cat').value = 'כללי';
+            document.getElementById('new-product-modal').classList.remove('hidden');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בחיפוש מוצר במאגר');
+    }
+}
+
+async function saveNewProduct() {
+    const name = val('new-product-name');
+    const cat = val('new-product-cat');
+    if(!name) return showToast('error', 'נא להזין שם מוצר');
+    
+    try {
+        await fetch(`${API}/products`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ barcode: currentScannedBarcode, name, category: cat }) 
+        });
+        
+        document.getElementById('new-product-modal').classList.add('hidden');
+        
+        if (currentScanTarget === 'shop') {
+            document.getElementById('shop-item').value = name;
+            openShopModal();
+        } else {
+            document.getElementById('pantry-item').value = name;
+            openPantryModal();
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירת המוצר');
+    }
+}
+
+function openPantryUseModal(name, unit) {
+    document.getElementById('use-pantry-title').innerText = `מה לקחת מ: ${name}?`;
+    document.getElementById('use-pantry-name').value = name;
+    document.getElementById('use-pantry-qty').value = '';
+    document.getElementById('use-pantry-unit-display').innerText = unit || "יח'";
+    document.getElementById('pantry-use-modal').classList.remove('hidden');
+}
+
+async function submitPantryUse() {
+    const name = val('use-pantry-name');
+    const qty = val('use-pantry-qty');
+    if(!qty || parseFloat(qty) <= 0) return showToast('error', 'נא להזין כמות תקינה');
+    
+    try {
+        const res = await fetch(`${API}/pantry/use`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: qty }) 
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'המלאי עודכן בהצלחה');
+            document.getElementById('pantry-use-modal').classList.add('hidden');
+            fetchData();
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) {
+        showToast('error', 'שגיאה בעדכון המלאי');
+    }
+}
+
 function renderPantry() {
     const list = document.getElementById('pantry-list'); if(!list) return; list.innerHTML = '';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המזווה ריק. הוסיפו מוצרים כדי לעקוב אחרי המלאי בבית!</p>'; return; }
     pantryCache.forEach(p => {
-        list.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4><p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')}</p></div><div class="flex items-center gap-2"><div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3"><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button><span>${p.quantity} ${p.unit || "יח'"}</span><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button></div><button onclick="movePantryToCart(${p.id}, '${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="bg-pink-50 text-pink-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-pink-100 transition shadow-sm" title="הוסף לקניות"><i class="fa-solid fa-cart-arrow-down"></i></button></div></div>`;
+        list.innerHTML += `
+        <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3">
+                        <button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button>
+                        <span>${p.quantity} ${p.unit || "יח'"}</span>
+                        <button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-1 border-t border-slate-50 pt-2">
+                <button onclick="openPantryUseModal('${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-orange-50 text-orange-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-orange-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-utensils"></i> השתמשתי</button>
+                <button onclick="movePantryToCart(${p.id}, '${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-pink-50 text-pink-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-pink-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> חסר (לקניות)</button>
+            </div>
+        </div>`;
     });
 }
 
