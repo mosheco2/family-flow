@@ -94,15 +94,15 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT DEFAULT 1, estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity INT, price_per_unit DECIMAL(10,2));
-            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity INT DEFAULT 1, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2), unit VARCHAR(20) DEFAULT 'יח''', price_per_unit DECIMAL(10,2));
+            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for quantities and units)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -231,21 +231,18 @@ app.post('/api/premium/simulate-checkout', async (req, res) => {
     } catch (e) { res.status(500).json({ error: 'שגיאה בשדרוג החשבון' }); }
 });
 
-// --- EMAIL CREDENTIALS (NEW) ---
+// --- EMAIL CREDENTIALS ---
 app.post('/api/admin/send-credentials', async (req, res) => {
     try {
         const { groupId, adminId } = req.body;
-        // אימות שהמשתמש הוא אכן מנהל המשפחה
         const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
         if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל משפחה מורשה לבצע פעולה זו"});
 
-        // שליפת מייל המנהל
         const groupRes = await pool.query("SELECT admin_email, name FROM family_groups WHERE id = $1", [groupId]);
         if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת למשפחה זו. אנא ודאו שהזנתם מייל בעת ההרשמה."});
         const adminEmail = groupRes.rows[0].admin_email;
         const groupName = groupRes.rows[0].name;
 
-        // שליפת המשתמשים
         const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
         
         let emailContent = `שלום מנהל/ת משפחת ${groupName},\n\nלהלן פרטי הגישה של כל בני הבית למערכת Oneflow Life:\n\n`;
@@ -255,13 +252,11 @@ app.post('/api/admin/send-credentials', async (req, res) => {
         });
         emailContent += `\nבברכה,\nצוות Oneflow Life`;
 
-        // הדפסה לקונסול (כדי לראות שזה עובד גם ללא שרת מייל מוגדר)
         console.log(`\n======================================\n📨 === EMAIL TO: ${adminEmail} === 📨\n${emailContent}\n======================================\n`);
 
-        // שליחת מייל בפועל (אם מוגדרים משתני סביבה)
         if (process.env.SMTP_USER && process.env.SMTP_PASS) {
             const transporter = nodemailer.createTransport({
-                service: 'gmail', // ניתן לשנות לספק המייל שלך
+                service: 'gmail',
                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
             await transporter.sendMail({
@@ -385,8 +380,8 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
-        const pantryRes = await pool.query('SELECT item_name, quantity, updated_at FROM pantry WHERE group_id=$1', [groupId]);
-        const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
+        const pantryRes = await pool.query('SELECT item_name, quantity, unit, updated_at FROM pantry WHERE group_id=$1', [groupId]);
+        const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.unit, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
         const result = await model.generateContent(prompt);
@@ -749,9 +744,10 @@ app.post('/api/goals/deposit', async (req, res) => {
 });
 
 // ============================================================
-// --- BUDGET ENDPOINTS ---
+// --- BUDGET ENDPOINTS (NEW) ---
 // ============================================================
 
+// GET /api/budget/filter – נתוני תקציב לפי קבוצה / משתמש ספציפי
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
@@ -760,6 +756,7 @@ app.get('/api/budget/filter', async (req, res) => {
         let allocations, spent;
 
         if (!targetUserId || targetUserId === 'all') {
+            // כלל בני הבית – מסכמים לפי קטגוריה
             allocations = await pool.query(
                 `SELECT category, COALESCE(SUM(amount_limit), 0) AS lim
                  FROM budget_allocations WHERE group_id = $1
@@ -775,6 +772,7 @@ app.get('/api/budget/filter', async (req, res) => {
                 [groupId]
             );
         } else {
+            // משתמש ספציפי
             allocations = await pool.query(
                 `SELECT category, COALESCE(amount_limit, 0) AS lim
                  FROM budget_allocations
@@ -791,6 +789,7 @@ app.get('/api/budget/filter', async (req, res) => {
             );
         }
 
+        // מיזוג allocations + spent למערך אחד
         const result = {};
         allocations.rows.forEach(r => {
             result[r.category] = { category: r.category, limit: parseFloat(r.lim) || 0, spent: 0 };
@@ -804,6 +803,7 @@ app.get('/api/budget/filter', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/budget/update – קביעת מגבלה לקטגוריה
 app.post('/api/budget/update', async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
@@ -812,6 +812,7 @@ app.post('/api/budget/update', async (req, res) => {
         const lim = parseFloat(limit) || 0;
 
         if (!targetUserId || targetUserId === 'all') {
+            // עדכון לכל בני הבית הפעילים
             const members = await pool.query(
                 `SELECT id FROM users WHERE group_id = $1 AND status = 'active'`,
                 [groupId]
@@ -839,9 +840,10 @@ app.post('/api/budget/update', async (req, res) => {
 });
 
 // ============================================================
-// --- LOANS ENDPOINTS ---
+// --- LOANS ENDPOINTS (NEW) ---
 // ============================================================
 
+// POST /api/loans/request – ילד מבקש הלוואה
 app.post('/api/loans/request', async (req, res) => {
     try {
         const { userId, amount, reason } = req.body;
@@ -857,6 +859,7 @@ app.post('/api/loans/request', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/loans – שליפת הלוואות לפי קבוצה (הורה) או משתמש (ילד)
 app.get('/api/loans', async (req, res) => {
     try {
         const { groupId, userId } = req.query;
@@ -874,6 +877,7 @@ app.get('/api/loans', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/loans/approve – הורה מאשר הלוואה ומעביר כסף
 app.post('/api/loans/approve', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -895,6 +899,7 @@ app.post('/api/loans/approve', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
+// POST /api/loans/reject – הורה דוחה הלוואה
 app.post('/api/loans/reject', async (req, res) => {
     try {
         const { loanId, adminId } = req.body;
@@ -906,9 +911,10 @@ app.post('/api/loans/reject', async (req, res) => {
 });
 
 // ============================================================
-// --- ACADEMY ENDPOINTS ---
+// --- ACADEMY ENDPOINTS (NEW) ---
 // ============================================================
 
+// POST /api/academy/assign – הורה מקצה מבחן לילד
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -924,6 +930,7 @@ app.post('/api/academy/assign', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/academy/request-challenge – ילד מבקש אתגר אקראי
 app.post('/api/academy/request-challenge', async (req, res) => {
     try {
         const { userId, bundleId } = req.body;
@@ -945,6 +952,7 @@ app.post('/api/academy/request-challenge', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/academy/submit – ילד מגיש תשובות מבחן
 app.post('/api/academy/submit', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -982,6 +990,7 @@ app.post('/api/shopping/add', async (req, res) => {
         const user = uRes.rows[0];
         const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
         let normalizedName = req.body.itemName;
+        const unit = req.body.unit || 'יח\'';
         if (genAI) {
             try {
                 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -991,16 +1000,17 @@ app.post('/api/shopping/add', async (req, res) => {
                 if(data.normalized) normalizedName = data.normalized;
             } catch(e) {}
         }
-        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, req.body.estimatedPrice || 0, initialStatus]);
+        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, unit, req.body.estimatedPrice || 0, initialStatus]);
         res.json({ success: true, id: iRes.rows[0].id, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/shopping/update', async (req, res) => {
     try {
-        const { itemId, status, estimatedPrice } = req.body;
+        const { itemId, status, estimatedPrice, unit } = req.body;
         if (status) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
         if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+        if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
         res.json({ success: true, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1019,15 +1029,17 @@ app.post('/api/shopping/checkout', async (req, res) => {
         const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
         const tripId = tripRes.rows[0].id;
         for (let item of boughtItems) {
-            const slItemRes = await dbClient.query('SELECT normalized_name FROM shopping_list WHERE id=$1', [item.id]);
+            const slItemRes = await dbClient.query('SELECT normalized_name, unit FROM shopping_list WHERE id=$1', [item.id]);
             const normName = slItemRes.rows.length > 0 ? (slItemRes.rows[0].normalized_name || item.name) : item.name;
-            const pricePerUnit = parseFloat(item.price) / (parseInt(item.quantity) || 1);
-            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4, $5)`, [tripId, item.name, normName, item.quantity, pricePerUnit]);
-            const pantryExists = await dbClient.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [u.group_id, normName]);
+            const unit = slItemRes.rows.length > 0 ? (slItemRes.rows[0].unit || 'יח\'') : 'יח\'';
+            const pricePerUnit = parseFloat(item.price) / (parseFloat(item.quantity) || 1);
+            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, unit, price_per_unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, normName, item.quantity, unit, pricePerUnit]);
+            
+            const pantryExists = await dbClient.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2 AND unit=$3', [u.group_id, normName, unit]);
             if (pantryExists.rows.length > 0) {
                  await dbClient.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [item.quantity, pantryExists.rows[0].id]);
             } else {
-                 await dbClient.query('INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)', [u.group_id, normName, item.quantity]);
+                 await dbClient.query('INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)', [u.group_id, normName, item.quantity, unit]);
             }
             await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
@@ -1056,7 +1068,7 @@ app.post('/api/shopping/copy', async (req, res) => {
         const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
         const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
         for(let i of items.rows) {
-            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [u.group_id, userId, i.item_name, i.normalized_name || i.item_name, i.quantity]);
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [u.group_id, userId, i.item_name, i.normalized_name || i.item_name, i.quantity, i.unit || 'יח\'']);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1065,11 +1077,12 @@ app.post('/api/shopping/copy', async (req, res) => {
 app.post('/api/pantry/add', async (req, res) => {
     try {
         const { groupId, itemName, quantity } = req.body;
-        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        const unit = req.body.unit || 'יח\'';
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2 AND unit=$3', [groupId, itemName, unit]);
         if (existing.rows.length > 0) {
             await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, existing.rows[0].id]);
         } else {
-            await pool.query('INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)', [groupId, itemName, quantity]);
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)', [groupId, itemName, quantity, unit]);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
