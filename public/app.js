@@ -573,7 +573,6 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
-// עודכן כך שילד יוכל לבקש תגמול בעצמו
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
     document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
@@ -585,7 +584,7 @@ function openTaskModal(isSelf = false) {
         document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
         toggles.classList.add('hidden'); 
         assigneeContainer.classList.add('hidden'); 
-        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)';
     } else { 
         document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
         toggles.classList.remove('hidden'); 
@@ -623,11 +622,10 @@ async function generateAITasks() {
 
 function selectAITask(title, reward) { document.getElementById('task-title').value = title; document.getElementById('task-reward').value = reward; setTaskMode('manual'); }
 
-// עודכן לשמירת סטטוס "done" אוטומטית אם ילד שולח משימה
 async function submitTask() { 
     const isSelf = document.getElementById('task-is-self').value === 'true'; 
     const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = val('task-reward'); // נמשך גם אם הילד הזין
+    const reward = val('task-reward');
     const title = val('task-title'); 
     const days = val('task-days');
     
@@ -691,7 +689,11 @@ function startBarcodeScan(target) {
     html5QrCode = new Html5Qrcode("qr-reader");
     html5QrCode.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { 
+            fps: 10, 
+            // שינינו ממרובע למלבן מותאם לברקודים של סופר
+            qrbox: { width: 280, height: 120 } 
+        },
         onScanSuccess,
         onScanFailure
     ).catch(err => {
@@ -922,7 +924,7 @@ function renderTasks(tasks) {
         else if (t.status === 'done') { 
             statusColor = 'bg-yellow-50 border-yellow-100'; 
             if (isAdmin) {
-                // שונה כדי להקפיץ חלון אישור עם אפשרות לערוך שכר
+                // מקפיץ חלון אישור עם אפשרות לערוך שכר
                 actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${t.title.replace(/'/g, "\\'")}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; 
             } else {
                 statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; 
