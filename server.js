@@ -85,6 +85,7 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS users CASCADE;
             DROP TABLE IF EXISTS family_groups CASCADE;
             DROP TABLE IF EXISTS system_settings CASCADE;
+            DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -101,8 +102,10 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            
+            CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for quantities and units)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for quantities, units, and global products)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -272,6 +275,27 @@ app.post('/api/admin/send-credentials', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
+
+// --- GLOBAL PRODUCTS (BARCODES) ---
+app.get('/api/products', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT barcode, name, category FROM global_products');
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/products', async (req, res) => {
+    try {
+        const { barcode, name, category } = req.body;
+        if (!barcode || !name) return res.status(400).json({ error: 'חסר ברקוד או שם מוצר' });
+        await pool.query(
+            `INSERT INTO global_products (barcode, name, category) VALUES ($1, $2, $3) ON CONFLICT (barcode) DO NOTHING`, 
+            [barcode, name, category || 'כללי']
+        );
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 // --- AI ENDPOINTS ---
 app.post('/api/recipes/generate', async (req, res) => {
@@ -461,7 +485,6 @@ app.post('/api/groups', async (req, res) => {
     try {
         await dbClient.query('BEGIN');
         let code = generateGroupCode();
-        // מזין את כתובת המייל לשדה admin_email בטבלת הקבוצות
         const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
         const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, req.body.birthYear, req.body.password]);
@@ -744,10 +767,9 @@ app.post('/api/goals/deposit', async (req, res) => {
 });
 
 // ============================================================
-// --- BUDGET ENDPOINTS (NEW) ---
+// --- BUDGET ENDPOINTS ---
 // ============================================================
 
-// GET /api/budget/filter – נתוני תקציב לפי קבוצה / משתמש ספציפי
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
@@ -756,7 +778,6 @@ app.get('/api/budget/filter', async (req, res) => {
         let allocations, spent;
 
         if (!targetUserId || targetUserId === 'all') {
-            // כלל בני הבית – מסכמים לפי קטגוריה
             allocations = await pool.query(
                 `SELECT category, COALESCE(SUM(amount_limit), 0) AS lim
                  FROM budget_allocations WHERE group_id = $1
@@ -772,7 +793,6 @@ app.get('/api/budget/filter', async (req, res) => {
                 [groupId]
             );
         } else {
-            // משתמש ספציפי
             allocations = await pool.query(
                 `SELECT category, COALESCE(amount_limit, 0) AS lim
                  FROM budget_allocations
@@ -789,7 +809,6 @@ app.get('/api/budget/filter', async (req, res) => {
             );
         }
 
-        // מיזוג allocations + spent למערך אחד
         const result = {};
         allocations.rows.forEach(r => {
             result[r.category] = { category: r.category, limit: parseFloat(r.lim) || 0, spent: 0 };
@@ -803,7 +822,6 @@ app.get('/api/budget/filter', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/budget/update – קביעת מגבלה לקטגוריה
 app.post('/api/budget/update', async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
@@ -812,7 +830,6 @@ app.post('/api/budget/update', async (req, res) => {
         const lim = parseFloat(limit) || 0;
 
         if (!targetUserId || targetUserId === 'all') {
-            // עדכון לכל בני הבית הפעילים
             const members = await pool.query(
                 `SELECT id FROM users WHERE group_id = $1 AND status = 'active'`,
                 [groupId]
@@ -840,10 +857,9 @@ app.post('/api/budget/update', async (req, res) => {
 });
 
 // ============================================================
-// --- LOANS ENDPOINTS (NEW) ---
+// --- LOANS ENDPOINTS ---
 // ============================================================
 
-// POST /api/loans/request – ילד מבקש הלוואה
 app.post('/api/loans/request', async (req, res) => {
     try {
         const { userId, amount, reason } = req.body;
@@ -859,7 +875,6 @@ app.post('/api/loans/request', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/loans – שליפת הלוואות לפי קבוצה (הורה) או משתמש (ילד)
 app.get('/api/loans', async (req, res) => {
     try {
         const { groupId, userId } = req.query;
@@ -877,7 +892,6 @@ app.get('/api/loans', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/loans/approve – הורה מאשר הלוואה ומעביר כסף
 app.post('/api/loans/approve', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -899,7 +913,6 @@ app.post('/api/loans/approve', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// POST /api/loans/reject – הורה דוחה הלוואה
 app.post('/api/loans/reject', async (req, res) => {
     try {
         const { loanId, adminId } = req.body;
@@ -911,10 +924,9 @@ app.post('/api/loans/reject', async (req, res) => {
 });
 
 // ============================================================
-// --- ACADEMY ENDPOINTS (NEW) ---
+// --- ACADEMY ENDPOINTS ---
 // ============================================================
 
-// POST /api/academy/assign – הורה מקצה מבחן לילד
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -930,7 +942,6 @@ app.post('/api/academy/assign', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/academy/request-challenge – ילד מבקש אתגר אקראי
 app.post('/api/academy/request-challenge', async (req, res) => {
     try {
         const { userId, bundleId } = req.body;
@@ -952,7 +963,6 @@ app.post('/api/academy/request-challenge', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/academy/submit – ילד מגיש תשובות מבחן
 app.post('/api/academy/submit', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -1093,6 +1103,26 @@ app.post('/api/pantry/update', async (req, res) => {
         const { itemId, quantity } = req.body;
         await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
         res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// שימוש (הפחתת כמות) מהמזווה
+app.post('/api/pantry/use', async (req, res) => {
+    try {
+        const { groupId, itemName, usedQuantity } = req.body;
+        const existing = await pool.query('SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if (existing.rows.length > 0) {
+            const currentQty = parseFloat(existing.rows[0].quantity);
+            const newQty = currentQty - parseFloat(usedQuantity);
+            if (newQty <= 0) {
+                await pool.query('DELETE FROM pantry WHERE id=$1', [existing.rows[0].id]);
+            } else {
+                await pool.query('UPDATE pantry SET quantity = $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, existing.rows[0].id]);
+            }
+            res.json({ success: true, remaining: newQty <= 0 ? 0 : newQty });
+        } else {
+            res.json({ success: false, error: 'המוצר לא נמצא במזווה' });
+        }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
