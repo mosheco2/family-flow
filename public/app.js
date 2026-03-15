@@ -328,7 +328,6 @@ function handleAIResponseCheck(data) {
 
 function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
 
-// שונה לטובת הקפצת ההודעה במקום תשלום
 function upgradeToPremium() {
     closeAiBatteryModal();
     const profileModal = document.getElementById('profile-modal');
@@ -573,7 +572,6 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
-// עודכן כך שילד יוכל לבקש תגמול בעצמו
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
     document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
@@ -585,7 +583,7 @@ function openTaskModal(isSelf = false) {
         document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
         toggles.classList.add('hidden'); 
         assigneeContainer.classList.add('hidden'); 
-        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)';
     } else { 
         document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
         toggles.classList.remove('hidden'); 
@@ -623,11 +621,10 @@ async function generateAITasks() {
 
 function selectAITask(title, reward) { document.getElementById('task-title').value = title; document.getElementById('task-reward').value = reward; setTaskMode('manual'); }
 
-// עודכן לשמירת סטטוס "done" אוטומטית אם ילד שולח משימה
 async function submitTask() { 
     const isSelf = document.getElementById('task-is-self').value === 'true'; 
     const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = val('task-reward'); // נמשך גם אם הילד הזין
+    const reward = val('task-reward');
     const title = val('task-title'); 
     const days = val('task-days');
     
@@ -688,7 +685,6 @@ function startBarcodeScan(target) {
     currentScanTarget = target;
     document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
-    // הוספנו הגדרה ספציפית לחיפוש ברקודים של סופר (EAN/UPC) כדי לזרז את הזיהוי
     const formatsToSupport = [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -701,17 +697,30 @@ function startBarcodeScan(target) {
 
     html5QrCode = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport });
     
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { 
-            fps: 15, // העלינו את קצב הרענון
-            qrbox: { width: 280, height: 120 } // שינינו ממרובע למלבן מותאם לברקודים של סופר
-        },
-        onScanSuccess,
-        onScanFailure
-    ).catch(err => {
-        showToast('error', 'לא ניתן לגשת למצלמה');
-        closeBarcodeScanner();
+    // קונפיגורציה משופרת לסריקת ברקודים (1D) עם פוקוס ואיכות וידאו גבוהה
+    const config = { 
+        fps: 20, 
+        qrbox: { width: 300, height: 150 },
+        aspectRatio: 1.0,
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // שימוש במאיץ החומרה המובנה של הטלפון
+        }
+    };
+
+    const cameraConfig = { 
+        facingMode: "environment",
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 }
+    };
+
+    html5QrCode.start(cameraConfig, config, onScanSuccess, onScanFailure)
+    .catch(err => {
+        // Fallback למקרה שהמצלמה לא תומכת ברזולוציה המדויקת
+        html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: { width: 280, height: 120 } }, onScanSuccess, onScanFailure)
+            .catch(e => {
+                showToast('error', 'לא ניתן לגשת למצלמה');
+                closeBarcodeScanner();
+            });
     });
 }
 
