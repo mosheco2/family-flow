@@ -105,7 +105,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for quantities, units, and global products)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for tasks updates)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -222,16 +222,6 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     } catch (e) {
         await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
     }
-});
-
-app.post('/api/premium/simulate-checkout', async (req, res) => {
-    try {
-        const { groupId, userId } = req.body;
-        const userCheck = await pool.query('SELECT role FROM users WHERE id = $1 AND group_id = $2', [userId, groupId]);
-        if(userCheck.rows.length === 0 || userCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל הבנק יכול לשדרג למנוי Pro' });
-        await pool.query('UPDATE family_groups SET is_premium = TRUE WHERE id = $1', [groupId]);
-        res.json({ success: true, message: 'החשבון שודרג בהצלחה ל-Oneflow Pro!' });
-    } catch (e) { res.status(500).json({ error: 'שגיאה בשדרוג החשבון' }); }
 });
 
 // --- EMAIL CREDENTIALS ---
@@ -413,6 +403,7 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
 });
 
+// שינוי 1: AI מעניק בונוס אוטומטי של 10% אם המשימה אושרה בהצלחה
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
         const { taskId, title, imageBase64, mimeType, groupId } = req.body;
@@ -426,9 +417,18 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
         const feedback = JSON.parse(result.response.text());
         if(feedback.verified) {
             const t = (await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
-            await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
-            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, t.reward, `תגמול משימה (אושר ע"י AI): ${t.title}`]);
-            await pool.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', taskId]);
+            const baseReward = parseFloat(t.reward) || 0;
+            let bonus = 0;
+            if(baseReward > 0) {
+                bonus = Math.max(1, Math.round(baseReward * 0.1)); // 10% בונוס מינימום 1 ש"ח
+            }
+            const total = baseReward + bonus;
+
+            await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [total, t.assigned_to]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, total, `תגמול משימה (אושר ע"י AI) + בונוס: ${t.title}`]);
+            await pool.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', total, taskId]);
+            
+            if(bonus > 0) feedback.message += ` (איזה יופי! קיבלת גם בונוס AI של ₪${bonus}!)`;
         }
         res.json({ success: true, verified: feedback.verified, message: feedback.message });
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התמונה'); }
@@ -708,6 +708,7 @@ app.get('/api/transactions', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// שינוי 2: תמיכה במשימה של ילד לעצמו עם סטטוס
 app.post('/api/tasks', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -717,24 +718,32 @@ app.post('/api/tasks', async (req, res) => {
             deadline = new Date();
             deadline.setDate(deadline.getDate() + parseInt(req.body.days));
         }
-        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, deadline) VALUES ($1, $2, $3, $4, $5, $6)`, 
-            [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward, deadline]);
+        const status = req.body.status || 'pending';
+        await dbClient.query(`INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, deadline, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`, 
+            [u.rows[0].group_id, req.body.createdBy || req.body.assignedTo, req.body.assignedTo, req.body.title, req.body.reward, deadline, status]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
+// שינוי 3: קבלת סכום מעודכן מההורה בעת אישור
 app.post('/api/tasks/update', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         await dbClient.query('BEGIN');
-        const t = (await dbClient.query('SELECT * FROM tasks WHERE id=$1', [req.body.taskId])).rows[0];
-        if (req.body.status === 'completed_self') await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
-        else if (req.body.status === 'approved' && t.reward > 0) {
-            await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [t.reward, t.assigned_to]);
-            await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, t.reward, `תגמול משימה: ${t.title}`]);
-            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', req.body.taskId]);
+        const { taskId, status, finalReward } = req.body;
+        const t = (await dbClient.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
+        
+        if (status === 'completed_self') {
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', ['approved', taskId]);
+        } else if (status === 'approved') {
+            let amountToPay = finalReward !== undefined ? parseFloat(finalReward) : parseFloat(t.reward);
+            if (amountToPay > 0) {
+                await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amountToPay, t.assigned_to]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, amountToPay, `תגמול משימה/מעשה טוב: ${t.title}`]);
+            }
+            await dbClient.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', amountToPay, taskId]);
         } else {
-            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', [req.body.status, req.body.taskId]);
+            await dbClient.query('UPDATE tasks SET status = $1 WHERE id = $2', [status, taskId]);
         }
         await dbClient.query('COMMIT');
         res.json({ success: true });
@@ -1106,7 +1115,6 @@ app.post('/api/pantry/update', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// שימוש (הפחתת כמות) מהמזווה
 app.post('/api/pantry/use', async (req, res) => {
     try {
         const { groupId, itemName, usedQuantity } = req.body;
