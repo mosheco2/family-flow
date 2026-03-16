@@ -366,6 +366,7 @@
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מזווה 📦</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
+                            <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים 💸</button>
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
@@ -385,7 +386,24 @@
                             <i class="fa-solid fa-wallet absolute -right-6 -bottom-6 text-[8rem] text-white opacity-10 rotate-12"></i>
                         </div>
                         <div id="child-todo-section" class="hidden mb-8"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">לביצוע 🎯</h3><div id="child-todo-list" class="space-y-3"></div></div>
-                        <div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3><select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none"><option value="all">כל המשפחה</option></select></div>
+                        
+                        <div class="flex flex-col gap-2 mb-4 px-2">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-bold text-slate-700 text-lg">פיד פעילות</h3>
+                                <button onclick="buildAndRenderFeed()" class="text-blue-500 text-xs font-bold"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <select id="feed-user-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 hidden rounded-lg shadow-sm border-slate-200 outline-none">
+                                    <option value="all">כל המשפחה</option>
+                                </select>
+                                <select id="feed-date-filter" onchange="renderUnifiedFeed()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 rounded-lg shadow-sm border-slate-200 outline-none">
+                                    <option value="all">כל ההיסטוריה</option>
+                                    <option value="1">חודש אחרון</option>
+                                    <option value="3">3 חודשים אחרונים</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
 
@@ -412,6 +430,25 @@
                             <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
                             <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
                             <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
+                        </div>
+                    </div>
+
+                    <div id="content-cashflow" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-slate-800 text-lg">ניהול תזרים 💸</h3>
+                            </div>
+                            <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן ניתן לראות ולערוך את כל הפעולות הפיננסיות מהעבר, למקרה של טעות בדיווח.</p>
+                            
+                            <div class="flex gap-2 mb-4">
+                                 <select id="cashflow-user-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1 hidden"></select>
+                                 <select id="cashflow-date-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1">
+                                     <option value="all">כל הזמן</option>
+                                     <option value="1">חודש אחרון</option>
+                                     <option value="3">3 חודשים</option>
+                                 </select>
+                            </div>
+                            <div id="cashflow-list" class="space-y-3 pb-20"></div>
                         </div>
                     </div>
 
@@ -593,14 +630,10 @@
                                 </div>
                             </div>
                             
-                            <div id="forecast-charts" class="grid grid-cols-2 gap-4 mt-6 border-t border-slate-100 pt-6">
-                                <div>
-                                    <h4 class="text-xs font-bold text-center text-slate-600 mb-2">פילוח הוצאות</h4>
-                                    <div class="relative h-32 w-full flex justify-center"><canvas id="expenseChart"></canvas></div>
-                                </div>
-                                <div>
-                                    <h4 class="text-xs font-bold text-center text-slate-600 mb-2">פילוח הכנסות</h4>
-                                    <div class="relative h-32 w-full flex justify-center"><canvas id="incomeChart"></canvas></div>
+                            <div id="forecast-charts" class="mt-6 border-t border-slate-100 pt-6 flex justify-center">
+                                <div class="w-full max-w-[250px]">
+                                    <h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4>
+                                    <div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
                                 </div>
                             </div>
                         </div>
@@ -664,6 +697,32 @@
         <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-blue-600 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-blue-50 transition z-40 border border-blue-100">
             <i class="fa-solid fa-universal-access"></i>
         </button>
+
+        <div id="edit-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
+                <h3 class="text-lg font-bold mb-4 text-center text-slate-800">עריכת פעולה ✏️</h3>
+                <input type="hidden" id="edit-trans-id">
+                <input type="hidden" id="edit-trans-old-amount">
+                <input type="hidden" id="edit-trans-type">
+                
+                <div class="relative mb-3">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span>
+                    <input type="number" id="edit-trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800">
+                </div>
+                
+                <label class="text-[10px] font-bold text-slate-400 block mb-1">תיאור הפעולה:</label>
+                <input type="text" id="edit-trans-desc" class="modern-input mb-3 text-sm">
+                
+                <label class="text-[10px] font-bold text-slate-400 block mb-1">קטגוריה:</label>
+                <select id="edit-trans-cat" class="modern-input mb-5 bg-white text-sm"></select>
+                
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('edit-transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitEditTransaction()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">שמור שינויים</button>
+                </div>
+                <button onclick="deleteTransaction()" class="w-full mt-4 text-red-500 text-xs font-bold py-2 hover:bg-red-50 rounded-lg transition"><i class="fa-solid fa-trash"></i> מחק פעולה זו לגמרי</button>
+            </div>
+        </div>
 
         <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
@@ -1074,7 +1133,7 @@
         </div>
 
         <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-y-auto modal-scroll">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
                 <div class="flex-1 text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
                     <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
