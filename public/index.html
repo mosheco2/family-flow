@@ -430,7 +430,9 @@
                                 <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
                             </div>
                             <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
-                            <button onclick="openPantryModal()" class="w-full mt-2 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
+                            <div class="flex gap-2">
+                                <button onclick="openPantryModal()" class="w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה למלאי</button>
+                            </div>
                         </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
                     </div>
@@ -605,28 +607,6 @@
             <i class="fa-solid fa-universal-access"></i>
         </button>
 
-        <div id="new-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
-                <h3 class="text-lg font-bold mb-2">מוצר חדש זוהה! ✨</h3>
-                <p class="text-xs text-slate-500 mb-4">ברקוד: <span id="new-product-barcode" class="font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded"></span></p>
-                <input type="text" id="new-product-name" class="modern-input mb-3" placeholder="מה שם המוצר? (למשל: במבה)">
-                <select id="new-product-cat" class="modern-input mb-6 bg-white py-3">
-                    <option value="כללי">כללי</option>
-                    <option value="ירקות ופירות 🍎">ירקות ופירות 🍎</option>
-                    <option value="חלב וביצים 🥛">חלב וביצים 🥛</option>
-                    <option value="לחם ומאפים 🍞">לחם ומאפים 🍞</option>
-                    <option value="מזווה ובישול 🍝">מזווה ובישול 🍝</option>
-                    <option value="בשר ודגים 🍗">בשר ודגים 🍗</option>
-                    <option value="ניקיון וטואלטיקה 🧻">ניקיון וטואלטיקה 🧻</option>
-                    <option value="חטיפים ומתוקים 🍫">חטיפים ומתוקים 🍫</option>
-                </select>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('new-product-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="saveNewProduct()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">שמור והמשך</button>
-                </div>
-            </div>
-        </div>
-
         <div id="pantry-use-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
                 <h3 class="text-lg font-bold mb-2">שימוש במוצר 🍳</h3>
@@ -675,7 +655,7 @@
                 
                 <div id="ai-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100">
                     <p class="text-xs font-bold text-purple-800 mb-2">רוצים להשתמש בי ללא הגבלה?</p>
-                    <button onclick="openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!')" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
+                    <button onclick="upgradeToPremium()" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
                 </div>
                 
                 <button onclick="closeAiBatteryModal()" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, נחכה למחר</button>
