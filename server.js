@@ -820,6 +820,52 @@ app.post('/api/admin/update-settings', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
+// פונקציה חדשה: ניהול יתרה של הילד (קנס/בונוס ידני ע"י ההורה)
+app.post('/api/admin/adjust-balance', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { adminId, groupId, childId, type, amount, reason } = req.body;
+
+        // בדיקה שמי שמבצע את הפעולה הוא אכן הורה/מנהל באותה קבוצה
+        const adminCheck = await dbClient.query(`SELECT role FROM users WHERE id = $1 AND group_id = $2`, [adminId, groupId]);
+        if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+            await dbClient.query('ROLLBACK');
+            return res.status(403).json({ error: 'אין הרשאת מנהל לביצוע פעולה זו' });
+        }
+
+        const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+            await dbClient.query('ROLLBACK');
+            return res.status(400).json({ error: 'סכום לא תקין' });
+        }
+
+        const isAdd = type === 'add';
+        const op = isAdd ? '+' : '-';
+        const txType = isAdd ? 'income' : 'expense';
+        const txCategory = 'other'; // קטגוריה כללית
+        const descPrefix = isAdd ? 'בונוס/הוספה יזומה:' : 'קנס/הפחתה יזומה:';
+        const finalReason = reason ? reason : (isAdd ? 'ללא סיבה' : 'ללא סיבה');
+
+        // עדכון היתרה של הילד
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2 AND group_id = $3`, [parsedAmount, childId, groupId]);
+
+        // רישום הפעולה כעסקה בפיד (כדי שהילד וההורה יראו על מה ירד/נוסף כסף)
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, $5, $6, FALSE)`,
+            [childId, groupId, parsedAmount, `${descPrefix} ${finalReason}`, txCategory, txType]
+        );
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        dbClient.release();
+    }
+});
+
 app.post('/api/admin/payday', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -899,7 +945,6 @@ app.get('/api/transactions', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// שינוי 2: תמיכה במשימה של ילד לעצמו עם סטטוס
 app.post('/api/tasks', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -916,7 +961,6 @@ app.post('/api/tasks', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// שינוי 3: קבלת סכום מעודכן מההורה בעת אישור
 app.post('/api/tasks/update', async (req, res) => {
     const dbClient = await pool.connect();
     try {
