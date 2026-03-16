@@ -121,6 +121,13 @@
 
         /* Hide broken banner images */
         img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
+
+        /* Custom Scrollbar for Modals (Fix for laptops) */
+        .modal-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+        .modal-scroll::-webkit-scrollbar { width: 6px; }
+        .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -659,7 +666,7 @@
         </button>
 
         <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
                 <button onclick="closeBarcodeScanner()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800 flex items-center justify-center gap-2"><i class="fa-solid fa-barcode text-blue-500"></i> סריקת מוצר</h3>
                 <div id="qr-reader" class="w-full overflow-hidden rounded-xl border border-slate-200 mb-2"></div>
@@ -668,7 +675,7 @@
         </div>
 
         <div id="new-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">מוצר חדש זוהה! ✨</h3>
                 <p class="text-xs text-slate-500 mb-4">ברקוד: <span id="new-product-barcode" class="font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded"></span></p>
                 <input type="text" id="new-product-name" class="modern-input mb-3" placeholder="מה שם המוצר? (למשל: במבה)">
@@ -690,7 +697,7 @@
         </div>
 
         <div id="pantry-use-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">שימוש במוצר 🍳</h3>
                 <p id="use-pantry-title" class="text-sm text-slate-500 mb-6 font-bold"></p>
                 <input type="hidden" id="use-pantry-name">
@@ -706,7 +713,7 @@
         </div>
 
         <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
                 <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
@@ -716,7 +723,7 @@
         </div>
 
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <i class="fa-solid fa-bullhorn text-4xl text-blue-500 mb-4 mt-2"></i>
                 <h3 class="text-2xl font-bold mb-4 text-slate-800">הודעת מערכת</h3>
@@ -726,7 +733,7 @@
         </div>
 
         <div id="ai-warning-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <div class="flex justify-center mb-4 mt-2">
                     <div class="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center text-purple-500 text-2xl">
@@ -750,7 +757,7 @@
         </div>
 
         <div id="ai-battery-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-center mb-4 relative z-10">
                     <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-inner transform -translate-y-2 border-4 border-white overflow-hidden p-2 opacity-70">
                         <img src="logo.png" alt="familAI" class="w-full h-full object-contain grayscale">
@@ -769,7 +776,7 @@
         </div>
 
         <div id="invite-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-slate-800">את מי להזמין? 👨‍👩‍👧‍👦</h3>
                 <p class="text-sm text-slate-500 mb-6">קוד המשפחה שלכם: <span id="display-group-code" class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded tracking-widest">---</span></p>
                 <div class="space-y-3">
@@ -781,7 +788,7 @@
         </div>
 
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
                 <div class="flex justify-center mb-4 relative z-10">
                     <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
@@ -799,7 +806,7 @@
         </div>
 
         <div id="task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
                 <input type="hidden" id="task-is-self" value="false">
                 <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
@@ -823,14 +830,14 @@
                     <p class="text-xs text-slate-500 text-center px-2 font-medium leading-relaxed mb-2">תנו ל-familAI לעשות את העבודה הקשה! ספרו לנו במה אתם צריכים עזרה, והעוזרת החכמה שלנו תייצר משימות ותמליץ על תגמול הוגן.</p>
                     <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="למשל: עזרה בבישולים לשבת...">
                     <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות</button>
-                    <div id="ai-task-results" class="hidden flex-1 overflow-y-auto space-y-2 mt-2 pt-2 border-t border-slate-100"></div>
+                    <div id="ai-task-results" class="hidden flex-1 space-y-2 mt-2 pt-2 border-t border-slate-100"></div>
                     <button onclick="closeTaskModal()" class="w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-500 mt-auto">ביטול וסגירה</button>
                 </div>
             </div>
         </div>
 
         <div id="approve-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">אישור משימה ✅</h3>
                 <p id="approve-task-title" class="text-sm text-slate-500 mb-4"></p>
                 <input type="hidden" id="approve-task-id">
@@ -844,7 +851,7 @@
         </div>
 
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-10"></div>
                 <div class="flex justify-center mb-4 relative z-10">
                     <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
@@ -859,7 +866,7 @@
         </div>
 
         <div id="quiz-runner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md hidden z-[60] flex flex-col items-center justify-center p-6">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
                 <button onclick="closeQuiz()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
                 <div id="quiz-content" class="text-center">
                     <h2 id="quiz-title" class="text-xl font-bold mb-2 text-slate-800"></h2>
@@ -880,7 +887,7 @@
         </div>
         
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה לקניות</h3>
                 <div class="space-y-4">
                     <div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר? (למשל: חלב...)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div>
@@ -895,7 +902,7 @@
         </div>
         
         <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה למזווה</h3>
                 <div class="space-y-4">
                     <input type="text" id="pantry-item" class="modern-input" placeholder="שם המוצר...">
@@ -909,7 +916,7 @@
         </div>
 
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיכום קנייה 🧾</h3>
                 <p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל המחירים מעודכנים</p>
                 <div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם החנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="סניף (אופציונלי)"></div>
@@ -919,15 +926,15 @@
         </div>
         
         <div id="history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-center">היסטוריית קניות</h3>
-                <div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+                <div id="history-list" class="flex-1 space-y-3 pr-1"></div>
                 <button onclick="document.getElementById('history-modal').classList.add('hidden')" class="mt-4 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 w-full">סגור</button>
             </div>
         </div>
         
         <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
+            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out] max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 id="trans-modal-title" class="text-xl font-bold mb-4 text-center text-slate-800"></h3>
                 <input type="hidden" id="trans-type">
                 
@@ -960,7 +967,7 @@
         </div>
         
         <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3>
                 <div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div>
                 <input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)">
@@ -969,7 +976,7 @@
         </div>
         
         <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">הפקדה לקופה 🐖</h3>
                 <p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id">
                 <div class="relative mb-6"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="deposit-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-cyan-500" placeholder="0"></div>
@@ -978,7 +985,7 @@
         </div>
         
         <div id="bank-settings-modal" class="fixed fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center">הגדרות בנק</h3>
                 <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
                 <div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div>
@@ -987,7 +994,7 @@
         </div>
         
         <div id="budget-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">יעד תקציב</h3>
                 <p id="budget-cat-name" class="text-center text-slate-500 mb-4 text-sm"></p><input type="hidden" id="budget-cat-id">
                 <input type="number" id="budget-limit" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום חודשי">
@@ -996,7 +1003,7 @@
         </div>
         
         <div id="add-budget-cat-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">קטגוריה חדשה לתקציב</h3>
                 <input type="text" id="new-budget-cat-name" class="modern-input mb-6 text-center" placeholder="שם הקטגוריה (למשל: דלק, חוגים)">
                 <div class="flex gap-3"><button onclick="document.getElementById('add-budget-cat-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitNewBudgetCat()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף</button></div>
@@ -1004,7 +1011,7 @@
         </div>
 
         <div id="loan-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">בקשת הלוואה</h3>
                 <input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="למטרה?">
                 <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div>
@@ -1012,7 +1019,7 @@
         </div>
         
         <div id="assign-quiz-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">הקצאת מבחן</h3>
                 <label class="text-xs font-bold text-slate-400">בחר ילד:</label><select id="assign-child-select" class="modern-input mb-3 bg-white"></select>
                 <label class="text-xs font-bold text-slate-400">בחר מבחן:</label><select id="assign-bundle-select" class="modern-input mb-3 bg-white" onchange="updateAssignDetails()"></select>
@@ -1022,7 +1029,7 @@
         </div>
 
         <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
                 
                 <div id="profile-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100 text-right">
@@ -1042,9 +1049,9 @@
         </div>
 
         <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
-                <div class="flex-1 overflow-y-auto text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
+                <div class="flex-1 text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
                     <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
                     <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב והמשימות המשפחתיות. ה"כסף" המוצג במערכת (בארנק, במשימות וביעדים) אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך חינוך וניהול משפחתי בלבד.</p>
                     <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
@@ -1056,7 +1063,7 @@
         </div>
 
         <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-universal-access text-blue-600"></i> נגישות</h3>
                     <button onclick="closeAccessibilityModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
