@@ -90,7 +90,10 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
-            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
+            
+            -- מעודכן לתמוך בתזרים (פעולות קבועות ותאריכים עתידיים)
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_date TIMESTAMP);
+            
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -105,7 +108,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for tasks updates)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for Forecast & Recurring Transactions)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -286,6 +289,127 @@ app.post('/api/products', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- FORECAST / CASHFLOW ENDPOINTS ---
+
+app.get('/api/forecast', async (req, res) => {
+    try {
+        const { groupId, userId, month } = req.query; // month format: 'YYYY-MM'
+        if (!groupId || !month) return res.json({ startingBalance: 0, items: [] });
+        
+        const targetDate = new Date(`${month}-01`);
+        const targetMonth = targetDate.getMonth();
+        const targetYear = targetDate.getFullYear();
+        
+        let userFilter = '';
+        let params = [groupId];
+        if (userId && userId !== 'all') {
+            userFilter = ` AND t.user_id = $2`;
+            params.push(userId);
+        }
+
+        // Fetch ALL relevant transactions (past, future, recurring)
+        const query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ${userFilter} ORDER BY t.date ASC`;
+        const txRes = await pool.query(query, params);
+        const allTxs = txRes.rows;
+
+        // Fetch true current balance
+        let currentBal = 0;
+        if (userId && userId !== 'all') {
+            const uRes = await pool.query('SELECT balance FROM users WHERE id=$1', [userId]);
+            currentBal = parseFloat(uRes.rows[0].balance) || 0;
+        } else {
+            const uRes = await pool.query('SELECT SUM(balance) as bal FROM users WHERE group_id=$1 AND status=\'active\'', [groupId]);
+            currentBal = parseFloat(uRes.rows[0].bal) || 0;
+        }
+
+        let startingBalance = currentBal;
+        let items = [];
+        const now = new Date();
+        
+        // Calculate projected starting balance (from "now" to target month start)
+        // and gather items falling exactly in the target month.
+        allTxs.forEach(tx => {
+            const txDate = new Date(tx.date);
+            const amt = parseFloat(tx.amount);
+            const isIncome = tx.type === 'income';
+            
+            if (tx.is_recurring) {
+                const endDate = tx.end_date ? new Date(tx.end_date) : new Date(targetYear + 10, 11, 31);
+                
+                // Add to items list if it occurs this month
+                if (txDate <= new Date(targetYear, targetMonth + 1, 0) && endDate >= new Date(targetYear, targetMonth, 1)) {
+                    const occDate = new Date(targetYear, targetMonth, txDate.getDate());
+                    items.push({
+                        id: tx.id,
+                        type: tx.type,
+                        amount: amt,
+                        description: tx.description,
+                        user_name: tx.user_name,
+                        date_str: occDate.toLocaleDateString('he-IL'),
+                        is_recurring: true
+                    });
+                }
+                
+                // Affect starting balance if it occurs between now and the target month
+                let tempDate = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
+                if (tempDate < now) tempDate.setMonth(now.getMonth() + 1); // skip past occurrences
+                
+                while (tempDate > now && tempDate < targetDate && tempDate <= endDate) {
+                     startingBalance += isIncome ? amt : -amt;
+                     tempDate.setMonth(tempDate.getMonth() + 1);
+                }
+            } else {
+                // One time future transaction
+                if (txDate.getFullYear() === targetYear && txDate.getMonth() === targetMonth) {
+                    items.push({
+                        id: tx.id,
+                        type: tx.type,
+                        amount: amt,
+                        description: tx.description,
+                        user_name: tx.user_name,
+                        date_str: txDate.toLocaleDateString('he-IL'),
+                        is_recurring: false
+                    });
+                } else if (txDate > now && txDate < targetDate) {
+                    startingBalance += isIncome ? amt : -amt;
+                }
+            }
+        });
+
+        // Sort items by date within the month
+        items.sort((a, b) => {
+            const dayA = parseInt(a.date_str.split('.')[0]);
+            const dayB = parseInt(b.date_str.split('.')[0]);
+            return dayA - dayB;
+        });
+
+        res.json({ startingBalance: startingBalance, items });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/forecast/familai-insight', async (req, res) => {
+    try {
+        const { groupId, month, targetUserId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        let userFilter = ''; let params = [groupId];
+        if (targetUserId && targetUserId !== 'all') { userFilter = ` AND user_id = $2`; params.push(targetUserId); }
+
+        const query = `SELECT amount, description, type, date, is_recurring FROM transactions WHERE group_id=$1 ${userFilter} AND (date >= CURRENT_DATE OR is_recurring = TRUE)`;
+        const txsRes = await pool.query(query, params);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', a smart financial forecaster for a family. Analyze these upcoming/recurring transactions for the requested period: ${JSON.stringify(txsRes.rows)}. Write a short, smart forecast insight for the upcoming month (${month}) in Hebrew. Max 3-4 sentences. Be encouraging, point out if they have heavy expenses coming up, and give one tip on how to prepare. Use emojis. Start with "היי! כאן familAI רואת העתידות 🔮"`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בתובנות התשקיף'); }
+});
+
 
 // --- AI ENDPOINTS ---
 app.post('/api/recipes/generate', async (req, res) => {
@@ -403,7 +527,6 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
 });
 
-// --- פונקציית זיהוי מוצר חכם מבוסס AI Vision החדשה ---
 app.post('/api/shopping/identify-product', async (req, res) => {
     try {
         const { imageBase64, mimeType, groupId } = req.body;
@@ -439,7 +562,6 @@ app.post('/api/shopping/identify-product', async (req, res) => {
     }
 });
 
-// שינוי 1: AI מעניק בונוס אוטומטי של 10% אם המשימה אושרה בהצלחה
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
         const { taskId, title, imageBase64, mimeType, groupId } = req.body;
@@ -712,14 +834,36 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
 
+// שינוי לפונקציית פעולות (תומך כעת בתאריכים עתידיים ופעולות קבועות)
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
         await dbClient.query('BEGIN');
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type]);
-        const op = req.body.type === 'income' ? '+' : '-';
-        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
+        
+        const isRecurring = req.body.isRecurring === true;
+        let endDate = null;
+        if (isRecurring && req.body.endMonth) {
+            endDate = new Date(`${req.body.endMonth}-01`);
+            endDate.setMonth(endDate.getMonth() + 1);
+            endDate.setDate(0); 
+        }
+        
+        let txDate = req.body.date ? new Date(req.body.date) : new Date();
+
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_date) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
+            [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type, txDate, isRecurring, endDate]
+        );
+        
+        // מעדכן יתרה רק אם התאריך של הפעולה אינו עתידי (עבור הפעולה הראשונה)
+        const now = new Date();
+        if (txDate <= now) {
+            const op = req.body.type === 'income' ? '+' : '-';
+            await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
+        }
+        
         if (req.body.type === 'expense') await dbClient.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, [u.rows[0].group_id, req.body.category, req.body.userId]);
         await dbClient.query('COMMIT');
         res.json({ success: true });
@@ -733,10 +877,10 @@ app.get('/api/transactions', async (req, res) => {
         if(!groupId || groupId === 'undefined') return res.json([]);
         let query, params;
         if(userId === 'all') {
-             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ORDER BY t.id DESC ${limit}`;
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date <= CURRENT_TIMESTAMP ORDER BY t.date DESC ${limit}`;
              params = [groupId];
         } else {
-             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id=$1 ORDER BY t.id DESC ${limit}`;
+             query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.user_id=$1 AND t.date <= CURRENT_TIMESTAMP ORDER BY t.date DESC ${limit}`;
              params = [userId];
         }
         const t = await pool.query(query, params);
