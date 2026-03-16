@@ -328,6 +328,7 @@ function handleAIResponseCheck(data) {
 
 function closeAiBatteryModal() { document.getElementById('ai-battery-modal').classList.add('hidden'); }
 
+// שונה לטובת הקפצת ההודעה במקום תשלום
 function upgradeToPremium() {
     closeAiBatteryModal();
     const profileModal = document.getElementById('profile-modal');
@@ -687,31 +688,19 @@ function startBarcodeScan(target) {
     currentScanTarget = target;
     document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
-    // מנקים קריאות קודמות במידה והיו כדי למנוע התנגשויות
+    // ניקוי קריאות קודמות
     if (html5QrCode) {
         try { html5QrCode.clear(); } catch(e) {}
     }
 
-    // הגדרה שמבקשת סריקת EAN_13 (מוצרי סופר) ואופציות נוספות אם ידרש
-    const formatsToSupport = [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E
-    ];
+    // יצירת מופע חדש של הסורק - ללא מגבלות פורמטים כדי למנוע קריסות באייפון
+    html5QrCode = new Html5Qrcode("qr-reader");
 
-    html5QrCode = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport, verbose: false });
-
-    // תצורה בטוחה שתומכת גם באייפון וגם באנדרואיד בלי מאיצים בעייתיים
+    // קונפיגורציה יציבה ובטוחה שנתמכת בכל הדפדפנים
     const config = {
-        fps: 10,
-        // חלון סריקה רספונסיבי ורחב - תופס 90% מהרוחב, מה שמקל על סריקת ברקוד ארוך בלי להתקרב
-        qrbox: function(viewfinderWidth, viewFinderHeight) {
-            return {
-                width: Math.min(viewfinderWidth * 0.9, 350),
-                height: 120
-            };
-        }
+        fps: 15,
+        qrbox: { width: 280, height: 150 }, // מלבן קצת יותר גבוה
+        disableFlip: false // מאפשר זיהוי גם אם הברקוד הפוך או מסובב
     };
 
     html5QrCode.start(
@@ -721,7 +710,7 @@ function startBarcodeScan(target) {
         onScanFailure
     ).catch(err => {
         console.error("Camera Error:", err);
-        showToast('error', 'לא הצלחנו לפתוח את המצלמה. ודא שאישרת גישה.');
+        showToast('error', 'לא הצלחנו לפתוח את המצלמה. בדוק הרשאות דפדפן.');
         closeBarcodeScanner();
     });
 }
