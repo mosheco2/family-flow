@@ -687,44 +687,61 @@ function startBarcodeScan(target) {
     currentScanTarget = target;
     document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
+    // מנקים קריאות קודמות במידה והיו כדי למנוע התנגשויות
     if (html5QrCode) {
-        try { html5QrCode.stop().then(() => html5QrCode.clear()).catch(()=>{}); } catch(e) {}
+        try { html5QrCode.clear(); } catch(e) {}
     }
 
+    // הגדרה שמבקשת סריקת EAN_13 (מוצרי סופר) ואופציות נוספות אם ידרש
     const formatsToSupport = [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.QR_CODE
+        Html5QrcodeSupportedFormats.UPC_E
     ];
 
-    html5QrCode = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport, verbose: false });
+    html5QrCode = new Html5Qrcode("qr-reader", { 
+        formatsToSupport: formatsToSupport, 
+        verbose: false,
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // פקודת קסם: ב-iOS 17 ומעלה זה יעקוף את המנוע הרגיל וישתמש בסורק הנייטיב של אפל!
+        }
+    });
 
+    // תצורה בטוחה שתומכת גם באייפון וגם באנדרואיד בלי מאיצים בעייתיים
     const config = {
-        fps: 10, 
-        qrbox: { width: 250, height: 150 },
-        aspectRatio: 1.0
+        fps: 10,
+        // חלון סריקה רספונסיבי ורחב - תופס 90% מהרוחב, מה שמקל על סריקת ברקוד ארוך בלי להתקרב יותר מדי
+        qrbox: function(viewfinderWidth, viewFinderHeight) {
+            return {
+                width: Math.min(viewfinderWidth * 0.9, 350),
+                height: 120
+            };
+        }
     };
 
     const statusText = document.getElementById('barcode-status-text');
-    if(statusText) statusText.innerText = "באייפון: החזיקו במרחק 15-20 ס״מ מהברקוד";
+    if(statusText) statusText.innerText = "באייפון: החזיקו במרחק 15-20 ס״מ מהברקוד (נסו שיהיה ממוקד)";
 
-    // שימוש בתצורה פשוטה ובטוחה יותר שמונעת שגיאות Overconstrained באייפון
+    // מנגנון חסין תקלות: מנסה קודם רזולוציה גבוהה (לזיהוי פסים טוב יותר), אם האייפון חוסם - יורד לרזולוציה רגילה
     html5QrCode.start(
-        { facingMode: "environment" }, 
+        { facingMode: "environment", width: { ideal: 1280 } }, 
         config, 
         onScanSuccess, 
         onScanFailure
     ).catch(err => {
-        console.error("Camera Error:", err);
-        // בדיקת אבטחת פרוטוקול (HTTPS חובה באייפון)
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-            showToast('error', 'אפל חוסמת גישה למצלמה בכתובת שאינה מאובטחת (דרוש HTTPS).');
-        } else {
-            showToast('error', 'לא הצלחנו לגשת למצלמה. בדוק אם נתת הרשאה בדפדפן.');
-        }
-        closeBarcodeScanner();
+        console.warn("HD video request failed or rejected, falling back to standard resolution.", err);
+        // Fallback למצלמה רגילה ללא דרישות מיוחדות
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess, 
+            onScanFailure
+        ).catch(fallbackErr => {
+            console.error("Camera completely failed to open", fallbackErr);
+            showToast('error', 'לא הצלחנו לגשת למצלמה. ודא שניתנה הרשאה לדפדפן.');
+            closeBarcodeScanner();
+        });
     });
 }
 
@@ -736,7 +753,6 @@ async function onScanSuccess(decodedText) {
     if(html5QrCode) {
         try {
             await html5QrCode.stop();
-            html5QrCode.clear();
             document.getElementById('barcode-scanner-modal').classList.add('hidden');
             processBarcode(decodedText);
         } catch(err) { console.error(err); }
@@ -746,12 +762,8 @@ async function onScanSuccess(decodedText) {
 function closeBarcodeScanner() {
     if(html5QrCode) {
         html5QrCode.stop().then(() => {
-            html5QrCode.clear();
             document.getElementById('barcode-scanner-modal').classList.add('hidden');
-        }).catch(err => {
-            console.error(err);
-            document.getElementById('barcode-scanner-modal').classList.add('hidden');
-        });
+        }).catch(err => console.error(err));
     } else {
         document.getElementById('barcode-scanner-modal').classList.add('hidden');
     }
