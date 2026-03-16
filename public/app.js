@@ -339,7 +339,15 @@ function scrollTabs(direction) { document.getElementById('slider-scroll').scroll
 function switchTab(t) { 
     ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
-    if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
+    
+    // מנגנון חכם להצגת סיום הקנייה רק בטאב הרלוונטי (קניות)
+    if (t !== 'shop') { 
+        const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); 
+        document.getElementById('fab-container').classList.remove('fab-lifted'); 
+    } else { 
+        try { renderShopList(); } catch(e) {} 
+    }
+    
     if (t === 'pantry') renderPantry();
     if (t === 'recipes') renderRecipePantrySelection();
     if (t === 'forecast') renderForecast();
@@ -429,6 +437,51 @@ async function loadDashboard() {
     }
 }
 
+// פונקציות לניהול יתרה אישית של ילד
+window.openBalanceAdjustmentModal = function(id, name) {
+    document.getElementById('adjustment-user-id').value = id;
+    document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`;
+    document.getElementById('adjustment-amount').value = '';
+    document.getElementById('adjustment-reason').value = '';
+    window.toggleAdjustmentType('deduct'); // ברירת מחדל: קנס/הפחתה
+    document.getElementById('balance-adjustment-modal').classList.remove('hidden');
+};
+
+window.submitBalanceAdjustment = async function() {
+    const userId = val('adjustment-user-id');
+    const type = val('adjustment-type'); // 'add' or 'deduct'
+    const amount = parseFloat(val('adjustment-amount'));
+    const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
+    
+    if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
+
+    try {
+        const res = await fetch(`${API}/admin/adjust-balance`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                adminId: currentUser.id,
+                groupId: currentGroup.id,
+                childId: userId,
+                type: type,
+                amount: amount,
+                reason: reason
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'היתרה עודכנה בהצלחה!');
+            document.getElementById('balance-adjustment-modal').classList.add('hidden');
+            fetchData();
+            fetchMembers(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת עם השרת');
+    }
+};
+
 async function fetchMembers() { 
     try {
         if(!currentGroup || !currentGroup.id) return;
@@ -460,7 +513,21 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין ילדים רשומים במשפחה עדיין.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p></div></div><div class="flex gap-2"><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'ילד'}</h4>
+                                <p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/שבוע • ${m.interest_rate || 0}% ריבית</p>
+                                <p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-blue-600">₪${m.balance || 0}</span></p> 
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openBalanceAdjustmentModal(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="קנס/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>
+                            <button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
+                            <button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button>
+                        </div>
+                    </div>`; 
                 }); 
             } 
         } catch(err) {}
@@ -1183,8 +1250,23 @@ function renderShopList() {
         reqList.innerHTML = reqHtml;
     } else { reqContainer.classList.add('hidden'); }
 
-    if(activeItems.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; document.getElementById('cart-footer').classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); return; }
-    document.getElementById('cart-footer').classList.remove('hidden'); document.getElementById('fab-container').classList.add('fab-lifted');
+    // התיקון שביקשת: הוספנו בדיקה איזה טאב פעיל כדי לא להקפיץ את הפוטר בכל רענון סתם כך
+    const isShopTabActive = document.getElementById('tab-shop') && document.getElementById('tab-shop').classList.contains('tab-active');
+
+    if(activeItems.length === 0) { 
+        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">העגלה ריקה</p>'; 
+        const f = document.getElementById('cart-footer'); if(f) f.classList.add('hidden'); 
+        const fc = document.getElementById('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
+        return; 
+    }
+    
+    if (isShopTabActive) {
+        const f = document.getElementById('cart-footer'); if(f) f.classList.remove('hidden'); 
+        const fc = document.getElementById('fab-container'); if(fc) fc.classList.add('fab-lifted');
+    } else {
+        const f = document.getElementById('cart-footer'); if(f) f.classList.add('hidden'); 
+        const fc = document.getElementById('fab-container'); if(fc) fc.classList.remove('fab-lifted');
+    }
     
     const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
@@ -1448,6 +1530,10 @@ async function renderForecast() {
     let totalIncome = 0;
     let totalExpense = 0;
     
+    // אובייקטים לאיסוף הנתונים לגרפים
+    const incomeData = {};
+    const expenseData = {};
+    
     let html = '';
     if(items.length === 0) {
         html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
@@ -1458,8 +1544,10 @@ async function renderForecast() {
             
             if(isIncome) {
                 totalIncome += amt;
+                incomeData[item.category] = (incomeData[item.category] || 0) + amt;
             } else {
                 totalExpense += amt;
+                expenseData[item.category] = (expenseData[item.category] || 0) + amt;
             }
             
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
@@ -1733,96 +1821,6 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
-
-// --- RECIPES (AI CHEF) MODULE ---
-function toggleRecipeCustomInput() {
-    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
-    if (isIgnored) {
-        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
-        document.getElementById('recipe-pantry-selection').classList.add('hidden');
-    } else {
-        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
-        document.getElementById('recipe-pantry-selection').classList.remove('hidden');
-    }
-}
-
-function renderRecipePantrySelection() {
-    const listContainer = document.getElementById('recipe-pantry-items-list');
-    if (!listContainer) return;
-    if (!pantryCache || pantryCache.length === 0) {
-        listContainer.innerHTML = '<p class="text-xs text-slate-400">המזווה שלכם ריק. הוסיפו מוצרים למזווה כדי לייצר מהם מתכונים!</p>';
-        return;
-    }
-    let html = '';
-    pantryCache.forEach(p => {
-        html += `<label class="recipe-pantry-item-label flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-orange-300 transition shadow-sm"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3.5 h-3.5 accent-orange-500"><span class="text-xs text-slate-700 font-medium">${p.item_name} <span class="text-[10px] text-slate-400">(${p.quantity})</span></span></label>`;
-    });
-    listContainer.innerHTML = html;
-}
-
-let isAllRecipePantrySelected = true;
-function selectAllRecipePantry() {
-    isAllRecipePantrySelected = !isAllRecipePantrySelected;
-    document.querySelectorAll('.recipe-pantry-checkbox').forEach(cb => { cb.checked = isAllRecipePantrySelected; });
-}
-
-async function generateRecipe() {
-    const btn = document.getElementById('btn-generate-recipe');
-    const mealType = document.getElementById('recipe-meal-type').value;
-    const diners = document.getElementById('recipe-diners').value;
-    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
-    const customIngredients = document.getElementById('recipe-custom-ingredients').value;
-    
-    let pantryItemsStr = "";
-    if (!ignorePantry) {
-        const selectedItems = [];
-        document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(cb => { selectedItems.push(cb.value); });
-        if (selectedItems.length === 0) return showToast('error', 'לא סימנתם אף מוצר מהמזווה!');
-        pantryItemsStr = selectedItems.join(', ');
-    } else if (!customIngredients.trim()) {
-        return showToast('error', 'אנא הזינו מצרכים חלופיים');
-    }
-
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...';
-    document.getElementById('recipe-result-container').classList.add('hidden');
-
-    try {
-        const res = await fetch(`${API}/recipes/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, mealType: mealType, diners: diners, ignorePantry: ignorePantry, customIngredients: customIngredients, pantryItems: pantryItemsStr })
-        });
-        const data = await res.json();
-        
-        if(!handleAIResponseCheck(data)) return;
-
-        if (data.success && data.recipe) {
-            let formattedRecipe = data.recipe
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/## /g, '<h3 class="text-lg font-bold text-slate-800 mt-4 mb-2">')
-                .replace(/# /g, '<h2 class="text-xl font-bold text-orange-600 mt-2 mb-2">');
-            
-            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
-            document.getElementById('recipe-result-container').classList.remove('hidden');
-            triggerConfetti();
-            setTimeout(() => document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' }), 300);
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת המתכון');
-        }
-    } catch (e) { showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)'); } 
-    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; }
-}
-
-function copyRecipe() {
-    const text = document.getElementById('recipe-result-content').innerText;
-    try {
-        const textArea = document.createElement("textarea"); textArea.value = text;
-        document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea);
-        showToast('success', 'המתכון הועתק בהצלחה!');
-    } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
-}
 
 // --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
