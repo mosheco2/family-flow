@@ -248,8 +248,6 @@ app.post('/api/admin/send-credentials', async (req, res) => {
         });
         emailContent += `\nבברכה,\nצוות Oneflow Life`;
 
-        console.log(`\n======================================\n📨 === EMAIL TO: ${adminEmail} === 📨\n${emailContent}\n======================================\n`);
-
         if (process.env.SMTP_USER && process.env.SMTP_PASS) {
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -293,12 +291,19 @@ app.post('/api/products', async (req, res) => {
 
 app.get('/api/forecast', async (req, res) => {
     try {
-        const { groupId, userId, month } = req.query; // month format: 'YYYY-MM'
-        if (!groupId || !month) return res.json({ startingBalance: 0, items: [] });
+        const { groupId, userId, period, mode } = req.query; // period: 'YYYY-MM' or 'YYYY', mode: 'monthly' or 'yearly'
+        if (!groupId || !period) return res.json({ startingBalance: 0, items: [] });
         
-        const targetDate = new Date(`${month}-01`);
-        const targetMonth = targetDate.getMonth();
-        const targetYear = targetDate.getFullYear();
+        let targetStartDate, targetEndDate;
+        const isYearly = mode === 'yearly';
+
+        if (isYearly) {
+            targetStartDate = new Date(`${period}-01-01T00:00:00`);
+            targetEndDate = new Date(`${period}-12-31T23:59:59`);
+        } else {
+            targetStartDate = new Date(`${period}-01T00:00:00`);
+            targetEndDate = new Date(targetStartDate.getFullYear(), targetStartDate.getMonth() + 1, 0, 23, 59, 59);
+        }
         
         let userFilter = '';
         let params = [groupId];
@@ -307,12 +312,12 @@ app.get('/api/forecast', async (req, res) => {
             params.push(userId);
         }
 
-        // Fetch ALL relevant transactions (past, future, recurring)
+        // שולפים את כל הפעולות הרלוונטיות של המשפחה/המשתמש (כולל קבועות ועתידיות)
         const query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ${userFilter} ORDER BY t.date ASC`;
         const txRes = await pool.query(query, params);
         const allTxs = txRes.rows;
 
-        // Fetch true current balance
+        // חישוב יתרת הבסיס האמיתית כרגע
         let currentBal = 0;
         if (userId && userId !== 'all') {
             const uRes = await pool.query('SELECT balance FROM users WHERE id=$1', [userId]);
@@ -326,62 +331,66 @@ app.get('/api/forecast', async (req, res) => {
         let items = [];
         const now = new Date();
         
-        // Calculate projected starting balance (from "now" to target month start)
-        // and gather items falling exactly in the target month.
+        // חישוב הפעולות מנקודת הזמן הנוכחית ועד סוף התקופה המבוקשת
         allTxs.forEach(tx => {
             const txDate = new Date(tx.date);
             const amt = parseFloat(tx.amount);
             const isIncome = tx.type === 'income';
             
             if (tx.is_recurring) {
-                const endDate = tx.end_date ? new Date(tx.end_date) : new Date(targetYear + 10, 11, 31);
+                const endDate = tx.end_date ? new Date(tx.end_date) : new Date(targetStartDate.getFullYear() + 10, 11, 31);
                 
-                // Add to items list if it occurs this month
-                if (txDate <= new Date(targetYear, targetMonth + 1, 0) && endDate >= new Date(targetYear, targetMonth, 1)) {
-                    const occDate = new Date(targetYear, targetMonth, txDate.getDate());
-                    items.push({
-                        id: tx.id,
-                        type: tx.type,
-                        amount: amt,
-                        description: tx.description,
-                        user_name: tx.user_name,
-                        date_str: occDate.toLocaleDateString('he-IL'),
-                        is_recurring: true
-                    });
-                }
-                
-                // Affect starting balance if it occurs between now and the target month
                 let tempDate = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
-                if (tempDate < now) tempDate.setMonth(now.getMonth() + 1); // skip past occurrences
                 
-                while (tempDate > now && tempDate < targetDate && tempDate <= endDate) {
+                // משפיע על יתרת הפתיחה רק מ"עכשיו" ועד תחילת התקופה המבוקשת
+                if (tempDate < now) tempDate.setMonth(now.getMonth() + 1); // מדלג על מה שכבר חושב בעבר ביתרה האמיתית
+                
+                while (tempDate > now && tempDate < targetStartDate && tempDate <= endDate) {
                      startingBalance += isIncome ? amt : -amt;
                      tempDate.setMonth(tempDate.getMonth() + 1);
                 }
-            } else {
-                // One time future transaction
-                if (txDate.getFullYear() === targetYear && txDate.getMonth() === targetMonth) {
+
+                // הוספת הפעולות המשתכפלות לתוך התקופה המבוקשת עצמה (חודש ספציפי או שנה שלמה)
+                let itemTempDate = new Date(tempDate); 
+                if (itemTempDate < targetStartDate) itemTempDate = new Date(targetStartDate.getFullYear(), targetStartDate.getMonth(), txDate.getDate());
+                
+                while (itemTempDate >= targetStartDate && itemTempDate <= targetEndDate && itemTempDate <= endDate) {
                     items.push({
                         id: tx.id,
                         type: tx.type,
                         amount: amt,
                         description: tx.description,
+                        category: tx.category,
+                        user_name: tx.user_name,
+                        date_str: itemTempDate.toLocaleDateString('he-IL'),
+                        timestamp: itemTempDate.getTime(),
+                        is_recurring: true
+                    });
+                    itemTempDate.setMonth(itemTempDate.getMonth() + 1);
+                }
+
+            } else {
+                // פעולה חד פעמית רגילה
+                if (txDate >= targetStartDate && txDate <= targetEndDate) {
+                    items.push({
+                        id: tx.id,
+                        type: tx.type,
+                        amount: amt,
+                        description: tx.description,
+                        category: tx.category,
                         user_name: tx.user_name,
                         date_str: txDate.toLocaleDateString('he-IL'),
+                        timestamp: txDate.getTime(),
                         is_recurring: false
                     });
-                } else if (txDate > now && txDate < targetDate) {
+                } else if (txDate > now && txDate < targetStartDate) {
                     startingBalance += isIncome ? amt : -amt;
                 }
             }
         });
 
-        // Sort items by date within the month
-        items.sort((a, b) => {
-            const dayA = parseInt(a.date_str.split('.')[0]);
-            const dayB = parseInt(b.date_str.split('.')[0]);
-            return dayA - dayB;
-        });
+        // מיון לפי תאריך עולה
+        items.sort((a, b) => a.timestamp - b.timestamp);
 
         res.json({ startingBalance: startingBalance, items });
     } catch (e) {
@@ -392,7 +401,7 @@ app.get('/api/forecast', async (req, res) => {
 
 app.post('/api/forecast/familai-insight', async (req, res) => {
     try {
-        const { groupId, month, targetUserId } = req.body;
+        const { groupId, period, mode, targetUserId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
@@ -400,11 +409,13 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
         let userFilter = ''; let params = [groupId];
         if (targetUserId && targetUserId !== 'all') { userFilter = ` AND user_id = $2`; params.push(targetUserId); }
 
-        const query = `SELECT amount, description, type, date, is_recurring FROM transactions WHERE group_id=$1 ${userFilter} AND (date >= CURRENT_DATE OR is_recurring = TRUE)`;
+        const query = `SELECT amount, description, category, type, date, is_recurring FROM transactions WHERE group_id=$1 ${userFilter} AND (date >= CURRENT_DATE OR is_recurring = TRUE)`;
         const txsRes = await pool.query(query, params);
 
+        const periodName = mode === 'yearly' ? `שנת ${period}` : `חודש ${period}`;
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a smart financial forecaster for a family. Analyze these upcoming/recurring transactions for the requested period: ${JSON.stringify(txsRes.rows)}. Write a short, smart forecast insight for the upcoming month (${month}) in Hebrew. Max 3-4 sentences. Be encouraging, point out if they have heavy expenses coming up, and give one tip on how to prepare. Use emojis. Start with "היי! כאן familAI רואת העתידות 🔮"`;
+        const prompt = `You are 'familAI', a smart financial forecaster for a family. Analyze these upcoming/recurring transactions for the requested period: ${JSON.stringify(txsRes.rows)}. Write a short, smart forecast insight for the upcoming period (${periodName}) in Hebrew. Max 3-4 sentences. Be encouraging, point out if they have heavy expenses coming up in certain categories, and give one tip on how to prepare. Use emojis. Start with "היי! כאן familAI רואת העתידות 🔮"`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בתובנות התשקיף'); }
