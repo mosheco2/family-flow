@@ -26,6 +26,11 @@ let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
+// משתנים עבור הגרפים של התשקיף
+let forecastExpenseChart = null;
+let forecastIncomeChart = null;
+let currentForecastMode = 'monthly';
+
 let currentScanTarget = ''; 
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
@@ -59,6 +64,13 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 
 window.onload = async () => { 
     initAccessibility();
+    
+    // חיבור כפתורי המעבר חודשי/שנתי בתשקיף
+    const btnMonthly = document.getElementById('btn-forecast-monthly');
+    const btnYearly = document.getElementById('btn-forecast-yearly');
+    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly'));
+    if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
+
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
@@ -922,7 +934,6 @@ function renderChildTodo() {
     if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
 }
 
-// פונקציה חדשה לאישור ידני על ידי ההורה
 function openApproveTaskModal(id, title, currentReward) {
     document.getElementById('approve-task-id').value = id;
     document.getElementById('approve-task-title').innerText = title;
@@ -1376,37 +1387,57 @@ function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-
 async function submitNewBudgetCat() { const catName = document.getElementById('new-budget-cat-name').value; if(!catName) return; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); document.getElementById('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); }
 
 // ============================================================
-// --- FORECAST MODULE (תשקיף תזרים קדימה) ---
+// --- FORECAST MODULE (תשקיף תזרים קדימה + גרפים עוגה) ---
 // ============================================================
 
-function populateForecastMonths() {
-    const select = document.getElementById('forecast-month-filter');
-    if (!select) return;
-    const currentVal = select.value;
-    if (select.options.length === 0) {
+window.toggleForecastMode = function(mode) {
+    currentForecastMode = mode;
+    document.getElementById('btn-forecast-monthly').className = mode === 'monthly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    document.getElementById('btn-forecast-yearly').className = mode === 'yearly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    
+    document.getElementById('forecast-month-filter').classList.toggle('hidden', mode !== 'monthly');
+    document.getElementById('forecast-year-filter').classList.toggle('hidden', mode !== 'yearly');
+    
+    renderForecast();
+};
+
+function populateForecastPeriods() {
+    const mSelect = document.getElementById('forecast-month-filter');
+    const ySelect = document.getElementById('forecast-year-filter');
+    
+    if (mSelect && mSelect.options.length === 0) {
         const now = new Date();
-        for(let i=0; i<6; i++) {
+        for(let i=0; i<12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
             const label = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
-            select.innerHTML += `<option value="${monthStr}">${label}</option>`;
+            mSelect.innerHTML += `<option value="${monthStr}">${label}</option>`;
         }
     }
-    if(currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
-        select.value = currentVal;
+    
+    if (ySelect && ySelect.options.length === 0) {
+        const curYear = new Date().getFullYear();
+        for(let i=0; i<5; i++) {
+            ySelect.innerHTML += `<option value="${curYear + i}">שנת ${curYear + i}</option>`;
+        }
     }
 }
 
 async function renderForecast() {
-    populateForecastMonths();
+    populateForecastPeriods();
     const list = document.getElementById('forecast-list');
     if(!list) return;
     
     try {
         if(!currentGroup || !currentGroup.id) return;
         const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-        const month = document.getElementById('forecast-month-filter').value;
-        const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&month=${month || ''}`);
+        
+        const periodVal = currentForecastMode === 'monthly' 
+            ? document.getElementById('forecast-month-filter').value 
+            : document.getElementById('forecast-year-filter').value;
+            
+        // נוסיף פרמטר mode ל-API כדי שהשרת יידע אם לחשב לפי חודש או לפי שנה שלמה
+        const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&period=${periodVal || ''}&mode=${currentForecastMode}`);
         if (res.ok) {
             forecastCache = await res.json();
         }
@@ -1416,14 +1447,25 @@ async function renderForecast() {
     let totalIncome = 0;
     let totalExpense = 0;
     
+    // אובייקטים לאיסוף הנתונים לגרפים
+    const incomeData = {};
+    const expenseData = {};
+    
     let html = '';
     if(items.length === 0) {
-        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות שצפויות החודש</p>';
+        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
     } else {
         items.forEach(item => {
             const isIncome = item.type === 'income';
-            if(isIncome) totalIncome += parseFloat(item.amount);
-            else totalExpense += parseFloat(item.amount);
+            const amt = parseFloat(item.amount);
+            
+            if(isIncome) {
+                totalIncome += amt;
+                incomeData[item.category] = (incomeData[item.category] || 0) + amt;
+            } else {
+                totalExpense += amt;
+                expenseData[item.category] = (expenseData[item.category] || 0) + amt;
+            }
             
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
             const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; 
@@ -1450,15 +1492,88 @@ async function renderForecast() {
     document.getElementById('forecast-net-change').innerText = `₪${netChange.toFixed(2)}`;
     document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
+    
+    // ציור הגרפים!
+    drawForecastCharts(incomeData, expenseData);
+}
+
+function drawForecastCharts(incomeData, expenseData) {
+    const ctxInc = document.getElementById('incomeChart');
+    const ctxExp = document.getElementById('expenseChart');
+    if(!ctxInc || !ctxExp) return;
+    
+    if(forecastIncomeChart) forecastIncomeChart.destroy();
+    if(forecastExpenseChart) forecastExpenseChart.destroy();
+    
+    // פונקציית עזר להכנת הנתונים לגרף
+    const prepareChartData = (dataObj) => {
+        const labels = [];
+        const data = [];
+        for (const [key, val] of Object.entries(dataObj)) {
+            // ניסיון לשלוף את התווית היפה, אם לא נמצא נשתמש ב-key כפי שהוא
+            const niceLabel = BUDGET_LABELS[key] || key;
+            labels.push(niceLabel);
+            data.push(val);
+        }
+        return { labels, data };
+    };
+    
+    const inc = prepareChartData(incomeData);
+    const exp = prepareChartData(expenseData);
+    
+    // רשימת צבעים נעימים לעין שחוזרת על עצמה
+    const getColors = (count) => {
+        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#f43f5e', '#6366f1', '#10b981'];
+        return Array.from({length: count}, (_, i) => colors[i % colors.length]);
+    };
+    
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false // מסתיר את המקרא כדי לחסוך מקום, יש Tooltips כשלוחצים
+            }
+        }
+    };
+    
+    if(inc.data.length > 0) {
+        forecastIncomeChart = new Chart(ctxInc, {
+            type: 'doughnut',
+            data: { 
+                labels: inc.labels, 
+                datasets: [{ data: inc.data, backgroundColor: getColors(inc.data.length), borderWidth: 2 }] 
+            },
+            options: chartOptions
+        });
+    }
+    
+    if(exp.data.length > 0) {
+        forecastExpenseChart = new Chart(ctxExp, {
+            type: 'doughnut',
+            data: { 
+                labels: exp.labels, 
+                datasets: [{ data: exp.data, backgroundColor: getColors(exp.data.length), borderWidth: 2 }] 
+            },
+            options: chartOptions
+        });
+    }
 }
 
 function getForecastInsight() {
     executeWithAIWarning(async () => {
-        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לחודש...';
+        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לתקופה...';
         try {
-            const month = document.getElementById('forecast-month-filter').value;
+            const periodVal = currentForecastMode === 'monthly' 
+                ? document.getElementById('forecast-month-filter').value 
+                : document.getElementById('forecast-year-filter').value;
             const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const res = await fetch(`${API}/forecast/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, month: month, targetUserId: targetUserId }) }); 
+            
+            const res = await fetch(`${API}/forecast/familai-insight`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ groupId: currentGroup.id, period: periodVal, mode: currentForecastMode, targetUserId: targetUserId }) 
+            }); 
             const data = await res.json();
             if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success && data.insight) { showFamilAIModal('רואת העתידות', data.insight); }
