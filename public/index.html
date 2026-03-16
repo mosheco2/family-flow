@@ -960,8 +960,8 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button>
-                    <button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button>
+                    <button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור</button>
                 </div>
             </div>
         </div>
@@ -990,6 +990,31 @@
                 <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
                 <div class="grid grid-cols-2 gap-4 mb-6"><div class="relative"><input type="number" id="bank-allowance" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">₪ דמי כיס</span></div><div class="relative"><input type="number" id="bank-interest" class="modern-input" placeholder="0"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">% ריבית</span></div></div>
                 <div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור</button></div>
+            </div>
+        </div>
+
+        <div id="balance-adjustment-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
+                <h3 class="text-lg font-bold mb-2 text-center">ניהול יתרה (קנס/בונוס) 💳</h3>
+                <p id="adjustment-user-name" class="text-center text-slate-500 mb-6 text-sm"></p>
+                <input type="hidden" id="adjustment-user-id">
+                
+                <div class="flex bg-slate-100 p-1 rounded-xl mb-4">
+                    <button id="btn-adj-deduct" onclick="toggleAdjustmentType('deduct')" class="flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition">הפחתה (-)</button>
+                    <button id="btn-adj-add" onclick="toggleAdjustmentType('add')" class="flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition">הוספה (+)</button>
+                </div>
+                <input type="hidden" id="adjustment-type" value="deduct">
+
+                <div class="relative mb-4">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span>
+                    <input type="number" id="adjustment-amount" class="w-full p-3 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-2xl text-center font-bold outline-none focus:border-blue-500 transition" placeholder="סכום">
+                </div>
+                <input type="text" id="adjustment-reason" class="modern-input mb-6 text-sm" placeholder="סיבה (למשל: קנס על אי סידור חדר)">
+                
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('balance-adjustment-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
+                    <button onclick="submitBalanceAdjustment()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition hover:bg-blue-700">עדכן יתרה</button>
+                </div>
             </div>
         </div>
         
@@ -1049,7 +1074,7 @@
         </div>
 
         <div id="tos-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-4 text-slate-800 border-b border-slate-100 pb-3">תקנון ותנאי שימוש 📜</h3>
                 <div class="flex-1 text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
                     <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
@@ -1093,6 +1118,13 @@
                 document.getElementById('trans-end-date-container').classList.add('hidden');
                 document.getElementById('trans-end-month').value = '';
             }
+        }
+        
+        function toggleAdjustmentType(type) {
+            const isAdd = type === 'add';
+            document.getElementById('adjustment-type').value = type;
+            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
+            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
     <script src="app.js" defer></script>
