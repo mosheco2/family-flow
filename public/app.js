@@ -687,48 +687,43 @@ function startBarcodeScan(target) {
     currentScanTarget = target;
     document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
-    // מנקים קריאות קודמות במידה והיו כדי למנוע התנגשויות
     if (html5QrCode) {
         try { html5QrCode.stop().then(() => html5QrCode.clear()).catch(()=>{}); } catch(e) {}
     }
 
-    // הגדרה שמבקשת סריקת EAN_13 (מוצרי סופר) ואופציות נוספות
     const formatsToSupport = [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.UPC_A,
         Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.QR_CODE // הוספתי QR כגיבוי לבדיקות תקינות מצלמה
+        Html5QrcodeSupportedFormats.QR_CODE
     ];
 
     html5QrCode = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport, verbose: false });
 
-    // תצורה מותאמת לאייפון ולסריקת ברקודים חד-מימדיים
     const config = {
-        fps: 15, // העלנו מעט את קצב הרענון
-        qrbox: { width: 250, height: 120 }, // קופסה קבועה עובדת טוב יותר מפונקציה באייפון
+        fps: 10, 
+        qrbox: { width: 250, height: 150 },
         aspectRatio: 1.0
-    };
-
-    // דרישה לרזולוציה גבוהה (קריטי לברקודים חד-מימדיים באייפון) ופוקוס מתמשך
-    const cameraConfig = {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        advanced: [{ focusMode: "continuous" }]
     };
 
     const statusText = document.getElementById('barcode-status-text');
     if(statusText) statusText.innerText = "באייפון: החזיקו במרחק 15-20 ס״מ מהברקוד";
 
+    // שימוש בתצורה פשוטה ובטוחה יותר שמונעת שגיאות Overconstrained באייפון
     html5QrCode.start(
-        cameraConfig, 
+        { facingMode: "environment" }, 
         config, 
         onScanSuccess, 
         onScanFailure
     ).catch(err => {
         console.error("Camera Error:", err);
-        showToast('error', 'לא הצלחנו לפתוח את המצלמה. ודא שאישרת גישה.');
+        // בדיקת אבטחת פרוטוקול (HTTPS חובה באייפון)
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            showToast('error', 'אפל חוסמת גישה למצלמה בכתובת שאינה מאובטחת (דרוש HTTPS).');
+        } else {
+            showToast('error', 'לא הצלחנו לגשת למצלמה. בדוק אם נתת הרשאה בדפדפן.');
+        }
         closeBarcodeScanner();
     });
 }
