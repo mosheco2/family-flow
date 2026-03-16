@@ -403,6 +403,42 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
 });
 
+// --- פונקציית זיהוי מוצר חכם מבוסס AI Vision החדשה ---
+app.post('/api/shopping/identify-product', async (req, res) => {
+    try {
+        const { imageBase64, mimeType, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash", 
+            generationConfig: { responseMimeType: "application/json" } 
+        });
+        
+        const prompt = `You are 'familAI', a smart grocery scanning assistant. 
+        Look at the attached image and identify the main grocery or household product shown in it. 
+        Return JSON strictly matching this schema: 
+        { "productName": "Generic Hebrew name of the product (e.g. 'חלב תנובה 3%', 'קורנפלקס', 'נייר טואלט')" }. 
+        If the image is completely unclear or there is no product, return: { "error": "Could not identify" }.`;
+
+        const result = await model.generateContent([ 
+            prompt, 
+            { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } 
+        ]);
+        
+        const aiResponse = JSON.parse(result.response.text());
+        
+        if (aiResponse.error) {
+            return res.json({ success: false, error: 'לא מצאתי מוצר ברור בתמונה.' });
+        }
+        
+        res.json({ success: true, productName: aiResponse.productName });
+    } catch (e) { 
+        handleAIError(e, res, 'שגיאה בזיהוי המוצר מול השרת'); 
+    }
+});
+
 // שינוי 1: AI מעניק בונוס אוטומטי של 10% אם המשימה אושרה בהצלחה
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
