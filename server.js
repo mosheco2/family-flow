@@ -91,7 +91,6 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
             
-            -- מעודכן לתמוך בתזרים (פעולות קבועות ותאריכים עתידיים)
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_date TIMESTAMP);
             
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -108,7 +107,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for Forecast & Recurring Transactions)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -227,7 +226,6 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     }
 });
 
-// --- EMAIL CREDENTIALS ---
 app.post('/api/admin/send-credentials', async (req, res) => {
     try {
         const { groupId, adminId } = req.body;
@@ -267,7 +265,6 @@ app.post('/api/admin/send-credentials', async (req, res) => {
     }
 });
 
-// --- GLOBAL PRODUCTS (BARCODES) ---
 app.get('/api/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT barcode, name, category FROM global_products');
@@ -312,12 +309,10 @@ app.get('/api/forecast', async (req, res) => {
             params.push(userId);
         }
 
-        // שולפים את כל הפעולות הרלוונטיות של המשפחה/המשתמש (כולל קבועות ועתידיות)
         const query = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 ${userFilter} ORDER BY t.date ASC`;
         const txRes = await pool.query(query, params);
         const allTxs = txRes.rows;
 
-        // חישוב יתרת הבסיס האמיתית כרגע
         let currentBal = 0;
         if (userId && userId !== 'all') {
             const uRes = await pool.query('SELECT balance FROM users WHERE id=$1', [userId]);
@@ -331,7 +326,6 @@ app.get('/api/forecast', async (req, res) => {
         let items = [];
         const now = new Date();
         
-        // חישוב הפעולות מנקודת הזמן הנוכחית ועד סוף התקופה המבוקשת
         allTxs.forEach(tx => {
             const txDate = new Date(tx.date);
             const amt = parseFloat(tx.amount);
@@ -342,15 +336,13 @@ app.get('/api/forecast', async (req, res) => {
                 
                 let tempDate = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
                 
-                // משפיע על יתרת הפתיחה רק מ"עכשיו" ועד תחילת התקופה המבוקשת
-                if (tempDate < now) tempDate.setMonth(now.getMonth() + 1); // מדלג על מה שכבר חושב בעבר ביתרה האמיתית
+                if (tempDate < now) tempDate.setMonth(now.getMonth() + 1); 
                 
                 while (tempDate > now && tempDate < targetStartDate && tempDate <= endDate) {
                      startingBalance += isIncome ? amt : -amt;
                      tempDate.setMonth(tempDate.getMonth() + 1);
                 }
 
-                // הוספת הפעולות המשתכפלות לתוך התקופה המבוקשת עצמה (חודש ספציפי או שנה שלמה)
                 let itemTempDate = new Date(tempDate); 
                 if (itemTempDate < targetStartDate) itemTempDate = new Date(targetStartDate.getFullYear(), targetStartDate.getMonth(), txDate.getDate());
                 
@@ -370,7 +362,6 @@ app.get('/api/forecast', async (req, res) => {
                 }
 
             } else {
-                // פעולה חד פעמית רגילה
                 if (txDate >= targetStartDate && txDate <= targetEndDate) {
                     items.push({
                         id: tx.id,
@@ -389,9 +380,7 @@ app.get('/api/forecast', async (req, res) => {
             }
         });
 
-        // מיון לפי תאריך עולה
         items.sort((a, b) => a.timestamp - b.timestamp);
-
         res.json({ startingBalance: startingBalance, items });
     } catch (e) {
         console.error(e);
@@ -614,13 +603,13 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the total price per row. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
+        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, quantities, and prices. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const items = JSON.parse(result.response.text());
         let normalizedArray = [];
         try {
             const names = items.map(i => i.name);
-            const normPrompt = `Normalize these grocery product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
+            const normPrompt = `Normalize these grocery product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Items: ${JSON.stringify(names)}`;
             const normResult = await model.generateContent(normPrompt);
             normalizedArray = JSON.parse(normResult.response.text());
         } catch(e) { console.error(e); }
@@ -642,7 +631,7 @@ app.post('/api/academy/tutor', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
+        const prompt = `You are 'familAI', a friendly tutor. A child answered incorrectly. Q: "${question}" Answered: "${wrongAnswer}" Correct: "${correctAnswer}". Explain briefly in Hebrew why the correct answer is right. Be encouraging!`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
@@ -820,14 +809,13 @@ app.post('/api/admin/update-settings', async (req, res) => {
     } catch (e) { res.status(500).json({error: e.message}); }
 });
 
-// פונקציה חדשה: ניהול יתרה של הילד (קנס/בונוס ידני ע"י ההורה)
+// ניהול יתרה של הילד (קנס/בונוס ידני ע"י ההורה)
 app.post('/api/admin/adjust-balance', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         await dbClient.query('BEGIN');
         const { adminId, groupId, childId, type, amount, reason } = req.body;
 
-        // בדיקה שמי שמבצע את הפעולה הוא אכן הורה/מנהל באותה קבוצה
         const adminCheck = await dbClient.query(`SELECT role FROM users WHERE id = $1 AND group_id = $2`, [adminId, groupId]);
         if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
             await dbClient.query('ROLLBACK');
@@ -843,14 +831,12 @@ app.post('/api/admin/adjust-balance', async (req, res) => {
         const isAdd = type === 'add';
         const op = isAdd ? '+' : '-';
         const txType = isAdd ? 'income' : 'expense';
-        const txCategory = 'other'; // קטגוריה כללית
+        const txCategory = 'other'; 
         const descPrefix = isAdd ? 'בונוס/הוספה יזומה:' : 'קנס/הפחתה יזומה:';
-        const finalReason = reason ? reason : (isAdd ? 'ללא סיבה' : 'ללא סיבה');
+        const finalReason = reason ? reason : 'ללא סיבה';
 
-        // עדכון היתרה של הילד
         await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2 AND group_id = $3`, [parsedAmount, childId, groupId]);
 
-        // רישום הפעולה כעסקה בפיד (כדי שהילד וההורה יראו על מה ירד/נוסף כסף)
         await dbClient.query(
             `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, $5, $6, FALSE)`,
             [childId, groupId, parsedAmount, `${descPrefix} ${finalReason}`, txCategory, txType]
@@ -891,7 +877,6 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
 
-// שינוי לפונקציית פעולות (תומך כעת בתאריכים עתידיים ופעולות קבועות)
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -914,7 +899,6 @@ app.post('/api/transaction', async (req, res) => {
             [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type, txDate, isRecurring, endDate]
         );
         
-        // מעדכן יתרה רק אם התאריך של הפעולה אינו עתידי (עבור הפעולה הראשונה)
         const now = new Date();
         if (txDate <= now) {
             const op = req.body.type === 'income' ? '+' : '-';
@@ -943,6 +927,74 @@ app.get('/api/transactions', async (req, res) => {
         const t = await pool.query(query, params);
         res.json(t.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// עריכת תנועה קיימת בתזרים
+app.put('/api/transaction/:id', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { id } = req.params;
+        const { amount, description, category, requesterId } = req.body;
+
+        const oldTxRes = await dbClient.query('SELECT * FROM transactions WHERE id = $1', [id]);
+        if (oldTxRes.rows.length === 0) throw new Error('הפעולה לא נמצאה');
+        const oldTx = oldTxRes.rows[0];
+
+        // מבטלים את ההשפעה של הפעולה הישנה על היתרה
+        let revertOp = oldTx.type === 'income' ? '-' : '+';
+        await dbClient.query(`UPDATE users SET balance = balance ${revertOp} $1 WHERE id = $2`, [oldTx.amount, oldTx.user_id]);
+
+        // מעדכנים את שורת הפעולה בנתונים החדשים
+        await dbClient.query(
+            `UPDATE transactions SET amount = $1, description = $2, category = $3 WHERE id = $4`,
+            [amount, description, category, id]
+        );
+
+        // מחילים מחדש את ההשפעה על היתרה עם הסכום החדש
+        let applyOp = oldTx.type === 'income' ? '+' : '-';
+        await dbClient.query(`UPDATE users SET balance = balance ${applyOp} $1 WHERE id = $2`, [amount, oldTx.user_id]);
+
+        // אם זו הוצאה, מוודאים שהקטגוריה קיימת בטבלת התקציב
+        if (oldTx.type === 'expense') {
+            await dbClient.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, [oldTx.group_id, category, oldTx.user_id]);
+        }
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        dbClient.release();
+    }
+});
+
+// מחיקת תנועה קיימת מהתזרים
+app.delete('/api/transaction/:id', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { id } = req.params;
+        
+        const oldTxRes = await dbClient.query('SELECT * FROM transactions WHERE id = $1', [id]);
+        if (oldTxRes.rows.length === 0) throw new Error('הפעולה לא נמצאה');
+        const oldTx = oldTxRes.rows[0];
+
+        // מבטלים את ההשפעה של הפעולה על היתרה (כי אנחנו מוחקים אותה לגמרי)
+        let revertOp = oldTx.type === 'income' ? '-' : '+';
+        await dbClient.query(`UPDATE users SET balance = balance ${revertOp} $1 WHERE id = $2`, [oldTx.amount, oldTx.user_id]);
+
+        await dbClient.query('DELETE FROM transactions WHERE id = $1', [id]);
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) {
+        await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        dbClient.release();
+    }
 });
 
 app.post('/api/tasks', async (req, res) => {
@@ -1009,10 +1061,6 @@ app.post('/api/goals/deposit', async (req, res) => {
         res.json({ success: true });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
-
-// ============================================================
-// --- BUDGET ENDPOINTS ---
-// ============================================================
 
 app.get('/api/budget/filter', async (req, res) => {
     try {
@@ -1100,10 +1148,6 @@ app.post('/api/budget/update', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ============================================================
-// --- LOANS ENDPOINTS ---
-// ============================================================
-
 app.post('/api/loans/request', async (req, res) => {
     try {
         const { userId, amount, reason } = req.body;
@@ -1167,10 +1211,6 @@ app.post('/api/loans/reject', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ============================================================
-// --- ACADEMY ENDPOINTS ---
-// ============================================================
-
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -1233,10 +1273,6 @@ app.post('/api/academy/submit', async (req, res) => {
         res.json({ success: true, passed, reward: passed ? finalReward : 0 });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
-
-// ============================================================
-// --- SHOPPING & PANTRY ENDPOINTS ---
-// ============================================================
 
 app.post('/api/shopping/add', async (req, res) => {
     try {
