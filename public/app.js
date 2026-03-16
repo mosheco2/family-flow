@@ -645,36 +645,60 @@ async function submitTask() {
     fetchData(); 
 }
 
+// פונקציית עזר לכיווץ תמונות (שומר על ביצועים מטורפים באפליקציה ומונע קריסות שרת)
+function compressImage(file, maxWidth, maxHeight, quality, callback) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+            } else {
+                if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+            }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            callback(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
 function clickTaskProof(taskId, title) { currentVerifyTaskId = taskId; currentVerifyTaskTitle = title; document.getElementById('task-proof-upload').click(); }
 
 function handleTaskProofUpload(event) {
     const file = event.target.files[0]; if(!file || !currentVerifyTaskId) return;
     showFamilAIModal('בקרת איכות', null); document.getElementById('familai-loading-text').innerText = 'familAI בודקת את התמונה שלך...';
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const base64 = e.target.result.split(',')[1];
+    
+    compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
+        const base64 = compressedDataUrl.split(',')[1];
         try {
-            const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: file.type, groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success) { showFamilAIModal('בקרת איכות', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
-        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.'); }
+        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ עדיין גדול מדי או שגיאת תקשורת.'); }
         event.target.value = '';
-    }; reader.readAsDataURL(file);
+    });
 }
 
 function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
     showFamilAIModal('קופאית אוטומטית', null); document.getElementById('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const base64 = e.target.result.split(',')[1];
+    
+    compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
+        const base64 = compressedDataUrl.split(',')[1];
         try {
-            const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: file.type }) }); const data = await res.json();
+            const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת הקבלה.'); }
-        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.'); }
+        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
         event.target.value = '';
-    }; reader.readAsDataURL(file);
+    });
 }
 
 // ==========================================
@@ -684,15 +708,13 @@ function handleReceiptUpload(event) {
 function startBarcodeScan(target) {
     currentScanTarget = target;
     
-    // במקום לפתוח וידאו חי שנחסם על ידי אפל, אנחנו יוצרים אלמנט קלט קובץ דינמי
-    // שמבקש ישירות מהאייפון לפתוח את מצלמת הסטילס
     let input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // מצלמה אחורית
+    input.capture = 'environment'; 
     
     input.onchange = (e) => handleProductImageUpload(e, target);
-    input.click(); // מקפיץ את המצלמה באייפון בצורה טבעית לחלוטין
+    input.click(); 
 }
 
 function handleProductImageUpload(event, target) {
@@ -701,14 +723,14 @@ function handleProductImageUpload(event, target) {
     showFamilAIModal('זיהוי מוצר חכם', null);
     document.getElementById('familai-loading-text').innerText = 'familAI בודקת איזה מוצר צילמת...';
     
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const base64 = e.target.result.split(',')[1];
+    compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
+        const base64 = compressedDataUrl.split(',')[1];
         try {
+            // שים לב: הקריאה הזו נכשלת כרגע בגלל שעוד לא כתבנו את ה-API ב-server.js
             const res = await fetch(`${API}/shopping/identify-product`, { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ imageBase64: base64, mimeType: file.type, groupId: currentGroup.id }) 
+                body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) 
             });
             const data = await res.json();
             
@@ -730,14 +752,12 @@ function handleProductImageUpload(event, target) {
             }
         } catch(err) {
             document.getElementById('familai-advisor-modal').classList.add('hidden');
-            showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.');
+            showToast('error', 'שגיאת תקשורת מול השרת.');
         }
         event.target.value = '';
-    }; 
-    reader.readAsDataURL(file);
+    });
 }
 
-// פונקציית סגירה ריקה (כדי שלא נקבל שגיאה אם משהו ב-HTML מנסה לקרוא לה)
 function closeBarcodeScanner() { 
     const modal = document.getElementById('barcode-scanner-modal');
     if(modal) modal.classList.add('hidden'); 
