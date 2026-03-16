@@ -64,7 +64,6 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
 window.onload = async () => { 
     initAccessibility();
     
-    // חיבור כפתורי המעבר חודשי/שנתי בתשקיף
     const btnMonthly = document.getElementById('btn-forecast-monthly');
     const btnYearly = document.getElementById('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly'));
@@ -86,17 +85,36 @@ window.onload = async () => {
         clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
     }
     
+    // תיקון טעינה אופטימית - מונע ניתוקים פתאומיים בעת סגירת האפליקציה והטלפון
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 
             if(session && session.user && session.user.id) { 
-                const res = await fetch(`${API}/users/${session.user.id}`); 
-                if(res.ok) { 
-                    currentUser = await res.json(); currentGroup = session.group; 
-                    localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); 
-                    clearTimeout(failsafeTimer); await loadDashboard(); 
-                } else { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
+                currentUser = session.user; 
+                currentGroup = session.group; 
+                clearTimeout(failsafeTimer); 
+                
+                // מריץ את האפליקציה באופן מיידי על סמך נתוני הזיכרון
+                loadDashboard(); 
+                
+                // בודק ברקע בשקט מול השרת ללא קריסה אם הרשת עוד לא זמינה
+                fetch(`${API}/users/${session.user.id}`).then(res => {
+                    if(res.ok) {
+                        res.json().then(updatedUser => {
+                            currentUser = updatedUser;
+                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                        });
+                    } else if (res.status === 404 || res.status === 401 || res.status === 403) {
+                        // אם המשתמש נמחק באופן אקטיבי מהשרת, ננתק אותו
+                        localStorage.removeItem('ofl_session');
+                        location.reload();
+                    }
+                }).catch(e => {
+                    // הרשת למטה (למשל הטלפון רק התעורר), לא עושים כלום - נשארים מחוברים
+                    console.log('App is offline, keeping user session active.');
+                });
+
             } else { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
         } catch(e) { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); } 
     } else { clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
