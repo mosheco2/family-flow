@@ -9,9 +9,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/שlibs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -355,7 +357,6 @@
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">קניות 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מזווה 📦</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">בנק 🏦</button>
-                            <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 🔮</button>
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
@@ -404,32 +405,13 @@
                         </div>
                     </div>
 
-                    <div id="content-forecast" class="hidden">
-                        <div class="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                            <button onclick="getForecastInsight()" id="btn-forecast-insight" class="absolute top-6 left-6 text-[10px] font-bold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 hover:bg-teal-100 transition flex items-center gap-1 z-10 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> תחזית familAI</button>
-                            <h3 class="text-xl font-bold mb-1">תשקיף עתידי 🔮</h3>
-                            <p class="text-teal-50 text-xs opacity-90">תכנון נבון של ההכנסות וההוצאות שלכם</p>
-                            <i class="fa-solid fa-chart-pie absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
-                        <div class="flex justify-between items-center mb-4 px-2">
-                            <select id="forecast-user-filter" onchange="renderForecast()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto hidden rounded-full shadow-sm border-slate-200 outline-none"><option value="all">כל המשפחה</option></select>
-                            <select id="forecast-month-filter" onchange="renderForecast()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto w-auto rounded-full shadow-sm border-slate-200 outline-none">
-                                </select>
-                        </div>
-                        <div id="forecast-summary" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4 grid grid-cols-3 text-center divide-x divide-x-reverse divide-slate-100">
-                            <div><p class="text-[10px] text-slate-400 mb-1">הכנסות צפויות</p><p id="forecast-in" class="font-bold text-green-500">₪0</p></div>
-                            <div><p class="text-[10px] text-slate-400 mb-1">הוצאות צפויות</p><p id="forecast-out" class="font-bold text-red-500">₪0</p></div>
-                            <div><p class="text-[10px] text-slate-400 mb-1">יתרה נטו</p><p id="forecast-bal" class="font-bold text-blue-600">₪0</p></div>
-                        </div>
-                        <div id="forecast-list" class="space-y-3 pb-20"></div>
-                    </div>
-
                     <div id="content-shop" class="hidden">
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">סופר חכם 🛒</h3>
                             <div class="flex gap-2">
                                 <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
                                 <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold shadow-sm hover:bg-purple-200 transition"><i class="fa-solid fa-receipt"></i> סרוק קבלה</button>
+                                <button onclick="startBarcodeScan('shop')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> ברקוד</button>
                                 <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף</button>
                             </div>
                         </div>
@@ -451,7 +433,10 @@
                                 <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
                             </div>
                             <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
-                            <button onclick="openPantryModal()" class="w-full mt-2 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף מוצר למלאי</button>
+                            <div class="flex gap-2">
+                                <button onclick="startBarcodeScan('pantry')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-barcode"></i> סרוק להוספה</button>
+                                <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
+                            </div>
                         </div>
                         <div id="pantry-list" class="space-y-3 pb-20"></div>
                     </div>
@@ -612,7 +597,6 @@
         
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
-                <button onclick="openShopModal()" class="w-12 h-12 bg-pink-500 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-pink-600 transition" title="הוסף לקניות"><i class="fa-solid fa-cart-shopping"></i></button>
                 <button onclick="openTransactionModal('income')" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition"><i class="fa-solid fa-plus"></i></button>
                 <button onclick="openTransactionModal('expense')" class="w-12 h-12 bg-white text-red-500 border-2 border-red-50 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-red-50 transition"><i class="fa-solid fa-minus"></i></button>
             </div>
@@ -627,34 +611,34 @@
             <i class="fa-solid fa-universal-access"></i>
         </button>
 
-        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out] max-h-[90vh] overflow-y-auto">
-                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
-                <input type="hidden" id="trans-type">
-                
-                <div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div>
-                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
-                <select id="trans-cat" class="modern-input mb-4 bg-white"></select>
+        <div id="barcode-scanner-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm hidden z-[99] flex flex-col items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="closeBarcodeScanner()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-bold mb-4 text-center text-slate-800 flex items-center justify-center gap-2"><i class="fa-solid fa-barcode text-blue-500"></i> סריקת מוצר</h3>
+                <div id="qr-reader" class="w-full overflow-hidden rounded-xl border border-slate-200 mb-2"></div>
+                <p id="barcode-status-text" class="text-xs text-slate-500 text-center mt-2 font-medium">כוון את המצלמה אל הברקוד</p>
+            </div>
+        </div>
 
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs font-bold text-slate-600">מתי זה קורה?</label>
-                        <select id="trans-month" class="modern-input py-1.5 px-2 text-xs w-auto bg-white shadow-sm border-slate-200">
-                            </select>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="trans-is-recurring" class="w-4 h-4 accent-blue-600" onchange="document.getElementById('trans-end-date-container').classList.toggle('hidden', !this.checked)">
-                        <label for="trans-is-recurring" class="text-xs font-bold text-slate-600">פעולה קבועה (חוזרת כל חודש)</label>
-                    </div>
-                    
-                    <div id="trans-end-date-container" class="hidden pl-6">
-                        <label class="text-[10px] font-bold text-slate-400 block mb-1">עד מתי? (אופציונלי)</label>
-                        <input type="month" id="trans-end-date" class="modern-input py-1.5 text-xs bg-white">
-                    </div>
+        <div id="new-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center">
+                <h3 class="text-lg font-bold mb-2">מוצר חדש זוהה! ✨</h3>
+                <p class="text-xs text-slate-500 mb-4">ברקוד: <span id="new-product-barcode" class="font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded"></span></p>
+                <input type="text" id="new-product-name" class="modern-input mb-3" placeholder="מה שם המוצר? (למשל: במבה)">
+                <select id="new-product-cat" class="modern-input mb-6 bg-white py-3">
+                    <option value="כללי">כללי</option>
+                    <option value="ירקות ופירות 🍎">ירקות ופירות 🍎</option>
+                    <option value="חלב וביצים 🥛">חלב וביצים 🥛</option>
+                    <option value="לחם ומאפים 🍞">לחם ומאפים 🍞</option>
+                    <option value="מזווה ובישול 🍝">מזווה ובישול 🍝</option>
+                    <option value="בשר ודגים 🍗">בשר ודגים 🍗</option>
+                    <option value="ניקיון וטואלטיקה 🧻">ניקיון וטואלטיקה 🧻</option>
+                    <option value="חטיפים ומתוקים 🍫">חטיפים ומתוקים 🍫</option>
+                </select>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('new-product-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                    <button onclick="saveNewProduct()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">שמור והמשך</button>
                 </div>
-
-                <div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div>
             </div>
         </div>
 
@@ -706,7 +690,7 @@
                 
                 <div id="ai-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-2xl border border-purple-100">
                     <p class="text-xs font-bold text-purple-800 mb-2">רוצים להשתמש בי ללא הגבלה?</p>
-                    <button onclick="upgradeToPremium()" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
+                    <button onclick="openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!')" id="btn-upgrade-premium" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] transition">שדרגו ל-Pro 🚀</button>
                 </div>
                 
                 <button onclick="closeAiBatteryModal()" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, נחכה למחר</button>
@@ -871,6 +855,17 @@
             </div>
         </div>
         
+        <div id="transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] p-8 shadow-2xl animate-[fadeIn_0.3s_ease-out]">
+                <h3 id="trans-modal-title" class="text-xl font-bold mb-6 text-center text-slate-800"></h3>
+                <input type="hidden" id="trans-type">
+                <div class="relative mb-4"><span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl font-light">₪</span><input type="number" id="trans-amount" class="w-full p-4 pl-4 pr-10 bg-slate-50 border-2 border-slate-100 rounded-2xl text-4xl text-center font-bold outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-300" placeholder="0.00"></div>
+                <input type="text" id="trans-desc" class="modern-input mb-3" placeholder="תיאור">
+                <select id="trans-cat" class="modern-input mb-8 bg-white"></select>
+                <div class="flex gap-3"><button onclick="document.getElementById('transaction-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitTransaction()" class="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button></div>
+            </div>
+        </div>
+        
         <div id="goal-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
                 <h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3>
@@ -983,3 +978,8 @@
                 <button onclick="resetAccessibility()" class="w-full mt-6 bg-red-50 text-red-500 py-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-100">איפוס הגדרות</button>
             </div>
         </div>
+    </div>
+
+    <script src="app.js" defer></script>
+</body>
+</html>
