@@ -22,6 +22,7 @@ let currentUser = null; let currentGroup = null; let pollInterval = null; let sa
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
+let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
@@ -208,6 +209,42 @@ function openAlertModal(title, text) {
     }
 }
 
+// --- AI SMART WARNING WRAPPER ---
+function executeWithAIWarning(actionCallback) {
+    if (currentGroup && currentGroup.is_premium) {
+        return actionCallback(); // Premium users bypass warning
+    }
+    
+    const todayStr = new Date().toLocaleDateString();
+    const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed');
+    if (dismissedDate === todayStr) {
+        return actionCallback(); // User chose not to see warning today
+    }
+    
+    const modal = document.getElementById('ai-warning-modal');
+    const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    
+    const leftEl = document.getElementById('ai-warning-left');
+    if (leftEl) leftEl.innerText = tokensLeft;
+    
+    const btnContinue = document.getElementById('btn-ai-warning-continue');
+    // Clone button to strip old event listeners
+    const newBtn = btnContinue.cloneNode(true);
+    btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+    
+    newBtn.onclick = () => {
+        const dontShow = document.getElementById('ai-warning-dont-show').checked;
+        if (dontShow) {
+            localStorage.setItem('ofl_ai_warning_dismissed', todayStr);
+        }
+        modal.classList.add('hidden');
+        actionCallback();
+    };
+    
+    modal.classList.remove('hidden');
+}
+
+
 // --- GUIDED TOURS ---
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
@@ -231,7 +268,7 @@ function startAdminTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -257,7 +294,7 @@ function startChildTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -287,11 +324,12 @@ function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
 function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
     if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } else { try { renderShopList(); } catch(e) {} }
     if (t === 'pantry') renderPantry();
     if (t === 'recipes') renderRecipePantrySelection();
+    if (t === 'forecast') renderForecast();
 }
 
 function updateBatteryUI() {
@@ -470,6 +508,7 @@ async function fetchData() {
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
+        try { renderForecast(); } catch(e) {}
         
         try {
             const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
@@ -512,54 +551,66 @@ function showFamilAIModal(title, text) {
 }
 
 function openAIModal() { document.getElementById('ai-modal').classList.remove('hidden'); }
+
 async function generateAIQuiz() {
-    const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
-    try {
-        const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
-        const data = await res.json();
-        if(!handleAIResponseCheck(data)) return;
-        if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); document.getElementById('ai-modal').classList.add('hidden'); document.getElementById('ai-topic').value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
-        else showToast('error', data.error || 'שגיאה ביצירת המבחן');
-    } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
+    executeWithAIWarning(async () => {
+        const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא'); btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
+        try {
+            const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) return;
+            if(data.success) { showToast('success', 'מבחן ה-AI מוכן!'); document.getElementById('ai-modal').classList.add('hidden'); document.getElementById('ai-topic').value = ''; await fetchBundles(); openAssignModalSpecific(data.bundleId); fetchData(); } 
+            else showToast('error', data.error || 'שגיאה ביצירת המבחן');
+        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerText = 'צור אתגר'; }
+    });
 }
 
 async function getFamilAIAdvice(childId, goalId) {
-    showFamilAIModal('היועצת הפיננסית של המשפחה', null); document.getElementById('familai-loading-text').innerText = 'מנתחת את הנתונים שלך...';
-    try {
-        const res = await fetch(`${API}/goals/familai-advice`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, goalId: goalId, groupId: currentGroup.id }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-        if(data.success && data.advice) { showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice); triggerConfetti(); fetchData(); } 
-        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'מצטערת, לא הצלחתי לייצר עצה כרגע.'); }
-    } catch (e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'תקלה בתקשורת עם השרת'); }
+    executeWithAIWarning(async () => {
+        showFamilAIModal('היועצת הפיננסית של המשפחה', null); document.getElementById('familai-loading-text').innerText = 'מנתחת את הנתונים שלך...';
+        try {
+            const res = await fetch(`${API}/goals/familai-advice`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, goalId: goalId, groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.advice) { showFamilAIModal('היועצת הפיננסית של המשפחה', data.advice); triggerConfetti(); fetchData(); } 
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'מצטערת, לא הצלחתי לייצר עצה כרגע.'); }
+        } catch (e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'תקלה בתקשורת עם השרת'); }
+    });
 }
 
 async function getBudgetInsight() {
-    showFamilAIModal('אנליסטית התקציב', null); document.getElementById('familai-loading-text').innerText = 'בודקת על מה הוצאנו החודש...';
-    try {
-        const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-        if(data.success && data.insight) { showFamilAIModal('אנליסטית התקציב', data.insight); fetchData(); }
-        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה ביצירת תובנות תקציב'); }
-    } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    executeWithAIWarning(async () => {
+        showFamilAIModal('אנליסטית התקציב', null); document.getElementById('familai-loading-text').innerText = 'בודקת על מה הוצאנו החודש...';
+        try {
+            const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.insight) { showFamilAIModal('אנליסטית התקציב', data.insight); fetchData(); }
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה ביצירת תובנות תקציב'); }
+        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
 }
 
 async function getPantryInsight() {
-    showFamilAIModal('מנהלת המזווה', null); document.getElementById('familai-loading-text').innerText = 'מחשבת כמויות ומרגלי קנייה...';
-    try {
-        const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-        if(data.success && data.insight) { showFamilAIModal('מנהלת המזווה', data.insight); fetchData(); }
-        else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח המזווה'); }
-    } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    executeWithAIWarning(async () => {
+        showFamilAIModal('מנהלת המזווה', null); document.getElementById('familai-loading-text').innerText = 'מחשבת כמויות ומרגלי קנייה...';
+        try {
+            const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.insight) { showFamilAIModal('מנהלת המזווה', data.insight); fetchData(); }
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח המזווה'); }
+        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
 }
 
 async function askTutor() {
-    if(currentWrongAnswers.length === 0) return; const w = currentWrongAnswers[0]; document.getElementById('btn-tutor').disabled = true; document.getElementById('btn-tutor').innerText = 'מכינה הסבר... ⏳';
-    try {
-        const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) return;
-        if(data.success) { showFamilAIModal('המורה הפרטית שלך', data.explanation); fetchData(); }
-    } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { document.getElementById('btn-tutor').disabled = false; document.getElementById('btn-tutor').innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; }
+    if(currentWrongAnswers.length === 0) return; 
+    executeWithAIWarning(async () => {
+        const w = currentWrongAnswers[0]; document.getElementById('btn-tutor').disabled = true; document.getElementById('btn-tutor').innerText = 'מכינה הסבר... ⏳';
+        try {
+            const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) return;
+            if(data.success) { showFamilAIModal('המורה הפרטית שלך', data.explanation); fetchData(); }
+        } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { document.getElementById('btn-tutor').disabled = false; document.getElementById('btn-tutor').innerHTML = '<img src="logo.png" alt="AI" class="w-5 h-5 object-contain"> familAI, איפה טעיתי?'; }
+    });
 }
 
 function setTaskMode(mode) {
@@ -597,34 +648,35 @@ function openTaskModal(isSelf = false) {
 }
 
 async function generateAITasks() {
-    const btn = document.getElementById('btn-ai-task-gen'); const assigneeId = val('task-assignee'); const topic = val('ai-task-topic'); const isSelf = document.getElementById('task-is-self').value === 'true'; 
-    let age;
-    if (isSelf) age = new Date().getFullYear() - currentUser.birth_year;
-    else {
-         if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור מי המשימה 👆');
-         const child = membersCache.find(m => String(m.id) === String(assigneeId)); if(!child) return showToast('error', 'שגיאה במציאת גיל הילד');
-         age = new Date().getFullYear() - child.birth_year;
-    }
-    if(!topic) return showToast('error', 'כתבו ל-familAI באיזה נושא לעזור');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> חושבת...';
-    try {
-        const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) return;
-        if(data.success && data.tasks && data.tasks.length > 0) {
-            const resultsContainer = document.getElementById('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>';
-            data.tasks.forEach(task => { const safeTitle = (task.title || '').replace(/'/g, "\\'").replace(/"/g, "&quot;"); resultsContainer.innerHTML += `<div onclick="selectAITask('${safeTitle}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-purple-100 hover:bg-purple-50 transition"><span class="text-sm font-bold text-slate-700">${task.title}</span><span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; });
-            resultsContainer.classList.remove('hidden'); triggerConfetti(); fetchData();
-        } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
-    } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות'; }
+    executeWithAIWarning(async () => {
+        const btn = document.getElementById('btn-ai-task-gen'); const assigneeId = val('task-assignee'); const topic = val('ai-task-topic'); const isSelf = document.getElementById('task-is-self').value === 'true'; 
+        let age;
+        if (isSelf) age = new Date().getFullYear() - currentUser.birth_year;
+        else {
+             if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור מי המשימה 👆');
+             const child = membersCache.find(m => String(m.id) === String(assigneeId)); if(!child) return showToast('error', 'שגיאה במציאת גיל הילד');
+             age = new Date().getFullYear() - child.birth_year;
+        }
+        if(!topic) return showToast('error', 'כתבו ל-familAI באיזה נושא לעזור');
+        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> חושבת...';
+        try {
+            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) return;
+            if(data.success && data.tasks && data.tasks.length > 0) {
+                const resultsContainer = document.getElementById('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>';
+                data.tasks.forEach(task => { const safeTitle = (task.title || '').replace(/'/g, "\\'").replace(/"/g, "&quot;"); resultsContainer.innerHTML += `<div onclick="selectAITask('${safeTitle}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-purple-100 hover:bg-purple-50 transition"><span class="text-sm font-bold text-slate-700">${task.title}</span><span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; });
+                resultsContainer.classList.remove('hidden'); triggerConfetti(); fetchData();
+            } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
+        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> חפשי רעיונות'; }
+    });
 }
 
 function selectAITask(title, reward) { document.getElementById('task-title').value = title; document.getElementById('task-reward').value = reward; setTaskMode('manual'); }
 
-// עודכן לשמירת סטטוס "done" אוטומטית אם ילד שולח משימה
 async function submitTask() { 
     const isSelf = document.getElementById('task-is-self').value === 'true'; 
     const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = val('task-reward'); // נמשך גם אם הילד הזין
+    const reward = val('task-reward'); 
     const title = val('task-title'); 
     const days = val('task-days');
     
@@ -645,7 +697,6 @@ async function submitTask() {
     fetchData(); 
 }
 
-// פונקציית עזר לכיווץ תמונות (שומר על ביצועים מטורפים באפליקציה ומונע קריסות שרת)
 function compressImage(file, maxWidth, maxHeight, quality, callback) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -673,31 +724,35 @@ function clickTaskProof(taskId, title) { currentVerifyTaskId = taskId; currentVe
 
 function handleTaskProofUpload(event) {
     const file = event.target.files[0]; if(!file || !currentVerifyTaskId) return;
-    showFamilAIModal('בקרת איכות', null); document.getElementById('familai-loading-text').innerText = 'familAI בודקת את התמונה שלך...';
-    
-    compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
-        const base64 = compressedDataUrl.split(',')[1];
-        try {
-            const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
-            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success) { showFamilAIModal('בקרת איכות', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
-        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ עדיין גדול מדי או שגיאת תקשורת.'); }
-        event.target.value = '';
+    executeWithAIWarning(() => {
+        showFamilAIModal('בקרת איכות', null); document.getElementById('familai-loading-text').innerText = 'familAI בודקת את התמונה שלך...';
+        
+        compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
+            const base64 = compressedDataUrl.split(',')[1];
+            try {
+                const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
+                if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+                if(data.success) { showFamilAIModal('בקרת איכות', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
+            } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ עדיין גדול מדי או שגיאת תקשורת.'); }
+            event.target.value = '';
+        });
     });
 }
 
 function handleReceiptUpload(event) {
     const file = event.target.files[0]; if(!file) return;
-    showFamilAIModal('קופאית אוטומטית', null); document.getElementById('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
-    
-    compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
-        const base64 = compressedDataUrl.split(',')[1];
-        try {
-            const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
-            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת הקבלה.'); }
-        } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
-        event.target.value = '';
+    executeWithAIWarning(() => {
+        showFamilAIModal('קופאית אוטומטית', null); document.getElementById('familai-loading-text').innerText = 'familAI סורקת את הקבלה... זה ייקח רגע.';
+        
+        compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
+            const base64 = compressedDataUrl.split(',')[1];
+            try {
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
+                if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+                if(data.success) { showFamilAIModal('קופאית אוטומטית', `סרקתי והוספתי ${data.count} פריטים מהקבלה לעגלה שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת הקבלה.'); }
+            } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
+            event.target.value = '';
+        });
     });
 }
 
@@ -707,7 +762,6 @@ function handleReceiptUpload(event) {
 
 function startBarcodeScan(target) {
     currentScanTarget = target;
-    
     let input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -719,42 +773,42 @@ function startBarcodeScan(target) {
 
 function handleProductImageUpload(event, target) {
     const file = event.target.files[0]; if(!file) return;
-    
-    showFamilAIModal('זיהוי מוצר חכם', null);
-    document.getElementById('familai-loading-text').innerText = 'familAI בודקת איזה מוצר צילמת...';
-    
-    compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
-        const base64 = compressedDataUrl.split(',')[1];
-        try {
-            // שים לב: הקריאה הזו נכשלת כרגע בגלל שעוד לא כתבנו את ה-API ב-server.js
-            const res = await fetch(`${API}/shopping/identify-product`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) 
-            });
-            const data = await res.json();
-            
-            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-            
-            if(data.success && data.productName) {
-                document.getElementById('familai-advisor-modal').classList.add('hidden');
-                if (target === 'shop') {
-                    document.getElementById('shop-item').value = data.productName;
-                    openShopModal();
+    executeWithAIWarning(() => {
+        showFamilAIModal('זיהוי מוצר חכם', null);
+        document.getElementById('familai-loading-text').innerText = 'familAI בודקת איזה מוצר צילמת...';
+        
+        compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
+            const base64 = compressedDataUrl.split(',')[1];
+            try {
+                const res = await fetch(`${API}/shopping/identify-product`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) 
+                });
+                const data = await res.json();
+                
+                if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+                
+                if(data.success && data.productName) {
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    if (target === 'shop') {
+                        document.getElementById('shop-item').value = data.productName;
+                        openShopModal();
+                    } else {
+                        document.getElementById('pantry-item').value = data.productName;
+                        openPantryModal();
+                    }
+                    showToast('success', 'המוצר זוהה בהצלחה!');
                 } else {
-                    document.getElementById('pantry-item').value = data.productName;
-                    openPantryModal();
+                    document.getElementById('familai-advisor-modal').classList.add('hidden');
+                    showToast('error', data.error || 'לא הצלחתי לזהות את המוצר בתמונה.');
                 }
-                showToast('success', 'המוצר זוהה בהצלחה!');
-            } else {
+            } catch(err) {
                 document.getElementById('familai-advisor-modal').classList.add('hidden');
-                showToast('error', data.error || 'לא הצלחתי לזהות את המוצר בתמונה.');
+                showToast('error', 'שגיאת תקשורת מול השרת.');
             }
-        } catch(err) {
-            document.getElementById('familai-advisor-modal').classList.add('hidden');
-            showToast('error', 'שגיאת תקשורת מול השרת.');
-        }
-        event.target.value = '';
+            event.target.value = '';
+        });
     });
 }
 
@@ -909,7 +963,6 @@ function renderTasks(tasks) {
         else if (t.status === 'done') { 
             statusColor = 'bg-yellow-50 border-yellow-100'; 
             if (isAdmin) {
-                // מקפיץ חלון אישור עם אפשרות לערוך שכר
                 actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${t.title.replace(/'/g, "\\'")}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; 
             } else {
                 statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; 
@@ -1230,8 +1283,59 @@ function openDepositModal(id, title) { document.getElementById('deposit-goal-id'
 async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
 async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
 
-function openTransactionModal(t) { document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); document.getElementById('transaction-modal').classList.remove('hidden'); }
-async function submitTransaction() { const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); await fetch(`${API}/transaction`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type') })}); document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נשמר!'); fetchData(); }
+function openTransactionModal(t) { 
+    document.getElementById('trans-type').value=t; 
+    document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; 
+    const s=document.getElementById('trans-cat'); s.innerHTML=''; 
+    CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); 
+    
+    document.getElementById('trans-date').value = new Date().toISOString().split('T')[0];
+    window.toggleTransType('onetime');
+    
+    document.getElementById('transaction-modal').classList.remove('hidden'); 
+}
+
+window.toggleTransType = function(type) {
+    const isRecurring = type === 'recurring';
+    document.getElementById('trans-is-recurring').value = isRecurring;
+    document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition' : 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition';
+    document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    
+    if (isRecurring) {
+        document.getElementById('trans-end-date-container').classList.remove('hidden');
+    } else {
+        document.getElementById('trans-end-date-container').classList.add('hidden');
+        document.getElementById('trans-end-month').value = '';
+    }
+};
+
+async function submitTransaction() { 
+    const amount = val('trans-amount'); if(!amount) return; 
+    if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); 
+    
+    const isRecurring = document.getElementById('trans-is-recurring').value === 'true';
+    let transDate = val('trans-date');
+    if (!transDate) transDate = new Date().toISOString().split('T')[0];
+
+    await fetch(`${API}/transaction`, {
+        method:'POST', headers:{'Content-Type':'application/json'}, 
+        body:JSON.stringify({ 
+            userId: currentUser.id, 
+            amount, 
+            description: val('trans-desc')||'פעולה', 
+            category: val('trans-cat'), 
+            type: val('trans-type'),
+            date: transDate,
+            isRecurring: isRecurring,
+            endMonth: isRecurring ? val('trans-end-month') : null
+        })
+    }); 
+    
+    document.getElementById('transaction-modal').classList.add('hidden'); 
+    showToast('success', 'נשמר!'); 
+    fetchData(); 
+}
+
 function openShopModal() { document.getElementById('shop-modal').classList.remove('hidden'); }
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
 async function submitLoan() { await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason')})}); document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת ההלוואה נשלחה להורה 📨'); fetchData(); fetchLoans(); }
@@ -1270,6 +1374,100 @@ function openBudgetModal(catId, catName, currentLimit) { document.getElementById
 async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
 function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
 async function submitNewBudgetCat() { const catName = document.getElementById('new-budget-cat-name').value; if(!catName) return; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); document.getElementById('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); }
+
+// ============================================================
+// --- FORECAST MODULE (תשקיף תזרים קדימה) ---
+// ============================================================
+
+function populateForecastMonths() {
+    const select = document.getElementById('forecast-month-filter');
+    if (!select) return;
+    const currentVal = select.value;
+    if (select.options.length === 0) {
+        const now = new Date();
+        for(let i=0; i<6; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            const label = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+            select.innerHTML += `<option value="${monthStr}">${label}</option>`;
+        }
+    }
+    if(currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+    }
+}
+
+async function renderForecast() {
+    populateForecastMonths();
+    const list = document.getElementById('forecast-list');
+    if(!list) return;
+    
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+        const month = document.getElementById('forecast-month-filter').value;
+        const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&month=${month || ''}`);
+        if (res.ok) {
+            forecastCache = await res.json();
+        }
+    } catch(e) { console.error(e); }
+
+    const items = forecastCache.items || [];
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    let html = '';
+    if(items.length === 0) {
+        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות שצפויות החודש</p>';
+    } else {
+        items.forEach(item => {
+            const isIncome = item.type === 'income';
+            if(isIncome) totalIncome += parseFloat(item.amount);
+            else totalExpense += parseFloat(item.amount);
+            
+            const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+            const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; 
+            const prefix = isIncome ? '+' : '-';
+            const recBadge = item.is_recurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
+            const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
+            
+            html += `
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right">
+                <div class="flex-1 overflow-hidden">
+                    <p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p>
+                    <p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p>
+                </div>
+                <span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span>
+            </div>`;
+        });
+    }
+    list.innerHTML = html;
+    
+    const netChange = totalIncome - totalExpense;
+    const startBalance = parseFloat(forecastCache.startingBalance) || 0;
+    const projectedBalance = startBalance + netChange;
+    
+    document.getElementById('forecast-net-change').innerText = `₪${netChange.toFixed(2)}`;
+    document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
+    document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
+}
+
+function getForecastInsight() {
+    executeWithAIWarning(async () => {
+        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לחודש...';
+        try {
+            const month = document.getElementById('forecast-month-filter').value;
+            const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const res = await fetch(`${API}/forecast/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, month: month, targetUserId: targetUserId }) }); 
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.insight) { showFamilAIModal('רואת העתידות', data.insight); }
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התשקיף'); }
+        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
+}
+
+// ============================================================
 
 async function fetchPendingUsers() {
     try {
@@ -1426,96 +1624,6 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
-
-// --- RECIPES (AI CHEF) MODULE ---
-function toggleRecipeCustomInput() {
-    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
-    if (isIgnored) {
-        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
-        document.getElementById('recipe-pantry-selection').classList.add('hidden');
-    } else {
-        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
-        document.getElementById('recipe-pantry-selection').classList.remove('hidden');
-    }
-}
-
-function renderRecipePantrySelection() {
-    const listContainer = document.getElementById('recipe-pantry-items-list');
-    if (!listContainer) return;
-    if (!pantryCache || pantryCache.length === 0) {
-        listContainer.innerHTML = '<p class="text-xs text-slate-400">המזווה שלכם ריק. הוסיפו מוצרים למזווה כדי לייצר מהם מתכונים!</p>';
-        return;
-    }
-    let html = '';
-    pantryCache.forEach(p => {
-        html += `<label class="recipe-pantry-item-label flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-orange-300 transition shadow-sm"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3.5 h-3.5 accent-orange-500"><span class="text-xs text-slate-700 font-medium">${p.item_name} <span class="text-[10px] text-slate-400">(${p.quantity})</span></span></label>`;
-    });
-    listContainer.innerHTML = html;
-}
-
-let isAllRecipePantrySelected = true;
-function selectAllRecipePantry() {
-    isAllRecipePantrySelected = !isAllRecipePantrySelected;
-    document.querySelectorAll('.recipe-pantry-checkbox').forEach(cb => { cb.checked = isAllRecipePantrySelected; });
-}
-
-async function generateRecipe() {
-    const btn = document.getElementById('btn-generate-recipe');
-    const mealType = document.getElementById('recipe-meal-type').value;
-    const diners = document.getElementById('recipe-diners').value;
-    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
-    const customIngredients = document.getElementById('recipe-custom-ingredients').value;
-    
-    let pantryItemsStr = "";
-    if (!ignorePantry) {
-        const selectedItems = [];
-        document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(cb => { selectedItems.push(cb.value); });
-        if (selectedItems.length === 0) return showToast('error', 'לא סימנתם אף מוצר מהמזווה!');
-        pantryItemsStr = selectedItems.join(', ');
-    } else if (!customIngredients.trim()) {
-        return showToast('error', 'אנא הזינו מצרכים חלופיים');
-    }
-
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...';
-    document.getElementById('recipe-result-container').classList.add('hidden');
-
-    try {
-        const res = await fetch(`${API}/recipes/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, mealType: mealType, diners: diners, ignorePantry: ignorePantry, customIngredients: customIngredients, pantryItems: pantryItemsStr })
-        });
-        const data = await res.json();
-        
-        if(!handleAIResponseCheck(data)) return;
-
-        if (data.success && data.recipe) {
-            let formattedRecipe = data.recipe
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/## /g, '<h3 class="text-lg font-bold text-slate-800 mt-4 mb-2">')
-                .replace(/# /g, '<h2 class="text-xl font-bold text-orange-600 mt-2 mb-2">');
-            
-            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
-            document.getElementById('recipe-result-container').classList.remove('hidden');
-            triggerConfetti();
-            setTimeout(() => document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' }), 300);
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת המתכון');
-        }
-    } catch (e) { showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)'); } 
-    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; }
-}
-
-function copyRecipe() {
-    const text = document.getElementById('recipe-result-content').innerText;
-    try {
-        const textArea = document.createElement("textarea"); textArea.value = text;
-        document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea);
-        showToast('success', 'המתכון הועתק בהצלחה!');
-    } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
-}
 
 // --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
