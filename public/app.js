@@ -25,10 +25,6 @@ let allTasks = []; let allTransactions = []; let feedCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
-let html5QrCode = null;
-let currentScanTarget = ''; 
-let currentScannedBarcode = '';
-
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
     income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], 
@@ -627,7 +623,7 @@ function selectAITask(title, reward) { document.getElementById('task-title').val
 async function submitTask() { 
     const isSelf = document.getElementById('task-is-self').value === 'true'; 
     const assignee = isSelf ? currentUser.id : val('task-assignee'); 
-    const reward = val('task-reward'); // נמשך גם אם הילד הזין
+    const reward = val('task-reward'); 
     const title = val('task-title'); 
     const days = val('task-days');
     
@@ -678,118 +674,6 @@ function handleReceiptUpload(event) {
         } catch(err) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.'); }
         event.target.value = '';
     }; reader.readAsDataURL(file);
-}
-
-// ==========================================
-// BARCODE SCANNING & PANTRY USE LOGIC
-// ==========================================
-
-function startBarcodeScan(target) {
-    currentScanTarget = target;
-    document.getElementById('barcode-scanner-modal').classList.remove('hidden');
-    
-    // ניקוי קריאות קודמות
-    if (html5QrCode) {
-        try { html5QrCode.clear(); } catch(e) {}
-    }
-
-    // יצירת מופע חדש של הסורק - ללא מגבלות פורמטים כדי למנוע קריסות באייפון
-    html5QrCode = new Html5Qrcode("qr-reader");
-
-    // קונפיגורציה יציבה ובטוחה שנתמכת בכל הדפדפנים
-    const config = {
-        fps: 15,
-        qrbox: { width: 280, height: 150 }, // מלבן קצת יותר גבוה
-        disableFlip: false // מאפשר זיהוי גם אם הברקוד הפוך או מסובב
-    };
-
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        onScanSuccess, 
-        onScanFailure
-    ).catch(err => {
-        console.error("Camera Error:", err);
-        showToast('error', 'לא הצלחנו לפתוח את המצלמה. בדוק הרשאות דפדפן.');
-        closeBarcodeScanner();
-    });
-}
-
-function onScanFailure(error) { 
-    // Ignore routine scan failures
-}
-
-async function onScanSuccess(decodedText) {
-    if(html5QrCode) {
-        try {
-            await html5QrCode.stop();
-            document.getElementById('barcode-scanner-modal').classList.add('hidden');
-            processBarcode(decodedText);
-        } catch(err) { console.error(err); }
-    }
-}
-
-function closeBarcodeScanner() {
-    if(html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById('barcode-scanner-modal').classList.add('hidden');
-        }).catch(err => console.error(err));
-    } else {
-        document.getElementById('barcode-scanner-modal').classList.add('hidden');
-    }
-}
-
-async function processBarcode(barcode) {
-    currentScannedBarcode = barcode;
-    try {
-        const res = await fetch(`${API}/products`);
-        const products = await res.json();
-        const found = products.find(p => p.barcode === barcode);
-        
-        if (found) {
-            if (currentScanTarget === 'shop') {
-                document.getElementById('shop-item').value = found.name;
-                openShopModal();
-            } else {
-                document.getElementById('pantry-item').value = found.name;
-                openPantryModal();
-            }
-        } else {
-            // Unknown product
-            document.getElementById('new-product-barcode').innerText = barcode;
-            document.getElementById('new-product-name').value = '';
-            document.getElementById('new-product-cat').value = 'כללי';
-            document.getElementById('new-product-modal').classList.remove('hidden');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאה בחיפוש מוצר במאגר');
-    }
-}
-
-async function saveNewProduct() {
-    const name = val('new-product-name');
-    const cat = val('new-product-cat');
-    if(!name) return showToast('error', 'נא להזין שם מוצר');
-    
-    try {
-        await fetch(`${API}/products`, { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ barcode: currentScannedBarcode, name, category: cat }) 
-        });
-        
-        document.getElementById('new-product-modal').classList.add('hidden');
-        
-        if (currentScanTarget === 'shop') {
-            document.getElementById('shop-item').value = name;
-            openShopModal();
-        } else {
-            document.getElementById('pantry-item').value = name;
-            openPantryModal();
-        }
-    } catch(e) {
-        showToast('error', 'שגיאה בשמירת המוצר');
-    }
 }
 
 function openPantryUseModal(name, unit) {
