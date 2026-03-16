@@ -25,9 +25,7 @@ let allTasks = []; let allTransactions = []; let feedCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
-let html5QrCode = null;
 let currentScanTarget = ''; 
-let currentScannedBarcode = '';
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
@@ -680,147 +678,71 @@ function handleReceiptUpload(event) {
 }
 
 // ==========================================
-// BARCODE SCANNING & PANTRY USE LOGIC
+// SMART PRODUCT SCANNING (CAMERA -> AI VISION)
 // ==========================================
 
 function startBarcodeScan(target) {
     currentScanTarget = target;
-    document.getElementById('barcode-scanner-modal').classList.remove('hidden');
     
-    // מנקים קריאות קודמות במידה והיו כדי למנוע התנגשויות
-    if (html5QrCode) {
-        try { html5QrCode.clear(); } catch(e) {}
-    }
-
-    // הגדרה שמבקשת סריקת EAN_13 (מוצרי סופר) ואופציות נוספות אם ידרש
-    const formatsToSupport = [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E
-    ];
-
-    html5QrCode = new Html5Qrcode("qr-reader", { 
-        formatsToSupport: formatsToSupport, 
-        verbose: false,
-        experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true // פקודת קסם: ב-iOS 17 ומעלה זה יעקוף את המנוע הרגיל וישתמש בסורק הנייטיב של אפל!
-        }
-    });
-
-    // תצורה בטוחה שתומכת גם באייפון וגם באנדרואיד בלי מאיצים בעייתיים
-    const config = {
-        fps: 10,
-        // חלון סריקה רספונסיבי ורחב - תופס 90% מהרוחב, מה שמקל על סריקת ברקוד ארוך בלי להתקרב יותר מדי
-        qrbox: function(viewfinderWidth, viewFinderHeight) {
-            return {
-                width: Math.min(viewfinderWidth * 0.9, 350),
-                height: 120
-            };
-        }
-    };
-
-    const statusText = document.getElementById('barcode-status-text');
-    if(statusText) statusText.innerText = "באייפון: החזיקו במרחק 15-20 ס״מ מהברקוד (נסו שיהיה ממוקד)";
-
-    // מנגנון חסין תקלות: מנסה קודם רזולוציה גבוהה (לזיהוי פסים טוב יותר), אם האייפון חוסם - יורד לרזולוציה רגילה
-    html5QrCode.start(
-        { facingMode: "environment", width: { ideal: 1280 } }, 
-        config, 
-        onScanSuccess, 
-        onScanFailure
-    ).catch(err => {
-        console.warn("HD video request failed or rejected, falling back to standard resolution.", err);
-        // Fallback למצלמה רגילה ללא דרישות מיוחדות
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            config, 
-            onScanSuccess, 
-            onScanFailure
-        ).catch(fallbackErr => {
-            console.error("Camera completely failed to open", fallbackErr);
-            showToast('error', 'לא הצלחנו לגשת למצלמה. ודא שניתנה הרשאה לדפדפן.');
-            closeBarcodeScanner();
-        });
-    });
+    // במקום לפתוח וידאו חי שנחסם על ידי אפל, אנחנו יוצרים אלמנט קלט קובץ דינמי
+    // שמבקש ישירות מהאייפון לפתוח את מצלמת הסטילס
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // מצלמה אחורית
+    
+    input.onchange = (e) => handleProductImageUpload(e, target);
+    input.click(); // מקפיץ את המצלמה באייפון בצורה טבעית לחלוטין
 }
 
-function onScanFailure(error) { 
-    // Ignore routine scan failures
-}
-
-async function onScanSuccess(decodedText) {
-    if(html5QrCode) {
+function handleProductImageUpload(event, target) {
+    const file = event.target.files[0]; if(!file) return;
+    
+    showFamilAIModal('זיהוי מוצר חכם', null);
+    document.getElementById('familai-loading-text').innerText = 'familAI בודקת איזה מוצר צילמת...';
+    
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64 = e.target.result.split(',')[1];
         try {
-            await html5QrCode.stop();
-            document.getElementById('barcode-scanner-modal').classList.add('hidden');
-            processBarcode(decodedText);
-        } catch(err) { console.error(err); }
-    }
-}
-
-function closeBarcodeScanner() {
-    if(html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById('barcode-scanner-modal').classList.add('hidden');
-        }).catch(err => console.error(err));
-    } else {
-        document.getElementById('barcode-scanner-modal').classList.add('hidden');
-    }
-}
-
-async function processBarcode(barcode) {
-    currentScannedBarcode = barcode;
-    try {
-        const res = await fetch(`${API}/products`);
-        const products = await res.json();
-        const found = products.find(p => p.barcode === barcode);
-        
-        if (found) {
-            if (currentScanTarget === 'shop') {
-                document.getElementById('shop-item').value = found.name;
-                openShopModal();
+            const res = await fetch(`${API}/shopping/identify-product`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ imageBase64: base64, mimeType: file.type, groupId: currentGroup.id }) 
+            });
+            const data = await res.json();
+            
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            
+            if(data.success && data.productName) {
+                document.getElementById('familai-advisor-modal').classList.add('hidden');
+                if (target === 'shop') {
+                    document.getElementById('shop-item').value = data.productName;
+                    openShopModal();
+                } else {
+                    document.getElementById('pantry-item').value = data.productName;
+                    openPantryModal();
+                }
+                showToast('success', 'המוצר זוהה בהצלחה!');
             } else {
-                document.getElementById('pantry-item').value = found.name;
-                openPantryModal();
+                document.getElementById('familai-advisor-modal').classList.add('hidden');
+                showToast('error', data.error || 'לא הצלחתי לזהות את המוצר בתמונה.');
             }
-        } else {
-            // Unknown product
-            document.getElementById('new-product-barcode').innerText = barcode;
-            document.getElementById('new-product-name').value = '';
-            document.getElementById('new-product-cat').value = 'כללי';
-            document.getElementById('new-product-modal').classList.remove('hidden');
+        } catch(err) {
+            document.getElementById('familai-advisor-modal').classList.add('hidden');
+            showToast('error', 'הקובץ גדול מדי או שגיאת תקשורת.');
         }
-    } catch(e) {
-        showToast('error', 'שגיאה בחיפוש מוצר במאגר');
-    }
+        event.target.value = '';
+    }; 
+    reader.readAsDataURL(file);
 }
 
-async function saveNewProduct() {
-    const name = val('new-product-name');
-    const cat = val('new-product-cat');
-    if(!name) return showToast('error', 'נא להזין שם מוצר');
-    
-    try {
-        await fetch(`${API}/products`, { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ barcode: currentScannedBarcode, name, category: cat }) 
-        });
-        
-        document.getElementById('new-product-modal').classList.add('hidden');
-        
-        if (currentScanTarget === 'shop') {
-            document.getElementById('shop-item').value = name;
-            openShopModal();
-        } else {
-            document.getElementById('pantry-item').value = name;
-            openPantryModal();
-        }
-    } catch(e) {
-        showToast('error', 'שגיאה בשמירת המוצר');
-    }
+// פונקציית סגירה ריקה (כדי שלא נקבל שגיאה אם משהו ב-HTML מנסה לקרוא לה)
+function closeBarcodeScanner() { 
+    const modal = document.getElementById('barcode-scanner-modal');
+    if(modal) modal.classList.add('hidden'); 
 }
+
 
 function openPantryUseModal(name, unit) {
     document.getElementById('use-pantry-title').innerText = `מה לקחת מ: ${name}?`;
