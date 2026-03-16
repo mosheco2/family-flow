@@ -34,7 +34,7 @@ let currentScanTarget = '';
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
-    income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'} ], 
+    income: [ {value:'salary',label:'💼 משכורת'}, {value:'allowance',label:'💰 דמי כיס'}, {value:'bonus',label:'🌟 בונוס'}, {value:'gift',label:'🎁 מתנה'}, {value:'business',label:'🚀 עסק'}, {value:'other',label:'💸 אחר'} ], 
     expense: [ {value:'food',label:'🍔 מסעדות וטייקאווי'}, {value:'groceries',label:'🛒 סופר ופארם'}, {value:'transport',label:'🚌 תחבורה ודלק'}, {value:'home',label:'🏠 דיור ותחזוקה'}, {value:'bills',label:'📄 חשבונות ותקשורת'}, {value:'fun',label:'🎉 פנאי ובילויים'}, {value:'clothes',label:'👕 ביגוד והנעלה'}, {value:'health',label:'💊 בריאות וביטוחים'}, {value:'education',label:'📚 חינוך וחוגים'}, {value:'vacation',label:'✈️ חופשות וטיולים'}, {value:'pets',label:'🐶 חיות מחמד'}, {value:'gifts',label:'🎁 מתנות ותרומות'}, {value:'other',label:'💸 אחר'} ] 
 };
 const BUDGET_LABELS = { 'food': '🍔 מסעדות', 'groceries': '🛒 סופר ופארם', 'transport': '🚌 תחבורה ודלק', 'home': '🏠 דיור ותחזוקה', 'bills': '📄 חשבונות ותקשורת', 'fun': '🎉 פנאי ובילויים', 'clothes': '👕 ביגוד והנעלה', 'health': '💊 בריאות וביטוחים', 'education': '📚 חינוך וחוגים', 'vacation': '✈️ חופשות', 'pets': '🐶 חיות מחמד', 'gifts': '🎁 מתנות ותרומות', 'other': '💸 אחר', 'allocations': '👶 הפרשות כלליות', 'allowance': '💰 דמי כיס לילדים', 'tasks': '✅ תגמול על משימות', 'academy': '🎓 אתגרי אקדמיה', 'savings': '🐖 הפקדות לחיסכון' };
@@ -85,7 +85,6 @@ window.onload = async () => {
         clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
     }
     
-    // תיקון טעינה אופטימית - מונע ניתוקים פתאומיים בעת סגירת האפליקציה והטלפון
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
@@ -95,10 +94,8 @@ window.onload = async () => {
                 currentGroup = session.group; 
                 clearTimeout(failsafeTimer); 
                 
-                // מריץ את האפליקציה באופן מיידי על סמך נתוני הזיכרון
                 loadDashboard(); 
                 
-                // בודק ברקע בשקט מול השרת ללא קריסה אם הרשת עוד לא זמינה
                 fetch(`${API}/users/${session.user.id}`).then(res => {
                     if(res.ok) {
                         res.json().then(updatedUser => {
@@ -106,12 +103,10 @@ window.onload = async () => {
                             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
                         });
                     } else if (res.status === 404 || res.status === 401 || res.status === 403) {
-                        // אם המשתמש נמחק באופן אקטיבי מהשרת, ננתק אותו
                         localStorage.removeItem('ofl_session');
                         location.reload();
                     }
                 }).catch(e => {
-                    // הרשת למטה (למשל הטלפון רק התעורר), לא עושים כלום - נשארים מחוברים
                     console.log('App is offline, keeping user session active.');
                 });
 
@@ -238,16 +233,15 @@ function openAlertModal(title, text) {
     }
 }
 
-// --- AI SMART WARNING WRAPPER ---
 function executeWithAIWarning(actionCallback) {
     if (currentGroup && currentGroup.is_premium) {
-        return actionCallback(); // Premium users bypass warning
+        return actionCallback();
     }
     
     const todayStr = new Date().toLocaleDateString();
     const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed');
     if (dismissedDate === todayStr) {
-        return actionCallback(); // User chose not to see warning today
+        return actionCallback();
     }
     
     const modal = document.getElementById('ai-warning-modal');
@@ -257,7 +251,6 @@ function executeWithAIWarning(actionCallback) {
     if (leftEl) leftEl.innerText = tokensLeft;
     
     const btnContinue = document.getElementById('btn-ai-warning-continue');
-    // Clone button to strip old event listeners
     const newBtn = btnContinue.cloneNode(true);
     btnContinue.parentNode.replaceChild(newBtn, btnContinue);
     
@@ -298,7 +291,7 @@ function startAdminTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -325,7 +318,7 @@ function startChildTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -355,10 +348,9 @@ function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
 function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
     
-    // מנגנון חכם להצגת סיום הקנייה רק בטאב הרלוונטי (קניות)
     if (t !== 'shop') { 
         const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); 
         document.getElementById('fab-container').classList.remove('fab-lifted'); 
@@ -369,6 +361,7 @@ function switchTab(t) {
     if (t === 'pantry') renderPantry();
     if (t === 'recipes') renderRecipePantrySelection();
     if (t === 'forecast') renderForecast();
+    if (t === 'cashflow') renderCashflow();
 }
 
 function updateBatteryUI() {
@@ -455,19 +448,18 @@ async function loadDashboard() {
     }
 }
 
-// פונקציות לניהול יתרה אישית של ילד
 window.openBalanceAdjustmentModal = function(id, name) {
     document.getElementById('adjustment-user-id').value = id;
     document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`;
     document.getElementById('adjustment-amount').value = '';
     document.getElementById('adjustment-reason').value = '';
-    window.toggleAdjustmentType('deduct'); // ברירת מחדל: קנס/הפחתה
+    window.toggleAdjustmentType('deduct'); 
     document.getElementById('balance-adjustment-modal').classList.remove('hidden');
 };
 
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id');
-    const type = val('adjustment-type'); // 'add' or 'deduct'
+    const type = val('adjustment-type');
     const amount = parseFloat(val('adjustment-amount'));
     const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
     
@@ -507,9 +499,10 @@ async function fetchMembers() {
         membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
         if (currentUser.role === 'ADMIN') { 
             try {
-                const bF = document.getElementById('budget-filter'); const fF = document.getElementById('feed-user-filter'); const gS = document.getElementById('goal-target-user');
+                const bF = document.getElementById('budget-filter'); const fF = document.getElementById('feed-user-filter'); const gS = document.getElementById('goal-target-user'); const cfF = document.getElementById('cashflow-user-filter');
                 if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל הבית</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(cur) bF.value = cur; } 
                 if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(cur) fF.value = cur; }
+                if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${m.nickname}</option>`); if(cur) cfF.value = cur; }
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי היעד? (כללי/למשפחה)</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${m.nickname}</option>`; }); if(cur) gS.value = cur; }
             } catch(err) {}
         } 
@@ -633,12 +626,17 @@ async function fetchData() {
         } catch(e) {}
 
         try {
-            const limit = currentUser.role === 'ADMIN' ? 50 : 20; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const limit = currentUser.role === 'ADMIN' ? 200 : 100; // הגדלנו את כמות המשיכה כדי לתמוך בסינון חודשים היסטוריים
+            const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
             const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
             if(transRes.ok) allTransactions = Array.isArray(await transRes.json()) ? await transRes.json() : [];
         } catch(e) { allTransactions = []; }
 
-        try { renderChildTodo(); buildAndRenderFeed(); } catch(e) {}
+        try { 
+            renderChildTodo(); 
+            buildAndRenderFeed(); 
+            if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow();
+        } catch(e) {}
     } catch(e) {}
 }
 
@@ -719,7 +717,6 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
-// עודכן כך שילד יוכל לבקש תגמול בעצמו
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
     document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
@@ -731,7 +728,7 @@ function openTaskModal(isSelf = false) {
         document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
         toggles.classList.add('hidden'); 
         assigneeContainer.classList.add('hidden'); 
-        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; 
     } else { 
         document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
         toggles.classList.remove('hidden'); 
@@ -1087,16 +1084,43 @@ function buildAndRenderFeed() {
     if(Array.isArray(allTasks)) { allTasks.forEach(t => { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); }); }
     if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
-    if(currentUser.role === 'ADMIN') { const filterEl = document.getElementById('feed-user-filter'); if (filterEl) filterEl.classList.remove('hidden'); }
+    
+    if(currentUser.role === 'ADMIN') { 
+        const filterEl = document.getElementById('feed-user-filter'); 
+        if (filterEl) filterEl.classList.remove('hidden'); 
+    }
     renderUnifiedFeed();
 }
 
 function renderUnifiedFeed() {
-    const filterEl = document.getElementById('feed-user-filter'); const list = document.getElementById('unified-feed-list'); if (!list) return;
-    const filterUserId = filterEl ? filterEl.value : 'all'; let filtered = feedCache;
-    if (currentUser.role !== 'ADMIN') filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); else if (filterUserId !== 'all' && filterUserId !== '') filtered = feedCache.filter(item => String(item.user_id) === String(filterUserId) || item.type === 'system');
+    const userFilter = document.getElementById('feed-user-filter') ? document.getElementById('feed-user-filter').value : 'all';
+    const dateFilter = document.getElementById('feed-date-filter') ? document.getElementById('feed-date-filter').value : 'all';
+    const list = document.getElementById('unified-feed-list'); if (!list) return;
+    
+    let filtered = feedCache;
+    
+    // סינון משתמשים
+    if (currentUser.role !== 'ADMIN') {
+        filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system');
+    } else if (userFilter !== 'all' && userFilter !== '') {
+        filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system');
+    }
+
+    // סינון תאריכים
+    if (dateFilter !== 'all') {
+        const monthsBack = parseInt(dateFilter);
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
+        filtered = filtered.filter(item => item.date && item.date >= cutoffDate);
+    }
+
     filtered = filtered.slice(0, 30); 
-    if(filtered.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
+    
+    if(filtered.length === 0) { 
+        list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; 
+        return; 
+    }
+    
     let html = '';
     filtered.forEach(item => {
         if(!item.date || isNaN(item.date.getTime())) return;
@@ -1122,6 +1146,149 @@ function renderUnifiedFeed() {
     });
     list.innerHTML = html;
 }
+
+// ==========================================
+// CASHFLOW TAB - עריכה ותצוגת תנועות
+// ==========================================
+function renderCashflow() {
+    const list = document.getElementById('cashflow-list');
+    if (!list) return;
+
+    const userFilter = document.getElementById('cashflow-user-filter') ? document.getElementById('cashflow-user-filter').value : 'all';
+    const dateFilter = document.getElementById('cashflow-date-filter') ? document.getElementById('cashflow-date-filter').value : 'all';
+
+    let filtered = allTransactions; 
+    
+    // סינון משתמשים
+    if (currentUser.role !== 'ADMIN') {
+        filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
+        const cfFilter = document.getElementById('cashflow-user-filter');
+        if(cfFilter) cfFilter.classList.add('hidden');
+    } else if (userFilter !== 'all' && userFilter !== '') {
+        filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter));
+        const cfFilter = document.getElementById('cashflow-user-filter');
+        if(cfFilter) cfFilter.classList.remove('hidden');
+    }
+
+    // סינון תאריכים
+    if (dateFilter !== 'all') {
+        const monthsBack = parseInt(dateFilter);
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
+        filtered = filtered.filter(t => new Date(t.date) >= cutoffDate);
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין פעולות להצגה בתקופה זו.</p>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(t => {
+        const isIncome = t.type === 'income';
+        const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+        const amountClass = isIncome ? 'text-green-600' : 'text-red-600';
+        const prefix = isIncome ? '+' : '-';
+        const d = new Date(t.date);
+        const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
+        const userName = currentUser.role === 'ADMIN' && t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
+        
+        const catLabel = BUDGET_LABELS[t.category] || t.category || '';
+        const catBadge = catLabel ? `<span class="text-[9px] text-slate-400 border border-slate-200 px-1.5 rounded-full mr-2">${catLabel}</span>` : '';
+
+        // עריכה מתאפשרת לכולם (הורה יכול לערוך הכל, ילד את שלו)
+        const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
+        const editBtn = `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>`;
+
+        html += `
+        <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition">
+            <div class="flex-1 overflow-hidden pr-2">
+                <p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${t.description}</span> ${userName}</p>
+                <p class="text-[10px] text-slate-400 mt-1">${dateStr} ${catBadge}</p>
+            </div>
+            <div class="flex items-center gap-3 pl-1">
+                <span class="font-bold text-base ${amountClass} whitespace-nowrap" dir="ltr">${prefix}₪${t.amount}</span>
+                ${editBtn}
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openEditTransactionModal(id, amount, desc, cat, type) {
+    document.getElementById('edit-trans-id').value = id;
+    document.getElementById('edit-trans-old-amount').value = amount;
+    document.getElementById('edit-trans-type').value = type;
+    document.getElementById('edit-trans-amount').value = amount;
+    document.getElementById('edit-trans-desc').value = desc;
+    
+    const catSelect = document.getElementById('edit-trans-cat');
+    catSelect.innerHTML = '';
+    if(CATEGORIES[type]) {
+        CATEGORIES[type].forEach(c => {
+            const selected = c.value === cat ? 'selected' : '';
+            catSelect.innerHTML += `<option value="${c.value}" ${selected}>${c.label}</option>`;
+        });
+    } else {
+        catSelect.innerHTML += `<option value="${cat}" selected>${cat}</option>`;
+    }
+    
+    document.getElementById('edit-transaction-modal').classList.remove('hidden');
+}
+
+async function submitEditTransaction() {
+    const id = val('edit-trans-id');
+    const amount = val('edit-trans-amount');
+    const desc = val('edit-trans-desc');
+    const cat = val('edit-trans-cat');
+    
+    if(!amount) return showToast('error', 'נא להזין סכום');
+    
+    const btn = document.querySelector('#edit-transaction-modal .bg-blue-600');
+    const origText = btn.innerText;
+    btn.disabled = true; btn.innerText = 'שומר...';
+    
+    try {
+        const res = await fetch(`${API}/transaction/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הפעולה עודכנה!');
+            document.getElementById('edit-transaction-modal').classList.add('hidden');
+            fetchData(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+    } finally {
+        btn.disabled = false; btn.innerText = origText;
+    }
+}
+
+async function deleteTransaction() {
+    const id = val('edit-trans-id');
+    if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
+    
+    try {
+        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הפעולה נמחקה!');
+            document.getElementById('edit-transaction-modal').classList.add('hidden');
+            fetchData();
+        } else {
+            showToast('error', data.error || 'שגיאה במחיקה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+    }
+}
+// ==========================================
+
 
 function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { document.getElementById('assign-reward').value = bundle.reward; } }
 function openAssignModal() {
@@ -1268,7 +1435,6 @@ function renderShopList() {
         reqList.innerHTML = reqHtml;
     } else { reqContainer.classList.add('hidden'); }
 
-    // התיקון שביקשת: הוספנו בדיקה איזה טאב פעיל כדי לא להקפיץ את הפוטר בכל רענון סתם כך
     const isShopTabActive = document.getElementById('tab-shop') && document.getElementById('tab-shop').classList.contains('tab-active');
 
     if(activeItems.length === 0) { 
@@ -1537,7 +1703,6 @@ async function renderForecast() {
             ? document.getElementById('forecast-month-filter').value 
             : document.getElementById('forecast-year-filter').value;
             
-        // נוסיף פרמטר mode ל-API כדי שהשרת יידע אם לחשב לפי חודש או לפי שנה שלמה
         const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&period=${periodVal || ''}&mode=${currentForecastMode}`);
         if (res.ok) {
             forecastCache = await res.json();
@@ -1548,7 +1713,6 @@ async function renderForecast() {
     let totalIncome = 0;
     let totalExpense = 0;
     
-    // אובייקטים לאיסוף הנתונים לגרפים
     const incomeData = {};
     const expenseData = {};
     
@@ -1575,7 +1739,7 @@ async function renderForecast() {
             const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
             
             html += `
-            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right">
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-indigo-100 transition">
                 <div class="flex-1 overflow-hidden">
                     <p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p>
                     <p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p>
@@ -1594,7 +1758,6 @@ async function renderForecast() {
     document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
     
-    // ציור הגרף המאוחד
     drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
 }
 
@@ -1602,7 +1765,6 @@ function drawForecastCharts(incomeData, expenseData) {
     const container = document.getElementById('forecast-charts');
     if(!container) return;
     
-    // עיצוב מחדש של ה-DOM תוך כדי ריצה כדי להציג גרף אחד מרכזי שמציג יחס הכנסות מול הוצאות
     container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
     container.innerHTML = `
         <div class="w-full max-w-[250px]">
@@ -1626,7 +1788,7 @@ function drawForecastCharts(incomeData, expenseData) {
                 labels: ['הכנסות', 'הוצאות'], 
                 datasets: [{ 
                     data: [totalInc, totalExp], 
-                    backgroundColor: ['#22c55e', '#ef4444'], // ירוק ואדום בהתאמה
+                    backgroundColor: ['#22c55e', '#ef4444'], 
                     borderWidth: 2,
                     hoverOffset: 4
                 }] 
