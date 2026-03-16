@@ -26,9 +26,8 @@ let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
-// משתנים עבור הגרפים של התשקיף
-let forecastExpenseChart = null;
-let forecastIncomeChart = null;
+// משתנה עבור הגרף המאוחד של התשקיף
+let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
 
 let currentScanTarget = ''; 
@@ -274,13 +273,14 @@ function startAdminTour() {
             { element: '#tab-tasks', title: "משימות הבית ✅", intro: "הדרך המושלמת לרתום את הילדים לעזרה: הגדירו משימות, תמחרו אותן, והילדים יצלמו את התוצר לטובת קבלת התגמול.", position: 'bottom' },
             { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "ללמוד על כסף דרך משחק! יצרו לילדים אתגרים חינוכיים בהתאמה אישית עם ה-AI, ותגמלו אותם על תשובות נכונות.", position: 'bottom' },
             { element: '#tab-budget', title: "תקציב ושליטה 📊", intro: "הגדירו יעדי הוצאות חודשיים לכל קטגוריה. familAI תנתח את ההוצאות שלכם ותספק לכם תובנות וטיפים יקרי ערך לחיסכון.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף תזרים 📅", intro: "מבט לעתיד! כאן תוכלו לראות את כל הפעולות העתידיות והקבועות שלכם, ולתכנן את התקציב קדימה בצורה חכמה.", position: 'bottom' },
             { element: '#tab-recipes', title: "השף הפרטי שלכם 👨‍🍳", intro: "נתקעתם בלי רעיון לארוחת ערב? סמנו אילו מוצרים יש לכם במזווה, וה-AI שלנו ירקח עבורכם מתכון מושלם תוך שניות!", position: 'bottom' },
             { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "מכאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולבן/בת הזוג להצטרף. שיהיה בהצלחה!", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -301,12 +301,13 @@ function startChildTour() {
             { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "רוצה להרוויח כסף? בחר משימה, סיים אותה, צלם הוכחה - וקבל את התגמול ישר לארנק!", position: 'bottom' },
             { element: '#tab-academy', title: "האקדמיה 🎓", intro: "מי אמר שללמוד זה משעמם? היכנס לכאן כדי לענות על חידונים כיפיים ותרוויח בונוסים על תשובות נכונות.", position: 'bottom' },
             { element: '#tab-budget', title: "לאן הכסף הולך? 📊", intro: "כאן תוכל לראות על מה בזבזת את דמי הכיס החודש, וללמוד לתכנן קניות חכם יותר.", position: 'bottom' },
+            { element: '#tab-forecast', title: "התשקיף שלי 📅", intro: "כאן אפשר לראות אילו הכנסות והוצאות מתוכננות לך בהמשך התקופה, ולתכנן כמה כסף יישאר לך!", position: 'bottom' },
             { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "רוצה להפתיע את המשפחה? בחר מוצרים שיש במטבח, והשף החכם ייתן לך מתכון מנצח וקל להכנה!", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -1447,10 +1448,6 @@ async function renderForecast() {
     let totalIncome = 0;
     let totalExpense = 0;
     
-    // אובייקטים לאיסוף הנתונים לגרפים
-    const incomeData = {};
-    const expenseData = {};
-    
     let html = '';
     if(items.length === 0) {
         html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
@@ -1461,10 +1458,8 @@ async function renderForecast() {
             
             if(isIncome) {
                 totalIncome += amt;
-                incomeData[item.category] = (incomeData[item.category] || 0) + amt;
             } else {
                 totalExpense += amt;
-                expenseData[item.category] = (expenseData[item.category] || 0) + amt;
             }
             
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
@@ -1493,70 +1488,69 @@ async function renderForecast() {
     document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
     
-    // ציור הגרפים!
-    drawForecastCharts(incomeData, expenseData);
+    // ציור הגרף המאוחד
+    drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
 }
 
 function drawForecastCharts(incomeData, expenseData) {
-    const ctxInc = document.getElementById('incomeChart');
-    const ctxExp = document.getElementById('expenseChart');
-    if(!ctxInc || !ctxExp) return;
+    const container = document.getElementById('forecast-charts');
+    if(!container) return;
     
-    if(forecastIncomeChart) forecastIncomeChart.destroy();
-    if(forecastExpenseChart) forecastExpenseChart.destroy();
+    // עיצוב מחדש של ה-DOM תוך כדי ריצה כדי להציג גרף אחד מרכזי שמציג יחס הכנסות מול הוצאות
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
+    container.innerHTML = `
+        <div class="w-full max-w-[250px]">
+            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4>
+            <div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
+        </div>
+    `;
     
-    // פונקציית עזר להכנת הנתונים לגרף
-    const prepareChartData = (dataObj) => {
-        const labels = [];
-        const data = [];
-        for (const [key, val] of Object.entries(dataObj)) {
-            // ניסיון לשלוף את התווית היפה, אם לא נמצא נשתמש ב-key כפי שהוא
-            const niceLabel = BUDGET_LABELS[key] || key;
-            labels.push(niceLabel);
-            data.push(val);
-        }
-        return { labels, data };
-    };
+    const ctx = document.getElementById('ratioChart');
+    if(!ctx) return;
     
-    const inc = prepareChartData(incomeData);
-    const exp = prepareChartData(expenseData);
+    if(forecastRatioChart) forecastRatioChart.destroy();
     
-    // רשימת צבעים נעימים לעין שחוזרת על עצמה
-    const getColors = (count) => {
-        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#f43f5e', '#6366f1', '#10b981'];
-        return Array.from({length: count}, (_, i) => colors[i % colors.length]);
-    };
+    const totalInc = Object.values(incomeData).reduce((a, b) => a + b, 0);
+    const totalExp = Object.values(expenseData).reduce((a, b) => a + b, 0);
     
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false // מסתיר את המקרא כדי לחסוך מקום, יש Tooltips כשלוחצים
+    if(totalInc > 0 || totalExp > 0) {
+        forecastRatioChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: ['הכנסות', 'הוצאות'], 
+                datasets: [{ 
+                    data: [totalInc, totalExp], 
+                    backgroundColor: ['#22c55e', '#ef4444'], // ירוק ואדום בהתאמה
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }] 
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: { font: { family: 'Rubik' } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed !== null) {
+                                    label += '₪' + context.parsed.toFixed(1);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
             }
-        }
-    };
-    
-    if(inc.data.length > 0) {
-        forecastIncomeChart = new Chart(ctxInc, {
-            type: 'doughnut',
-            data: { 
-                labels: inc.labels, 
-                datasets: [{ data: inc.data, backgroundColor: getColors(inc.data.length), borderWidth: 2 }] 
-            },
-            options: chartOptions
         });
-    }
-    
-    if(exp.data.length > 0) {
-        forecastExpenseChart = new Chart(ctxExp, {
-            type: 'doughnut',
-            data: { 
-                labels: exp.labels, 
-                datasets: [{ data: exp.data, backgroundColor: getColors(exp.data.length), borderWidth: 2 }] 
-            },
-            options: chartOptions
-        });
+    } else {
+        container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין פעולות עתידיות להצגת גרף</p>';
     }
 }
 
@@ -1739,6 +1733,96 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
+
+// --- RECIPES (AI CHEF) MODULE ---
+function toggleRecipeCustomInput() {
+    const isIgnored = document.getElementById('recipe-ignore-pantry').checked;
+    if (isIgnored) {
+        document.getElementById('recipe-custom-ingredients').classList.remove('hidden');
+        document.getElementById('recipe-pantry-selection').classList.add('hidden');
+    } else {
+        document.getElementById('recipe-custom-ingredients').classList.add('hidden');
+        document.getElementById('recipe-pantry-selection').classList.remove('hidden');
+    }
+}
+
+function renderRecipePantrySelection() {
+    const listContainer = document.getElementById('recipe-pantry-items-list');
+    if (!listContainer) return;
+    if (!pantryCache || pantryCache.length === 0) {
+        listContainer.innerHTML = '<p class="text-xs text-slate-400">המזווה שלכם ריק. הוסיפו מוצרים למזווה כדי לייצר מהם מתכונים!</p>';
+        return;
+    }
+    let html = '';
+    pantryCache.forEach(p => {
+        html += `<label class="recipe-pantry-item-label flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg cursor-pointer hover:border-orange-300 transition shadow-sm"><input type="checkbox" value="${p.item_name}" checked class="recipe-pantry-checkbox w-3.5 h-3.5 accent-orange-500"><span class="text-xs text-slate-700 font-medium">${p.item_name} <span class="text-[10px] text-slate-400">(${p.quantity})</span></span></label>`;
+    });
+    listContainer.innerHTML = html;
+}
+
+let isAllRecipePantrySelected = true;
+function selectAllRecipePantry() {
+    isAllRecipePantrySelected = !isAllRecipePantrySelected;
+    document.querySelectorAll('.recipe-pantry-checkbox').forEach(cb => { cb.checked = isAllRecipePantrySelected; });
+}
+
+async function generateRecipe() {
+    const btn = document.getElementById('btn-generate-recipe');
+    const mealType = document.getElementById('recipe-meal-type').value;
+    const diners = document.getElementById('recipe-diners').value;
+    const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
+    const customIngredients = document.getElementById('recipe-custom-ingredients').value;
+    
+    let pantryItemsStr = "";
+    if (!ignorePantry) {
+        const selectedItems = [];
+        document.querySelectorAll('.recipe-pantry-checkbox:checked').forEach(cb => { selectedItems.push(cb.value); });
+        if (selectedItems.length === 0) return showToast('error', 'לא סימנתם אף מוצר מהמזווה!');
+        pantryItemsStr = selectedItems.join(', ');
+    } else if (!customIngredients.trim()) {
+        return showToast('error', 'אנא הזינו מצרכים חלופיים');
+    }
+
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שף AI מרכיב מתכון...';
+    document.getElementById('recipe-result-container').classList.add('hidden');
+
+    try {
+        const res = await fetch(`${API}/recipes/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, mealType: mealType, diners: diners, ignorePantry: ignorePantry, customIngredients: customIngredients, pantryItems: pantryItemsStr })
+        });
+        const data = await res.json();
+        
+        if(!handleAIResponseCheck(data)) return;
+
+        if (data.success && data.recipe) {
+            let formattedRecipe = data.recipe
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/## /g, '<h3 class="text-lg font-bold text-slate-800 mt-4 mb-2">')
+                .replace(/# /g, '<h2 class="text-xl font-bold text-orange-600 mt-2 mb-2">');
+            
+            document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
+            document.getElementById('recipe-result-container').classList.remove('hidden');
+            triggerConfetti();
+            setTimeout(() => document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' }), 300);
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת המתכון');
+        }
+    } catch (e) { showToast('error', 'שגיאה בתקשורת עם השרת (AI Recipe)'); } 
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; }
+}
+
+function copyRecipe() {
+    const text = document.getElementById('recipe-result-content').innerText;
+    try {
+        const textArea = document.createElement("textarea"); textArea.value = text;
+        document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea);
+        showToast('success', 'המתכון הועתק בהצלחה!');
+    } catch (err) { showToast('error', 'שגיאה בהעתקה'); }
+}
 
 // --- BANNERS MODULE (SUPER ADMIN & UI) ---
 async function fetchBanners() {
