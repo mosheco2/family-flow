@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs-rtl.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
@@ -412,7 +414,7 @@
                             <div class="flex gap-2">
                                 <button onclick="openHistoryModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריה</button>
                                 <button onclick="document.getElementById('receipt-scan-upload').click()" id="btn-scan-receipt" class="hidden bg-purple-100 text-purple-600 px-3 py-2 rounded-full text-xs font-bold shadow-sm hover:bg-purple-200 transition"><i class="fa-solid fa-receipt"></i> סרוק קבלה</button>
-                                <button onclick="startBarcodeScan('shop')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> ברקוד</button>
+                                <button onclick="startBarcodeScan('shop')" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> סרוק מוצר</button>
                                 <button onclick="openShopModal()" class="bg-pink-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg shadow-pink-200 hover:bg-pink-600 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף</button>
                             </div>
                         </div>
@@ -435,7 +437,7 @@
                             </div>
                             <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
                             <div class="flex gap-2">
-                                <button onclick="startBarcodeScan('pantry')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-barcode"></i> סרוק להוספה</button>
+                                <button onclick="startBarcodeScan('pantry')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-camera"></i> סרוק להוספה</button>
                                 <button onclick="openPantryModal()" class="flex-1 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוספה ידנית</button>
                             </div>
                         </div>
@@ -563,13 +565,19 @@
                             <h3 class="font-bold text-slate-800 text-lg mb-2">תשקיף תזרים 📅</h3>
                             <p class="text-xs text-slate-500 mb-4">ניהול ומעקב אחר הכנסות והוצאות עתידיות / קבועות.</p>
                             
-                            <div class="flex justify-between items-center mb-4">
+                            <div class="flex bg-slate-100 p-1 rounded-xl mb-4 w-full max-w-[250px] mx-auto">
+                                <button id="btn-forecast-monthly" class="flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition">חודשי</button>
+                                <button id="btn-forecast-yearly" class="flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שנתי</button>
+                            </div>
+
+                            <div class="flex justify-center items-center mb-4">
                                 <select id="forecast-month-filter" onchange="renderForecast()" class="modern-input py-2 text-sm bg-slate-50 w-full max-w-[200px]"></select>
+                                <select id="forecast-year-filter" onchange="renderForecast()" class="modern-input py-2 text-sm bg-slate-50 w-full max-w-[200px] hidden"></select>
                             </div>
                             
-                            <div id="forecast-summary" class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
+                            <div id="forecast-summary" class="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center mb-4">
                                 <div>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">יתרה צפויה לסוף החודש</p>
+                                    <p id="forecast-balance-label" class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">יתרה צפויה לסוף התקופה</p>
                                     <p id="forecast-projected-balance" class="text-2xl font-bold text-slate-800">₪0</p>
                                 </div>
                                 <div class="text-left">
@@ -577,8 +585,19 @@
                                     <p id="forecast-net-change" class="text-lg font-bold" dir="ltr">₪0</p>
                                 </div>
                             </div>
+                            
+                            <div id="forecast-charts" class="grid grid-cols-2 gap-4 mt-6 border-t border-slate-100 pt-6">
+                                <div>
+                                    <h4 class="text-xs font-bold text-center text-slate-600 mb-2">פילוח הוצאות</h4>
+                                    <div class="relative h-32 w-full flex justify-center"><canvas id="expenseChart"></canvas></div>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-center text-slate-600 mb-2">פילוח הכנסות</h4>
+                                    <div class="relative h-32 w-full flex justify-center"><canvas id="incomeChart"></canvas></div>
+                                </div>
+                            </div>
                         </div>
-                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-sm opacity-80">צפי פעולות לחודש הנבחר</h3>
+                        <h3 id="forecast-list-title" class="font-bold text-slate-700 mb-3 px-2 text-sm opacity-80">צפי פעולות לתקופה הנבחרת</h3>
                         <div id="forecast-list" class="space-y-3 pb-20 text-center text-sm text-slate-500">טוען נתונים...</div>
                     </div>
 
