@@ -26,11 +26,57 @@ let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
-// משתנה עבור הגרף המאוחד של התשקיף
 let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
-
 let currentScanTarget = ''; 
+
+// --- PWA (התקנת אפליקציה) ---
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+});
+
+function setupPwaInstallSection() {
+    const section = document.getElementById('pwa-install-section');
+    const iosDiv = document.getElementById('pwa-ios-instructions');
+    const androidDiv = document.getElementById('pwa-android-instructions');
+    const btnInstall = document.getElementById('btn-install-pwa');
+
+    if(!section || !iosDiv || !androidDiv || !btnInstall) return;
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    section.classList.remove('hidden');
+
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+
+    if (isIOS) {
+        iosDiv.classList.remove('hidden');
+        androidDiv.classList.add('hidden');
+    } else {
+        iosDiv.classList.add('hidden');
+        androidDiv.classList.remove('hidden');
+        
+        btnInstall.onclick = async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    section.classList.add('hidden');
+                }
+                deferredPrompt = null;
+            } else {
+                showToast('info', 'כדי להתקין, פתחו את תפריט הדפדפן (3 נקודות) ובחרו "התקן אפליקציה" או "הוסף למסך הבית".');
+            }
+        };
+    }
+}
 
 const userColors = ['bg-blue-50 border-blue-100', 'bg-green-50 border-green-100', 'bg-purple-50 border-purple-100', 'bg-orange-50 border-orange-100', 'bg-pink-50 border-pink-100'];
 const CATEGORIES = { 
@@ -213,11 +259,23 @@ async function checkGlobalWelcome() {
         const res = await fetch(`${API}/settings/welcome`); const data = await res.json();
         if (data.message && data.message.trim() !== '') {
             const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
-            if (seen !== data.message) { document.getElementById('welcome-modal-text').innerText = data.message; document.getElementById('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
+            if (seen !== data.message) { 
+                document.getElementById('welcome-modal-text').innerText = data.message; 
+                setupPwaInstallSection();
+                document.getElementById('welcome-modal').classList.remove('hidden'); 
+                window.pendingWelcomeMsg = data.message; 
+                return true; 
+            }
         }
     } catch(e) {} return false;
 }
-function closeWelcomeModal() { document.getElementById('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
+
+function closeWelcomeModal() { 
+    document.getElementById('welcome-modal').classList.add('hidden'); 
+    if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } 
+    checkAndStartTour(forceTourStart); 
+    forceTourStart = false; 
+}
 function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); } } catch(e) {} }, 1000); }
 function triggerManualTour() { document.getElementById('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); }
 
@@ -717,6 +775,7 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
+// עודכן כך שילד יוכל לבקש תגמול בעצמו
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
     document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
@@ -728,7 +787,7 @@ function openTaskModal(isSelf = false) {
         document.getElementById('task-modal-title').innerText = 'מעשה טוב'; 
         toggles.classList.add('hidden'); 
         assigneeContainer.classList.add('hidden'); 
-        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; 
+        rewardInput.placeholder = 'כמה מגיע לי? (₪)'; // מציג שדה תגמול לילד
     } else { 
         document.getElementById('task-modal-title').innerText = 'יצירת משימה'; 
         toggles.classList.remove('hidden'); 
@@ -1196,7 +1255,6 @@ function renderCashflow() {
         const catLabel = BUDGET_LABELS[t.category] || t.category || '';
         const catBadge = catLabel ? `<span class="text-[9px] text-slate-400 border border-slate-200 px-1.5 rounded-full mr-2">${catLabel}</span>` : '';
 
-        // עריכה מתאפשרת לכולם (הורה יכול לערוך הכל, ילד את שלו)
         const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
         const editBtn = `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>`;
 
