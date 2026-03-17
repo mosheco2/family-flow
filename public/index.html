@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Oneflow Life</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="/logo.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -786,7 +791,21 @@
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <i class="fa-solid fa-bullhorn text-4xl text-blue-500 mb-4 mt-2"></i>
                 <h3 class="text-2xl font-bold mb-4 text-slate-800">הודעת מערכת</h3>
-                <p id="welcome-modal-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
+                <p id="welcome-modal-text" class="text-slate-600 mb-6 leading-relaxed whitespace-pre-line"></p>
+                
+                <div id="pwa-install-section" class="bg-indigo-50 p-4 rounded-xl mb-6 text-right hidden border border-indigo-100 shadow-inner">
+                    <h4 class="font-bold text-indigo-800 text-sm mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-mobile-screen"></i> התקנת האפליקציה</h4>
+                    
+                    <div id="pwa-ios-instructions" class="hidden text-xs text-indigo-700 leading-relaxed text-center">
+                        כדי להתקין את Oneflow Life, לחצו על כפתור השיתוף <i class="fa-solid fa-arrow-up-from-bracket mx-1 bg-white p-1 rounded shadow-sm"></i> בתחתית המסך שלכם, ואז בחרו ב-<strong>"הוסף למסך הבית"</strong> <i class="fa-solid fa-square-plus mx-1"></i>.
+                    </div>
+                    
+                    <div id="pwa-android-instructions" class="hidden text-xs text-indigo-700 leading-relaxed text-center">
+                        <p class="mb-3 font-medium">התקינו את המערכת על מסך הבית לגישה מהירה!</p>
+                        <button id="btn-install-pwa" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-download"></i> התקן אפליקציה</button>
+                    </div>
+                </div>
+
                 <button onclick="closeWelcomeModal()" class="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 text-lg hover:scale-105 transition">הבנתי, תודה!</button>
             </div>
         </div>
@@ -1187,10 +1206,13 @@
         }
     </script>
     <script src="app.js" defer></script>
+    
     <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
-  }
-</script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
 </body>
 </html>
