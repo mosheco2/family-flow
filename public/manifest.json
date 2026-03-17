@@ -1,0 +1,21 @@
+{
+  "name": "Oneflow Life",
+  "short_name": "Oneflow",
+  "description": "הבנק והארנק המשפחתי החכם",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
