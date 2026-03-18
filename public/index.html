@@ -8,9 +8,9 @@
     <link rel="icon" href="/logo.png" type="image/png">
     <link rel="shortcut icon" href="/logo.png" type="image/png">
 
-    <meta name="description" content="הבנק והארנק המשפחתי החכם. נהלו את התקציב, המשימות והקניות של המשפחה במקום אחד, מלווה בעוזרת בינה מלאכותית אישית.">
-    <meta property="og:title" content="Oneflow Life - מרכז השליטה של המשפחה">
-    <meta property="og:description" content="הילדים לומדים, עושים ומרוויחים, ההורים שולטים בתזרים והמשפחה מרוויחה!">
+    <meta name="description" content="הבנק והארנק המשפחתי החכם. נהלו את התקציב, המשימות והקניות של המשפחה במקום אחד.">
+    <meta property="og:title" content="Oneflow Life - בנק משפחתי חכם">
+    <meta property="og:description" content="מנהלים יחד את הבית! הילדים חוסכים ומרוויחים, וההורים שולטים בתקציב.">
     
     <meta property="og:image" content="https://family-flow-app.onrender.com/social-logo.jpg">
     <meta property="og:image:secure_url" content="https://family-flow-app.onrender.com/social-logo.jpg">
@@ -179,7 +179,7 @@
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
         <div id="auth-container" class="w-full max-w-md bg-white sm:rounded-[2.5rem] flex flex-col shadow-2xl overflow-hidden fade-in h-screen sm:h-auto hidden">
-            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 sm:rounded-b-[3rem] shadow-2xl pt-12 pb-10 flex-shrink-0 border-b-4 border-blue-500/30">
+            <div class="p-8 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 sm:rounded-b-[3rem] shadow-2xl pt-8 pb-10 flex-shrink-0 border-b-4 border-blue-500/30">
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
                 <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <p class="absolute inset-0 flex items-center justify-center text-white/5 font-mono text-5xl font-bold tracking-[0.2em] pointer-events-none select-none z-0" style="top: 50%; transform: translateY(-50%);">**** ****</p>
@@ -190,7 +190,7 @@
                         <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
                     </div>
                     
-                    <img src="logo.png" alt="Logo" class="w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
+                    <img src="logo.png" alt="Logo" class="w-28 sm:w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
                     <div id="auth-logo-fallback" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
                     
                     <div class="w-full flex justify-between items-end px-2 mt-2">
@@ -206,7 +206,7 @@
                 </div>
             </div>
             
-            <div id="view-login" class="px-8 py-10 flex-1 flex flex-col justify-center overflow-y-auto">
+            <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד משפחה (לדוגמה: ABCD12)">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
@@ -285,7 +285,7 @@
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
 
-            <div id="view-sa-login" class="px-8 py-10 flex-1 flex flex-col justify-center hidden">
+            <div id="view-sa-login" class="px-8 py-8 flex-1 overflow-y-auto hidden">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">מנהל מערכת ראשי</h2>
                 <form onsubmit="handleSALogin(event)" class="space-y-4">
                     <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input">
@@ -1074,7 +1074,7 @@
                 <h3 class="text-lg font-bold mb-4 text-center">יעד חיסכון חדש 🎯</h3>
                 <div id="goal-user-select-container" class="hidden mb-4"><select id="goal-target-user" class="modern-input bg-white"></select></div>
                 <input type="text" id="goal-title" class="modern-input mb-3" placeholder="על מה חוסכים?"><input type="number" id="goal-target" class="modern-input mb-6" placeholder="כמה צריך? (₪)">
-                <div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-50 text-white py-3 rounded-xl font-bold">צור יעד</button></div>
+                <div class="flex gap-3"><button onclick="document.getElementById('goal-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitGoal()" class="flex-1 bg-cyan-500 text-white py-3 rounded-xl font-bold">צור יעד</button></div>
             </div>
         </div>
         
