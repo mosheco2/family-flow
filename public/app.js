@@ -159,14 +159,23 @@ window.onload = async () => {
                 
                 loadDashboard(); 
                 
-                // רענון שקט של נתוני המשתמש ברקע (עוקף שגיאות ללא התנתקות מיותרת)
+                // רענון שקט של נתוני המשתמש ברקע (עוקף שגיאות ללא התנתקות מיותרת וממזג נתונים)
                 fetch(`${API}/data/${session.user.id}`).then(res => {
                     if(res.ok) {
                         res.json().then(data => {
                             if(data && data.user) {
-                                currentUser = data.user;
-                                if(data.group) currentGroup = data.group;
+                                currentUser = { ...currentUser, ...data.user };
+                                if(data.group) currentGroup = { ...currentGroup, ...data.group };
                                 localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                                
+                                // עדכון UI חי כדי למנוע מצב undefined
+                                const dashName = document.getElementById('dash-group-name');
+                                if(dashName && currentGroup.name) {
+                                    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
+                                    dashName.innerHTML = `${currentGroup.name} ${codeBadge}`;
+                                }
+                                const dashNick = document.getElementById('dash-nickname');
+                                if(dashNick && currentUser.nickname) dashNick.innerText = currentUser.nickname;
                             }
                         });
                     }
@@ -499,7 +508,7 @@ function upgradeToPremium() {
 async function loadDashboard() {
     document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
+    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name || ''} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname || ''; document.getElementById('user-balance').innerText = `₪${currentUser.balance || 0}`;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
@@ -512,7 +521,7 @@ async function loadDashboard() {
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
+        document.getElementById('card-name').innerText = (currentUser.nickname || '').toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
         document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
     }
     document.getElementById('btn-add-budget-cat').classList.remove('hidden');
@@ -671,10 +680,9 @@ async function fetchData() {
         const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
         if (!data || !data.user) return;
         
-        currentUser.balance = data.user.balance; 
+        currentUser = { ...currentUser, ...data.user }; 
         if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens;
-            currentGroup.is_premium = data.group.is_premium;
+            currentGroup = { ...currentGroup, ...data.group };
             updateBatteryUI();
             
             const profileUp = document.getElementById('profile-upgrade-section');
@@ -703,7 +711,7 @@ async function fetchData() {
                     if(goalsContainer) goalsContainer.classList.remove('hidden'); 
                     data.goals.forEach(g => { 
                         const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title.replace(/'/g,"\\'")}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
                     }); 
                 } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
             }
@@ -1044,6 +1052,10 @@ function renderPantry() {
     const list = document.getElementById('pantry-list'); if(!list) return; list.innerHTML = '';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המזווה ריק. הוסיפו מוצרים כדי לעקוב אחרי המלאי בבית!</p>'; return; }
     pantryCache.forEach(p => {
+        // Escaping למניעת שגיאות ב-HTML אם יש גרשיים בשם או ביחידה
+        const safeName = (p.item_name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        const safeUnit = (p.unit || "יח'").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        
         list.innerHTML += `
         <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2">
             <div class="flex justify-between items-center mb-2">
@@ -1060,8 +1072,8 @@ function renderPantry() {
                 </div>
             </div>
             <div class="flex gap-2 mt-1 border-t border-slate-50 pt-2">
-                <button onclick="openPantryUseModal('${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-orange-50 text-orange-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-orange-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-utensils"></i> השתמשתי</button>
-                <button onclick="movePantryToCart(${p.id}, '${p.item_name.replace(/'/g,"\\'")}', '${p.unit || "יח'"}')" class="flex-1 bg-pink-50 text-pink-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-pink-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> חסר (לקניות)</button>
+                <button onclick="openPantryUseModal('${safeName}', '${safeUnit}')" class="flex-1 bg-orange-50 text-orange-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-orange-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-utensils"></i> השתמשתי</button>
+                <button onclick="movePantryToCart(${p.id}, '${safeName}', '${safeUnit}')" class="flex-1 bg-pink-50 text-pink-600 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-pink-100 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> חסר (לקניות)</button>
             </div>
         </div>`;
     });
