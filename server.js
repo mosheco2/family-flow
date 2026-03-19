@@ -110,19 +110,40 @@ app.get('/setup-db', async (req, res) => {
 });
 
 // --- SUPER ADMIN ENDPOINTS ---
-const SA_CODE = 'admin';
-const SA_PASS = '123456';
-
-app.post('/api/superadmin/login', (req, res) => {
-    const { code, password } = req.body;
-    if (code === SA_CODE && password === SA_PASS) res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' });
-    else res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
-});
 
 const verifySA = (req, res, next) => {
     if (req.headers.authorization !== 'SA_SECRET_TOKEN_2026') return res.status(403).json({error: 'Forbidden'});
     next();
 };
+
+app.post('/api/superadmin/login', async (req, res) => {
+    try {
+        const { code, password } = req.body;
+        const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
+        const saPassRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'");
+        
+        const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
+        const currentPass = saPassRes.rows.length > 0 ? saPassRes.rows[0].value : '123456';
+        
+        if (code === currentCode && password === currentPass) {
+            res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' });
+        } else {
+            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
+        }
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
+    try {
+        const { newUsername, newPassword } = req.body;
+        if (!newUsername || !newPassword) return res.status(400).json({error: 'חסרים נתונים'});
+        
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]);
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]);
+        
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
 
 app.get('/api/superadmin/data', verifySA, async (req, res) => {
     try {
@@ -712,7 +733,6 @@ app.get('/api/transactions', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// שינוי 2: תמיכה במשימה של ילד לעצמו עם סטטוס
 app.post('/api/tasks', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -729,7 +749,6 @@ app.post('/api/tasks', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
-// שינוי 3: קבלת סכום מעודכן מההורה בעת אישור
 app.post('/api/tasks/update', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -966,7 +985,7 @@ app.post('/api/academy/request-challenge', async (req, res) => {
             const ageGroup = getAgeGroup(age);
             const assigned = await pool.query('SELECT bundle_id FROM user_assignments WHERE user_id=$1', [userId]);
             const assignedIds = assigned.rows.map(r => r.bundle_id);
-            const available = await pool.query('SELECT id FROM quiz_bundles age_group=$1', [ageGroup]);
+            const available = await pool.query('SELECT id FROM quiz_bundles WHERE age_group=$1', [ageGroup]);
             const choices = available.rows.filter(b => !assignedIds.includes(b.id));
             if (choices.length === 0) return res.json({ success: false, error: 'אין אתגרים זמינים לגיל שלך כרגע' });
             finalBundleId = choices[Math.floor(Math.random() * choices.length)].id;
@@ -1041,6 +1060,16 @@ app.post('/api/shopping/update', async (req, res) => {
 app.delete('/api/shopping/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
     catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// שינוי חדש: מחיקת כל העגלה
+app.delete('/api/shopping/clear/:groupId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/shopping/checkout', async (req, res) => {
