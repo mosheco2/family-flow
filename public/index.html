@@ -512,6 +512,12 @@
                             <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל לסיום</button>
                             <button onclick="clearEntireCart()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-trash-can"></i> מחיקת כל העגלה</button>
                         </div>
+
+                        <div class="flex gap-2 mb-4 px-2">
+                            <button onclick="exportShopToWhatsApp()" class="flex-1 bg-green-50 text-green-600 py-2 rounded-xl text-xs font-bold hover:bg-green-100 transition shadow-sm border border-green-100 flex items-center justify-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> שתף בוואטסאפ</button>
+                            <button onclick="openPasteListModal()" class="flex-1 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm border border-blue-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-paste"></i> הדבק רשימה</button>
+                        </div>
+
                         <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
                             <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור</h4>
                             <div id="shop-requests-list" class="space-y-2"></div>
@@ -1018,6 +1024,18 @@
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div>
+            </div>
+        </div>
+
+        <div id="paste-list-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
+                <h3 class="text-lg font-bold mb-2 text-center text-slate-800">הדבקת רשימה 📋</h3>
+                <p class="text-xs text-slate-500 mb-4 text-center">הדביקו כאן רשימה מוכנה (כל מוצר בשורה נפרדת). המערכת תזהה ותוסיף הכל לעגלה!</p>
+                <textarea id="paste-list-text" class="modern-input h-40 text-sm mb-4 leading-relaxed" placeholder="לדוגמה:&#10;חלב 3%&#10;לחם אחיד&#10;עגבניות 2 ק&quot;ג..."></textarea>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('paste-list-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitPastedList()" id="btn-submit-paste" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">הוסף הכל לעגלה</button>
+                </div>
             </div>
         </div>
         
