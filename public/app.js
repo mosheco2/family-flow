@@ -131,6 +131,23 @@ window.onload = async () => {
         clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
     }
     
+    // 1. בדיקת התחברות של מנהל מערכת (Super Admin)
+    const savedSAToken = localStorage.getItem('ofl_sa_token');
+    if (savedSAToken) {
+        saToken = savedSAToken;
+        clearTimeout(failsafeTimer);
+        document.getElementById('auth-container').classList.add('hidden');
+        document.getElementById('sa-dashboard-container').classList.remove('hidden');
+        const preloader = document.getElementById('app-preloader');
+        if (preloader) {
+            preloader.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => preloader.classList.add('hidden'), 700);
+        }
+        loadSAData();
+        return;
+    }
+
+    // 2. בדיקת התחברות של משתמש רגיל בזיכרון המקומי
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
@@ -142,23 +159,29 @@ window.onload = async () => {
                 
                 loadDashboard(); 
                 
-                fetch(`${API}/users/${session.user.id}`).then(res => {
+                // רענון שקט של נתוני המשתמש ברקע (עוקף שגיאות ללא התנתקות מיותרת)
+                fetch(`${API}/data/${session.user.id}`).then(res => {
                     if(res.ok) {
-                        res.json().then(updatedUser => {
-                            currentUser = updatedUser;
-                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                        res.json().then(data => {
+                            if(data && data.user) {
+                                currentUser = data.user;
+                                if(data.group) currentGroup = data.group;
+                                localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                            }
                         });
-                    } else if (res.status === 404 || res.status === 401 || res.status === 403) {
-                        localStorage.removeItem('ofl_session');
-                        location.reload();
                     }
                 }).catch(e => {
                     console.log('App is offline, keeping user session active.');
                 });
-
-            } else { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
-        } catch(e) { localStorage.removeItem('ofl_session'); clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); } 
-    } else { clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); }
+                
+                return;
+            }
+        } catch(e) { localStorage.removeItem('ofl_session'); } 
+    }
+    
+    // 3. אם הגענו לכאן - מציגים את מסך ההתחברות הרגיל
+    clearTimeout(failsafeTimer); 
+    hidePreloaderAndShowAuth('login');
 };
 
 // --- SUPER ADMIN LOGIC ---
@@ -167,11 +190,49 @@ async function handleSALogin(e) {
     try {
         const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) });
         const data = await res.json();
-        if(data.success) { saToken = data.token; document.getElementById('auth-container').classList.add('hidden'); document.getElementById('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } 
+        if(data.success) { 
+            saToken = data.token; 
+            localStorage.setItem('ofl_sa_token', saToken); // נשמר בזיכרון!
+            document.getElementById('auth-container').classList.add('hidden'); 
+            document.getElementById('sa-dashboard-container').classList.remove('hidden'); 
+            loadSAData(); 
+        } 
         else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { saToken = null; document.getElementById('sa-dashboard-container').classList.add('hidden'); document.getElementById('auth-container').classList.remove('hidden'); switchView('login'); }
+function logoutSA() { 
+    saToken = null; 
+    localStorage.removeItem('ofl_sa_token'); // מחיקה מהזיכרון
+    document.getElementById('sa-dashboard-container').classList.add('hidden'); 
+    document.getElementById('auth-container').classList.remove('hidden'); 
+    switchView('login'); 
+}
+
+async function updateSACredentials() {
+    const newUsername = val('sa-new-username');
+    const newPassword = val('sa-new-password');
+    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
+    
+    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
+    
+    try {
+        const res = await fetch(`${API}/superadmin/credentials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ newUsername, newPassword })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'פרטי ההתחברות שונו בהצלחה!');
+            document.getElementById('sa-new-username').value = '';
+            document.getElementById('sa-new-password').value = '';
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון פרטים');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    }
+}
 
 async function loadSAData() {
     fetchBanners();
