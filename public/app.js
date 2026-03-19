@@ -159,16 +159,16 @@ window.onload = async () => {
                 
                 loadDashboard(); 
                 
-                // רענון שקט של נתוני המשתמש ברקע (עוקף שגיאות ללא התנתקות מיותרת)
-                fetch(`${API}/data/${session.user.id}`).then(res => {
+                // רענון שקט של נתוני המשתמש ברקע
+                fetch(`${API}/users/${session.user.id}`).then(res => {
                     if(res.ok) {
-                        res.json().then(data => {
-                            if(data && data.user) {
-                                currentUser = data.user;
-                                if(data.group) currentGroup = data.group;
-                                localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
-                            }
+                        res.json().then(updatedUser => {
+                            currentUser = updatedUser;
+                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
                         });
+                    } else if (res.status === 404 || res.status === 401 || res.status === 403) {
+                        localStorage.removeItem('ofl_session');
+                        location.reload();
                     }
                 }).catch(e => {
                     console.log('App is offline, keeping user session active.');
@@ -179,7 +179,7 @@ window.onload = async () => {
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
     
-    // 3. אם הגענו לכאן - מציגים את מסך ההתחברות הרגיל
+    // 3. מסך התחברות רגיל
     clearTimeout(failsafeTimer); 
     hidePreloaderAndShowAuth('login');
 };
@@ -192,7 +192,7 @@ async function handleSALogin(e) {
         const data = await res.json();
         if(data.success) { 
             saToken = data.token; 
-            localStorage.setItem('ofl_sa_token', saToken); // נשמר בזיכרון!
+            localStorage.setItem('ofl_sa_token', saToken);
             document.getElementById('auth-container').classList.add('hidden'); 
             document.getElementById('sa-dashboard-container').classList.remove('hidden'); 
             loadSAData(); 
@@ -202,7 +202,7 @@ async function handleSALogin(e) {
 }
 function logoutSA() { 
     saToken = null; 
-    localStorage.removeItem('ofl_sa_token'); // מחיקה מהזיכרון
+    localStorage.removeItem('ofl_sa_token');
     document.getElementById('sa-dashboard-container').classList.add('hidden'); 
     document.getElementById('auth-container').classList.remove('hidden'); 
     switchView('login'); 
@@ -745,7 +745,8 @@ async function fetchData() {
         } catch(e) {}
 
         try {
-            const limit = currentUser.role === 'ADMIN' ? 200 : 100; // הגדלנו את כמות המשיכה כדי לתמוך בסינון חודשים היסטוריים
+            const limit = 200;
+            // הורה ימשוך הכל (all), ילד ימשוך רק את שלו (currentUser.id) מהשרת כדי לחסוך בתעבורה ולהבטיח אטימות
             const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
             const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
             if(transRes.ok) allTransactions = Array.isArray(await transRes.json()) ? await transRes.json() : [];
@@ -1199,16 +1200,49 @@ async function updateTask(id, s) { if(s==='done' || s==='completed_self') trigge
 
 function buildAndRenderFeed() {
     feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
-    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
-    if(Array.isArray(allTasks)) { allTasks.forEach(t => { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); }); }
-    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
+    
+    // 1. הודעת מערכת
+    if (currentGroup && currentGroup.created_at) { 
+        feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
+    }
+    
+    // 2. תנועות (קניות, הלוואות, הפקדות, דמי כיס וכו')
+    if(Array.isArray(allTransactions)) { 
+        allTransactions.forEach(t => { 
+            feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
+        }); 
+    }
+    
+    // 3. משימות שהושלמו
+    if(Array.isArray(allTasks)) { 
+        allTasks.forEach(t => { 
+            // בפיד נציג רק משימות שהושלמו/אושרו כדי לא להציף, אלא אם תרצה להציג הכל
+            if(t.status === 'approved') {
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); 
+            }
+        }); 
+    }
+    
+    // 4. אתגרים (אקדמיה)
+    if(Array.isArray(bundlesCache)) { 
+        bundlesCache.forEach(b => { 
+            feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
+        }); 
+    }
+    
+    // מיון הכי חדש למעלה
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     
-    if(currentUser.role === 'ADMIN') { 
-        const filterEl = document.getElementById('feed-user-filter'); 
-        if (filterEl) filterEl.classList.remove('hidden'); 
+    // הצגת/הסתרת תפריט הסינון בהתאם להרשאות
+    const filterEl = document.getElementById('feed-user-filter');
+    if (filterEl) {
+        if(currentUser.role === 'ADMIN') {
+            filterEl.classList.remove('hidden'); 
+        } else {
+            filterEl.classList.add('hidden'); 
+        }
     }
+    
     renderUnifiedFeed();
 }
 
@@ -1219,7 +1253,7 @@ function renderUnifiedFeed() {
     
     let filtered = feedCache;
     
-    // סינון משתמשים
+    // סינון משתמשים: ילד רואה רק את שלו (ושל המערכת). הורה רואה את מי שסינן (או כולם)
     if (currentUser.role !== 'ADMIN') {
         filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system');
     } else if (userFilter !== 'all' && userFilter !== '') {
@@ -1234,6 +1268,7 @@ function renderUnifiedFeed() {
         filtered = filtered.filter(item => item.date && item.date >= cutoffDate);
     }
 
+    // הצגת 30 האחרונים כדי למנוע עומס על המסך
     filtered = filtered.slice(0, 30); 
     
     if(filtered.length === 0) { 
@@ -1244,7 +1279,11 @@ function renderUnifiedFeed() {
     let html = '';
     filtered.forEach(item => {
         if(!item.date || isNaN(item.date.getTime())) return;
-        const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); const userNameDisplay = currentUser.role === 'ADMIN' && item.type !== 'system' ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
+        const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
+        
+        // השם של מבצע הפעולה יוצג לכולם תמיד, כדי שיידעו מי ביצע מה.
+        const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
+        
         const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
         const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
         let contentHtml = '';
@@ -1279,15 +1318,17 @@ function renderCashflow() {
 
     let filtered = allTransactions; 
     
-    // סינון משתמשים
+    // סינון משתמשים - הילד רואה רק את של עצמו ואין לו תיבת סינון
     if (currentUser.role !== 'ADMIN') {
         filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
         const cfFilter = document.getElementById('cashflow-user-filter');
         if(cfFilter) cfFilter.classList.add('hidden');
-    } else if (userFilter !== 'all' && userFilter !== '') {
-        filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter));
+    } else {
         const cfFilter = document.getElementById('cashflow-user-filter');
         if(cfFilter) cfFilter.classList.remove('hidden');
+        if (userFilter !== 'all' && userFilter !== '') {
+            filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter));
+        }
     }
 
     // סינון תאריכים
@@ -1311,13 +1352,17 @@ function renderCashflow() {
         const prefix = isIncome ? '+' : '-';
         const d = new Date(t.date);
         const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
-        const userName = currentUser.role === 'ADMIN' && t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
+        
+        // הצגת השם תמיד גם בתזרים לכולם
+        const userName = t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
         
         const catLabel = BUDGET_LABELS[t.category] || t.category || '';
         const catBadge = catLabel ? `<span class="text-[9px] text-slate-400 border border-slate-200 px-1.5 rounded-full mr-2">${catLabel}</span>` : '';
 
         const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
-        const editBtn = `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>`;
+        
+        // כפתור עריכה יוצג רק למנהל, כדי למנוע עריכה של ילדים
+        const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
 
         html += `
         <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between hover:border-blue-100 transition">
