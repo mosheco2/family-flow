@@ -118,6 +118,7 @@ window.onload = async () => {
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
+            console.warn('Failsafe triggered');
             hidePreloaderAndShowAuth('login');
         }
     }, 7000);
@@ -130,7 +131,6 @@ window.onload = async () => {
         clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
     }
     
-    // 1. בדיקת התחברות מנהל ראשי
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
         saToken = savedSAToken;
@@ -146,7 +146,6 @@ window.onload = async () => {
         return;
     }
 
-    // 2. בדיקת התחברות משתמש רגיל
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
@@ -158,7 +157,6 @@ window.onload = async () => {
                 
                 loadDashboard(); 
                 
-                // רענון שקט
                 fetch(`${API}/users/${session.user.id}`).then(res => {
                     if(res.ok) {
                         res.json().then(updatedUser => {
@@ -169,7 +167,9 @@ window.onload = async () => {
                         localStorage.removeItem('ofl_session');
                         location.reload();
                     }
-                }).catch(e => { console.log('App offline, keeping session active.'); });
+                }).catch(e => {
+                    console.log('App is offline, keeping user session active.');
+                });
                 
                 return;
             }
@@ -559,7 +559,8 @@ async function loadDashboard() {
         await fetchData();
         fetchLoans();
     } catch (e) {
-        console.error('Error in initial load');
+        console.error('Error fetching dashboard data:', e);
+        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         const finalizeLoad = async () => {
@@ -697,22 +698,12 @@ async function sendCredentialsEmail() {
     }
 }
 
-// ----------------------------------------------------
-// פונקציה מרכזית לטעינת נתונים - מוגנת ומוקשחת מפני קריסות
-// ----------------------------------------------------
 async function fetchData() {
-    if (!currentGroup || !currentGroup.id) return; 
-    if (document.activeElement.classList.contains('price-input')) return;
-    
-    let data;
     try {
-        const res = await fetch(`${API}/data/${currentUser.id}`); 
-        data = await res.json();
-    } catch (e) { return; } // מונע קריסה במקרה של בעיית אינטרנט
-
-    if (!data || !data.user) return;
-    
-    try {
+        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
+        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
+        if (!data || !data.user) return;
+        
         currentUser.balance = data.user.balance; 
         if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens;
@@ -731,59 +722,56 @@ async function fetchData() {
         } else {
             const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
-    } catch(e) { console.error('Core data sync error', e); }
-    
-    try { allTasks = Array.isArray(data.tasks) ? data.tasks : []; } catch(e){}
-    try { bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; } catch(e){}
-    try { pantryCache = Array.isArray(data.pantry) ? data.pantry : []; } catch(e){}
-    try { if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles; } catch(e){}
+        
+        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-    try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-    try { renderTasks(allTasks); } catch(e) {}
-    try { renderPantry(); renderRecipePantrySelection(); } catch(e) {}
-    try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-    try { await fetchBudget(); } catch(e) {}
-    
-    try {
-        const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
-        const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
-        if (goalsList) { 
-            goalsList.innerHTML = ''; 
-            if(data.goals && data.goals.length > 0) { 
-                if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                data.goals.forEach(g => { 
-                    const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                    goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
-                }); 
-            } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
-        }
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
+        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { fetchBudget(); } catch(e) {}
+        try { renderForecast(); } catch(e) {}
+        
+        try {
+            const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
+            const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
+            if (goalsList) { 
+                goalsList.innerHTML = ''; 
+                if(data.goals && data.goals.length > 0) { 
+                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                    data.goals.forEach(g => { 
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${g.title}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
+                    }); 
+                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
+            }
+        } catch(e) {}
+        
+        try {
+            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
+                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
+                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
+            }
+        } catch(e) {}
+
+        try {
+            const limit = 200; 
+            const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            if(transRes.ok) {
+                const transData = await transRes.json();
+                allTransactions = Array.isArray(transData) ? transData : [];
+            }
+        } catch(e) { allTransactions = []; }
+
+        try { 
+            renderChildTodo(); 
+            buildAndRenderFeed(); 
+            if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow();
+        } catch(e) {}
     } catch(e) {}
-    
-    try {
-        if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-            const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-            const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-            const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-            const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-        }
-    } catch(e) {}
-
-    try {
-        const limit = 500; 
-        const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-        const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-        if(transRes.ok) {
-            const transData = await transRes.json();
-            allTransactions = Array.isArray(transData) ? transData : [];
-        }
-    } catch(e) { console.error('Transactions fetch error:', e); allTransactions = []; }
-
-    try { 
-        renderChildTodo(); 
-        buildAndRenderFeed(); 
-        if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow();
-        if (document.getElementById('tab-forecast').classList.contains('tab-active')) renderForecast();
-    } catch(e) { console.error('Render error:', e); }
 }
 
 function showFamilAIModal(title, text) {
@@ -1226,16 +1214,19 @@ async function updateTask(id, s) { if(s==='done' || s==='completed_self') trigge
 function buildAndRenderFeed() {
     feedCache = [];
     
+    // 1. הודעת מערכת
     if (currentGroup && currentGroup.created_at) { 
         feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
     }
     
+    // 2. תנועות (קניות, הלוואות, הפקדות, דמי כיס וכו')
     if(Array.isArray(allTransactions)) { 
         allTransactions.forEach(t => { 
             feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
         }); 
     }
     
+    // 3. משימות שהושלמו
     if(Array.isArray(allTasks)) { 
         allTasks.forEach(t => { 
             if(t.status === 'approved') {
@@ -1244,12 +1235,14 @@ function buildAndRenderFeed() {
         }); 
     }
     
+    // 4. אתגרים (אקדמיה)
     if(Array.isArray(bundlesCache)) { 
         bundlesCache.forEach(b => { 
             feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
         }); 
     }
     
+    // מיון כרונולוגי (הכי חדש למעלה)
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     
     const filterEl = document.getElementById('feed-user-filter');
@@ -1268,12 +1261,14 @@ function renderUnifiedFeed() {
     
     let filtered = feedCache;
     
+    // סינון לפי משתמש
     if (currentUser.role !== 'ADMIN') {
         filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system');
     } else if (userFilter !== 'all' && userFilter !== '') {
         filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system');
     }
 
+    // סינון לפי תאריך
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1293,6 +1288,7 @@ function renderUnifiedFeed() {
         if(!item.date || isNaN(item.date.getTime())) return;
         const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
         
+        // שם המבצע מוצג תמיד
         const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
         
         const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
@@ -1329,6 +1325,7 @@ function renderCashflow() {
 
     let filtered = allTransactions; 
     
+    // סינון משתמשים - הילד רואה רק את של עצמו ואין לו תיבת סינון
     if (currentUser.role !== 'ADMIN') {
         filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
         const cfFilter = document.getElementById('cashflow-user-filter');
@@ -1341,6 +1338,7 @@ function renderCashflow() {
         }
     }
 
+    // סינון תאריכים
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1362,6 +1360,7 @@ function renderCashflow() {
         const d = new Date(t.date);
         const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
         
+        // הצגת השם תמיד גם בתזרים לכולם
         const userName = t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
         
         const catLabel = BUDGET_LABELS[t.category] || t.category || '';
@@ -1369,6 +1368,7 @@ function renderCashflow() {
 
         const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
         
+        // כפתור עריכה יוצג רק למנהל
         const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
 
         html += `
@@ -1914,158 +1914,6 @@ async function fetchBundles() {
     } catch(e) {}
 }
 
-// --- LOCAL FORECAST CALCULATION ENGINE ---
-function renderForecast() {
-    populateForecastPeriods();
-    const list = document.getElementById('forecast-list');
-    if(!list) return;
-
-    const periodVal = currentForecastMode === 'monthly' 
-        ? document.getElementById('forecast-month-filter').value 
-        : document.getElementById('forecast-year-filter').value;
-        
-    let startDate, endDate;
-    if (currentForecastMode === 'monthly') {
-        if(!periodVal) {
-            const now = new Date();
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        } else {
-            const parts = periodVal.split('-');
-            startDate = new Date(parts[0], parts[1] - 1, 1);
-            endDate = new Date(parts[0], parts[1], 0, 23, 59, 59);
-        }
-    } else {
-        const year = periodVal || new Date().getFullYear();
-        startDate = new Date(year, 0, 1);
-        endDate = new Date(year, 11, 31, 23, 59, 59);
-    }
-
-    const now = new Date();
-    const items = [];
-    let periodIncome = 0;
-    let periodExpense = 0;
-    let futureNetChange = 0;
-
-    let relevantTxs = allTransactions;
-    if (currentUser.role !== 'ADMIN') {
-        relevantTxs = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
-    }
-
-    relevantTxs.forEach(t => {
-        const txDate = new Date(t.date);
-        if (isNaN(txDate.getTime())) return;
-        const amt = parseFloat(t.amount) || 0;
-        const isInc = t.type === 'income';
-        
-        // תיקון זיהוי בוליאני של מסד נתונים
-        const isRec = t.is_recurring === true || String(t.is_recurring) === 'true';
-
-        if (!isRec) {
-            // פעולה חד פעמית (כולל קניות)
-            if (txDate >= startDate && txDate <= endDate) {
-                items.push({
-                    id: t.id, type: t.type, amount: amt, category: t.category, description: t.description,
-                    is_recurring: false, user_name: t.user_name, date_str: txDate.toLocaleDateString('he-IL'),
-                    sort_date: txDate.getTime()
-                });
-                if (isInc) periodIncome += amt; else periodExpense += amt;
-                
-                // התיקון: קיזוז עתידי יתבצע *רק* אם הפעולה עוד לא קרתה במציאות
-                if (txDate > now && txDate <= endDate) {
-                    if (isInc) futureNetChange += amt; else futureNetChange -= amt;
-                }
-            }
-        } else {
-            // פעולה קבועה - בניית המופעים העתידיים שלה
-            let virtualDate = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
-            
-            let occurrences = 0;
-            while (virtualDate <= endDate) {
-                if (t.end_month) {
-                    const endParts = t.end_month.split('-');
-                    const endM = new Date(endParts[0], endParts[1] - 1, 1);
-                    endM.setMonth(endM.getMonth() + 1); // עד סוף החודש הנבחר
-                    if (virtualDate >= endM) break;
-                }
-
-                // סופרים מופעים רק ממועד ההתחלה והלאה
-                if (virtualDate >= txDate) {
-                    const isVirtualInPeriod = virtualDate >= startDate && virtualDate <= endDate;
-                    
-                    if (isVirtualInPeriod) {
-                        items.push({
-                            id: `${t.id}_v_${occurrences}`, type: t.type, amount: amt, category: t.category, 
-                            description: t.description, is_recurring: true, user_name: t.user_name, 
-                            date_str: `קבוע (${virtualDate.toLocaleDateString('he-IL')})`,
-                            sort_date: virtualDate.getTime()
-                        });
-                        if (isInc) periodIncome += amt; else periodExpense += amt;
-                    }
-
-                    // התיקון: קיזוז עתידי ליתרה יקרה *רק* למופעים שעוד לא התרחשו
-                    if (virtualDate > now && virtualDate <= endDate) {
-                        if (isInc) futureNetChange += amt; else futureNetChange -= amt;
-                    }
-                }
-                
-                virtualDate.setMonth(virtualDate.getMonth() + 1);
-                occurrences++;
-                if (occurrences > 120) break; // הגנת שפיות מפני לולאה אינסופית
-            }
-        }
-    });
-
-    items.sort((a, b) => a.sort_date - b.sort_date);
-
-    const startBalance = currentUser.role === 'ADMIN' 
-        ? membersCache.filter(m => m.role === 'ADMIN').reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0)
-        : parseFloat(currentUser.balance) || 0;
-        
-    const projectedBalance = startBalance + futureNetChange;
-    const periodNetChange = periodIncome - periodExpense;
-
-    let html = '';
-    if(items.length === 0) {
-        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות בתקופה זו</p>';
-    } else {
-        items.forEach(item => {
-            const isIncome = item.type === 'income';
-            const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-            const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; 
-            const prefix = isIncome ? '+' : '-';
-            const recBadge = item.is_recurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
-            const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
-            
-            html += `
-            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-indigo-100 transition">
-                <div class="flex-1 overflow-hidden">
-                    <p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p>
-                    <p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p>
-                </div>
-                <span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span>
-            </div>`;
-        });
-    }
-    list.innerHTML = html;
-    
-    document.getElementById('forecast-net-change').innerText = `₪${periodNetChange.toFixed(2)}`;
-    document.getElementById('forecast-net-change').className = `text-lg font-bold ${periodNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
-    document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
-    
-    const incData = {};
-    const expData = {};
-    items.forEach(i => {
-        if (i.type === 'income') {
-            incData[i.category] = (incData[i.category] || 0) + i.amount;
-        } else {
-            expData[i.category] = (expData[i.category] || 0) + i.amount;
-        }
-    });
-    
-    drawForecastCharts(incData, expData);
-}
-
 async function submitBankSettings() { 
     const uid = document.getElementById('bank-user-id').value; 
     const allowance = document.getElementById('bank-allowance').value; 
@@ -2181,4 +2029,146 @@ async function submitLoan() {
     showToast('success', 'בקשת ההלוואה נשלחה להורה 📨'); 
     fetchData(); 
     fetchLoans(); 
+}
+
+async function fetchBudget() {
+    const cat = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
+    const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`);
+    const data = await res.json();
+    const list = document.getElementById('budget-list'); list.innerHTML = '';
+    
+    const baseCategories = CATEGORIES.expense.map(c => c.value);
+    data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
+    baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
+
+    let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
+    data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
+
+    const createRow = (category, spent, limit, isSub = false) => {
+        const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-green-500'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+        const limitDisplay = limit > 0 ? `₪${limit}` : 'לא הוגדר'; const catName = BUDGET_LABELS[category] || category;
+        const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">ערוך יעד</button>` : '';
+        const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-indigo-200 pr-2 mb-3' : 'mb-5';
+        return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-100 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+    };
+
+    if (childrenItems.length > 0) {
+        const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-indigo-500'; if (pct > 80) color = 'bg-indigo-400'; if (pct > 100) color = 'bg-purple-600';
+        const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+        const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'הוצאות על הילדים' : 'הכנסות מההורים';
+        list.innerHTML += `<div class="mb-8 bg-indigo-50/50 p-4 rounded-[1.5rem] border border-indigo-100/60 shadow-sm transition-all hover:bg-indigo-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-indigo-900 flex items-center gap-2"><i class="fa-solid fa-child-reaching text-indigo-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-100">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-indigo-100">${subItemsHtml}</div></div>`;
+    }
+    otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
+}
+
+function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
+
+async function submitBudgetUpdate() { 
+    const cat = document.getElementById('budget-cat-id').value; 
+    const limit = document.getElementById('budget-limit').value; 
+    const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; 
+    await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); 
+    document.getElementById('budget-modal').classList.add('hidden'); 
+    fetchBudget(); 
+}
+
+function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
+
+async function submitNewBudgetCat() { 
+    const catName = document.getElementById('new-budget-cat-name').value; 
+    if(!catName) return; 
+    const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; 
+    await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); 
+    document.getElementById('add-budget-cat-modal').classList.add('hidden'); 
+    fetchBudget(); 
+}
+
+// --- ACCESSIBILITY MODULE ---
+function initAccessibility() {
+    const saved = localStorage.getItem('ofl_accessibility');
+    if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
+}
+function applyAccessibility() {
+    Object.keys(accState).forEach(key => {
+        const btn = document.getElementById(`acc-${key}`);
+        if(accState[key]) {
+            document.body.classList.add(`acc-${key}`);
+            if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        } else {
+            document.body.classList.remove(`acc-${key}`);
+            if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
+        }
+    });
+    localStorage.setItem('ofl_accessibility', JSON.stringify(accState));
+}
+function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
+function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
+function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
+function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
+
+// --- BANNERS MODULE (SUPER ADMIN & UI) ---
+async function fetchBanners() {
+    try {
+        const res = await fetch(`${API}/banners`);
+        const data = await res.json();
+        if(data.success && data.banners) {
+            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img');
+            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
+            
+            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
+            if(saTopLink) saTopLink.value = data.banners.banner_top_link || ''; 
+            if(saTopImg) saTopImg.value = data.banners.banner_top_img || '';
+            
+            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
+            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || ''; 
+            if(saBottomImg) saBottomImg.value = data.banners.banner_bottom_img || '';
+
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
+            
+            const renderBanner = (el, text, link, img) => {
+                if(!el) return;
+                if(text || img) {
+                    let html = '';
+                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`;
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`;
+                    
+                    el.innerHTML = html;
+                    el.href = link || '#';
+                    if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } 
+                    else { el.target = '_blank'; el.style.cursor = 'pointer'; }
+                    el.classList.remove('hidden');
+                    el.classList.add('flex');
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            };
+
+            renderBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_img);
+            renderBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_img);
+        }
+    } catch(e) {}
+}
+
+async function saveBanners() {
+    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImg = val('sa-banner-top-img');
+    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImg = val('sa-banner-bottom-img');
+    
+    try {
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg }) 
+        });
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
+            fetchBanners(); 
+        } else { 
+            showToast('error', 'שגיאה בשמירת הבאנרים'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת מול השרת'); 
+    }
 }
