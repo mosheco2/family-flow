@@ -496,9 +496,6 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        // ==========================================
-        // התיקון שביקשת: הבהרה חד משמעית ל-AI לחלץ אך ורק את המחיר ליחידה בודדת!
-        // ==========================================
         const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the SINGLE UNIT PRICE. CRITICAL: If there is more than 1 unit of an item, extract ONLY the price for ONE unit. If the receipt only shows the total price for that row, divide the total price by the quantity to get the unit price. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
         
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
