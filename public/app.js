@@ -118,7 +118,6 @@ window.onload = async () => {
     const failsafeTimer = setTimeout(() => {
         const preloader = document.getElementById('app-preloader');
         if (preloader && !preloader.classList.contains('hidden')) {
-            console.warn('Failsafe triggered');
             hidePreloaderAndShowAuth('login');
         }
     }, 7000);
@@ -131,6 +130,7 @@ window.onload = async () => {
         clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; 
     }
     
+    // 1. בדיקת התחברות מנהל ראשי
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
         saToken = savedSAToken;
@@ -146,6 +146,7 @@ window.onload = async () => {
         return;
     }
 
+    // 2. בדיקת התחברות משתמש רגיל
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
@@ -157,6 +158,7 @@ window.onload = async () => {
                 
                 loadDashboard(); 
                 
+                // רענון שקט
                 fetch(`${API}/users/${session.user.id}`).then(res => {
                     if(res.ok) {
                         res.json().then(updatedUser => {
@@ -167,9 +169,7 @@ window.onload = async () => {
                         localStorage.removeItem('ofl_session');
                         location.reload();
                     }
-                }).catch(e => {
-                    console.log('App is offline, keeping user session active.');
-                });
+                }).catch(e => { console.log('App offline, keeping session active.'); });
                 
                 return;
             }
@@ -729,8 +729,8 @@ async function fetchData() {
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-        try { fetchBudget(); } catch(e) {}
-        try { renderForecast(); } catch(e) {}
+        try { await fetchBudget(); } catch(e) {}
+        try { await renderForecast(); } catch(e) {}
         
         try {
             const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
@@ -1214,19 +1214,16 @@ async function updateTask(id, s) { if(s==='done' || s==='completed_self') trigge
 function buildAndRenderFeed() {
     feedCache = [];
     
-    // 1. הודעת מערכת
     if (currentGroup && currentGroup.created_at) { 
         feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
     }
     
-    // 2. תנועות (קניות, הלוואות, הפקדות, דמי כיס וכו')
     if(Array.isArray(allTransactions)) { 
         allTransactions.forEach(t => { 
             feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
         }); 
     }
     
-    // 3. משימות שהושלמו
     if(Array.isArray(allTasks)) { 
         allTasks.forEach(t => { 
             if(t.status === 'approved') {
@@ -1235,14 +1232,12 @@ function buildAndRenderFeed() {
         }); 
     }
     
-    // 4. אתגרים (אקדמיה)
     if(Array.isArray(bundlesCache)) { 
         bundlesCache.forEach(b => { 
             feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
         }); 
     }
     
-    // מיון כרונולוגי (הכי חדש למעלה)
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     
     const filterEl = document.getElementById('feed-user-filter');
@@ -1261,14 +1256,12 @@ function renderUnifiedFeed() {
     
     let filtered = feedCache;
     
-    // סינון לפי משתמש
     if (currentUser.role !== 'ADMIN') {
         filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system');
     } else if (userFilter !== 'all' && userFilter !== '') {
         filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system');
     }
 
-    // סינון לפי תאריך
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1288,7 +1281,6 @@ function renderUnifiedFeed() {
         if(!item.date || isNaN(item.date.getTime())) return;
         const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
         
-        // שם המבצע מוצג תמיד
         const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
         
         const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
@@ -1325,7 +1317,6 @@ function renderCashflow() {
 
     let filtered = allTransactions; 
     
-    // סינון משתמשים - הילד רואה רק את של עצמו ואין לו תיבת סינון
     if (currentUser.role !== 'ADMIN') {
         filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
         const cfFilter = document.getElementById('cashflow-user-filter');
@@ -1338,7 +1329,6 @@ function renderCashflow() {
         }
     }
 
-    // סינון תאריכים
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1360,7 +1350,6 @@ function renderCashflow() {
         const d = new Date(t.date);
         const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
         
-        // הצגת השם תמיד גם בתזרים לכולם
         const userName = t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
         
         const catLabel = BUDGET_LABELS[t.category] || t.category || '';
@@ -1368,7 +1357,6 @@ function renderCashflow() {
 
         const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
         
-        // כפתור עריכה יוצג רק למנהל
         const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
 
         html += `
@@ -2081,6 +2069,332 @@ async function submitNewBudgetCat() {
     await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); 
     document.getElementById('add-budget-cat-modal').classList.add('hidden'); 
     fetchBudget(); 
+}
+
+// ============================================================
+// --- FORECAST MODULE (תשקיף תזרים קדימה + גרפים עוגה) ---
+// ============================================================
+
+window.toggleForecastMode = function(mode) {
+    currentForecastMode = mode;
+    document.getElementById('btn-forecast-monthly').className = mode === 'monthly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    document.getElementById('btn-forecast-yearly').className = mode === 'yearly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    
+    document.getElementById('forecast-month-filter').classList.toggle('hidden', mode !== 'monthly');
+    document.getElementById('forecast-year-filter').classList.toggle('hidden', mode !== 'yearly');
+    
+    renderForecast();
+};
+
+function populateForecastPeriods() {
+    const mSelect = document.getElementById('forecast-month-filter');
+    const ySelect = document.getElementById('forecast-year-filter');
+    
+    if (mSelect && mSelect.options.length === 0) {
+        const now = new Date();
+        for(let i=0; i<12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            const label = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+            mSelect.innerHTML += `<option value="${monthStr}">${label}</option>`;
+        }
+    }
+    
+    if (ySelect && ySelect.options.length === 0) {
+        const curYear = new Date().getFullYear();
+        for(let i=0; i<5; i++) {
+            ySelect.innerHTML += `<option value="${curYear + i}">שנת ${curYear + i}</option>`;
+        }
+    }
+}
+
+async function renderForecast() {
+    populateForecastPeriods();
+    const list = document.getElementById('forecast-list');
+    if(!list) return;
+    
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+        
+        const periodVal = currentForecastMode === 'monthly' 
+            ? document.getElementById('forecast-month-filter').value 
+            : document.getElementById('forecast-year-filter').value;
+            
+        const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&period=${periodVal || ''}&mode=${currentForecastMode}`);
+        if (res.ok) {
+            forecastCache = await res.json();
+        }
+    } catch(e) { console.error(e); }
+
+    const items = forecastCache.items || [];
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    const incomeData = {};
+    const expenseData = {};
+    
+    let html = '';
+    if(items.length === 0) {
+        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
+    } else {
+        items.forEach(item => {
+            const isIncome = item.type === 'income';
+            const amt = parseFloat(item.amount);
+            
+            if(isIncome) {
+                totalIncome += amt;
+                incomeData[item.category] = (incomeData[item.category] || 0) + amt;
+            } else {
+                totalExpense += amt;
+                expenseData[item.category] = (expenseData[item.category] || 0) + amt;
+            }
+            
+            const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+            const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; 
+            const prefix = isIncome ? '+' : '-';
+            const recBadge = item.is_recurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
+            const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
+            
+            html += `
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-indigo-100 transition">
+                <div class="flex-1 overflow-hidden">
+                    <p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p>
+                    <p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p>
+                </div>
+                <span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span>
+            </div>`;
+        });
+    }
+    list.innerHTML = html;
+    
+    const netChange = totalIncome - totalExpense;
+    const startBalance = parseFloat(forecastCache.startingBalance) || 0;
+    const projectedBalance = startBalance + netChange;
+    
+    document.getElementById('forecast-net-change').innerText = `₪${netChange.toFixed(2)}`;
+    document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
+    document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
+    
+    drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
+}
+
+function drawForecastCharts(incomeData, expenseData) {
+    const container = document.getElementById('forecast-charts');
+    if(!container) return;
+    
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
+    container.innerHTML = `
+        <div class="w-full max-w-[250px]">
+            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4>
+            <div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
+        </div>
+    `;
+    
+    const ctx = document.getElementById('ratioChart');
+    if(!ctx) return;
+    
+    if(forecastRatioChart) forecastRatioChart.destroy();
+    
+    const totalInc = Object.values(incomeData).reduce((a, b) => a + b, 0);
+    const totalExp = Object.values(expenseData).reduce((a, b) => a + b, 0);
+    
+    if(totalInc > 0 || totalExp > 0) {
+        forecastRatioChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { 
+                labels: ['הכנסות', 'הוצאות'], 
+                datasets: [{ 
+                    data: [totalInc, totalExp], 
+                    backgroundColor: ['#22c55e', '#ef4444'], 
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }] 
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: { font: { family: 'Rubik' } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed !== null) {
+                                    label += '₪' + context.parsed.toFixed(1);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין פעולות עתידיות להצגת גרף</p>';
+    }
+}
+
+function getForecastInsight() {
+    executeWithAIWarning(async () => {
+        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לתקופה...';
+        try {
+            const periodVal = currentForecastMode === 'monthly' 
+                ? document.getElementById('forecast-month-filter').value 
+                : document.getElementById('forecast-year-filter').value;
+            const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            
+            const res = await fetch(`${API}/forecast/familai-insight`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ groupId: currentGroup.id, period: periodVal, mode: currentForecastMode, targetUserId: targetUserId }) 
+            }); 
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.insight) { showFamilAIModal('רואת העתידות', data.insight); }
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התשקיף'); }
+        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
+}
+
+// ============================================================
+
+async function fetchPendingUsers() {
+    try {
+        if(!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json();
+        const list = document.getElementById('pending-list'); const container = document.getElementById('admin-panel');
+        if (users && users.length > 0) {
+            container.classList.remove('hidden'); list.innerHTML = '';
+            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
+        } else { if(container) container.classList.add('hidden'); }
+    } catch(e) { console.error(e); }
+}
+
+async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
+
+function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+    const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value;
+    const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...';
+    try {
+        const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); }
+    } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'שנה סיסמה'; }
+}
+
+async function deleteUser(id, name) {
+    if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
+    try {
+        const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
+}
+
+
+// ============================================================
+// --- LOANS MODULE ---
+// ============================================================
+
+async function fetchLoans() {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        let url;
+        if (currentUser.role === 'ADMIN') {
+            url = `${API}/loans?groupId=${currentGroup.id}`;
+        } else {
+            url = `${API}/loans?userId=${currentUser.id}`;
+        }
+        const res = await fetch(url);
+        const loans = await res.json();
+        renderLoans(loans);
+    } catch(e) { console.error('fetchLoans error:', e); }
+}
+
+function renderLoans(loans) {
+    if (currentUser.role === 'ADMIN') {
+        const panel = document.getElementById('admin-loans-panel');
+        const list = document.getElementById('admin-loans-list');
+        if (!panel || !list) return;
+        const pending = loans.filter(l => l.status === 'pending');
+        if (pending.length === 0) { panel.classList.add('hidden'); return; }
+        panel.classList.remove('hidden');
+        list.innerHTML = pending.map(l => `
+            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">${l.nickname} – ₪${l.original_amount}</p>
+                    <p class="text-xs text-slate-500">${l.reason || 'ללא סיבה'}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="approveLoan(${l.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
+                    <button onclick="rejectLoan(${l.id})" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        const list = document.getElementById('my-loans-list');
+        if (!list) return;
+        if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין הלוואות פעילות</p>'; return; }
+        list.innerHTML = loans.map(l => {
+            const statusMap = { pending: { label: 'ממתין לאישור', cls: 'bg-orange-100 text-orange-600' }, approved: { label: 'אושרה ✓', cls: 'bg-green-100 text-green-700' }, rejected: { label: 'נדחתה', cls: 'bg-red-100 text-red-600' } };
+            const s = statusMap[l.status] || { label: l.status, cls: 'bg-slate-100 text-slate-600' };
+            return `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">₪${l.original_amount}</p>
+                    <p class="text-xs text-slate-500">${l.reason || ''} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p>
+                </div>
+                <span class="text-xs font-bold px-2 py-1 rounded-lg ${s.cls}">${s.label}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+async function approveLoan(loanId) {
+    if (!confirm('לאשר הלוואה זו ולהעביר את הכסף לילד?')) return;
+    const res = await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
+    const data = await res.json();
+    if (data.success) { triggerConfetti(); showToast('success', 'ההלוואה אושרה!'); fetchData(); fetchLoans(); }
+    else showToast('error', data.error);
+}
+
+async function rejectLoan(loanId) {
+    if (!confirm('לדחות בקשת הלוואה זו?')) return;
+    await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
+    showToast('success', 'הבקשה נדחתה'); fetchLoans();
+}
+
+// ============================================================
+// --- SA Premium Toggle ---
+// ============================================================
+async function saTogglePremium(groupId, enable) {
+    const label = enable ? 'להפעיל' : 'לבטל';
+    if (!confirm(`האם ${label} מנוי Pro למשפחה זו?`)) return;
+    try {
+        const res = await fetch(`${API}/superadmin/groups/${groupId}/premium`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ enable })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', enable ? 'מנוי Pro הופעל!' : 'מנוי Pro בוטל'); loadSAData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function fetchBundles() {
+    try {
+        const res = await fetch(`${API}/data/${currentUser.id}`);
+        const data = await res.json();
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+    } catch(e) {}
 }
 
 // --- ACCESSIBILITY MODULE ---
