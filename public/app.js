@@ -158,6 +158,22 @@ window.onload = async () => {
                 clearTimeout(failsafeTimer); 
                 
                 loadDashboard(); 
+                
+                // רענון שקט של נתוני המשתמש ברקע
+                fetch(`${API}/users/${session.user.id}`).then(res => {
+                    if(res.ok) {
+                        res.json().then(updatedUser => {
+                            currentUser = updatedUser;
+                            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+                        });
+                    } else if (res.status === 404 || res.status === 401 || res.status === 403) {
+                        localStorage.removeItem('ofl_session');
+                        location.reload();
+                    }
+                }).catch(e => {
+                    console.log('App is offline, keeping user session active.');
+                });
+                
                 return;
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
@@ -704,7 +720,6 @@ async function fetchData() {
             }
         }
 
-        // אם המשתמש הוא מנהל - נציג לו את היתרה המשותפת של כל מנהלי המשפחה יחד
         if (currentUser.role === 'ADMIN') {
             const totalAdminBalance = membersCache.filter(m => m.role === 'ADMIN').reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0);
             const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${totalAdminBalance}`;
@@ -747,7 +762,6 @@ async function fetchData() {
 
         try {
             const limit = 200; 
-            // הורה מושך הכל מהשרת (כדי שהסינון יעבוד). ילד מושך רק את הפעולות שלו כדי לחסוך עומס ולהיות מאובטח.
             const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
             const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
             if(transRes.ok) {
@@ -1204,19 +1218,16 @@ async function updateTask(id, s) { if(s==='done' || s==='completed_self') trigge
 function buildAndRenderFeed() {
     feedCache = [];
     
-    // 1. הודעת מערכת
     if (currentGroup && currentGroup.created_at) { 
         feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
     }
     
-    // 2. תנועות (קניות, הלוואות, הפקדות, דמי כיס וכו')
     if(Array.isArray(allTransactions)) { 
         allTransactions.forEach(t => { 
             feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
         }); 
     }
     
-    // 3. משימות שהושלמו
     if(Array.isArray(allTasks)) { 
         allTasks.forEach(t => { 
             if(t.status === 'approved') {
@@ -1225,14 +1236,12 @@ function buildAndRenderFeed() {
         }); 
     }
     
-    // 4. אתגרים (אקדמיה)
     if(Array.isArray(bundlesCache)) { 
         bundlesCache.forEach(b => { 
             feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
         }); 
     }
     
-    // מיון כרונולוגי (הכי חדש למעלה)
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     
     const filterEl = document.getElementById('feed-user-filter');
@@ -1251,14 +1260,12 @@ function renderUnifiedFeed() {
     
     let filtered = feedCache;
     
-    // סינון לפי משתמש
     if (currentUser.role !== 'ADMIN') {
         filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system');
     } else if (userFilter !== 'all' && userFilter !== '') {
         filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system');
     }
 
-    // סינון לפי תאריך
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1278,7 +1285,6 @@ function renderUnifiedFeed() {
         if(!item.date || isNaN(item.date.getTime())) return;
         const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
         
-        // שם המבצע מוצג תמיד
         const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${item.user_name}</span>` : '';
         
         const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
@@ -1315,7 +1321,6 @@ function renderCashflow() {
 
     let filtered = allTransactions; 
     
-    // סינון משתמשים - הילד רואה רק את של עצמו ואין לו תיבת סינון
     if (currentUser.role !== 'ADMIN') {
         filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id));
         const cfFilter = document.getElementById('cashflow-user-filter');
@@ -1328,7 +1333,6 @@ function renderCashflow() {
         }
     }
 
-    // סינון תאריכים
     if (dateFilter !== 'all') {
         const monthsBack = parseInt(dateFilter);
         const cutoffDate = new Date();
@@ -1350,7 +1354,6 @@ function renderCashflow() {
         const d = new Date(t.date);
         const dateStr = `${d.toLocaleDateString('he-IL')} ${d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
         
-        // הצגת השם תמיד גם בתזרים לכולם
         const userName = t.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${t.user_name}</span>` : '';
         
         const catLabel = BUDGET_LABELS[t.category] || t.category || '';
@@ -1358,7 +1361,6 @@ function renderCashflow() {
 
         const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
         
-        // כפתור עריכה יוצג רק למנהל
         const editBtn = currentUser.role === 'ADMIN' ? `<button onclick="openEditTransactionModal(${t.id}, ${t.amount}, '${safeDesc}', '${t.category}', '${t.type}')" class="text-blue-500 bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-100 transition"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
 
         html += `
@@ -1610,7 +1612,6 @@ async function generateRecipe() {
         if(data.success) {
             const container = document.getElementById('recipe-result-container');
             const content = document.getElementById('recipe-result-content');
-            // מעבד את המארקדאון של ג'ימיני לטקסט מעוצב
             let html = data.recipe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
             html = html.replace(/\n/g, '<br>');
@@ -1633,7 +1634,6 @@ function copyRecipe() {
     navigator.clipboard.writeText(text);
     showToast('success', 'המתכון הועתק בהצלחה!');
 }
-
 
 function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
 
@@ -1661,6 +1661,57 @@ async function submitShopItem() {
             fetchData(); 
         } 
     } finally { btn.disabled = false; btn.innerText = 'הוסף'; } 
+}
+
+// ============================================================
+// --- הדבקת רשימת קניות וייצוא לוואטסאפ ---
+// ============================================================
+
+function openPasteListModal() {
+    document.getElementById('paste-list-text').value = '';
+    document.getElementById('paste-list-modal').classList.remove('hidden');
+}
+
+async function submitPastedList() {
+    const text = val('paste-list-text');
+    if(!text.trim()) return showToast('error', 'הדבק רשימה קודם');
+    
+    const btn = document.getElementById('btn-submit-paste');
+    btn.disabled = true; btn.innerText = 'מוסיף...';
+    
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    try {
+        const promises = lines.map(item => {
+            return fetch(`${API}/shopping/add`, {
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({itemName: item, quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id})
+            });
+        });
+        
+        await Promise.all(promises);
+        document.getElementById('paste-list-modal').classList.add('hidden');
+        showToast('success', `נוספו ${lines.length} פריטים לעגלה!`);
+        fetchData();
+    } catch(e) {
+        showToast('error', 'שגיאה בהוספת הפריטים');
+    } finally {
+        btn.disabled = false; btn.innerText = 'הוסף הכל לעגלה';
+    }
+}
+
+function exportShopToWhatsApp() {
+    const activeItems = shoppingListCache.filter(i => i.status !== 'bought' && i.status !== 'requested');
+    if(activeItems.length === 0) return showToast('error', 'הרשימה ריקה');
+    
+    let text = '🛒 *רשימת קניות משפחתית* 🛒\n\n';
+    activeItems.forEach(i => {
+        text += `• ${i.item_name} (${i.quantity} ${i.unit || "יח'"})\n`;
+    });
+    text += `\n\nנשלח מאפליקציית Oneflow Life`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
 async function deleteItem(id) { if(!confirm('למחוק פריט זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchData(); }
