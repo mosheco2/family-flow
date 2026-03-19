@@ -24,9 +24,16 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// התחברות למסד הנתונים והוספת עמודות לתשקיף אם הן חסרות (שדרוג שקט ללא מחיקת נתונים)
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
+      try {
+          await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE');
+          await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)');
+      } catch(e) {
+          // העמודות כבר קיימות - הכל בסדר
+      }
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -90,7 +97,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
-            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE);
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -424,6 +431,29 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
 });
 
+// --- FORECAST AI INSIGHT ---
+app.post('/api/forecast/familai-insight', async (req, res) => {
+    try {
+        const { groupId, period, mode, targetUserId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+        
+        let txsRes;
+        if(targetUserId === 'all') {
+            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE group_id=$1 AND is_recurring = TRUE`, [groupId]);
+        } else {
+            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE user_id=$1 AND is_recurring = TRUE`, [targetUserId]);
+        }
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', a financial advisor. Based on these recurring transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance their cashflow. Use emojis. Do not use Markdown format.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text().trim() });
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התשקיף'); }
+});
+
+
 // שינוי 1: AI מעניק בונוס אוטומטי של 10% אם המשימה אושרה בהצלחה
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
@@ -701,12 +731,22 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
 
+// שינוי חדש: תמיכה בתאריך ידני, ותנועה קבועה (תשקיף)
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
     try {
         const u = await dbClient.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
         await dbClient.query('BEGIN');
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)`, [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type]);
+        
+        const tDate = req.body.date ? new Date(req.body.date) : new Date();
+        const isRec = req.body.isRecurring === true || req.body.isRecurring === 'true';
+        const endM = req.body.endMonth || null;
+        
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
+            [req.body.userId, u.rows[0].group_id, req.body.amount, req.body.description, req.body.category, req.body.type, tDate, isRec, endM]
+        );
+        
         const op = req.body.type === 'income' ? '+' : '-';
         await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id = $2`, [req.body.amount, req.body.userId]);
         if (req.body.type === 'expense') await dbClient.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`, [u.rows[0].group_id, req.body.category, req.body.userId]);
@@ -731,6 +771,99 @@ app.get('/api/transactions', async (req, res) => {
         const t = await pool.query(query, params);
         res.json(t.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// שינוי חדש: שליפת נתוני התשקיף (Forecast)
+app.get('/api/forecast', async (req, res) => {
+    try {
+        const { groupId, userId, period, mode } = req.query;
+        if(!groupId || groupId === 'undefined') return res.json({ startingBalance: 0, items: [] });
+
+        let startDate, endDate;
+        if (mode === 'monthly') {
+            if(!period) {
+                startDate = new Date();
+                startDate.setDate(1);
+                startDate.setHours(0,0,0,0);
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59);
+            } else {
+                startDate = new Date(`${period}-01T00:00:00`);
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59);
+            }
+        } else {
+            const year = period || new Date().getFullYear();
+            startDate = new Date(`${year}-01-01T00:00:00`);
+            endDate = new Date(`${year}-12-31T23:59:59`);
+        }
+
+        let balanceQuery = `SELECT SUM(balance) as total FROM users WHERE group_id = $1 AND status='active'`;
+        let balanceParams = [groupId];
+        if (userId !== 'all') {
+            balanceQuery += ` AND id = $2`;
+            balanceParams.push(userId);
+        }
+        const balRes = await pool.query(balanceQuery, balanceParams);
+        const startingBalance = parseFloat(balRes.rows[0].total) || 0;
+
+        let txQuery = `SELECT t.*, u.nickname as user_name FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1`;
+        let txParams = [groupId];
+        if (userId !== 'all') {
+            txQuery += ` AND t.user_id = $2`;
+            txParams.push(userId);
+        }
+        const txRes = await pool.query(txQuery, txParams);
+
+        const items = [];
+        txRes.rows.forEach(t => {
+            const txDate = new Date(t.date);
+            const isOneTimeInPeriod = !t.is_recurring && txDate >= startDate && txDate <= endDate;
+
+            if (isOneTimeInPeriod) {
+                items.push({
+                    id: t.id, type: t.type, amount: t.amount, category: t.category, description: t.description,
+                    is_recurring: false, user_name: t.user_name, date_str: txDate.toLocaleDateString('he-IL')
+                });
+            } else if (t.is_recurring) {
+                if (txDate <= endDate) {
+                    let isValid = true;
+                    if (t.end_month) {
+                        const endD = new Date(`${t.end_month}-01T00:00:00`);
+                        endD.setMonth(endD.getMonth() + 1);
+                        if (startDate >= endD) isValid = false;
+                    }
+                    
+                    if (isValid) {
+                        if (mode === 'monthly') {
+                            items.push({
+                                id: t.id, type: t.type, amount: t.amount, category: t.category, description: t.description,
+                                is_recurring: true, user_name: t.user_name, date_str: 'קבוע (חודשי)'
+                            });
+                        } else if (mode === 'yearly') {
+                            let monthsActive = 0;
+                            for(let m=0; m<12; m++) {
+                                let checkDate = new Date(startDate.getFullYear(), m, 1);
+                                let txStartMonth = new Date(txDate.getFullYear(), txDate.getMonth(), 1);
+                                let isAfterStart = checkDate >= txStartMonth;
+                                let isBeforeEnd = !t.end_month || checkDate < new Date(`${t.end_month}-01T00:00:00`);
+                                if (isAfterStart && isBeforeEnd) monthsActive++;
+                            }
+                            if(monthsActive > 0) {
+                                items.push({
+                                    id: t.id, type: t.type, amount: t.amount * monthsActive, category: t.category, description: `${t.description} (x${monthsActive} חודשים)`,
+                                    is_recurring: true, user_name: t.user_name, date_str: 'קבוע (שנתי)'
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        res.json({ startingBalance, items });
+    } catch(e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/tasks', async (req, res) => {
@@ -1062,7 +1195,6 @@ app.delete('/api/shopping/delete/:id', async (req, res) => {
     catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// שינוי חדש: מחיקת כל העגלה
 app.delete('/api/shopping/clear/:groupId', async (req, res) => {
     try {
         await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]);
