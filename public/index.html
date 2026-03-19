@@ -312,6 +312,22 @@
                     </div>
                     
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> שינוי פרטי התחברות (מנהל ראשי)</h2>
+                        <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות שלך למערכת הניהול.</p>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
+                                <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="למשל: admin">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
+                                <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="למשל: 123456">
+                            </div>
+                            <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-red-200 hover:bg-red-600 transition">עדכן פרטי התחברות</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
                         <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
                     </div>
