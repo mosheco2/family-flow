@@ -8,7 +8,7 @@
     <link rel="icon" href="/logo.png" type="image/png">
     <link rel="shortcut icon" href="/logo.png" type="image/png">
 
-    <meta name="description" content="מערכת הניהול B2B החכמה של ONEBTN. ניהול עובדים, מלאי, רכש ותקציבים מבוסס AI.">
+    <meta name="description" content="מערכת הניהול B2B החכמה. ניהול עובדים, שעות, מלאי, רכש ותקציבים.">
     <meta property="og:title" content="Oneflow 360 Pro - ניהול עסקי">
     <meta property="og:description" content="העצימו את הצוות ונהלו את התקציב והמלאי בצורה חכמה ואוטומטית.">
     
@@ -75,6 +75,12 @@
         .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
         .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Time Clock specific styles */
+        .punch-btn-in { background-color: #10b981; color: white; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); }
+        .punch-btn-out { background-color: #ef4444; color: white; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4); }
+        .punch-pulse { animation: pulseGlow 2s infinite; }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -120,6 +126,7 @@
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
                         <div class="slider-scroll" id="slider-scroll">
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
+                            <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">קופה 💳</button>
@@ -163,11 +170,51 @@
 
                         <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
+                    
+                    <div id="content-timeclock" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-slate-800 text-lg">שעון נוכחות ⏱️</h3>
+                            </div>
+                            <p class="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 mb-6"><i class="fa-solid fa-info-circle text-slate-500"></i> דיווח שעות עבודה. אל תשכחו לדווח יציאה בסיום המשמרת!</p>
+                            
+                            <div class="flex flex-col items-center justify-center mb-8">
+                                <div id="timeclock-status-text" class="text-sm font-bold text-slate-600 mb-3">טוען סטטוס...</div>
+                                <button id="btn-punch" onclick="togglePunch()" class="w-40 h-40 rounded-full text-white font-bold text-2xl shadow-xl flex flex-col items-center justify-center gap-2 transition transform hover:scale-105 bg-slate-200 text-slate-400 cursor-not-allowed">
+                                    <i id="punch-icon" class="fa-solid fa-fingerprint text-4xl mb-1"></i>
+                                    <span id="punch-text">אנא המתן</span>
+                                </button>
+                            </div>
+
+                            <div class="border-t border-slate-100 pt-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-slate-700">היסטוריית דיווחים</h4>
+                                    <button onclick="fetchTimeclockReport()" class="text-slate-500 text-xs font-bold hover:text-slate-800"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                                </div>
+                                <div class="flex gap-2 mb-4">
+                                    <select id="tc-user-filter" onchange="renderTimeclockReport()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 hidden rounded-lg shadow-sm border-slate-200 outline-none"></select>
+                                    <select id="tc-date-filter" onchange="renderTimeclockReport()" class="modern-input py-1.5 px-3 text-xs bg-white h-auto flex-1 rounded-lg shadow-sm border-slate-200 outline-none">
+                                        <option value="month">חודש נוכחי</option>
+                                        <option value="prev_month">חודש קודם</option>
+                                        <option value="year">שנה נוכחית</option>
+                                        <option value="all">כל ההיסטוריה</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4 flex justify-between items-center">
+                                    <span class="text-xs font-bold text-slate-600">סה"כ שעות לתקופה:</span>
+                                    <span id="tc-total-hours" class="font-bold text-lg text-slate-800">00:00</span>
+                                </div>
+
+                                <div id="timeclock-list" class="space-y-2 max-h-64 overflow-y-auto pr-1 modal-scroll"></div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div id="content-bank" class="hidden">
                         <div id="bank-admin-view" class="hidden space-y-6">
                             <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">סגירת חודש (Payroll) 💼</h3><p class="text-sm text-emerald-600 mb-6 px-4">אישור תקציבים ובונוסים לעמידה ביעדים לכלל העובדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg bg-emerald-600 text-white hover:shadow-emerald-200 transition hover:bg-emerald-700"><i class="fa-solid fa-money-check-dollar"></i> בצע תשלום</button></div>
+                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">סגירת חודש (Payroll) 💼</h3><p class="text-sm text-emerald-600 mb-6 px-4">אישור תקציבים ובונוסים לעמידה ביעדים לכלל העובדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg bg-emerald-600 text-white hover:shadow-emerald-200 transition hover:bg-emerald-700"><i class="fa-solid fa-money-check-dollar"></i> בצע תשלום תמריצים</button></div>
                                 <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                             </div>
                             <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">תקציבי עובדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
@@ -564,9 +611,7 @@
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-slate-100"></div>
-                <div class="flex justify-center mb-4 relative z-10">
-                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2"><i class="fa-solid fa-chart-pie text-4xl text-slate-700"></i></div>
-                </div>
+                <div class="flex justify-center mb-4 relative z-10"><div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2"><i class="fa-solid fa-chart-pie text-4xl text-slate-700"></i></div></div>
                 <h3 class="text-xl font-bold mb-1 text-center text-slate-800">יועץ עסקי AI</h3>
                 <p id="familai-modal-subtitle" class="text-xs text-slate-400 mb-6 text-center">אנליסט הנתונים של הארגון</p>
                 <div id="familai-advisor-loading" class="text-center py-6"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-800 mb-3"></i><p class="text-sm text-slate-500 font-medium" id="familai-loading-text">מעבד נתוני דאטה ואנליטיקה...</p></div>
