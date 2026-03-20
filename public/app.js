@@ -1968,35 +1968,110 @@ async function renderForecast() {
     populateForecastPeriods();
     const list = document.getElementById('forecast-list');
     if(!list) return;
-    
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-        
-        const periodVal = currentForecastMode === 'monthly' 
-            ? document.getElementById('forecast-month-filter').value 
-            : document.getElementById('forecast-year-filter').value;
-            
-        const res = await fetch(`${API}/forecast?groupId=${currentGroup.id}&userId=${targetUserId}&period=${periodVal || ''}&mode=${currentForecastMode}`);
-        if (res.ok) {
-            forecastCache = await res.json();
-        }
-    } catch(e) { console.error(e); }
 
-    const items = forecastCache.items || [];
+    if(!currentGroup || !currentGroup.id) return;
+    const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+
+    const periodVal = currentForecastMode === 'monthly' 
+        ? document.getElementById('forecast-month-filter').value 
+        : document.getElementById('forecast-year-filter').value;
+        
+    // ---- חישוב התשקיף בצד לקוח (תיקון כפילויות של הוצאות חד פעמיות) ----
+    let startDate, endDate;
+    if (currentForecastMode === 'monthly') {
+        if (!periodVal) {
+            const now = new Date();
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        } else {
+            const [year, month] = periodVal.split('-');
+            startDate = new Date(year, parseInt(month) - 1, 1);
+            endDate = new Date(year, parseInt(month), 0, 23, 59, 59);
+        }
+    } else {
+        const year = periodVal ? parseInt(periodVal) : new Date().getFullYear();
+        startDate = new Date(year, 0, 1);
+        endDate = new Date(year, 11, 31, 23, 59, 59);
+    }
+
+    let startingBalance = 0;
+    if (targetUserId === 'all') {
+        startingBalance = membersCache.reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0);
+    } else {
+        const user = membersCache.find(m => String(m.id) === String(targetUserId));
+        if (user) startingBalance = parseFloat(user.balance) || 0;
+    }
+
+    const items = [];
+    let txList = allTransactions;
+    if (targetUserId !== 'all') {
+        txList = allTransactions.filter(t => String(t.user_id) === String(targetUserId));
+    }
+
+    txList.forEach(t => {
+        const txDate = new Date(t.date);
+        const amt = parseFloat(t.amount);
+        const isRecurring = t.is_recurring === true || String(t.is_recurring).toLowerCase() === 'true';
+
+        if (!isRecurring) {
+            // כלל הברזל: הוצאה חד פעמית נספרת רק אם התאריך הרלוונטי שלה נופל בתקופה הנבחרת
+            if (txDate >= startDate && txDate <= endDate) {
+                items.push({ ...t, amount: amt, date_str: txDate.toLocaleDateString('he-IL') });
+            }
+        } else {
+            // הוצאה קבועה ממשיכה קדימה לפי חודש ההתחלה והסיום
+            let txStartMonth = new Date(txDate.getFullYear(), txDate.getMonth(), 1);
+            let validEnd = true;
+            let endD = null;
+            if (t.end_month) {
+                const [endYear, endMonth] = t.end_month.split('-');
+                endD = new Date(endYear, parseInt(endMonth), 0, 23, 59, 59);
+                if (startDate > endD) validEnd = false; 
+            }
+            if (endDate < txStartMonth) validEnd = false; 
+
+            if (validEnd) {
+                if (currentForecastMode === 'monthly') {
+                    items.push({ ...t, amount: amt, date_str: 'קבוע (חודשי)' });
+                } else if (currentForecastMode === 'yearly') {
+                    let monthsActive = 0;
+                    for (let m = 0; m < 12; m++) {
+                        let checkStart = new Date(startDate.getFullYear(), m, 1);
+                        let checkEnd = new Date(startDate.getFullYear(), m + 1, 0, 23, 59, 59);
+                        let isActive = checkStart >= txStartMonth;
+                        if (endD && checkEnd > endD) isActive = false;
+                        if (isActive) monthsActive++;
+                    }
+                    if (monthsActive > 0) {
+                        items.push({ ...t, amount: amt * monthsActive, description: `${t.description} (x${monthsActive} ח')`, date_str: 'קבוע (שנתי)' });
+                    }
+                }
+            }
+        }
+    });
+
+    forecastCache = { startingBalance, items };
+    // -------------------------------------------------------------
+
+    const itemsToRender = forecastCache.items || [];
     let totalIncome = 0;
     let totalExpense = 0;
+    let projectedNetChange = 0;
     
     const incomeData = {};
     const expenseData = {};
     
     let html = '';
-    if(items.length === 0) {
+    const now = new Date();
+
+    if(itemsToRender.length === 0) {
         html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
     } else {
-        items.forEach(item => {
+        itemsToRender.forEach(item => {
             const isIncome = item.type === 'income';
             const amt = parseFloat(item.amount);
+            const itemDate = new Date(item.date);
+            const isRecurring = item.is_recurring === true || String(item.is_recurring).toLowerCase() === 'true';
             
             if(isIncome) {
                 totalIncome += amt;
@@ -2006,10 +2081,17 @@ async function renderForecast() {
                 expenseData[item.category] = (expenseData[item.category] || 0) + amt;
             }
             
+            // הוספה לחישוב היתרה הצפויה:
+            // לפי כלל האפיון - הוצאות עבר כבר מקוזזות מהיתרה הנוכחית. רק פעולות קבועות או פעולות עתידיות ישפיעו על התחזית הקדימה.
+            if (isRecurring || itemDate > now) {
+                if (isIncome) projectedNetChange += amt;
+                else projectedNetChange -= amt;
+            }
+            
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
             const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; 
             const prefix = isIncome ? '+' : '-';
-            const recBadge = item.is_recurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
+            const recBadge = isRecurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
             const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
             
             html += `
@@ -2024,12 +2106,11 @@ async function renderForecast() {
     }
     list.innerHTML = html;
     
-    const netChange = totalIncome - totalExpense;
     const startBalance = parseFloat(forecastCache.startingBalance) || 0;
-    const projectedBalance = startBalance + netChange;
+    const projectedBalance = startBalance + projectedNetChange;
     
-    document.getElementById('forecast-net-change').innerText = `₪${netChange.toFixed(2)}`;
-    document.getElementById('forecast-net-change').className = `text-lg font-bold ${netChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
+    document.getElementById('forecast-net-change').innerText = `₪${projectedNetChange.toFixed(2)}`;
+    document.getElementById('forecast-net-change').className = `text-lg font-bold ${projectedNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
     
     drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
@@ -2098,247 +2179,4 @@ function drawForecastCharts(incomeData, expenseData) {
 
 function getForecastInsight() {
     executeWithAIWarning(async () => {
-        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לתקופה...';
-        try {
-            const periodVal = currentForecastMode === 'monthly' 
-                ? document.getElementById('forecast-month-filter').value 
-                : document.getElementById('forecast-year-filter').value;
-            const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            
-            const res = await fetch(`${API}/forecast/familai-insight`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ groupId: currentGroup.id, period: periodVal, mode: currentForecastMode, targetUserId: targetUserId }) 
-            }); 
-            const data = await res.json();
-            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success && data.insight) { showFamilAIModal('רואת העתידות', data.insight); }
-            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התשקיף'); }
-        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
-    });
-}
-
-// ============================================================
-
-async function fetchPendingUsers() {
-    try {
-        if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json();
-        const list = document.getElementById('pending-list'); const container = document.getElementById('admin-panel');
-        if (users && users.length > 0) {
-            container.classList.remove('hidden'); list.innerHTML = '';
-            users.forEach(u => { const age = new Date().getFullYear() - u.birth_year; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${u.nickname} (${age})</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button></div></div>`; });
-        } else { if(container) container.classList.add('hidden'); }
-    } catch(e) { console.error(e); }
-}
-
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'משתמש אושר!'); fetchPendingUsers(); fetchMembers(); }
-
-function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
-
-async function submitChangePassword(e) {
-    e.preventDefault();
-    const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value;
-    const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...';
-    try {
-        const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) });
-        const data = await res.json();
-        if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); }
-    } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'שנה סיסמה'; }
-}
-
-async function deleteUser(id, name) {
-    if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהמערכת לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return;
-    try {
-        const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
-        if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
-}
-
-
-// ============================================================
-// --- LOANS MODULE ---
-// ============================================================
-
-async function fetchLoans() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        let url;
-        if (currentUser.role === 'ADMIN') {
-            url = `${API}/loans?groupId=${currentGroup.id}`;
-        } else {
-            url = `${API}/loans?userId=${currentUser.id}`;
-        }
-        const res = await fetch(url);
-        const loans = await res.json();
-        renderLoans(loans);
-    } catch(e) { console.error('fetchLoans error:', e); }
-}
-
-function renderLoans(loans) {
-    if (currentUser.role === 'ADMIN') {
-        const panel = document.getElementById('admin-loans-panel');
-        const list = document.getElementById('admin-loans-list');
-        if (!panel || !list) return;
-        const pending = loans.filter(l => l.status === 'pending');
-        if (pending.length === 0) { panel.classList.add('hidden'); return; }
-        panel.classList.remove('hidden');
-        list.innerHTML = pending.map(l => `
-            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
-                <div>
-                    <p class="font-bold text-slate-800 text-sm">${l.nickname} – ₪${l.original_amount}</p>
-                    <p class="text-xs text-slate-500">${l.reason || 'ללא סיבה'}</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="approveLoan(${l.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition">אשר</button>
-                    <button onclick="rejectLoan(${l.id})" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button>
-                </div>
-            </div>
-        `).join('');
-    } else {
-        const list = document.getElementById('my-loans-list');
-        if (!list) return;
-        if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין הלוואות פעילות</p>'; return; }
-        list.innerHTML = loans.map(l => {
-            const statusMap = { pending: { label: 'ממתין לאישור', cls: 'bg-orange-100 text-orange-600' }, approved: { label: 'אושרה ✓', cls: 'bg-green-100 text-green-700' }, rejected: { label: 'נדחתה', cls: 'bg-red-100 text-red-600' } };
-            const s = statusMap[l.status] || { label: l.status, cls: 'bg-slate-100 text-slate-600' };
-            return `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2">
-                <div>
-                    <p class="font-bold text-slate-800 text-sm">₪${l.original_amount}</p>
-                    <p class="text-xs text-slate-500">${l.reason || ''} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p>
-                </div>
-                <span class="text-xs font-bold px-2 py-1 rounded-lg ${s.cls}">${s.label}</span>
-            </div>`;
-        }).join('');
-    }
-}
-
-async function approveLoan(loanId) {
-    if (!confirm('לאשר הלוואה זו ולהעביר את הכסף לילד?')) return;
-    const res = await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
-    const data = await res.json();
-    if (data.success) { triggerConfetti(); showToast('success', 'ההלוואה אושרה!'); fetchData(); fetchLoans(); }
-    else showToast('error', data.error);
-}
-
-async function rejectLoan(loanId) {
-    if (!confirm('לדחות בקשת הלוואה זו?')) return;
-    await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
-    showToast('success', 'הבקשה נדחתה'); fetchLoans();
-}
-
-// ============================================================
-// --- SA Premium Toggle ---
-// ============================================================
-async function saTogglePremium(groupId, enable) {
-    const label = enable ? 'להפעיל' : 'לבטל';
-    if (!confirm(`האם ${label} מנוי Pro למשפחה זו?`)) return;
-    try {
-        const res = await fetch(`${API}/superadmin/groups/${groupId}/premium`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ enable })
-        });
-        const data = await res.json();
-        if (data.success) { showToast('success', enable ? 'מנוי Pro הופעל!' : 'מנוי Pro בוטל'); loadSAData(); }
-        else showToast('error', data.error || 'שגיאה');
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-}
-
-async function fetchBundles() {
-    try {
-        const res = await fetch(`${API}/data/${currentUser.id}`);
-        const data = await res.json();
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-    } catch(e) {}
-}
-
-// --- ACCESSIBILITY MODULE ---
-function initAccessibility() {
-    const saved = localStorage.getItem('ofl_accessibility');
-    if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} }
-}
-function applyAccessibility() {
-    Object.keys(accState).forEach(key => {
-        const btn = document.getElementById(`acc-${key}`);
-        if(accState[key]) {
-            document.body.classList.add(`acc-${key}`);
-            if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
-        } else {
-            document.body.classList.remove(`acc-${key}`);
-            if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); }
-        }
-    });
-    localStorage.setItem('ofl_accessibility', JSON.stringify(accState));
-}
-function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
-function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
-function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
-function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
-
-// --- BANNERS MODULE (SUPER ADMIN & UI) ---
-async function fetchBanners() {
-    try {
-        const res = await fetch(`${API}/banners`);
-        const data = await res.json();
-        if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img');
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
-            
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; 
-            if(saTopLink) saTopLink.value = data.banners.banner_top_link || ''; 
-            if(saTopImg) saTopImg.value = data.banners.banner_top_img || '';
-            
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; 
-            if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || ''; 
-            if(saBottomImg) saBottomImg.value = data.banners.banner_bottom_img || '';
-
-            const appTop = document.getElementById('app-banner-top'); 
-            const appBottom = document.getElementById('app-banner-bottom');
-            
-            const renderBanner = (el, text, link, img) => {
-                if(!el) return;
-                if(text || img) {
-                    let html = '';
-                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`;
-                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`;
-                    
-                    el.innerHTML = html;
-                    el.href = link || '#';
-                    if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } 
-                    else { el.target = '_blank'; el.style.cursor = 'pointer'; }
-                    el.classList.remove('hidden');
-                    el.classList.add('flex');
-                } else {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                }
-            };
-
-            renderBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_img);
-            renderBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_img);
-        }
-    } catch(e) {}
-}
-
-async function saveBanners() {
-    const topText = val('sa-banner-top-text'); const topLink = val('sa-banner-top-link'); const topImg = val('sa-banner-top-img');
-    const bottomText = val('sa-banner-bottom-text'); const bottomLink = val('sa-banner-bottom-link'); const bottomImg = val('sa-banner-bottom-img');
-    
-    try {
-        const res = await fetch(`${API}/superadmin/banners`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg }) 
-        });
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); 
-            fetchBanners(); 
-        } else { 
-            showToast('error', 'שגיאה בשמירת הבאנרים'); 
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת רשת מול השרת'); 
-    }
-}
+        showFamilAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לתקופה...
