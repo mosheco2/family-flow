@@ -81,6 +81,16 @@
         .punch-btn-out { background-color: #ef4444; color: white; box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4); }
         .punch-pulse { animation: pulseGlow 2s infinite; }
         @keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        /* IntroJS Overrides */
+        .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 2rem !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; padding: 1.5rem !important; border: none !important; overflow: hidden !important; text-align: center !important; }
+        .introjs-tooltip::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 8px; background: linear-gradient(to right, #0f172a, #334155); }
+        .introjs-tooltipbuttons { border-top: none !important; padding-top: 1rem !important; display: flex; gap: 0.5rem; justify-content: center; }
+        .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: bold !important; font-family: 'Rubik', sans-serif !important; padding: 0.75rem 1.5rem !important; flex: 1; text-align: center; }
+        .introjs-nextbutton { background-color: #0f172a !important; color: white !important; border: none !important; box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3) !important; }
+        .introjs-prevbutton { color: #64748b !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
+        .introjs-skipbutton { color: #94a3b8 !important; font-weight: 500 !important; background: transparent !important; }
+        .introjs-bullets ul li a.active { background: #0f172a !important; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -142,6 +152,7 @@
                 </div>
 
                 <div class="px-2 w-full">
+                    
                     <div id="content-feed">
                         <div id="tour-balance-card" class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-[2rem] p-8 text-white shadow-xl mb-8 relative overflow-hidden transform transition hover:scale-[1.01]">
                             <p class="text-slate-300 text-sm font-medium mb-1 opacity-80">מאזן קופת הארגון</p>
@@ -443,14 +454,6 @@
             <button id="tour-fab-btn" onclick="toggleFab()" class="w-14 h-14 bg-slate-900 text-white rounded-full shadow-xl flex flex-col items-center justify-center transition transform hover:scale-105 active:scale-95"><i class="fa-solid fa-plus transition-transform duration-300 text-2xl mb-1" id="fab-icon"></i><span class="text-[9px] font-bold leading-none mt-[-4px]">פעולות</span></button>
         </div>
         
-        <a href="https://wa.me/972504000024" target="_blank" class="fixed bottom-24 right-6 w-12 h-12 bg-[#25D366] text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition z-40">
-            <i class="fa-brands fa-whatsapp"></i>
-        </a>
-
-        <button onclick="openAccessibilityModal()" class="fixed bottom-6 right-6 w-12 h-12 bg-white text-slate-800 rounded-full shadow-xl flex items-center justify-center text-xl hover:bg-slate-100 transition z-40 border border-slate-200">
-            <i class="fa-solid fa-universal-access"></i>
-        </button>
-
         <div id="edit-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center text-slate-800">עריכת פעולה פיננסית ✏️</h3>
@@ -611,7 +614,9 @@
         <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-16 bg-slate-100"></div>
-                <div class="flex justify-center mb-4 relative z-10"><div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2"><i class="fa-solid fa-chart-pie text-4xl text-slate-700"></i></div></div>
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2"><i class="fa-solid fa-chart-pie text-4xl text-slate-700"></i></div>
+                </div>
                 <h3 class="text-xl font-bold mb-1 text-center text-slate-800">יועץ עסקי AI</h3>
                 <p id="familai-modal-subtitle" class="text-xs text-slate-400 mb-6 text-center">אנליסט הנתונים של הארגון</p>
                 <div id="familai-advisor-loading" class="text-center py-6"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-800 mb-3"></i><p class="text-sm text-slate-500 font-medium" id="familai-loading-text">מעבד נתוני דאטה ואנליטיקה...</p></div>
