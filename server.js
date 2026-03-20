@@ -24,16 +24,21 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// התחברות למסד הנתונים והוספת עמודות לתשקיף אם הן חסרות (שדרוג שקט ללא מחיקת נתונים)
+// התחברות למסד הנתונים והוספת עמודות לתשקיף ולמארזים אם הן חסרות (שדרוג שקט ללא מחיקת נתונים)
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       try {
           await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE');
           await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)');
-      } catch(e) {
-          // העמודות כבר קיימות - הכל בסדר
-      }
+      } catch(e) {}
+      
+      try {
+          await client.query('ALTER TABLE shopping_list ADD COLUMN units_per_package INT DEFAULT 1');
+          await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1');
+          await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1');
+      } catch(e) {}
+      
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -102,17 +107,17 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE loans (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, original_amount DECIMAL(10,2), remaining_amount DECIMAL(10,2), reason VARCHAR(255), status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_list (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, requester_id INT REFERENCES users(id), item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', estimated_price DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, units_per_package INT DEFAULT 1);
             CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2), unit VARCHAR(20) DEFAULT 'יח''', price_per_unit DECIMAL(10,2));
-            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2), unit VARCHAR(20) DEFAULT 'יח''', price_per_unit DECIMAL(10,2), units_per_package INT DEFAULT 1);
+            CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, units_per_package INT DEFAULT 1);
             CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for tasks updates)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for units_per_package)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -343,7 +348,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
-        Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema exactly:
+        Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
         { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
 
         const result = await model.generateContent(prompt);
@@ -1163,6 +1168,8 @@ app.post('/api/shopping/add', async (req, res) => {
         const initialStatus = user.role === 'ADMIN' ? 'pending' : 'requested';
         let normalizedName = req.body.itemName;
         const unit = req.body.unit || 'יח\'';
+        const upp = req.body.unitsPerPackage || 1;
+        
         if (genAI) {
             try {
                 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -1172,17 +1179,18 @@ app.post('/api/shopping/add', async (req, res) => {
                 if(data.normalized) normalizedName = data.normalized;
             } catch(e) {}
         }
-        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, unit, req.body.estimatedPrice || 0, initialStatus]);
+        const iRes = await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`, [user.group_id, req.body.userId, req.body.itemName, normalizedName, req.body.quantity, unit, req.body.estimatedPrice || 0, initialStatus, upp]);
         res.json({ success: true, id: iRes.rows[0].id, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/shopping/update', async (req, res) => {
     try {
-        const { itemId, status, estimatedPrice, unit } = req.body;
+        const { itemId, status, estimatedPrice, unit, unitsPerPackage } = req.body;
         if (status) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
         if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
         if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
+        if (unitsPerPackage !== undefined) await pool.query('UPDATE shopping_list SET units_per_package=$1 WHERE id=$2', [unitsPerPackage, itemId]);
         res.json({ success: true, alert: null });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1209,18 +1217,21 @@ app.post('/api/shopping/checkout', async (req, res) => {
         const u = (await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
         const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
         const tripId = tripRes.rows[0].id;
+        
         for (let item of boughtItems) {
-            const slItemRes = await dbClient.query('SELECT normalized_name, unit FROM shopping_list WHERE id=$1', [item.id]);
+            const slItemRes = await dbClient.query('SELECT normalized_name, unit, units_per_package FROM shopping_list WHERE id=$1', [item.id]);
             const normName = slItemRes.rows.length > 0 ? (slItemRes.rows[0].normalized_name || item.name) : item.name;
             const unit = slItemRes.rows.length > 0 ? (slItemRes.rows[0].unit || 'יח\'') : 'יח\'';
+            const upp = slItemRes.rows.length > 0 ? (slItemRes.rows[0].units_per_package || 1) : 1;
             const pricePerUnit = parseFloat(item.price) / (parseFloat(item.quantity) || 1);
-            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, unit, price_per_unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, normName, item.quantity, unit, pricePerUnit]);
             
-            const pantryExists = await dbClient.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2 AND unit=$3', [u.group_id, normName, unit]);
+            await dbClient.query(`INSERT INTO shopping_trip_items (trip_id, item_name, normalized_name, quantity, unit, price_per_unit, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [tripId, item.name, normName, item.quantity, unit, pricePerUnit, upp]);
+            
+            const pantryExists = await dbClient.query('SELECT id, units_per_package FROM pantry WHERE group_id=$1 AND item_name=$2 AND unit=$3', [u.group_id, normName, unit]);
             if (pantryExists.rows.length > 0) {
-                 await dbClient.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [item.quantity, pantryExists.rows[0].id]);
+                 await dbClient.query('UPDATE pantry SET quantity = quantity + $1, units_per_package=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3', [item.quantity, upp, pantryExists.rows[0].id]);
             } else {
-                 await dbClient.query('INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)', [u.group_id, normName, item.quantity, unit]);
+                 await dbClient.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [u.group_id, normName, item.quantity, unit, upp]);
             }
             await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
@@ -1249,7 +1260,7 @@ app.post('/api/shopping/copy', async (req, res) => {
         const u = (await pool.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
         const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
         for(let i of items.rows) {
-            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [u.group_id, userId, i.item_name, i.normalized_name || i.item_name, i.quantity, i.unit || 'יח\'']);
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, status, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`, [u.group_id, userId, i.item_name, i.normalized_name || i.item_name, i.quantity, i.unit || 'יח\'', i.units_per_package || 1]);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1259,11 +1270,13 @@ app.post('/api/pantry/add', async (req, res) => {
     try {
         const { groupId, itemName, quantity } = req.body;
         const unit = req.body.unit || 'יח\'';
+        const upp = req.body.unitsPerPackage || 1;
+        
         const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2 AND unit=$3', [groupId, itemName, unit]);
         if (existing.rows.length > 0) {
-            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, existing.rows[0].id]);
+            await pool.query('UPDATE pantry SET quantity = quantity + $1, units_per_package=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3', [quantity, upp, existing.rows[0].id]);
         } else {
-            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)', [groupId, itemName, quantity, unit]);
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [groupId, itemName, quantity, unit, upp]);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1271,19 +1284,33 @@ app.post('/api/pantry/add', async (req, res) => {
 
 app.post('/api/pantry/update', async (req, res) => {
     try {
-        const { itemId, quantity } = req.body;
-        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
+        const { itemId, quantity, unitsPerPackage } = req.body;
+        if (unitsPerPackage !== undefined) {
+            await pool.query('UPDATE pantry SET quantity=$1, units_per_package=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3', [quantity, unitsPerPackage, itemId]);
+        } else {
+            await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
+        }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/pantry/use', async (req, res) => {
     try {
-        const { groupId, itemName, usedQuantity } = req.body;
-        const existing = await pool.query('SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        const { groupId, itemName, usedQuantity, usedUnits } = req.body;
+        const existing = await pool.query('SELECT id, quantity, units_per_package FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
         if (existing.rows.length > 0) {
             const currentQty = parseFloat(existing.rows[0].quantity);
-            const newQty = currentQty - parseFloat(usedQuantity);
+            const upp = parseInt(existing.rows[0].units_per_package) || 1;
+            
+            let qtyToDeduct = 0;
+            if (usedUnits) {
+                qtyToDeduct = parseFloat(usedUnits) / upp;
+            } else if (usedQuantity) {
+                qtyToDeduct = parseFloat(usedQuantity);
+            }
+
+            const newQty = currentQty - qtyToDeduct;
+            
             if (newQty <= 0) {
                 await pool.query('DELETE FROM pantry WHERE id=$1', [existing.rows[0].id]);
             } else {
