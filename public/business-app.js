@@ -24,6 +24,7 @@ let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
+let timeclockReportCache = [];
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
 
@@ -92,9 +93,7 @@ window.onload = async () => {
                 currentUser = session.user; currentGroup = session.group; 
                 clearTimeout(failsafeTimer); 
                 
-                // ודא שהמשתמש באמת שייך לממשק העסקי
                 if(currentGroup.type !== 'BUSINESS') {
-                    // אם זה משפחה שהגיעה לכאן בטעות, ננתב חזרה לאפליקציה הרגילה
                     window.location.href = '/';
                     return;
                 }
@@ -103,12 +102,12 @@ window.onload = async () => {
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    clearTimeout(failsafeTimer); window.location.href = '/';
 };
 
 async function checkGlobalWelcome() {
     try {
-        const res = await fetch(`${API}/settings/welcome`); const data = await res.json();
+        const res = await fetch(`${API}/settings/welcome?type=BUSINESS`); const data = await res.json();
         if (data.message && data.message.trim() !== '') {
             const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
             if (seen !== data.message) { document.getElementById('welcome-modal-text').innerText = data.message; setupPwaInstallSection(); document.getElementById('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
@@ -142,6 +141,7 @@ function startManagerTour() {
             { element: '#ai-battery-indicator', title: "כוח עיבוד AI ⚡", intro: "המערכת מונעת ע\"י בינה מלאכותית מתקדמת. כאן תוכלו לראות את כמות הפעולות היומיות שנותרו בחבילה שלכם.", position: 'bottom' },
             { element: '#user-balance', title: "קופת הארגון 💳", intro: "כאן תוכלו לראות בזמן אמת את יתרת התקציב או המאזן המרכזי של החברה.", position: 'bottom' },
             { element: '#tour-fab-btn', title: "פעולות מהירות ⚡", intro: "לחיצה על כפתור הפלוס מאפשרת לכם לרשום הוצאה, הכנסה או לאשר בקשת רכש מכל מקום במערכת.", position: 'top' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "ניהול ומעקב אחר שעות עבודה של הצוות, כולל הפקת דוחות חודשיים.", position: 'bottom' },
             { element: '#tab-shop', title: "ניהול רכש 🛒", intro: "הסוף לבלאגן בהזמנות ציוד! עובדים פותחים דרישות רכש, והמנהל מאשר, מפיק הזמנה ומעדכן את התקציב.", position: 'bottom' },
             { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "עקבו אחר ציוד משרדי וחומרי גלם. עובד יכול לדווח ניצול מלאי, וכשפריט אוזל הוא מועבר אוטומטית לרכש.", position: 'bottom' },
             { element: '#tab-bank', title: "תקציבים ובונוסים 🏦", intro: "נהלו תקציבי מחלקות, קופות קטנות ובונוסים לעובדים, ואשרו בקשות להחזרי הוצאות.", position: 'bottom' },
@@ -154,7 +154,7 @@ function startManagerTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else if(id === 'tab-timeclock') switchTab('timeclock'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -168,6 +168,7 @@ function startEmployeeTour() {
         steps: [
             { title: "ברוכים הבאים ל-Oneflow 360 Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
             { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "החתמת כניסה ויציאה ממשמרת בפורטל שלך מתבצעת כאן.", position: 'bottom' },
             { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
             { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
             { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
@@ -178,7 +179,7 @@ function startEmployeeTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -190,35 +191,20 @@ function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => d
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
-async function handleLogin(e) { 
-    e.preventDefault(); forceTourStart = false; 
-    toggleLoader('login', true); 
-    try { 
-        const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) }); 
-        const data = await res.json(); 
-        if(data.success) { 
-            if(data.group.type !== 'BUSINESS') {
-                // המשתמש מנסה להתחבר למשפחה דרך עמוד עסקים (או להיפך). למרות שהשרת תומך, ברמת לקוח ננתב אותו:
-                localStorage.setItem('ofl_session', JSON.stringify({user:data.user, group:data.group}));
-                window.location.href = '/'; 
-                return;
-            }
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); await loadDashboard(); 
-        } else showToast('error', data.error); 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
-}
-
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    ['feed','timeclock','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
     
     if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
-    if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
+    if (t === 'pantry') renderPantry(); 
+    if (t === 'forecast') renderForecast(); 
+    if (t === 'cashflow') renderCashflow();
+    if (t === 'timeclock') { fetchTimeclockStatus(); fetchTimeclockReport(); }
 }
 
 function updateBatteryUI() {
@@ -254,14 +240,15 @@ function applyBannersToDOM(banners) {
 
 async function fetchBanners() {
     try {
-        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
-        const res = await fetch(`${API}/banners`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+        const type = currentGroup ? currentGroup.type : 'BUSINESS';
+        const cached = localStorage.getItem(`ofl_banners_${type}`); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const res = await fetch(`${API}/banners?type=${type}`); const data = await res.json();
+        if(data.success && data.banners) { localStorage.setItem(`ofl_banners_${type}`, JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
 
 async function loadDashboard() {
-    document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
+    document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
     document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; 
 
@@ -280,7 +267,7 @@ async function loadDashboard() {
     document.getElementById('btn-add-budget-cat').classList.remove('hidden'); updateBatteryUI();
     
     try {
-        if(!pollInterval) pollInterval = setInterval(() => { fetchData(); fetchLoans(); if(isAdmin) fetchPendingUsers(); }, 30000);
+        if(!pollInterval) pollInterval = setInterval(() => { fetchData(); fetchLoans(); fetchTimeclockStatus(); if(isAdmin) fetchPendingUsers(); }, 30000);
         fetchBanners(); await fetchMembers(); if(isAdmin) fetchPendingUsers(); await fetchData(); fetchLoans();
     } catch (e) {
         console.error('Error fetching dashboard data:', e); showToast('error', 'שגיאה בטעינת חלק מהנתונים');
@@ -289,6 +276,167 @@ async function loadDashboard() {
         const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
+}
+
+// --- TIME CLOCK FUNCTIONS ---
+async function fetchTimeclockStatus() {
+    try {
+        const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`);
+        const data = await res.json();
+        
+        const btn = document.getElementById('btn-punch');
+        const text = document.getElementById('punch-text');
+        const icon = document.getElementById('punch-icon');
+        const statusText = document.getElementById('timeclock-status-text');
+        
+        btn.classList.remove('cursor-not-allowed', 'bg-slate-200', 'text-slate-400');
+        
+        if (data.isPunchedIn) {
+            btn.className = 'w-40 h-40 rounded-full font-bold text-2xl flex flex-col items-center justify-center gap-2 transition transform hover:scale-105 punch-btn-out punch-pulse';
+            text.innerText = 'סיום משמרת';
+            icon.className = 'fa-solid fa-stopwatch text-4xl mb-1';
+            
+            const punchTime = new Date(data.punchInTime);
+            const timeStr = punchTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            statusText.innerHTML = `פעיל במשמרת החל מ- <span class="text-emerald-600">${timeStr}</span>`;
+            statusText.dataset.punchedIn = 'true';
+        } else {
+            btn.className = 'w-40 h-40 rounded-full font-bold text-2xl flex flex-col items-center justify-center gap-2 transition transform hover:scale-105 punch-btn-in';
+            text.innerText = 'כניסה למשמרת';
+            icon.className = 'fa-solid fa-fingerprint text-4xl mb-1';
+            statusText.innerText = 'לא במשמרת כעת';
+            statusText.dataset.punchedIn = 'false';
+        }
+    } catch(e) { console.error('Error fetching timeclock status:', e); }
+}
+
+async function togglePunch() {
+    const btn = document.getElementById('btn-punch');
+    if (btn.classList.contains('cursor-not-allowed')) return;
+    
+    btn.classList.add('cursor-not-allowed', 'opacity-80');
+    try {
+        const res = await fetch(`${API}/timeclock/punch`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (data.status === 'in') {
+                showToast('success', 'החתמת כניסה נקלטה בהצלחה!');
+                triggerConfetti();
+            } else {
+                showToast('success', 'משמרת הסתיימה בהצלחה!');
+            }
+            await fetchTimeclockStatus();
+            fetchTimeclockReport();
+        }
+    } catch(e) { showToast('error', 'שגיאה בהחתמת שעון'); }
+    finally { btn.classList.remove('cursor-not-allowed', 'opacity-80'); }
+}
+
+async function fetchTimeclockReport() {
+    try {
+        const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+        const res = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=${queryUserId}`);
+        if(res.ok) {
+            timeclockReportCache = await res.json();
+            
+            if (currentUser.role === 'ADMIN') {
+                const userFilter = document.getElementById('tc-user-filter');
+                if (userFilter && userFilter.options.length <= 1) { 
+                    userFilter.innerHTML = '<option value="all">כל העובדים</option>';
+                    membersCache.forEach(m => {
+                        userFilter.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+                    });
+                }
+            }
+            
+            renderTimeclockReport();
+        }
+    } catch(e) { console.error('Error fetching timeclock report:', e); }
+}
+
+function renderTimeclockReport() {
+    const list = document.getElementById('timeclock-list');
+    if (!list) return;
+    
+    const userFilter = document.getElementById('tc-user-filter') ? document.getElementById('tc-user-filter').value : 'all';
+    const dateFilter = document.getElementById('tc-date-filter') ? document.getElementById('tc-date-filter').value : 'month';
+    
+    let filtered = timeclockReportCache;
+    
+    if (currentUser.role !== 'ADMIN') {
+        filtered = timeclockReportCache.filter(t => String(t.user_id) === String(currentUser.id));
+        const filterEl = document.getElementById('tc-user-filter');
+        if (filterEl) filterEl.classList.add('hidden');
+    } else {
+        const filterEl = document.getElementById('tc-user-filter');
+        if (filterEl) filterEl.classList.remove('hidden');
+        if (userFilter !== 'all' && userFilter !== '') {
+            filtered = timeclockReportCache.filter(t => String(t.user_id) === String(userFilter));
+        }
+    }
+    
+    const now = new Date();
+    if (dateFilter === 'month') {
+        filtered = filtered.filter(t => new Date(t.punch_in).getMonth() === now.getMonth() && new Date(t.punch_in).getFullYear() === now.getFullYear());
+    } else if (dateFilter === 'prev_month') {
+        let prevMonth = now.getMonth() - 1;
+        let year = now.getFullYear();
+        if (prevMonth < 0) { prevMonth = 11; year--; }
+        filtered = filtered.filter(t => new Date(t.punch_in).getMonth() === prevMonth && new Date(t.punch_in).getFullYear() === year);
+    } else if (dateFilter === 'year') {
+        filtered = filtered.filter(t => new Date(t.punch_in).getFullYear() === now.getFullYear());
+    }
+    
+    let totalMinutes = 0;
+    
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-2">אין נתוני נוכחות לתקופה זו.</p>';
+        document.getElementById('tc-total-hours').innerText = '00:00';
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(t => {
+        totalMinutes += (t.total_minutes || 0);
+        
+        const inDate = new Date(t.punch_in);
+        const inStr = `${inDate.toLocaleDateString('he-IL')} ${inDate.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
+        let outStr = 'משמרת פעילה';
+        if (t.punch_out) {
+            const outDate = new Date(t.punch_out);
+            outStr = outDate.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            if (inDate.toLocaleDateString() !== outDate.toLocaleDateString()) {
+                outStr = `${outDate.toLocaleDateString('he-IL')} ${outStr}`;
+            }
+        }
+        
+        const hours = Math.floor((t.total_minutes || 0) / 60);
+        const mins = (t.total_minutes || 0) % 60;
+        const timeStr = t.punch_out ? `${hours}ש' ${mins}ד'` : '--';
+        
+        const userName = currentUser.role === 'ADMIN' && t.nickname ? `<span class="text-[9px] bg-slate-200 px-1.5 rounded text-slate-600 mr-2">${t.nickname}</span>` : '';
+        
+        html += `
+        <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm hover:border-slate-200 transition">
+            <div>
+                <p class="font-bold text-slate-700 text-sm flex items-center"><i class="fa-solid fa-clock text-slate-400 ml-1.5"></i> ${inStr} ${userName}</p>
+                <p class="text-[10px] text-slate-500 mt-1">יציאה: ${outStr}</p>
+            </div>
+            <div class="text-center">
+                <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">${timeStr}</span>
+            </div>
+        </div>`;
+    });
+    
+    list.innerHTML = html;
+    
+    const tHours = Math.floor(totalMinutes / 60);
+    const tMins = totalMinutes % 60;
+    document.getElementById('tc-total-hours').innerText = `${String(tHours).padStart(2, '0')}:${String(tMins).padStart(2, '0')}`;
 }
 
 window.openBalanceAdjustmentModal = function(id, name) { document.getElementById('adjustment-user-id').value = id; document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`; document.getElementById('adjustment-amount').value = ''; document.getElementById('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); document.getElementById('balance-adjustment-modal').classList.remove('hidden'); };
@@ -425,7 +573,6 @@ async function generateAIQuiz() {
     executeWithAIWarning(async () => {
         const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳';
         try {
-            // הוספת קונטקסט עסקי בבקשה, למרות שבשלב זה השרת שלנו עובד מול Prompts משפחתיים (יעודכן בשרת בהמשך)
             const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
@@ -511,7 +658,7 @@ function openTaskModal(isSelf = false) {
 async function generateAITasks() {
     executeWithAIWarning(async () => {
         const btn = document.getElementById('btn-ai-task-gen'); const assigneeId = val('task-assignee'); const topic = val('ai-task-topic'); const isSelf = document.getElementById('task-is-self').value === 'true'; 
-        let age = 30; // גיל פיקטיבי לעובד בוגר
+        let age = 30;
         if (!isSelf) {
              if(!assigneeId) return showToast('error', 'קודם כל בחרו למעלה עבור איזה עובד המשימה 👆');
         }
@@ -909,11 +1056,11 @@ function filterSuggestions(val) { const list = document.getElementById('suggesti
 
 async function submitShopItem() { 
     const itemInput = document.getElementById('shop-item'); const btn = document.querySelector('#shop-modal button.bg-blue-600'); 
-    const item = itemInput.value; const qty = val('shop-quantity'); const est = val('shop-est-price'); const unit = val('shop-unit') || "יח'"; 
+    const item = itemInput.value; const qty = val('shop-quantity'); const est = val('shop-est-price'); const unit = val('shop-unit') || "יח'"; const upp = val('shop-upp') || 1;
     if(!item) return; if (btn.disabled) return; btn.disabled = true; btn.innerText = 'מוסיף...'; 
     try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, userId: currentUser.id}) }); const data = await res.json(); 
-        if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); itemInput.value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('shop-unit').value = "יח'"; document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'בקשת הרכש נשלחה למנהל'); fetchData(); } 
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id}) }); const data = await res.json(); 
+        if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); itemInput.value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('shop-unit').value = "יח'"; document.getElementById('shop-upp').value = 1; document.getElementById('shop-upp-container').classList.add('hidden'); document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'בקשת הרכש נשלחה למנהל'); fetchData(); } 
     } finally { btn.disabled = false; btn.innerText = 'הוסף לרשימה'; } 
 }
 
@@ -964,7 +1111,7 @@ function renderShopList() {
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
         let bestPriceHtml = '';
         if (i.best_price && i.best_price.price_per_unit > 0) { const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); bestPriceHtml = `<div class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid fa-tag"></i> זול בעבר: ₪${bestP}/${i.unit || "יח'"} (${i.best_price.store_name}, ${dDate})</div>`; }
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${i.requester_name}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${i.unit || "יח'"}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${i.unit || "יח'"}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${i.item_name}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${i.requester_name} | מארז: ${i.units_per_package || 1} יח'</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${i.unit || "יח'"}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${i.unit || "יח'"}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }
