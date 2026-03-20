@@ -1155,10 +1155,6 @@ async function submitBudgetUpdate() { const cat = document.getElementById('budge
 function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
 async function submitNewBudgetCat() { const catName = document.getElementById('new-budget-cat-name').value; if(!catName) return; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); document.getElementById('add-budget-cat-modal').classList.add('hidden'); fetchBudget(); }
 
-// ============================================================
-// --- FORECAST MODULE ---
-// ============================================================
-
 window.toggleForecastMode = function(mode) {
     currentForecastMode = mode;
     document.getElementById('btn-forecast-monthly').className = mode === 'monthly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
@@ -1235,8 +1231,6 @@ async function renderForecast() {
             const isIncome = item.type === 'income'; const amt = parseFloat(item.amount); const itemDate = new Date(item.date); const isRecurring = item.is_recurring === true || String(item.is_recurring).toLowerCase() === 'true';
             if(isIncome) { totalIncome += amt; incomeData[item.category] = (incomeData[item.category] || 0) + amt; } else { totalExpense += amt; expenseData[item.category] = (expenseData[item.category] || 0) + amt; }
             
-            // מניעת כפל קיזוז: הוספה לתזרים העתידי רק אם הפעולה קבועה או עתידית. 
-            // פעולה חד פעמית מהעבר מופיעה בגרף למעקב אבל לא מפחיתה מהיתרה העתידית שוב (כי כבר קוזזה).
             if (isRecurring || itemDate > now) { if (isIncome) projectedNetChange += amt; else projectedNetChange -= amt; }
             
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
@@ -1285,8 +1279,6 @@ function getForecastInsight() {
     });
 }
 
-// ============================================================
-
 async function fetchPendingUsers() {
     try {
         if(!currentGroup || !currentGroup.id) return;
@@ -1320,11 +1312,6 @@ async function deleteUser(id, name) {
         if(data.success) { showToast('success', 'המשתמש נמחק בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
 }
-
-
-// ============================================================
-// --- LOANS MODULE ---
-// ============================================================
 
 async function fetchLoans() {
     try {
@@ -1389,38 +1376,23 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
 
+function applyBannersToDOM(banners) {
+    const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img'); const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
+    if(saTopText) saTopText.value = banners.banner_top_text || ''; if(saTopLink) saTopLink.value = banners.banner_top_link || ''; if(saTopImg) saTopImg.value = banners.banner_top_img || ''; if(saBottomText) saBottomText.value = banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = banners.banner_bottom_link || ''; if(saBottomImg) saBottomImg.value = banners.banner_bottom_img || '';
+    const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
+    const renderBanner = (el, text, link, img) => {
+        if(!el) return;
+        if(text || img) { let html = ''; if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`; if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } el.classList.remove('hidden'); el.classList.add('flex'); } 
+        else { el.classList.add('hidden'); el.classList.remove('flex'); }
+    };
+    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+}
+
 async function fetchBanners() {
     try {
+        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
         const res = await fetch(`${API}/banners`); const data = await res.json();
-        if(data.success && data.banners) {
-            const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img');
-            const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
-            
-            if(saTopText) saTopText.value = data.banners.banner_top_text || ''; if(saTopLink) saTopLink.value = data.banners.banner_top_link || ''; if(saTopImg) saTopImg.value = data.banners.banner_top_img || '';
-            if(saBottomText) saBottomText.value = data.banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = data.banners.banner_bottom_link || ''; if(saBottomImg) saBottomImg.value = data.banners.banner_bottom_img || '';
-
-            const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
-            
-            const renderBanner = (el, text, link, img) => {
-                if(!el) return;
-                if(text || img) {
-                    let html = '';
-                    if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`;
-                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`;
-                    el.innerHTML = html;
-                    el.href = link || '#';
-                    if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; }
-                    el.classList.remove('hidden');
-                    el.classList.add('flex');
-                } else {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                }
-            };
-
-            renderBanner(appTop, data.banners.banner_top_text, data.banners.banner_top_link, data.banners.banner_top_img);
-            renderBanner(appBottom, data.banners.banner_bottom_text, data.banners.banner_bottom_link, data.banners.banner_bottom_img);
-        }
+        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
 
