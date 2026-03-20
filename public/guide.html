@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oneflow Life | מדריך למשתמש</title>
+    
+    <link rel="icon" href="/logo.png" type="image/png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; }
+        .guide-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); margin-bottom: 2.5rem; border: 1px solid #f1f5f9; transition: transform 0.2s; }
+        .guide-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #e2e8f0; }
+        .section-title { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.75rem; }
+        .screenshot-placeholder { width: 100%; max-width: 600px; margin: 1.5rem auto; border-radius: 1rem; overflow: hidden; border: 4px solid #f1f5f9; background: #f8fafc; position: relative; min-height: 250px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .screenshot-placeholder img { width: 100%; height: auto; display: block; }
+        .screenshot-placeholder::before { content: 'תמונה תופיע כאן'; position: absolute; color: #94a3b8; font-weight: 500; z-index: 0; }
+        .screenshot-placeholder img { position: relative; z-index: 1; }
+        .role-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .role-admin { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
+        .role-member { background: #f0fdf4; color: #22c55e; border: 1px solid #bbf7d0; }
+        .feature-list { list-style: none; padding: 0; margin-top: 1rem; }
+        .feature-list li { position: relative; padding-right: 1.5rem; margin-bottom: 0.75rem; color: #475569; line-height: 1.6; }
+        .feature-list li::before { content: '•'; position: absolute; right: 0; color: #3b82f6; font-weight: bold; font-size: 1.2rem; }
+        .sidebar-link { display: block; padding: 0.75rem 1rem; color: #475569; font-weight: 500; border-radius: 0.75rem; transition: all 0.2s; }
+        .sidebar-link:hover { background: #eff6ff; color: #3b82f6; }
+        
+        /* Smooth scrolling for anchor links */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body>
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="logo.png" alt="Oneflow Life" class="h-10 w-auto object-contain">
+                <h1 class="text-2xl font-bold text-slate-800">המדריך המלא למערכת</h1>
+            </div>
+            <a href="/" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-bold hover:bg-slate-200 transition text-sm flex items-center gap-2">
+                <i class="fa-solid fa-arrow-left"></i> חזרה לאפליקציה
+            </a>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8">
+        
+        <aside class="w-full md:w-64 shrink-0">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 sticky top-24">
+                <h3 class="font-bold text-slate-800 mb-3 px-4 uppercase tracking-wider text-xs">תוכן עניינים</h3>
+                <nav class="space-y-1">
+                    <a href="#tab-feed" class="sidebar-link"><i class="fa-solid fa-house w-6 text-center text-blue-500"></i> ראשי (Feed)</a>
+                    <a href="#tab-shop" class="sidebar-link"><i class="fa-solid fa-cart-shopping w-6 text-center text-pink-500"></i> קניות (Shop)</a>
+                    <a href="#tab-pantry" class="sidebar-link"><i class="fa-solid fa-box-open w-6 text-center text-orange-500"></i> מזווה (Pantry)</a>
+                    <a href="#tab-bank" class="sidebar-link"><i class="fa-solid fa-building-columns w-6 text-center text-emerald-500"></i> בנק (Bank)</a>
+                    <a href="#tab-cashflow" class="sidebar-link"><i class="fa-solid fa-money-bill-transfer w-6 text-center text-red-500"></i> תזרים (Cashflow)</a>
+                    <a href="#tab-academy" class="sidebar-link"><i class="fa-solid fa-graduation-cap w-6 text-center text-purple-500"></i> אקדמיה (Academy)</a>
+                    <a href="#tab-budget" class="sidebar-link"><i class="fa-solid fa-chart-pie w-6 text-center text-cyan-500"></i> תקציב (Budget)</a>
+                    <a href="#tab-forecast" class="sidebar-link"><i class="fa-solid fa-calendar-days w-6 text-center text-indigo-500"></i> תשקיף (Forecast)</a>
+                    <a href="#tab-tasks" class="sidebar-link"><i class="fa-solid fa-list-check w-6 text-center text-blue-400"></i> משימות (Tasks)</a>
+                    <a href="#tab-recipes" class="sidebar-link"><i class="fa-solid fa-utensils w-6 text-center text-orange-400"></i> שף AI (Recipes)</a>
+                    <a href="#tab-members" class="sidebar-link"><i class="fa-solid fa-user-group w-6 text-center text-indigo-400"></i> ניהול (Members)</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="flex-1">
+            
+            <div class="bg-blue-50 border border-blue-200 p-6 rounded-2xl mb-8">
+                <h2 class="text-xl font-bold text-blue-800 mb-2">ברוכים הבאים לבנק המשפחתי שלכם! 👋</h2>
+                <p class="text-blue-900 leading-relaxed text-sm">
+                    Oneflow Life היא מערכת שנועדה לתת להורים שליטה מלאה על התקציב המשפחתי, ובמקביל לחנך את הילדים להתנהלות כלכלית נכונה דרך חוויות, משימות ולמידה. המערכת מופעלת על ידי **familAI** - בינה מלאכותית מתקדמת שעוזרת לכם לחסוך זמן וכסף. <br><br>
+                    המדריך שלפניכם מפרט את כל יכולות המערכת לפי חלוקה לטאבים (לשוניות), ומסביר מה כל סוג משתמש (הורה מול ילד) יכול לראות ולבצע.
+                </p>
+            </div>
+
+            <section id="tab-feed" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-house text-blue-500"></i> מסך ראשי (Feed)</h2>
+                <p class="text-slate-600 mb-4">מסך הבית של האפליקציה, המרכז את היתרה הנוכחית ומרכז עדכונים (פיד) של כל הפעילויות שהתרחשו בבנק המשפחתי לאחרונה.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="feed.png" alt="מסך ראשי" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>תצוגת יתרה:</strong> רואים את סך היתרה הכללית (של כלל המנהלים יחד).</li>
+                            <li><strong>פיד משפחתי:</strong> רואים את כל הפעולות של <strong>כל בני הבית</strong> - הוצאות, הכנסות, משימות שהושלמו, ומבחנים שבוצעו.</li>
+                            <li><strong>סינון מתקדם:</strong> יכולים לסנן את הפיד לפי ילד ספציפי או לבחור טווח תאריכים (חודש/3 חודשים).</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>תצוגת יתרה:</strong> רואים את סך הכסף הווירטואלי שצברו בארנק האישי שלהם.</li>
+                            <li><strong>לביצוע:</strong> רואים בראש המסך משימות ומבחנים שהוקצו להם וממתינים לביצוע.</li>
+                            <li><strong>פיד אישי:</strong> רואים אך ורק את הפעולות <strong>שלהם</strong>, כדי לשמור על פרטיות מול אחים אחרים. אין להם אפשרות סינון.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-shop" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-cart-shopping text-pink-500"></i> סופר חכם (Shop)</h2>
+                <p class="text-slate-600 mb-4">רשימת קניות דינמית ומשותפת לכל בני הבית. מחליפה את קבוצות הוואטסאפ המבולגנות ומאפשרת סריקת קבלות מבוססת AI.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="shop.png" alt="סופר חכם" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>ניהול העגלה:</strong> הוספה, עריכת מחירים, ומחיקת מוצרים. יכולים לסמן מוצרים שנקנו ולבצע "סיום וחיוב" שיוריד את הכסף מהתקציב.</li>
+                            <li><strong>אישור בקשות:</strong> מוצרים שילדים הוסיפו יופיעו תחת "ממתינים לאישור" עד שההורה יאשר או ידחה אותם.</li>
+                            <li><strong>סריקת קבלות (AI):</strong> אפשרות לצלם קבלה שלמה מהסופר. ה-AI (familAI) יזהה את המוצרים והמחירים ויכניס אותם אוטומטית למערכת!</li>
+                            <li><strong>סריקת ברקוד/מוצר:</strong> צילום מוצר שנגמר בבית, וה-AI יזהה אותו ויוסיף לרשימה.</li>
+                            <li><strong>הדבקת רשימה וייצוא:</strong> ניתן להדביק טקסט שלם של רשימה (והמערכת תפצל לשורות), או לייצא את הרשימה המוכנה לוואטסאפ.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>בקשת פריטים:</strong> יכולים להוסיף מוצרים (למשל חטיפים) לרשימה. המוצרים ייכנסו לסטטוס "ממתין לאישור הורה".</li>
+                            <li><strong>צפייה ברשימה:</strong> רואים אילו מוצרים ההורים כבר הוסיפו לעגלה הכללית של הבית.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-pantry" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-box-open text-orange-500"></i> מזווה (Pantry)</h2>
+                <p class="text-slate-600 mb-4">ניהול מלאי הבית. כל מוצר שנקנה בסופר נכנס אוטומטית למזווה, וכך אפשר לעקוב אחרי מה שיש ומה שנגמר.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="pantry.png" alt="מזווה" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים ולילדים כאחד</span>
+                        <ul class="feature-list">
+                            <li><strong>צפייה במלאי:</strong> כולם יכולים לראות מה יש כרגע במקרר או בארונות.</li>
+                            <li><strong>שימוש במוצרים:</strong> כשמישהו אוכל או משתמש במוצר, הוא יכול ללחוץ על "השתמשתי" ולהוריד את הכמות מהמלאי.</li>
+                            <li><strong>העברה מהירה לקניות:</strong> אם מוצר נגמר, לחיצה על "חסר (לקניות)" תעביר אותו ישירות לעגלת הקניות של הסופר.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-admin">יכולות מנהל / AI</span>
+                        <ul class="feature-list">
+                            <li><strong>הוספה חכמה:</strong> ניתן לצלם מוצר באמצעות המצלמה וה-AI יזהה ויוסיף אותו למזווה.</li>
+                            <li><strong>תובנות מלאי:</strong> ה-AI מנתח את הרגלי הקנייה מול המזווה ומתריע להורים אם מוצר קבוע עומד להיגמר או אם יש כפילויות.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-bank" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-building-columns text-emerald-500"></i> בנק (Bank)</h2>
+                <p class="text-slate-600 mb-4">הלב של החינוך הפיננסי במערכת. ניהול הארנקים הווירטואלים של הילדים, דמי כיס, חסכונות, הלוואות וריביות.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="bank.png" alt="בנק" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>צפייה בכולם:</strong> רואים את כל חשבונות הילדים, כולל היתרה של כל אחד.</li>
+                            <li><strong>יום תשלום (PayDay):</strong> כפתור שבלחיצה אחת מחלק את דמי הכיס לכל הילדים ומחשב ריביות על חסכונות.</li>
+                            <li><strong>קנסות ובונוסים:</strong> כפתור מהיר להורדה או הוספה של כסף מחשבון של ילד ספציפי עם הערה (למשל "בונוס על עזרה").</li>
+                            <li><strong>הגדרות חשבון:</strong> קביעת גובה דמי הכיס השבועיים ואחוז הריבית לכל ילד.</li>
+                            <li><strong>ניהול הלוואות ויעדים:</strong> אישור או דחייה של בקשות הלוואה שהילדים הגישו, ומעקב אחרי התקדמות יעדי החיסכון שלהם.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>כרטיס אישי:</strong> רואים "כרטיס אשראי" וירטואלי המציג את תנאי החשבון שלהם (דמי כיס, ריבית) ומד של "בזבוזים השבוע" שמתריע אם הם מוציאים יותר מדי כדי לא לאבד את הריבית.</li>
+                            <li><strong>בקשת הלוואה:</strong> יכולים לבקש מההורים כסף "על החשבון" ולציין סיבה.</li>
+                            <li><strong>יעדי חיסכון:</strong> פתיחת יעד (למשל: "אופניים חדשים - 500 ש״ח") והפקדת כסף מתוך הארנק שלהם לטובת היעד.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-cashflow" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-money-bill-transfer text-red-500"></i> תזרים (Cashflow)</h2>
+                <p class="text-slate-600 mb-4">מעקב מלא אחרי כל התנועות הכספיות (הכנסות והוצאות) במערכת בצורת רשימה טבלאית מסודרת.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="cashflow.png" alt="תזרים" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>שקיפות מלאה:</strong> רואים את כל התנועות שבוצעו על ידי כל בני המשפחה.</li>
+                            <li><strong>עריכה ומחיקה:</strong> ההורים בלבד יכולים ללחוץ על כפתור עריכה כדי לשנות סכום, קטגוריה, או למחוק לחלוטין תנועה שגויה (פעולה שמעדכנת מידית את היתרה של המשתמש).</li>
+                            <li><strong>סינונים:</strong> סינון לפי תאריכים, ולפי בן משפחה ספציפי.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>היסטוריה אישית:</strong> רואים רק את התנועות הכספיות של עצמם.</li>
+                            <li><strong>צפייה בלבד:</strong> לילדים אין אפשרות למחוק או לערוך תנועות (כדי למנוע מניפולציות בארנק).</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-academy" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-graduation-cap text-purple-500"></i> אקדמיה פיננסית (Academy)</h2>
+                <p class="text-slate-600 mb-4">מערכת למידה מבוססת משחק. הילדים עונים על מבחנים וחידונים ויכולים להרוויח כסף וירטואלי בתמורה ללמידה.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="academy.png" alt="אקדמיה" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>יצירת מבחן ב-AI:</strong> לחיצה על "יצירת אתגר" מאפשרת לבחור גיל ונושא (למשל: "חיסכון מגיל צעיר"), ו-familAI תכתוב מבחן אמריקאי מרתק עם 5 שאלות באופן מיידי.</li>
+                            <li><strong>הקצאה לילדים:</strong> ההורה בוחר איזה מבחן לתת לאיזה ילד, וקובע כמה שקלים הילד יקבל אם יעבור אותו בהצלחה.</li>
+                            <li><strong>מעקב:</strong> צפייה בסטטוס המבחנים (מי עשה, מי נכשל, מי ממתין).</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>ביצוע משימות לימודיות:</strong> גישה למבחנים שההורים הקצו להם. אם הילד עובר את ציון העובר (סף מוגדר מראש), הכסף מתווסף ישירות לארנק!</li>
+                            <li><strong>אתגר אקראי:</strong> כפתור "הגרל אתגר מהיר" מאפשר לילד לבקש מבחן מספריית המבחנים הכללית בעצמו.</li>
+                            <li><strong>מורה פרטית (Tutor):</strong> אם הילד טועה במבחן, יופיע כפתור המאפשר ל-familAI להסביר לו בדיוק למה הוא טעה ולמה התשובה השנייה נכונה, בשפה חיובית ומעודדת.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-budget" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-chart-pie text-cyan-500"></i> תקציב (Budget)</h2>
+                <p class="text-slate-600 mb-4">שליטה ומעקב על ההוצאות השוטפות לפי קטגוריות, למניעת חריגות ולתכנון פיננסי חכם.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="budget.png" alt="תקציב" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>הגדרת יעדים:</strong> יכולים לקבוע סכום יעד חודשי מקסימלי לכל קטגוריה (למשל: 2000 ש"ח לסופר, 500 ש"ח לדלק).</li>
+                            <li><strong>מדדים חיים:</strong> בר התקדמות ויזואלי מראה כמה אחוזים מהתקציב נוצלו (משנה צבע לירוק, כתום, אדום בחריגה).</li>
+                            <li><strong>סינון:</strong> אפשרות לראות את התקציב הכללי של הבית, או את ניצול התקציב האישי של הילדים.</li>
+                            <li><strong>תובנות AI:</strong> ה-AI קורא את ההוצאות של החודש, מפיק "תקציר מנהלים" חכם להורים, ומציע איפה כדאי לקצץ.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>מעקב הוצאות אישי:</strong> הילדים רואים מדדים של ההוצאות <strong>שלהם</strong> בלבד ביחס לדמי הכיס שהם מקבלים, כדי שילמדו לא לבזבז את הכל בבת אחת.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-forecast" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-calendar-days text-indigo-500"></i> תשקיף תזרים (Forecast)</h2>
+                <p class="text-slate-600 mb-4">מבט לעתיד המאפשר לתכנן מראש את החודשים והשנים הקרובות, למנוע הפתעות, ולראות מתי ניכנס למינוס.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="forecast.png" alt="תשקיף" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>חישוב יתרה עתידית:</strong> המערכת לוקחת את היתרה הנוכחית שלכם (מה שיש עכשיו), ומוסיפה/מחסירה את כל ההוצאות וההכנסות שמוגדרות כ"פעולה קבועה", כדי להציג כמה כסף יישאר לכם בחודשים הבאים.</li>
+                            <li><strong>גרף עוגה:</strong> תצוגה חזותית של התפלגות הכנסות מול הוצאות לתקופה הנבחרת (חודשי או שנתי).</li>
+                            <li><strong>תובנות עתיד:</strong> ה-AI מנתח את התחייבויות העבר והעתיד ומייעץ איך להיערך פיננסית.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">הערה חשובה לגבי הזנת פעולות לתשקיף</span>
+                        <ul class="feature-list">
+                            <li>כאשר מוסיפים פעולה בכפתור הפלוס (+) בתחתית המסך, ניתן להגדיר אותה כ"<strong>פעולה קבועה</strong>" (למשל: משכורת, חוגים, ארנונה).</li>
+                            <li>רק פעולות קבועות משוקללות לתוך חישוב "היתרה העתידית" קדימה. הוצאות חד-פעמיות מופיעות בגרף רק כדי להראות על מה יצא הכסף החודש.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-tasks" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-list-check text-blue-400"></i> משימות (Tasks)</h2>
+                <p class="text-slate-600 mb-4">לוח משימות ביתי (כמו לסדר את החדר או לזרוק זבל) שמאפשר לילדים לעזור בבית ולהרוויח על כך כסף.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="tasks.png" alt="משימות" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים)</span>
+                        <ul class="feature-list">
+                            <li><strong>יצירת משימות:</strong> הזנה ידנית (שם משימה, למי מוקצית, פרס, וימי תוקף).</li>
+                            <li><strong>יצירה אוטומטית (AI):</strong> ההורה מקליד "עזרה לשישי", וה-AI מציע משימות מתאימות לגיל הילד ומתמחר אותן!</li>
+                            <li><strong>אישור ביצוע:</strong> כשהילד מסיים, ההורה יכול לאשר ולשלם ידנית את הפרס (או לשנות את הסכום).</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="role-badge role-member">לילדים (משתמשים רגילים)</span>
+                        <ul class="feature-list">
+                            <li><strong>אישור חכם (Vision AI):</strong> הילד יכול ללחוץ על "סיימתי", לצלם את מה שעשה (למשל את החדר המסודר), וה-AI יפענח את התמונה. אם ה-AI מרוצה, המשימה מאושרת אוטומטית והילד אף יקבל <strong>10% בונוס נוסף!</strong></li>
+                            <li><strong>מעשה טוב:</strong> ילד יכול ללחוץ על "עשיתי מעשה טוב", לדווח על יוזמה אישית, ולבקש פרס עליה לאישור ההורה.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-recipes" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-utensils text-orange-400"></i> שף AI (Recipes)</h2>
+                <p class="text-slate-600 mb-4">פיצ'ר חכם שנועד לפתור את השאלה הנצחית "מה אוכלים היום?", תוך ניצול המוצרים שכבר קיימים אצלכם בבית.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="recipes.png" alt="שף AI" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">פתוח לכולם (הורים וילדים)</span>
+                        <ul class="feature-list">
+                            <li><strong>סנכרון למזווה:</strong> המסך שולף אוטומטית את כל רשימת המוצרים שהכנסתם בטאב המזווה.</li>
+                            <li><strong>הכנת ארוחה:</strong> אתם מסמנים אילו מוצרים תרצו לנצל, מגדירים את סוג הארוחה וכמות הסועדים - ומודל ה-AI יכתוב לכם מתכון מושלם צעד-אחר-צעד בעברית.</li>
+                            <li><strong>הזנה ידנית:</strong> ניתן לבחור ב"התעלם מהמזווה" ופשוט להקליד מצרכים חופשי שיש לכם במקרר כדי לקבל מתכון.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-members" class="guide-card">
+                <h2 class="section-title"><i class="fa-solid fa-user-group text-indigo-400"></i> ניהול משפחה (Members)</h2>
+                <p class="text-slate-600 mb-4">מסך הניהול הטכני של החשבון, מיועד בעיקר למנהלי הבית ולניהול ההרשאות.</p>
+                
+                <div class="screenshot-placeholder">
+                    <img src="members.png" alt="ניהול" onerror="this.style.display='none'">
+                </div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <span class="role-badge role-admin">להורים (מנהלים) בלבד</span>
+                        <ul class="feature-list">
+                            <li><strong>הזמנה לוואטסאפ:</strong> כפתור מהיר שמייצר קישור הזמנה (הכולל את קוד המשפחה שלכם) שניתן לשלוח לילד או לבן/בת זוג בוואטסאפ כדי שיצטרפו למערכת.</li>
+                            <li><strong>אישור משתמשים:</strong> מי שנרשם עם קוד המשפחה נכנס לסטטוס "ממתין", ורק מנהל יכול לאשר את כניסתו לאפליקציה כדי למנוע זרים.</li>
+                            <li><strong>שליחת סיסמאות:</strong> כפתור ששולח למייל של מנהל המשפחה הראשי את רשימת כל המשתמשים והסיסמאות של הילדים במקרה שמישהו שכח.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+</body>
+</html>
