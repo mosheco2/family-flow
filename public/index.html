@@ -811,12 +811,23 @@
         <div id="pantry-use-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">שימוש במוצר 🍳</h3>
-                <p id="use-pantry-title" class="text-sm text-slate-500 mb-6 font-bold"></p>
+                <p id="use-pantry-title" class="text-sm text-slate-500 mb-4 font-bold"></p>
                 <input type="hidden" id="use-pantry-name">
-                <div class="relative mb-6">
-                    <input type="number" id="use-pantry-qty" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl text-center font-bold outline-none focus:border-blue-500 transition" placeholder="כמה לקחת?" min="0.1" step="0.1">
+                <input type="hidden" id="use-pantry-has-units" value="false">
+                
+                <div class="relative mb-2">
+                    <input type="number" id="use-pantry-qty" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xl text-center font-bold outline-none focus:border-blue-500 transition" placeholder="כמות כוללת (למשל 1)" min="0.1" step="0.1">
                     <span id="use-pantry-unit-display" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></span>
                 </div>
+                
+                <div id="use-pantry-units-container" class="relative mb-6 hidden">
+                    <div class="text-xs text-slate-400 mb-2 font-bold">- או -</div>
+                    <div class="relative">
+                        <input type="number" id="use-pantry-units" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xl text-center font-bold outline-none focus:border-blue-500 transition" placeholder="יחידות בודדות (למשל 2)" min="1" step="1">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">יח' בודדות</span>
+                    </div>
+                </div>
+
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('pantry-use-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
                     <button onclick="submitPantryUse()" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 transition hover:bg-orange-600">עדכן מלאי</button>
@@ -1020,7 +1031,13 @@
                     <div class="flex gap-2">
                         <div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ ליחידה</span></div>
                         <div class="w-20 relative"><input type="number" id="shop-quantity" class="modern-input text-center px-1" value="1" min="0.1" step="0.1"><span class="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">כמות</span></div>
-                        <div class="w-24 relative"><select id="shop-unit" class="modern-input text-center px-1 py-3 text-sm bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
+                        <div class="w-24 relative"><select id="shop-unit" onchange="checkShopUnit()" class="modern-input text-center px-1 py-3 text-sm bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
+                    </div>
+                    <div class="flex gap-2 mt-3 hidden" id="shop-upp-container">
+                        <div class="flex-1 relative">
+                            <input type="number" id="shop-upp" class="modern-input text-center px-1" value="1" min="1">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמה יח' בודדות יש בפנים?</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitShopItem()" class="flex-1 bg-pink-500 text-white py-3 rounded-xl font-bold">הוסף</button></div>
@@ -1046,7 +1063,13 @@
                     <input type="text" id="pantry-item" class="modern-input" placeholder="שם המוצר...">
                     <div class="flex gap-2">
                         <div class="flex-1 relative"><input type="number" id="pantry-quantity" class="modern-input text-center" value="1" min="0.1" step="0.1"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div>
-                        <div class="flex-1 relative"><select id="pantry-unit" class="modern-input text-center px-1 py-3 bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
+                        <div class="flex-1 relative"><select id="pantry-unit" onchange="checkPantryUnit()" class="modern-input text-center px-1 py-3 bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
+                    </div>
+                    <div class="flex gap-2 mt-3 hidden" id="pantry-upp-container">
+                        <div class="flex-1 relative">
+                            <input type="number" id="pantry-upp" class="modern-input text-center px-1" value="1" min="1">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמה יח' בודדות יש בפנים?</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6"><button onclick="document.getElementById('pantry-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitPantryItem()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף למלאי</button></div>
@@ -1217,7 +1240,7 @@
                 <div class="flex-1 text-xs text-slate-600 space-y-4 pr-2 leading-relaxed text-justify">
                     <p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow Life. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
                     <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב והמשימות המשפחתיות. ה"כסף" המוצג במערכת (בארנק, במשימות וביעדים) אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך חינוך וניהול משפחתי בלבד.</p>
-                    <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
+                    <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החחידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם ונועדו להעשרה בלבד. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. ההורה/המנהל נושא באחריות המלאה לבקר ולאשר את המידע לפני שהוא מסתמך עליו.</p>
                     <p><strong>4. פרטיות המידע וקטינים:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. האפליקציה מיועדת לניהול משפחתי; יצירת חשבונות עבור קטינים והזנת נתונים אודותיהם נמצאת באחריות המלאה והבלעדית של ההורה (מנהל הבנק המשפחתי) ועליו לוודא את נכונות התוכן המוצג להם.</p>
                     <p><strong>5. עדכונים ותקשורת:</strong> במידה ואישרתם קבלת דיוור באזור ההרשמה, נהיה רשאים לשלוח אליכם התראות, טיפים לניהול כלכלת המשפחה והטבות. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>
                 </div>
@@ -1244,6 +1267,28 @@
     </div>
 
     <script>
+        function checkShopUnit() {
+            const unit = document.getElementById('shop-unit').value;
+            const container = document.getElementById('shop-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('shop-upp').value = 1;
+            }
+        }
+        
+        function checkPantryUnit() {
+            const unit = document.getElementById('pantry-unit').value;
+            const container = document.getElementById('pantry-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('pantry-upp').value = 1;
+            }
+        }
+
         function toggleTransType(type) {
             const isRecurring = type === 'recurring';
             document.getElementById('trans-is-recurring').value = isRecurring;
