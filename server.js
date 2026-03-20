@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const nodemailer = require('nodemailer');
 
@@ -436,7 +437,6 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
 });
 
-// --- FORECAST AI INSIGHT ---
 app.post('/api/forecast/familai-insight', async (req, res) => {
     try {
         const { groupId, period, mode, targetUserId } = req.body;
@@ -458,8 +458,6 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התשקיף'); }
 });
 
-
-// שינוי 1: AI מעניק בונוס אוטומטי של 10% אם המשימה אושרה בהצלחה
 app.post('/api/tasks/vision-verify', async (req, res) => {
     try {
         const { taskId, title, imageBase64, mimeType, groupId } = req.body;
@@ -535,6 +533,40 @@ app.post('/api/academy/tutor', async (req, res) => {
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
 });
+
+// --- תוספת חדשה: צ'אט הדרכה חכם ---
+app.post('/api/guide/chat', async (req, res) => {
+    try {
+        const { question } = req.body;
+        if (!genAI) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
+
+        let guideText = "";
+        try {
+            // שולף בצורה דינמית את תוכן המדריך שיושב בתיקיית public
+            guideText = fs.readFileSync(path.join(__dirname, 'public', 'guide.html'), 'utf-8');
+        } catch(e) {
+            guideText = "Oneflow Life is a family financial and task management app.";
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' app. 
+        A user is reading the user guide and asked a question to understand the system better.
+        Here is the full content of the guide HTML:
+        ${guideText}
+        
+        User's question: "${question}"
+        
+        Answer directly in Hebrew based ONLY on the guide content above. 
+        Be concise (3-4 sentences max), friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding where needed.`;
+
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch (e) {
+        console.error('Guide Chat Error:', e);
+        res.status(500).json({ success: false, error: 'מצטערת, לא הצלחתי לייצר תשובה כרגע.' });
+    }
+});
+
 
 // --- BASIC API ENDPOINTS ---
 app.post('/api/groups', async (req, res) => {
@@ -733,7 +765,26 @@ app.post('/api/admin/payday', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({error: e.message}); } finally { dbClient.release(); }
 });
 
-// שינוי חדש: תמיכה בתאריך ידני, ותנועה קבועה (תשקיף)
+app.post('/api/admin/adjust-balance', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { adminId, groupId, childId, type, amount, reason } = req.body;
+        const u = await dbClient.query('SELECT role FROM users WHERE id=$1', [adminId]);
+        if(u.rows[0].role !== 'ADMIN') throw new Error('Not authorized');
+        
+        const op = type === 'add' ? '+' : '-';
+        const txType = type === 'add' ? 'income' : 'expense';
+        const txCategory = 'other';
+        
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id=$2`, [amount, childId]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, $5, $6, TRUE)`, [childId, groupId, amount, reason, txCategory, txType]);
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
 app.post('/api/transaction', async (req, res) => {
     const dbClient = await pool.connect();
     try {
@@ -757,6 +808,55 @@ app.post('/api/transaction', async (req, res) => {
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
 
+app.put('/api/transaction/:id', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { id } = req.params;
+        const { amount, description, category, requesterId } = req.body;
+        const uRes = await dbClient.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+        if(uRes.rows[0].role !== 'ADMIN') { await dbClient.query('ROLLBACK'); return res.status(403).json({ error: 'רק מנהל רשאי לערוך פעולות' }); }
+        
+        const oldT = await dbClient.query('SELECT * FROM transactions WHERE id=$1', [id]);
+        if(oldT.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(404).json({ error: 'פעולה לא נמצאה' }); }
+        
+        const diff = parseFloat(amount) - parseFloat(oldT.rows[0].amount);
+        const userId = oldT.rows[0].user_id;
+        const op = oldT.rows[0].type === 'income' ? '+' : '-';
+        
+        await dbClient.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [amount, description, category, id]);
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id=$2`, [diff, userId]);
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
+app.delete('/api/transaction/:id', async (req, res) => {
+    const dbClient = await pool.connect();
+    try {
+        await dbClient.query('BEGIN');
+        const { id } = req.params;
+        const { requesterId } = req.query;
+        
+        const uRes = await dbClient.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+        if(uRes.rows[0].role !== 'ADMIN') { await dbClient.query('ROLLBACK'); return res.status(403).json({ error: 'רק מנהל רשאי למחוק פעולות' }); }
+        
+        const oldT = await dbClient.query('SELECT * FROM transactions WHERE id=$1', [id]);
+        if(oldT.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(404).json({ error: 'פעולה לא נמצאה' }); }
+        
+        const amt = parseFloat(oldT.rows[0].amount);
+        const userId = oldT.rows[0].user_id;
+        const op = oldT.rows[0].type === 'income' ? '-' : '+';
+        
+        await dbClient.query(`UPDATE users SET balance = balance ${op} $1 WHERE id=$2`, [amt, userId]);
+        await dbClient.query('DELETE FROM transactions WHERE id=$1', [id]);
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
+});
+
 app.get('/api/transactions', async (req, res) => {
     try {
         const limit = req.query.limit ? `LIMIT ${parseInt(req.query.limit)}` : '';
@@ -775,7 +875,6 @@ app.get('/api/transactions', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// שינוי חדש: שליפת נתוני התשקיף (Forecast)
 app.get('/api/forecast', async (req, res) => {
     try {
         const { groupId, userId, period, mode } = req.query;
