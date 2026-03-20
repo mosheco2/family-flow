@@ -161,7 +161,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom')");
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom')");
         
         let unifiedActivity = [];
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
@@ -171,15 +171,33 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         });
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         
+        const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
+
+        const stats = {
+            families: groups.rows.filter(g => g.type === 'FAMILY').length,
+            businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
+            familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
+            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length
+        };
+        
         res.json({
-            groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50),
-            welcomeMsg: settings.rows.find(r => r.key === 'welcome_msg')?.value || '',
-            adBannerTextTop: settings.rows.find(r => r.key === 'ad_banner_text_top')?.value || '',
-            adBannerLinkTop: settings.rows.find(r => r.key === 'ad_banner_link_top')?.value || '',
-            adBannerImgTop: settings.rows.find(r => r.key === 'ad_banner_img_top')?.value || '',
-            adBannerTextBottom: settings.rows.find(r => r.key === 'ad_banner_text_bottom')?.value || '',
-            adBannerLinkBottom: settings.rows.find(r => r.key === 'ad_banner_link_bottom')?.value || '',
-            adBannerImgBottom: settings.rows.find(r => r.key === 'ad_banner_img_bottom')?.value || ''
+            groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
+            welcomeMsg: getSet('welcome_msg'),
+            businessWelcomeMsg: getSet('business_welcome_msg'),
+            
+            adBannerTextTop: getSet('ad_banner_text_top'),
+            adBannerLinkTop: getSet('ad_banner_link_top'),
+            adBannerImgTop: getSet('ad_banner_img_top'),
+            adBannerTextBottom: getSet('ad_banner_text_bottom'),
+            adBannerLinkBottom: getSet('ad_banner_link_bottom'),
+            adBannerImgBottom: getSet('ad_banner_img_bottom'),
+            
+            bizBannerTextTop: getSet('business_ad_banner_text_top'),
+            bizBannerLinkTop: getSet('business_ad_banner_link_top'),
+            bizBannerImgTop: getSet('business_ad_banner_img_top'),
+            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'),
+            bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'),
+            bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -195,12 +213,7 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
 app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     try {
         if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
-        if (req.body.adBannerTextTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextTop]);
-        if (req.body.adBannerLinkTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkTop]);
-        if (req.body.adBannerImgTop !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_img_top', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerImgTop]);
-        if (req.body.adBannerTextBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_text_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerTextBottom]);
-        if (req.body.adBannerLinkBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_link_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerLinkBottom]);
-        if (req.body.adBannerImgBottom !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('ad_banner_img_bottom', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.adBannerImgBottom]);
+        if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -215,16 +228,26 @@ app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
 
 app.get('/api/settings/welcome', async (req, res) => {
     try {
-        const s = await pool.query("SELECT value FROM system_settings WHERE key = 'welcome_msg'");
+        const key = req.query.type === 'BUSINESS' ? 'business_welcome_msg' : 'welcome_msg';
+        const s = await pool.query("SELECT value FROM system_settings WHERE key = $1", [key]);
         res.json({ message: s.rows.length > 0 ? s.rows[0].value : '' });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/banners', async (req, res) => {
     try {
-        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom')`);
+        const isBiz = req.query.type === 'BUSINESS';
+        const keys = isBiz ? 
+            "('business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom')" :
+            "('ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom')";
+            
+        const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
-        result.rows.forEach(r => { banners[r.key.replace('ad_', '')] = r.value; });
+        result.rows.forEach(r => { 
+            let k = r.key.replace('business_ad_', 'banner_').replace('ad_', 'banner_');
+            banners[k] = r.value; 
+        });
+        
         res.json({ success: true, banners: { 
             banner_top_text: banners['banner_text_top'], 
             banner_top_link: banners['banner_link_top'], 
@@ -237,14 +260,20 @@ app.get('/api/banners', async (req, res) => {
 });
 
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
-    const { topText, topLink, topImg, bottomText, bottomLink, bottomImg } = req.body;
+    const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg } = req.body;
     const items = [ 
         { k: 'ad_banner_text_top', v: topText || '' }, 
         { k: 'ad_banner_link_top', v: topLink || '' }, 
         { k: 'ad_banner_img_top', v: topImg || '' },
         { k: 'ad_banner_text_bottom', v: bottomText || '' }, 
         { k: 'ad_banner_link_bottom', v: bottomLink || '' },
-        { k: 'ad_banner_img_bottom', v: bottomImg || '' }
+        { k: 'ad_banner_img_bottom', v: bottomImg || '' },
+        { k: 'business_ad_banner_text_top', v: bizTopText || '' }, 
+        { k: 'business_ad_banner_link_top', v: bizTopLink || '' }, 
+        { k: 'business_ad_banner_img_top', v: bizTopImg || '' },
+        { k: 'business_ad_banner_text_bottom', v: bizBottomText || '' }, 
+        { k: 'business_ad_banner_link_bottom', v: bizBottomLink || '' },
+        { k: 'business_ad_banner_img_bottom', v: bizBottomImg || '' }
     ];
     try {
         await pool.query('BEGIN');
@@ -1080,7 +1109,7 @@ app.post('/api/tasks/update', async (req, res) => {
             let amountToPay = finalReward !== undefined ? parseFloat(finalReward) : parseFloat(t.reward);
             if (amountToPay > 0) {
                 await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amountToPay, t.assigned_to]);
-                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, amountToPay, `תגמול אישור משימה/טיקט: ${t.title}`]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, amountToPay, `תגמול משימה/טיקט: ${t.title}`]);
             }
             await dbClient.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', amountToPay, taskId]);
         } else {
@@ -1110,7 +1139,7 @@ app.post('/api/goals/deposit', async (req, res) => {
         if (parseFloat(u.balance) < parseFloat(amount)) { await dbClient.query('ROLLBACK'); return res.status(400).json({ error: 'אין מספיק יתרה' }); }
         await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
         await dbClient.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`, [userId, u.group_id, amount, `הפקדה ליעד: ${g.title}`]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`, [userId, u.group_id, amount, `הפקדה/העברה ליעד: ${g.title}`]);
         await dbClient.query('COMMIT');
         res.json({ success: true });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
