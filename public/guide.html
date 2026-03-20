@@ -31,11 +31,16 @@
         
         /* Smooth scrolling for anchor links */
         html { scroll-behavior: smooth; }
+        
+        /* Custom scrollbar for chat */
+        .chat-scroll::-webkit-scrollbar { width: 6px; }
+        .chat-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <img src="logo.png" alt="Oneflow Life" class="h-10 w-auto object-contain">
@@ -68,7 +73,7 @@
             </div>
         </aside>
 
-        <main class="flex-1">
+        <main class="flex-1 pb-32">
             
             <div class="bg-blue-50 border border-blue-200 p-6 rounded-2xl mb-8">
                 <h2 class="text-xl font-bold text-blue-800 mb-2">ברוכים הבאים לבנק המשפחתי שלכם! 👋</h2>
@@ -371,5 +376,96 @@
         </main>
     </div>
 
+    <div id="guide-chat-container" class="fixed bottom-24 left-6 z-50 flex flex-col gap-3 hidden items-end sm:bottom-6">
+        <div id="guide-chat-window" class="bg-white w-[90vw] sm:w-80 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[60vh] sm:h-96 transition-transform transform translate-y-full opacity-0">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shadow-md z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-lg">🤖</div>
+                    <div>
+                        <span class="font-bold text-sm block leading-none">עוזרת המדריך</span>
+                        <span class="text-[10px] text-blue-200">familAI</span>
+                    </div>
+                </div>
+                <button onclick="toggleGuideChat()" class="text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 text-sm chat-scroll flex flex-col">
+                <div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 w-11/12 self-start leading-relaxed">
+                    היי! אני כאן כדי לעזור לכם להבין איך המערכת עובדת. משהו לא ברור במדריך? פשוט תשאלו אותי! ✨
+                </div>
+            </div>
+            <div class="p-3 bg-white border-t border-slate-100 flex gap-2">
+                <input type="text" id="chat-input" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 transition" placeholder="למשל: איך מוסיפים משימה?" onkeypress="if(event.key==='Enter') sendGuideQuestion()">
+                <button onclick="sendGuideQuestion()" class="w-10 h-10 shrink-0 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition shadow-sm"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+    
+    <button id="guide-chat-fab" onclick="toggleGuideChat()" class="fixed bottom-6 left-6 z-40 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 hover:scale-105 transition transform">
+        <i class="fa-solid fa-robot text-xl"></i>
+        <span class="hidden sm:inline">שאלות?</span>
+    </button>
+
+    <script>
+        function toggleGuideChat() {
+            const win = document.getElementById('guide-chat-window');
+            const container = document.getElementById('guide-chat-container');
+            const fab = document.getElementById('guide-chat-fab');
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                fab.classList.add('hidden');
+                setTimeout(() => {
+                    win.classList.remove('translate-y-full', 'opacity-0');
+                }, 10);
+            } else {
+                win.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => {
+                    container.classList.add('hidden');
+                    fab.classList.remove('hidden');
+                }, 300);
+            }
+        }
+
+        async function sendGuideQuestion() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+            
+            const msgs = document.getElementById('chat-messages');
+            
+            // הוספת הודעת המשתמש
+            msgs.innerHTML += `<div class="bg-blue-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm ml-auto self-end max-w-[90%] leading-relaxed">${text}</div>`;
+            input.value = '';
+            msgs.scrollTop = msgs.scrollHeight;
+            
+            // הוספת אייקון טעינה
+            const loadingId = 'load-' + Date.now();
+            msgs.innerHTML += `<div id="${loadingId}" class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-400 self-start w-fit text-xs flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-blue-500"></i> מחפשת במדריך...</div>`;
+            msgs.scrollTop = msgs.scrollHeight;
+            
+            try {
+                // קריאה לשרת ל-Endpoint של המדריך שנוסיף בהמשך ב-server.js
+                const res = await fetch('/api/guide/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question: text })
+                });
+                const data = await res.json();
+                
+                document.getElementById(loadingId).remove();
+                
+                if(data.success) {
+                    let formatted = data.answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    msgs.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-slate-600 self-start max-w-[95%] leading-relaxed">${formatted}</div>`;
+                } else {
+                    msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed">אופס, שגיאה: ${data.error}</div>`;
+                }
+            } catch(e) {
+                document.getElementById(loadingId).remove();
+                msgs.innerHTML += `<div class="bg-red-50 text-red-600 p-3 rounded-xl rounded-tr-none shadow-sm border border-red-100 self-start w-11/12 leading-relaxed">תקלת רשת. ודאו שאתם מחוברים לאינטרנט ונסו שוב.</div>`;
+            }
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+    </script>
 </body>
 </html>
