@@ -25,7 +25,6 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// התחברות למסד הנתונים והוספת עמודות לתשקיף ולמארזים אם הן חסרות (שדרוג שקט ללא מחיקת נתונים)
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
@@ -54,7 +53,6 @@ const generateGroupCode = () => {
     return code;
 };
 
-// --- פונקציית ניהול "סוללת AI" ומנויי Premium ---
 async function handleAITokens(groupId) {
     try {
         await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [groupId]);
@@ -118,7 +116,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes support for units_per_package)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -169,7 +167,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
         groups.rows.forEach(g => {
             const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
-            unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה משפחה חדשה', amount: 0, is_financial: false });
+            unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
         });
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         
@@ -258,26 +256,31 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     }
 });
 
-// --- EMAIL CREDENTIALS ---
 app.post('/api/admin/send-credentials', async (req, res) => {
     try {
         const { groupId, adminId } = req.body;
         const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
-        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל משפחה מורשה לבצע פעולה זו"});
+        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
 
-        const groupRes = await pool.query("SELECT admin_email, name FROM family_groups WHERE id = $1", [groupId]);
-        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת למשפחה זו. אנא ודאו שהזנתם מייל בעת ההרשמה."});
+        const groupRes = await pool.query("SELECT admin_email, name, type FROM family_groups WHERE id = $1", [groupId]);
+        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת. אנא ודאו שהזנתם מייל בעת ההרשמה."});
         const adminEmail = groupRes.rows[0].admin_email;
         const groupName = groupRes.rows[0].name;
+        const groupType = groupRes.rows[0].type;
 
         const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
         
-        let emailContent = `שלום מנהל/ת משפחת ${groupName},\n\nלהלן פרטי הגישה של כל בני הבית למערכת Oneflow Life:\n\n`;
+        let emailContent = `שלום מנהל/ת ${groupType === 'BUSINESS' ? 'ארגון' : 'משפחת'} ${groupName},\n\nלהלן פרטי הגישה של המשתמשים למערכת Oneflow:\n\n`;
         usersRes.rows.forEach(u => {
-            const roleStr = u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה';
+            let roleStr = '';
+            if (groupType === 'BUSINESS') {
+                roleStr = u.role === 'ADMIN' ? 'מנהל צוות' : 'עובד';
+            } else {
+                roleStr = u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה';
+            }
             emailContent += `שם משתמש: ${u.nickname}\nסיסמה: ${u.password_hash}\nתפקיד: ${roleStr}\n---\n`;
         });
-        emailContent += `\nבברכה,\nצוות Oneflow Life`;
+        emailContent += `\nבברכה,\nצוות Oneflow`;
 
         console.log(`\n======================================\n📨 === EMAIL TO: ${adminEmail} === 📨\n${emailContent}\n======================================\n`);
 
@@ -287,9 +290,9 @@ app.post('/api/admin/send-credentials', async (req, res) => {
                 auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
             });
             await transporter.sendMail({
-                from: `"Oneflow Life" <${process.env.SMTP_USER}>`,
+                from: `"Oneflow" <${process.env.SMTP_USER}>`,
                 to: adminEmail,
-                subject: 'Oneflow Life - פרטי הגישה של המשפחה',
+                subject: 'Oneflow - פרטי גישה של משתמשי הסביבה',
                 text: emailContent
             });
         }
@@ -300,7 +303,6 @@ app.post('/api/admin/send-credentials', async (req, res) => {
     }
 });
 
-// --- GLOBAL PRODUCTS (BARCODES) ---
 app.get('/api/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT barcode, name, category FROM global_products');
@@ -321,13 +323,16 @@ app.post('/api/products', async (req, res) => {
 });
 
 
-// --- AI ENDPOINTS ---
+// ============================================================
+// --- AI ENDPOINTS (ADAPTED FOR FAMILY / BUSINESS) ---
+// ============================================================
+
 app.post('/api/recipes/generate', async (req, res) => {
     try {
         const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) return res.status(500).json({ error: 'מפתח API של בינה מלאכותית חסר בשרת' });
+        if (!genAI) return res.status(500).json({ error: 'מפתח API חסר בשרת' });
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
@@ -347,18 +352,30 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
-        Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
-        { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `Create a professional 5-question multiple-choice training/onboarding quiz in Hebrew about "${topic}" for employees.
+            Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+            { "title": "A clear title for the training", "text_content": "A short professional text before the questions.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        } else {
+            prompt = `Create a fun and educational 5-question multiple-choice quiz in Hebrew about "${topic}" for children aged ${ageGroup}.
+            Requirements: 1. Language MUST be Hebrew. 2. Output strictly as JSON matching this schema:
+            { "title": "A catchy title for the quiz", "text_content": "A short educational text before the questions. Make it engaging.", "questions": [ { "q": "The question text", "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], "correct": 0 } ] }`;
+        }
 
         const result = await model.generateContent(prompt);
         const quizData = JSON.parse(result.response.text());
-        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ('financial', $1, $2, $3, 80, 10.0) RETURNING id`, [ageGroup, quizData.title, quizData.text_content || '']);
+        const bundleType = gType === 'BUSINESS' ? 'professional' : 'financial';
+        const bundleRes = await pool.query(`INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward) VALUES ($1, $2, $3, $4, 80, 10.0) RETURNING id`, [bundleType, ageGroup, quizData.title, quizData.text_content || '']);
         const newBundleId = bundleRes.rows[0].id;
         for (const q of quizData.questions) await pool.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
         res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת המבחן'); }
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הלומדה'); }
 });
 
 app.post('/api/tasks/ai-generate', async (req, res) => {
@@ -368,9 +385,19 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
-        Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an expert organizational manager. Suggest 3 professional tasks, project milestones, or office duties related to the topic: "${topic}". For each task, suggest a fair bonus reward in ILS (integer between 50 and 500).
+            Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 100}, {"title": "task 2", "reward": 200}]`;
+        } else {
+            prompt = `You are an expert in parenting. Suggest 3 age-appropriate household chores or educational tasks for a child aged ${age} related to the topic: "${topic}". For each task, suggest a fair monetary reward in ILS (integer between 5 and 50).
+            Output STRICTLY as a JSON array of objects without any markdown blocks. Example: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
+        }
 
         const result = await model.generateContent(prompt);
         let textResult = result.response.text();
@@ -383,7 +410,7 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
             }
         } catch (parseError) { throw new Error("AI returned invalid JSON format"); }
         res.json({ success: true, tasks: parsedTasks });
-    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת המשימות'); }
+    } catch (e) { handleAIError(e, res, 'שגיאה בפירוק המשימות'); }
 });
 
 app.post('/api/goals/familai-advice', async (req, res) => {
@@ -393,13 +420,22 @@ app.post('/api/goals/familai-advice', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
         const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
         if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
         const user = userRes.rows[0]; const goal = goalRes.rows[0]; const age = calculateAge(user.birth_year);
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a friendly digital character in a family app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Wallet balance: ${user.balance} ILS. Weekly allowance: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. Give a practical 2-step plan to reach their goal faster. Keep it under 4 sentences. Introduce yourself as 'familAI' at the start. Use emojis.`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a smart business advisor. The department/employee ${user.nickname} is tracking a budget/goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Write a short, professional, and encouraging message directly to them in Hebrew. Give a practical 2-step plan to achieve this goal efficiently. Keep it under 4 sentences. Use appropriate emojis.`;
+        } else {
+            prompt = `You are 'familAI', a friendly digital character in a family app. A child named ${user.nickname} (age ${age}) is saving money for a goal called "${goal.title}". Target: ${goal.target_amount} ILS. Current: ${goal.current_amount} ILS. Wallet balance: ${user.balance} ILS. Weekly allowance: ${user.allowance_amount} ILS. Write a short, fun, encouraging message directly to ${user.nickname} in Hebrew. Give a practical 2-step plan to reach their goal faster. Keep it under 4 sentences. Introduce yourself as 'familAI' at the start. Use emojis.`;
+        }
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, advice: result.response.text().trim() });
@@ -413,9 +449,19 @@ app.post('/api/budget/familai-insight', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const txsRes = await pool.query(`SELECT t.amount, t.category, t.type, u.nickname FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id=$1 AND t.date >= date_trunc('month', CURRENT_DATE)`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an intelligent business financial analyst. Analyze these operational expenses from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the management in Hebrew. Mention where most budget went, point out anomalies, and give one smart tip to optimize costs next month. Format as clear, professional text with emojis. Max 4-5 sentences. Start with "שלום הנהלה, מצורף סיכום ביצועי התקציב:"`;
+        } else {
+            prompt = `You are 'familAI', the intelligent financial advisor for a family. Analyze these family transactions from this month: ${JSON.stringify(txsRes.rows)}. Write a short "Executive Summary" for the parents in Hebrew. Mention where most expenses went, point out if kids are earning/saving well, and give one smart tip to save money next month. Format as clear, encouraging text with emojis. Max 4-5 sentences. Start with "היי הורים, כאן familAI עם סיכום התקציב שלכם!"`;
+        }
+
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התקציב'); }
@@ -428,13 +474,23 @@ app.post('/api/pantry/familai-insight', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const pantryRes = await pool.query('SELECT item_name, quantity, unit, updated_at FROM pantry WHERE group_id=$1', [groupId]);
         const historyRes = await pool.query(`SELECT sti.item_name, sti.quantity, sti.unit, sti.price_per_unit, st.trip_date FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE st.group_id=$1 AND st.trip_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')`, [groupId]);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a smart office inventory and procurement manager. Here is the current inventory: ${JSON.stringify(pantryRes.rows)}. Here is the procurement history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the operations/office manager. Compare what they have to what they usually order, and warn them if they might run out of a critical item soon. Give one smart procurement tip. Use emojis. Do not use Markdown formatting. Start with "דוח מלאי ורכש תקופתי:"`;
+        } else {
+            prompt = `You are 'familAI', a smart home inventory and grocery manager. Here is the family's current pantry inventory: ${JSON.stringify(pantryRes.rows)}. Here is their shopping history from the last month: ${JSON.stringify(historyRes.rows)}. Analyze this data in Hebrew. Write a short, smart summary (3-4 sentences) speaking directly to the parents. Compare what they have to what they usually buy, and gently warn them if they might run out of a frequently bought item soon. Give one smart shopping tip or savings recommendation. Start with "היי! כאן familAI מנהלת המזווה שלכם 📦" and use emojis. Do not use Markdown formatting.`;
+        }
+
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
-    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המזווה'); }
+    } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המלאי'); }
 });
 
 app.post('/api/forecast/familai-insight', async (req, res) => {
@@ -444,6 +500,9 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         let txsRes;
         if(targetUserId === 'all') {
             txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE group_id=$1 AND is_recurring = TRUE`, [groupId]);
@@ -452,7 +511,14 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
         }
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a financial advisor. Based on these recurring transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance their cashflow. Use emojis. Do not use Markdown format.`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a corporate financial advisor. Based on these recurring operational transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance the organization's cashflow. Use emojis. Do not use Markdown format.`;
+        } else {
+            prompt = `You are 'familAI', a financial advisor. Based on these recurring transactions expected for the upcoming ${mode === 'monthly' ? 'month' : 'year'}: ${JSON.stringify(txsRes.rows)}, give a short 2-3 sentence advice in Hebrew on how to prepare and balance their cashflow. Use emojis. Do not use Markdown format.`;
+        }
+
         const result = await model.generateContent(prompt);
         res.json({ success: true, insight: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התשקיף'); }
@@ -465,8 +531,18 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are an AI QA manager. An employee claims they completed the task/ticket: "${title}". Look at the attached image proof. Is the task reasonably completed? Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the employee. If verified, acknowledge it professionally. If not, clarify what is missing." }`;
+        } else {
+            prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+        }
+
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const feedback = JSON.parse(result.response.text());
         if(feedback.verified) {
@@ -474,7 +550,7 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
             const baseReward = parseFloat(t.reward) || 0;
             let bonus = 0;
             if(baseReward > 0) {
-                bonus = Math.max(1, Math.round(baseReward * 0.1)); // 10% בונוס מינימום 1 ש"ח
+                bonus = Math.max(1, Math.round(baseReward * 0.1)); 
             }
             const total = baseReward + bonus;
 
@@ -499,14 +575,14 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt. Extract the items purchased, their quantities, and the SINGLE UNIT PRICE. CRITICAL: If there is more than 1 unit of an item, extract ONLY the price for ONE unit. If the receipt only shows the total price for that row, divide the total price by the quantity to get the unit price. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
+        const prompt = `You are 'familAI'. Read this Israeli supermarket receipt or business invoice. Extract the items purchased, their quantities, and the SINGLE UNIT PRICE. CRITICAL: If there is more than 1 unit of an item, extract ONLY the price for ONE unit. If the receipt only shows the total price for that row, divide the total price by the quantity to get the unit price. Return JSON strictly matching this array schema: [ { "name": "Item name in Hebrew", "price": 12.50, "qty": 1 } ]`;
         
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
         const items = JSON.parse(result.response.text());
         let normalizedArray = [];
         try {
             const names = items.map(i => i.name);
-            const normPrompt = `Normalize these grocery product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
+            const normPrompt = `Normalize these product names to generic, brand-less Hebrew names. Return a JSON array of strings in the exact same order. Example: ["חלב תנובה 3%", "במבה אסם 80ג"] -> ["חלב 3%", "במבה"]. Items: ${JSON.stringify(names)}`;
             const normResult = await model.generateContent(normPrompt);
             normalizedArray = JSON.parse(normResult.response.text());
         } catch(e) { console.error(e); }
@@ -517,7 +593,7 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
              await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
         }
         res.json({ success: true, count: items.length });
-    } catch (e) { handleAIError(e, res, 'שגיאה בקריאת הקבלה'); }
+    } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
 });
 
 app.post('/api/academy/tutor', async (req, res) => {
@@ -527,14 +603,23 @@ app.post('/api/academy/tutor', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
+        const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
+
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
+        
+        let prompt = "";
+        if (gType === 'BUSINESS') {
+            prompt = `You are a professional corporate trainer. An employee answered a training question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly and professionally in Hebrew (2-3 sentences max) why the correct answer is right. Be constructive.`;
+        } else {
+            prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
+        }
+
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
     } catch (e) { handleAIError(e, res, 'שגיאה בהבאת ההסבר'); }
 });
 
-// --- תוספת חדשה: צ'אט הדרכה חכם ---
 app.post('/api/guide/chat', async (req, res) => {
     try {
         const { question } = req.body;
@@ -542,7 +627,6 @@ app.post('/api/guide/chat', async (req, res) => {
 
         let guideText = "";
         try {
-            // שולף בצורה דינמית את תוכן המדריך שיושב בתיקיית public
             guideText = fs.readFileSync(path.join(__dirname, 'public', 'guide.html'), 'utf-8');
         } catch(e) {
             guideText = "Oneflow Life is a family financial and task management app.";
@@ -586,7 +670,7 @@ app.post('/api/join', async (req, res) => {
     try {
         const { groupCode, nickname, birthYear, password, role } = req.body;
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה לא חוקי' });
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד לא חוקי' });
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
         await pool.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, [group.id, nickname, birthYear, password, reqRole]);
@@ -597,7 +681,7 @@ app.post('/api/join', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד משפחה שגוי' });
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי' });
         const group = gRes.rows[0];
         const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
         if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
@@ -756,7 +840,7 @@ app.post('/api/admin/payday', async (req, res) => {
             const totalAdded = allowance + interest;
             if(totalAdded > 0) {
                 await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [totalAdded, child.id]);
-                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, [child.id, req.body.groupId, totalAdded, `יום תשלום: ${allowance} דמי כיס + ${interest.toFixed(2)} ריבית`]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'allowance', 'income', FALSE)`, [child.id, req.body.groupId, totalAdded, `יום תשלום: ${allowance} תקציב + ${interest.toFixed(2)} בונוס`]);
                 totalDistributed += totalAdded;
             }
         }
@@ -996,7 +1080,7 @@ app.post('/api/tasks/update', async (req, res) => {
             let amountToPay = finalReward !== undefined ? parseFloat(finalReward) : parseFloat(t.reward);
             if (amountToPay > 0) {
                 await dbClient.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [amountToPay, t.assigned_to]);
-                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, amountToPay, `תגמול משימה/מעשה טוב: ${t.title}`]);
+                await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'tasks', 'income', FALSE)`, [t.assigned_to, t.group_id, amountToPay, `תגמול אישור משימה/טיקט: ${t.title}`]);
             }
             await dbClient.query('UPDATE tasks SET status = $1, reward = $2 WHERE id = $3', ['approved', amountToPay, taskId]);
         } else {
@@ -1164,14 +1248,14 @@ app.post('/api/loans/approve', async (req, res) => {
         const { loanId, adminId } = req.body;
         await dbClient.query('BEGIN');
         const adminCheck = await dbClient.query(`SELECT group_id FROM users WHERE id = $1 AND role = 'ADMIN'`, [adminId]);
-        if (adminCheck.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(403).json({ error: 'רק מנהל יכול לאשר הלוואות' }); }
+        if (adminCheck.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(403).json({ error: 'רק מנהל יכול לאשר בקשות אלו' }); }
         const loanRes = await dbClient.query(`SELECT * FROM loans WHERE id = $1 AND status = 'pending'`, [loanId]);
-        if (loanRes.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(404).json({ error: 'הלוואה לא נמצאה או כבר טופלה' }); }
+        if (loanRes.rows.length === 0) { await dbClient.query('ROLLBACK'); return res.status(404).json({ error: 'בקשה לא נמצאה או כבר טופלה' }); }
         const loan = loanRes.rows[0];
         await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id = $2', [loan.original_amount, loan.user_id]);
         await dbClient.query(
             `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'loan', 'income', FALSE)`,
-            [loan.user_id, loan.group_id, loan.original_amount, `הלוואה אושרה: ${loan.reason || 'הלוואה מההורים'}`]
+            [loan.user_id, loan.group_id, loan.original_amount, `בקשה אושרה: ${loan.reason || 'מקדמה/החזר הוצאות'}`]
         );
         await dbClient.query(`UPDATE loans SET status = 'approved' WHERE id = $1`, [loanId]);
         await dbClient.query('COMMIT');
@@ -1183,7 +1267,7 @@ app.post('/api/loans/reject', async (req, res) => {
     try {
         const { loanId, adminId } = req.body;
         const adminCheck = await pool.query(`SELECT id FROM users WHERE id = $1 AND role = 'ADMIN'`, [adminId]);
-        if (adminCheck.rows.length === 0) return res.status(403).json({ error: 'רק מנהל יכול לדחות הלוואות' });
+        if (adminCheck.rows.length === 0) return res.status(403).json({ error: 'רק מנהל יכול לדחות' });
         await pool.query(`UPDATE loans SET status = 'rejected' WHERE id = $1`, [loanId]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1219,9 +1303,9 @@ app.post('/api/academy/request-challenge', async (req, res) => {
             const ageGroup = getAgeGroup(age);
             const assigned = await pool.query('SELECT bundle_id FROM user_assignments WHERE user_id=$1', [userId]);
             const assignedIds = assigned.rows.map(r => r.bundle_id);
-            const available = await pool.query('SELECT id FROM quiz_bundles WHERE age_group=$1', [ageGroup]);
+            const available = await pool.query('SELECT id FROM quiz_bundles WHERE age_group=$1 OR age_group=\'18+\'', [ageGroup]);
             const choices = available.rows.filter(b => !assignedIds.includes(b.id));
-            if (choices.length === 0) return res.json({ success: false, error: 'אין אתגרים זמינים לגיל שלך כרגע' });
+            if (choices.length === 0) return res.json({ success: false, error: 'אין הכשרות זמינות עבורך כרגע' });
             finalBundleId = choices[Math.floor(Math.random() * choices.length)].id;
         }
         await pool.query('INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2)', [userId, finalBundleId]);
@@ -1248,7 +1332,7 @@ app.post('/api/academy/submit', async (req, res) => {
             await dbClient.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [finalReward, userId]);
             await dbClient.query(
                 `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'academy', 'income', FALSE)`,
-                [userId, uRes.rows[0].group_id, finalReward, `תגמול אקדמיה: ${score}%`]
+                [userId, uRes.rows[0].group_id, finalReward, `תמריץ השלמת הכשרה/נוהל: ${score}%`]
             );
         }
         await dbClient.query('COMMIT');
@@ -1272,7 +1356,7 @@ app.post('/api/shopping/add', async (req, res) => {
         if (genAI) {
             try {
                 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-                const prompt = `Normalize this grocery product name to a generic, brand-less Hebrew name. For example: 'חלב תנובה 3% קרטון' -> 'חלב 3%'. Product: "${req.body.itemName}". Output JSON: {"normalized": "..."}`;
+                const prompt = `Normalize this product name to a generic Hebrew name. For example: 'נייר צילום A4 חבילה' -> 'נייר צילום A4'. Product: "${req.body.itemName}". Output JSON: {"normalized": "..."}`;
                 const result = await model.generateContent(prompt);
                 const data = JSON.parse(result.response.text());
                 if(data.normalized) normalizedName = data.normalized;
@@ -1314,7 +1398,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
         await dbClient.query('BEGIN');
         const { userId, totalAmount, storeName, branchName, boughtItems, missingItems } = req.body;
         const u = (await dbClient.query('SELECT group_id FROM users WHERE id=$1', [userId])).rows[0];
-        const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.group_id, userId, storeName || 'סופר', branchName || '', totalAmount]);
+        const tripRes = await dbClient.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [u.group_id, userId, storeName || 'ספק כלשהו', branchName || '', totalAmount]);
         const tripId = tripRes.rows[0].id;
         
         for (let item of boughtItems) {
@@ -1335,7 +1419,7 @@ app.post('/api/shopping/checkout', async (req, res) => {
             await dbClient.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
         for (let item of missingItems) { await dbClient.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'groceries', 'expense', FALSE)`, [userId, u.group_id, totalAmount, `קניות בסופר: ${storeName}`]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'office', 'expense', FALSE)`, [userId, u.group_id, totalAmount, `הזמנת רכש מאת: ${storeName}`]);
         await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [totalAmount, userId]);
         await dbClient.query('COMMIT');
         res.json({ success: true });
@@ -1417,7 +1501,7 @@ app.post('/api/pantry/use', async (req, res) => {
             }
             res.json({ success: true, remaining: newQty <= 0 ? 0 : newQty });
         } else {
-            res.json({ success: false, error: 'המוצר לא נמצא במזווה' });
+            res.json({ success: false, error: 'המוצר לא נמצא במלאי' });
         }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
