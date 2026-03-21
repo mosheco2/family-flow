@@ -1049,7 +1049,54 @@
 
     </div>
 
-    <script src="business-app.js" defer></script>
+    <script>
+        function checkShopUnit() {
+            const unit = document.getElementById('shop-unit').value;
+            const container = document.getElementById('shop-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('shop-upp').value = 1;
+            }
+        }
+        
+        function checkPantryUnit() {
+            const unit = document.getElementById('pantry-unit').value;
+            const container = document.getElementById('pantry-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('pantry-upp').value = 1;
+            }
+        }
+
+        function toggleTransType(type) {
+            const isRecurring = type === 'recurring';
+            document.getElementById('trans-is-recurring').value = isRecurring;
+            document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition';
+            document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition';
+            
+            if (isRecurring) {
+                document.getElementById('trans-end-date-container').classList.remove('hidden');
+            } else {
+                document.getElementById('trans-end-date-container').classList.add('hidden');
+                document.getElementById('trans-end-month').value = '';
+            }
+        }
+        
+        function toggleAdjustmentType(type) {
+            const isAdd = type === 'add';
+            document.getElementById('adjustment-type').value = type;
+            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
+            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
+        }
+    </script>
+
+    <script src="/common.js"></script>
+    
+    <script src="/app-business.js"></script>
     
     <script>
         if ('serviceWorker' in navigator) {
