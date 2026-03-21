@@ -38,6 +38,11 @@ pool.connect().then(async (client) => {
             CREATE TABLE IF NOT EXISTS budget_allocations ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), limit_amount DECIMAL, target_user_id VARCHAR(20) DEFAULT 'all' );
             CREATE TABLE IF NOT EXISTS quiz_assignments ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT, status VARCHAR(20) DEFAULT 'assigned', score INT, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
         `);
+        
+        // שדרוגים שקטים (הוספת עמודות שיווק ומייל למסד הקיים)
+        try { await client.query('ALTER TABLE users ADD COLUMN email VARCHAR(150)'); } catch(e) {}
+        try { await client.query('ALTER TABLE users ADD COLUMN marketing_consent BOOLEAN DEFAULT FALSE'); } catch(e) {}
+        
     } catch(e) { console.error('DB Init Error:', e); } finally { client.release(); }
 }).catch(err => console.error('DB Connection Error:', err));
 
@@ -45,11 +50,15 @@ pool.connect().then(async (client) => {
 // Authentication
 // ==========================================
 app.post('/api/groups', async (req, res) => {
-    const { type, groupName, adminEmail, adminNickname, birthYear, password } = req.body;
+    const { type, groupName, adminEmail, adminNickname, birthYear, password, marketingConsent } = req.body;
     try {
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const gRes = await pool.query('INSERT INTO family_groups (name, group_code, type) VALUES ($1, $2, $3) RETURNING *', [groupName, code, type || 'FAMILY']);
-        const uRes = await pool.query('INSERT INTO users (group_id, nickname, password, role, birth_year) VALUES ($1, $2, $3, $4, $5) RETURNING id, nickname, role, balance', [gRes.rows[0].id, adminNickname, password, 'ADMIN', birthYear]);
+        // הוספנו כאן שמירה של המייל והאישור השיווקי בטבלת users
+        const uRes = await pool.query(
+            'INSERT INTO users (group_id, nickname, password, role, birth_year, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nickname, role, balance', 
+            [gRes.rows[0].id, adminNickname, password, 'ADMIN', birthYear, adminEmail, marketingConsent || false]
+        );
         res.json({ success: true, group: gRes.rows[0], user: uRes.rows[0] });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -83,7 +92,7 @@ app.get('/api/group/members', async (req, res) => {
 });
 
 // ==========================================
-// Super Admin Routes (Added!)
+// Super Admin Routes
 // ==========================================
 let globalWelcomeMsg = 'ברוכים הבאים ל-Oneflow 360!';
 let globalBanners = {};
