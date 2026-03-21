@@ -106,7 +106,7 @@ function val(id) {
 
 function showToast(t, m) { 
     const el = document.getElementById('toast'); 
-    if (!el) { console.warn('Toast Message:', m); return; } // הגנה מפני קריסת קוד אם ה-Toast חסר
+    if (!el) { console.warn('Toast Message:', m); return; } // הגנה מפני קריסה אם חסר ב-HTML
     const icon = document.getElementById('toast-icon'); 
     el.classList.remove('hidden'); 
     document.getElementById('toast-message').innerText = m; 
@@ -114,10 +114,13 @@ function showToast(t, m) {
     setTimeout(() => el.classList.add('hidden'), 3000); 
 }
 
-function toggleLoader(a,s) { 
+function toggleLoader(a, s) { 
     const txt = document.getElementById(`btn-${a}-text`); 
     const ldr = document.getElementById(`btn-${a}-loader`); 
-    if(txt && ldr) { txt.classList.toggle('hidden',s); ldr.classList.toggle('hidden',!s); } 
+    if(txt && ldr) { 
+        txt.classList.toggle('hidden', s); 
+        ldr.classList.toggle('hidden', !s); 
+    } 
 }
 
 function triggerConfetti() { 
@@ -249,40 +252,59 @@ function switchView(view) {
 function selectType(t) { 
     document.getElementById('create-type').value=t; 
     document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`; 
-    // תיקון הבעיה של כפתור עסקים:
     document.getElementById('type-business').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='BUSINESS'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`; 
 }
 
 async function handleLogin(e) { 
     e.preventDefault(); 
     window.forceTourStart = false; 
-    authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); 
+    authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }, 'login'); 
 }
 
 async function handleCreate(e) { 
     e.preventDefault(); 
     const tos = document.getElementById('create-tos');
     if(tos && !tos.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    
+    const marketing = document.getElementById('create-marketing');
+    const marketingConsent = marketing ? marketing.checked : false;
+
     window.forceTourStart = true; 
-    authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); 
+    authAction('groups', { 
+        type: val('create-type'), 
+        groupName: val('create-group-name'), 
+        adminEmail: val('create-email'), 
+        adminNickname: val('create-nickname'), 
+        birthYear: val('create-year'), 
+        password: val('create-password'),
+        marketingConsent: marketingConsent
+    }, 'create'); 
 }
 
 async function handleJoin(e) { 
     e.preventDefault(); 
     const tos = document.getElementById('join-tos');
     if(tos && !tos.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    
     window.forceTourStart = true; 
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
-    const d=await res.json(); 
-    if(d.success) { 
-        showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); 
-        window.history.replaceState({}, document.title, window.location.pathname); 
-        switchView('login'); 
-    } else showToast('error', d.error); 
+    toggleLoader('join', true);
+    try {
+        const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
+        const d = await res.json(); 
+        if(d.success) { 
+            showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); 
+            window.history.replaceState({}, document.title, window.location.pathname); 
+            switchView('login'); 
+        } else showToast('error', d.error); 
+    } catch(err) {
+        showToast('error', 'שגיאת תקשורת: ' + err.message);
+    } finally {
+        toggleLoader('join', false);
+    }
 }
 
-async function authAction(endpoint, body) { 
-    toggleLoader('login', true); 
+async function authAction(endpoint, body, loaderId = 'login') { 
+    toggleLoader(loaderId, true); 
     try { 
         const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
         const data = await res.json(); 
@@ -291,8 +313,15 @@ async function authAction(endpoint, body) {
             currentGroup = data.group; 
             localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             routeAppBasedOnType(); 
-        } else showToast('error', data.error); 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+        } else {
+            showToast('error', data.error); 
+        }
+    } catch(e) { 
+        console.error('Auth Error:', e);
+        showToast('error', 'שגיאה בחיבור לשרת: ' + e.message); 
+    } finally { 
+        toggleLoader(loaderId, false); 
+    } 
 }
 
 function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
@@ -326,6 +355,7 @@ function closeAccessibilityModal() { const el = document.getElementById('accessi
 
 async function handleSALogin(e) {
     e.preventDefault();
+    toggleLoader('sa-login', true);
     try {
         const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) }); 
         const data = await res.json();
@@ -336,7 +366,8 @@ async function handleSALogin(e) {
             document.getElementById('sa-dashboard-container').classList.remove('hidden'); 
             loadSAData(); 
         } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+    } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת: ' + err.message); }
+    finally { toggleLoader('sa-login', false); }
 }
 
 function logoutSA() { 
