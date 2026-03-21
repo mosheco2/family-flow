@@ -1277,12 +1277,6 @@
     </div>
 
     <script>
-        function selectType(t) {
-            document.getElementById('create-type').value = t;
-            document.getElementById('type-family').className = `flex-1 p-4 rounded-2xl border-2 text-center transition ${t === 'FAMILY' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold' : 'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`;
-            document.getElementById('type-business').className = `flex-1 p-4 rounded-2xl border-2 text-center transition ${t === 'BUSINESS' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold' : 'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`;
-        }
-        
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
             const container = document.getElementById('shop-upp-container');
@@ -1304,29 +1298,11 @@
                 document.getElementById('pantry-upp').value = 1;
             }
         }
-
-        function toggleTransType(type) {
-            const isRecurring = type === 'recurring';
-            document.getElementById('trans-is-recurring').value = isRecurring;
-            document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-            document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-            
-            if (isRecurring) {
-                document.getElementById('trans-end-date-container').classList.remove('hidden');
-            } else {
-                document.getElementById('trans-end-date-container').classList.add('hidden');
-                document.getElementById('trans-end-month').value = '';
-            }
-        }
-        
-        function toggleAdjustmentType(type) {
-            const isAdd = type === 'add';
-            document.getElementById('adjustment-type').value = type;
-            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
-            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
-        }
     </script>
-    <script src="app.js" defer></script>
+    
+    <script src="/common.js"></script>
+    
+    <script src="/app-family.js"></script>
     
     <script>
         if ('serviceWorker' in navigator) {
