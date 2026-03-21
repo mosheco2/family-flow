@@ -78,17 +78,19 @@ window.onload = async () => {
 };
 
 function routeAppBasedOnType() {
+    const isBusinessPage = window.location.pathname.includes('business.html');
+    
     if (currentGroup && currentGroup.type === 'BUSINESS') {
-        if (typeof loadBusinessDashboard === 'function') {
+        if (isBusinessPage && typeof loadBusinessDashboard === 'function') {
             loadBusinessDashboard();
         } else {
-            showToast('error', 'מודול עסקים עדיין לא נטען במלואו');
+            window.location.href = '/business.html'; 
         }
     } else {
-        if (typeof loadFamilyDashboard === 'function') {
+        if (!isBusinessPage && typeof loadFamilyDashboard === 'function') {
             loadFamilyDashboard();
         } else {
-            showToast('error', 'מודול משפחות עדיין לא נטען במלואו');
+            window.location.href = '/index.html'; 
         }
     }
 }
@@ -97,15 +99,19 @@ function routeAppBasedOnType() {
 // UI Helpers & Utilities
 // ==========================================
 
-function val(id) { return document.getElementById(id).value; }
+function val(id) { 
+    const el = document.getElementById(id);
+    return el ? el.value : ''; 
+}
 
-function showToast(t,m) { 
-    const el=document.getElementById('toast'); 
+function showToast(t, m) { 
+    const el = document.getElementById('toast'); 
+    if (!el) { console.warn('Toast Message:', m); return; } // הגנה מפני קריסת קוד אם ה-Toast חסר
     const icon = document.getElementById('toast-icon'); 
     el.classList.remove('hidden'); 
-    document.getElementById('toast-message').innerText=m; 
-    icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; 
-    setTimeout(()=>el.classList.add('hidden'),3000); 
+    document.getElementById('toast-message').innerText = m; 
+    if (icon) icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400'; 
+    setTimeout(() => el.classList.add('hidden'), 3000); 
 }
 
 function toggleLoader(a,s) { 
@@ -189,11 +195,15 @@ async function checkGlobalWelcome() {
         if (data.message && data.message.trim() !== '') {
             const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
             if (seen !== data.message) { 
-                document.getElementById('welcome-modal-text').innerText = data.message; 
-                setupPwaInstallSection(); 
-                document.getElementById('welcome-modal').classList.remove('hidden'); 
-                window.pendingWelcomeMsg = data.message; 
-                return true; 
+                const textEl = document.getElementById('welcome-modal-text');
+                const modalEl = document.getElementById('welcome-modal');
+                if(textEl && modalEl) {
+                    textEl.innerText = data.message; 
+                    setupPwaInstallSection(); 
+                    modalEl.classList.remove('hidden'); 
+                    window.pendingWelcomeMsg = data.message; 
+                    return true; 
+                }
             }
         }
     } catch(e) {} 
@@ -201,7 +211,8 @@ async function checkGlobalWelcome() {
 }
 
 function closeWelcomeModal() { 
-    document.getElementById('welcome-modal').classList.add('hidden'); 
+    const modal = document.getElementById('welcome-modal');
+    if(modal) modal.classList.add('hidden'); 
     if (window.pendingWelcomeMsg) { 
         localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); 
     } 
@@ -216,7 +227,8 @@ function closeWelcomeModal() {
 // ==========================================
 
 function hidePreloaderAndShowAuth(view = 'login') {
-    document.getElementById('auth-container').classList.remove('hidden'); 
+    const authCont = document.getElementById('auth-container');
+    if(authCont) authCont.classList.remove('hidden'); 
     switchView(view);
     const preloader = document.getElementById('app-preloader');
     if (preloader) { 
@@ -226,14 +238,19 @@ function hidePreloaderAndShowAuth(view = 'login') {
 }
 
 function switchView(view) { 
-    ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); 
-    document.getElementById(`view-${view}`).classList.remove('hidden'); 
+    ['login','create','join', 'sa-login'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if(el) el.classList.add('hidden');
+    }); 
+    const target = document.getElementById(`view-${view}`);
+    if(target) target.classList.remove('hidden'); 
 }
 
 function selectType(t) { 
     document.getElementById('create-type').value=t; 
-    document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
-    document.getElementById('type-group').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; 
+    document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`; 
+    // תיקון הבעיה של כפתור עסקים:
+    document.getElementById('type-business').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='BUSINESS'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`; 
 }
 
 async function handleLogin(e) { 
@@ -244,14 +261,16 @@ async function handleLogin(e) {
 
 async function handleCreate(e) { 
     e.preventDefault(); 
-    if(!document.getElementById('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    const tos = document.getElementById('create-tos');
+    if(tos && !tos.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
     window.forceTourStart = true; 
     authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); 
 }
 
 async function handleJoin(e) { 
     e.preventDefault(); 
-    if(!document.getElementById('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    const tos = document.getElementById('join-tos');
+    if(tos && !tos.checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
     window.forceTourStart = true; 
     const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
     const d=await res.json(); 
@@ -298,8 +317,8 @@ function applyAccessibility() {
 }
 function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
-function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
-function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
+function openAccessibilityModal() { const el = document.getElementById('accessibility-modal'); if(el) el.classList.remove('hidden'); }
+function closeAccessibilityModal() { const el = document.getElementById('accessibility-modal'); if(el) el.classList.add('hidden'); }
 
 // ==========================================
 // Super Admin & Banners
@@ -317,7 +336,7 @@ async function handleSALogin(e) {
             document.getElementById('sa-dashboard-container').classList.remove('hidden'); 
             loadSAData(); 
         } else { showToast('error', data.error); }
-    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
+    } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 function logoutSA() { 
@@ -328,21 +347,6 @@ function logoutSA() {
     switchView('login'); 
 }
 
-async function updateSACredentials() {
-    const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
-    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
-    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); 
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); 
-            document.getElementById('sa-new-username').value = ''; 
-            document.getElementById('sa-new-password').value = ''; 
-        } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
-}
-
 async function loadSAData() {
     fetchBanners();
     try {
@@ -350,22 +354,28 @@ async function loadSAData() {
         const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
         
-        document.getElementById('sa-welcome-msg').value = data.welcomeMsg || '';
-        const actList = document.getElementById('sa-activity-list');
-        actList.innerHTML = data.activity.map(a => { 
-            const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; 
-            return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | סביבת <span class="text-blue-600 font-bold">${a.group_name}</span> | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`; 
-        }).join('');
+        const wMsg = document.getElementById('sa-welcome-msg');
+        if(wMsg) wMsg.value = data.welcomeMsg || '';
+
+        saAllGroups = data.groups || []; 
+        saAllUsers = data.users || []; 
+
+        const families = saAllGroups.filter(g => g.type !== 'BUSINESS');
+        const businesses = saAllGroups.filter(g => g.type === 'BUSINESS');
         
-        if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
-        saAllGroups = data.groups; 
-        saAllUsers = data.users; 
+        if(document.getElementById('sa-stat-families')) document.getElementById('sa-stat-families').innerText = families.length;
+        if(document.getElementById('sa-stat-businesses')) document.getElementById('sa-stat-businesses').innerText = businesses.length;
+        if(document.getElementById('sa-stat-fam-users')) document.getElementById('sa-stat-fam-users').innerText = saAllUsers.filter(u => families.some(f => f.id === u.group_id)).length;
+        if(document.getElementById('sa-stat-biz-users')) document.getElementById('sa-stat-biz-users').innerText = saAllUsers.filter(u => businesses.some(b => b.id === u.group_id)).length;
+
         renderSAGroups();
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 function renderSAGroups(filterText = '') {
     const groupsList = document.getElementById('sa-groups-list'); 
+    if(!groupsList) return;
+    
     let gHtml = ''; 
     const term = filterText.toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
