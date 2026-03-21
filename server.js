@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -10,7 +11,12 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
-app.use(express.static('public'));
+
+// ==========================================
+// פתרון השגיאה: טעינה חכמה של קבצים סטטיים
+// ==========================================
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname)); 
 
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
@@ -39,7 +45,6 @@ pool.connect().then(async (client) => {
             CREATE TABLE IF NOT EXISTS quiz_assignments ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT, status VARCHAR(20) DEFAULT 'assigned', score INT, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
         `);
         
-        // שדרוגים שקטים (הוספת עמודות שיווק ומייל למסד הקיים)
         try { await client.query('ALTER TABLE users ADD COLUMN email VARCHAR(150)'); } catch(e) {}
         try { await client.query('ALTER TABLE users ADD COLUMN marketing_consent BOOLEAN DEFAULT FALSE'); } catch(e) {}
         
@@ -54,7 +59,6 @@ app.post('/api/groups', async (req, res) => {
     try {
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const gRes = await pool.query('INSERT INTO family_groups (name, group_code, type) VALUES ($1, $2, $3) RETURNING *', [groupName, code, type || 'FAMILY']);
-        // הוספנו כאן שמירה של המייל והאישור השיווקי בטבלת users
         const uRes = await pool.query(
             'INSERT INTO users (group_id, nickname, password, role, birth_year, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nickname, role, balance', 
             [gRes.rows[0].id, adminNickname, password, 'ADMIN', birthYear, adminEmail, marketingConsent || false]
@@ -99,11 +103,8 @@ let globalBanners = {};
 
 app.post('/api/superadmin/login', (req, res) => {
     const { code, password } = req.body;
-    if (code === 'admin' && password === '123456') {
-        res.json({ success: true, token: 'SA_TOKEN_SECRET' });
-    } else {
-        res.status(401).json({ success: false, error: 'פרטי גישה שגויים' });
-    }
+    if (code === 'admin' && password === '123456') { res.json({ success: true, token: 'SA_TOKEN_SECRET' }); } 
+    else { res.status(401).json({ success: false, error: 'פרטי גישה שגויים' }); }
 });
 
 app.get('/api/superadmin/data', async (req, res) => {
@@ -281,6 +282,25 @@ async function decrementAITokens(groupId) {
     }
 }
 
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+// ==========================================
+// ניתוב חכם (מונע שגיאות 404 ו-Cannot GET)
+// ==========================================
+app.get('*', (req, res) => {
+    // נבדוק קודם אם הקובץ קיים ב-public, ואם לא - נביא מהתיקייה הראשית
+    const publicPath = path.join(__dirname, 'public', req.path === '/' ? 'index.html' : req.path);
+    const rootPath = path.join(__dirname, req.path === '/' ? 'index.html' : req.path);
+    
+    if (fs.existsSync(publicPath)) {
+        res.sendFile(publicPath);
+    } else if (fs.existsSync(rootPath)) {
+        res.sendFile(rootPath);
+    } else {
+        // אם הקובץ לא נמצא, נחזיר תמיד את ה-index.html כברירת מחדל (מצוין ל-SPA)
+        const fallbackIndex = fs.existsSync(path.join(__dirname, 'public', 'index.html')) 
+            ? path.join(__dirname, 'public', 'index.html') 
+            : path.join(__dirname, 'index.html');
+        res.sendFile(fallbackIndex);
+    }
+});
 
 app.listen(port, () => { console.log(`🚀 Server running on port ${port}`); });
