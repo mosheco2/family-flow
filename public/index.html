@@ -26,7 +26,6 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-N41PLXRX0Q');
     </script>
     
@@ -120,6 +119,10 @@
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
+    </div>
+
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
         <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
@@ -145,9 +148,9 @@
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (משפחה/עסק)">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex items-center justify-center gap-2 text-lg">
                         <span id="btn-login-text">כניסה</span>
-                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                        <div id="btn-login-loader" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     </button>
                 </form>
                 <div class="mt-8 text-center text-sm space-y-3 pb-8">
@@ -176,11 +179,20 @@
                         <div class="flex items-start gap-2">
                             <label class="cursor-pointer flex items-start gap-2">
                                 <input type="checkbox" id="create-tos" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" class="text-blue-600 font-bold underline bg-transparent border-none p-0">תקנון ותנאי השימוש</button> (חובה)</span>
+                                <span class="text-[11px] text-slate-600 leading-tight">קראתי ואני מאשר/ת את <button type="button" class="text-blue-600 font-bold underline bg-transparent border-none p-0" onclick="openTosModal(event)">תקנון ותנאי השימוש</button> (חובה)</span>
+                            </label>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <label class="cursor-pointer flex items-start gap-2">
+                                <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5" checked>
+                                <span class="text-[11px] text-slate-600 leading-tight">אני מאשר/ת קבלת עדכונים, טיפים וחומר פרסומי לכתובת המייל</span>
                             </label>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
+                    <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg flex items-center justify-center gap-2">
+                        <span id="btn-create-text">סיום והרשמה</span>
+                        <div id="btn-create-loader" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </button>
                     <p class="text-[10px] text-slate-400 text-center mt-2">בסיום יווצר קוד כניסה ייחודי לסביבה שלכם.</p>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
@@ -194,7 +206,10 @@
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
-                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg">שלח בקשת הצטרפות</button>
+                    <button type="submit" class="w-full bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 mt-2 text-lg flex items-center justify-center gap-2">
+                        <span id="btn-join-text">שלח בקשת הצטרפות</span>
+                        <div id="btn-join-loader" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </button>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
@@ -204,7 +219,10 @@
                 <form onsubmit="handleSALogin(event)" class="space-y-4">
                     <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input">
                     <input type="password" id="sa-password" required placeholder="סיסמה (123456)" class="modern-input">
-                    <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2">הכנס לניהול</button>
+                    <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg mt-2 flex items-center justify-center gap-2">
+                        <span id="btn-sa-login-text">הכנס לניהול</span>
+                        <div id="btn-sa-login-loader" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    </button>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">חזור</button>
             </div>
@@ -484,7 +502,7 @@
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="font-bold text-slate-800 text-lg">ניהול תזרים 💸</h3>
                             </div>
-                            <p class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן ניתן לראות ולערוך את כל הפעולות מהעבר.</p>
+                            <p class="text-xs text-slate-50 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן ניתן לראות ולערוך את כל הפעולות מהעבר.</p>
                             
                             <div class="flex gap-2 mb-4">
                                  <select id="cashflow-user-filter" onchange="renderCashflow()" class="modern-input py-2 text-sm bg-slate-50 flex-1 hidden"></select>
@@ -1298,10 +1316,30 @@
                 document.getElementById('pantry-upp').value = 1;
             }
         }
+
+        function toggleTransType(type) {
+            const isRecurring = type === 'recurring';
+            document.getElementById('trans-is-recurring').value = isRecurring;
+            document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+            document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+            
+            if (isRecurring) {
+                document.getElementById('trans-end-date-container').classList.remove('hidden');
+            } else {
+                document.getElementById('trans-end-date-container').classList.add('hidden');
+                document.getElementById('trans-end-month').value = '';
+            }
+        }
+        
+        function toggleAdjustmentType(type) {
+            const isAdd = type === 'add';
+            document.getElementById('adjustment-type').value = type;
+            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
+            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
+        }
     </script>
     
     <script src="/common.js"></script>
-    
     <script src="/app-family.js"></script>
     
     <script>
@@ -1311,11 +1349,5 @@
             });
         }
     </script>
-<body class="text-slate-800 bg-slate-50 relative">
-
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
-        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
-    </div>
-    <div id="app-preloader" class="...">
 </body>
 </html>
