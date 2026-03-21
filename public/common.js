@@ -2,7 +2,11 @@
 // Oneflow - Core & Common Functionality
 // ==========================================
 
-const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+// ניתוב חכם ל-API - מזהה אוטומטית אם אנחנו בשרת מקומי (פיתוח) או ב-Render (פרודקשן)
+let API = '/api';
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+    API = 'http://localhost:3000/api';
+}
 
 // Global State
 let currentUser = null; 
@@ -106,7 +110,7 @@ function val(id) {
 
 function showToast(t, m) { 
     const el = document.getElementById('toast'); 
-    if (!el) { console.warn('Toast Message:', m); return; } // הגנה מפני קריסה אם חסר ב-HTML
+    if (!el) { console.warn('Toast Message:', m); return; } 
     const icon = document.getElementById('toast-icon'); 
     el.classList.remove('hidden'); 
     document.getElementById('toast-message').innerText = m; 
@@ -400,7 +404,7 @@ async function loadSAData() {
         if(document.getElementById('sa-stat-biz-users')) document.getElementById('sa-stat-biz-users').innerText = saAllUsers.filter(u => businesses.some(b => b.id === u.group_id)).length;
 
         renderSAGroups();
-    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול: ' + e.message); }
 }
 
 function renderSAGroups(filterText = '') {
