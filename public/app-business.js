@@ -1,5 +1,5 @@
 // ==========================================
-// Oneflow 360 Pro - Business Module (B2B)
+// Oneflow Life - Business Module (B2B)
 // ==========================================
 
 // --- State Variables ---
@@ -49,23 +49,34 @@ for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT
 // ==========================================
 
 async function loadBusinessDashboard() {
+    // מורידים את מסך הטעינה באופן מיידי כדי למנוע תקיעות
+    const preloader = document.getElementById('app-preloader'); 
+    if (preloader) { 
+        preloader.classList.add('opacity-0', 'pointer-events-none'); 
+        setTimeout(() => preloader.classList.add('hidden'), 700); 
+    }
+    
     document.getElementById('auth-container').classList.add('hidden');
     const dashContainer = document.getElementById('dashboard-container');
     if (dashContainer) dashContainer.classList.remove('hidden');
     const fabContainer = document.getElementById('fab-container');
     if (fabContainer) fabContainer.classList.remove('hidden');
     
-    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} <span class="text-[10px] font-mono bg-slate-800 text-white px-2 py-0.5 rounded-full tracking-widest ml-2">PRO</span>`;
+    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} <span class="text-[10px] font-mono bg-slate-800 text-white px-2 py-0.5 rounded-full tracking-widest ml-2">LIFE</span>`;
     document.getElementById('dash-nickname').innerText = currentUser.nickname;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.employee-only').forEach(el => el.classList.add('hidden'));
         ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות לאישור הנהלה';
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> חבילת Enterprise פעילה</p>'; }
         const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
     } else {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.employee-only').forEach(el => el.classList.remove('hidden'));
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         const cName = document.getElementById('card-name'); if(cName) cName.innerText = currentUser.nickname.toUpperCase(); 
@@ -84,32 +95,61 @@ async function loadBusinessDashboard() {
         if(isAdmin) fetchPendingUsers(); 
         await fetchBusinessData(); 
         fetchLoans();
+        
+        if(typeof checkGlobalWelcome === 'function') {
+            const showedWelcome = await checkGlobalWelcome(); 
+            if (!showedWelcome && typeof checkAndStartTour === 'function') { checkAndStartTour(window.forceTourStart || false); window.forceTourStart = false; } 
+        }
     } catch (e) {
         console.error('Error fetching dashboard data:', e); showToast('error', 'שגיאה בטעינת נתונים');
-    } finally {
-        const preloader = document.getElementById('app-preloader'); 
-        const finalizeLoad = async () => { 
-            if(typeof checkGlobalWelcome === 'function') {
-                const showedWelcome = await checkGlobalWelcome(); 
-                if (!showedWelcome && typeof checkAndStartTour === 'function') { checkAndStartTour(window.forceTourStart || false); window.forceTourStart = false; } 
-            }
-        };
-        if (preloader && !preloader.classList.contains('hidden')) { 
-            preloader.classList.add('opacity-0', 'pointer-events-none'); 
-            setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); 
-        } else { finalizeLoad(); }
-    }
+    } 
 }
 
 function updateBatteryUI() {
     const indicator = document.getElementById('ai-battery-indicator'); if(!indicator || !currentGroup) return;
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
-    if (currentGroup.is_premium) { indicator.innerHTML = '⚡ ∞ (Pro)'; indicator.classList.add('bg-slate-800', 'text-white', 'border-transparent'); } 
+    if (currentGroup.is_premium) { indicator.innerHTML = '⚡ ∞ (Enterprise)'; indicator.classList.add('bg-slate-800', 'text-white', 'border-transparent'); } 
     else {
         const tokens = currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10; indicator.innerHTML = `⚡ ${tokens}/10`;
         if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200'); else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200'); else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
     }
 }
+
+// פונקציות עזר קריטיות של AI שהיו חסרות
+function setupForecastListeners() {
+    const btnMonthly = document.getElementById('btn-forecast-monthly'); 
+    const btnYearly = document.getElementById('btn-forecast-yearly');
+    if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); 
+    if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
+}
+
+window.executeWithAIWarning = function(actionCallback) {
+    if (currentGroup && currentGroup.is_premium) return actionCallback();
+    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
+    const modal = document.getElementById('ai-warning-modal'); if(!modal) return actionCallback();
+    const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    const leftEl = document.getElementById('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
+    const btnContinue = document.getElementById('btn-ai-warning-continue'); 
+    if(btnContinue) {
+        const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+        newBtn.onclick = () => { const dontShow = document.getElementById('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    }
+    modal.classList.remove('hidden');
+};
+
+window.showFamilAIModal = function(title, text) {
+    const modal = document.getElementById('familai-advisor-modal'); if(!modal) return;
+    modal.classList.remove('hidden'); 
+    const sub = document.getElementById('familai-modal-subtitle'); if(sub) sub.innerText = title;
+    if (text) { 
+        const load = document.getElementById('familai-advisor-loading'); if(load) load.classList.add('hidden'); 
+        const advText = document.getElementById('familai-advice-text'); if(advText) advText.innerText = text; 
+        const content = document.getElementById('familai-advisor-content'); if(content) content.classList.remove('hidden'); 
+    } else { 
+        const load = document.getElementById('familai-advisor-loading'); if(load) load.classList.remove('hidden'); 
+        const content = document.getElementById('familai-advisor-content'); if(content) content.classList.add('hidden'); 
+    }
+};
 
 function switchBusinessTab(t) {
     ['feed', 'timeclock', 'shop', 'pantry', 'tasks', 'bank', 'academy', 'budget', 'cashflow', 'forecast', 'members', 'recipes'].forEach(x => {
@@ -1167,7 +1207,7 @@ function openInviteModal() { const codeSpan = document.getElementById('display-g
 
 function sendWhatsAppInvite(role) { 
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד סביבה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
-    let text = role === 'ADMIN' ? `היי! הוקמה עבורנו מערכת ניהול ב-Oneflow 360 Pro 🚀\n\nהגדרתי אותך כמנהל/ת עם הרשאות מלאות.\nקוד הארגון שלנו הוא: ${currentGroup.group_code}\nלחץ על הקישור להצטרפות למערכת:\n🔗 ${joinLink}` : `היי! הוקמה עבורנו סביבת עבודה ב-Oneflow 360 Pro 🚀\n\nקוד הארגון שלנו הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להצטרף לצוות ולפתוח לעצמך פורטל עובד אישי:\n🔗 ${joinLink}`; 
+    let text = role === 'ADMIN' ? `היי! הוקמה עבורנו מערכת ניהול ב-Oneflow Life Enterprise 🚀\n\nהגדרתי אותך כמנהל/ת עם הרשאות מלאות.\nקוד הארגון שלנו הוא: ${currentGroup.group_code}\nלחץ על הקישור להצטרפות למערכת:\n🔗 ${joinLink}` : `היי! הוקמה עבורנו סביבת עבודה ב-Oneflow Life 🚀\n\nקוד הארגון שלנו הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להצטרף לצוות ולפתוח לעצמך פורטל עובד אישי:\n🔗 ${joinLink}`; 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); document.getElementById('invite-modal').classList.add('hidden'); 
 }
 
@@ -1195,7 +1235,7 @@ async function deleteUser(id, name) {
 
 function triggerManualTour() { 
     document.getElementById('profile-modal').classList.add('hidden'); 
-    setTimeout(() => { switchTab('feed'); startAdminTour(); }, 300); // בעסקים תמיד נראה למנהל ולעובד את אותו סוג סיור
+    setTimeout(() => { switchTab('feed'); startAdminTour(); }, 300);
 }
 
 function startAdminTour() {
@@ -1203,7 +1243,7 @@ function startAdminTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow 360 Pro! 🚀", intro: "מערכת הניהול החכמה שלכם שמרכזת את כל הפעילות העסקית תחת קורת גג אחת." },
+            { title: "ברוכים הבאים ל-Oneflow Life! 🚀", intro: "מערכת הניהול החכמה שלכם שמרכזת את כל הפעילות העסקית תחת קורת גג אחת." },
             { element: '#tour-header', title: "סרגל עליון", intro: "כאן תמצאו את פרטי הסביבה שלכם ותוכלו לגשת לתפריט ההגדרות והפרופיל האישי.", position: 'bottom' },
             { element: '#ai-battery-indicator', title: "מנוע ה-AI שלנו ⚡", intro: "כל ארגון מקבל חבילת פעולות יומיות לשימוש בבינה המלאכותית שלנו. כאן ניתן לראות כמה נשאר להיום.", position: 'bottom' },
             { element: '#tour-balance-card', title: "תקציב ושכר 💳", intro: "בכרטיס זה תוכלו לראות את מאזן קופת הארגון בזמן אמת, או את התקציב האישי במידה ומדובר בתצוגת עובד.", position: 'bottom' },
