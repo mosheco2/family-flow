@@ -69,7 +69,6 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-// תוקן: אין צורך במסך התחברות ב-business.html, לכן ננתב לעמוד הראשי
 const hidePreloaderAndShowAuth = () => {
     window.location.href = '/';
 };
@@ -83,7 +82,6 @@ window.onload = async () => {
     
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
     if (inviteCode) { 
-        // אם מגיעים עם לינק הזמנה, ננתב למסך הבית להרשמה
         window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; 
         return; 
     }
@@ -96,7 +94,6 @@ window.onload = async () => {
                 currentUser = session.user; currentGroup = session.group; 
                 clearTimeout(failsafeTimer); 
                 
-                // ודא שהמשתמש באמת שייך לממשק העסקי
                 if(currentGroup.type !== 'BUSINESS') {
                     window.location.href = '/'; 
                     return; 
@@ -264,13 +261,12 @@ function applyBannersToDOM(banners) {
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
-        const res = await fetch(`${API}/banners`); const data = await res.json();
+        const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
         if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
 
 async function loadDashboard() {
-    // תוקן: הגנה במקרה שחסר אלמנט ב-DOM (מונע קריסה)
     const authContainer = document.getElementById('auth-container');
     if (authContainer) authContainer.classList.add('hidden');
     
@@ -297,8 +293,20 @@ async function loadDashboard() {
     updateBatteryUI();
     
     try {
-        if(!pollInterval) pollInterval = setInterval(() => { fetchData(); fetchLoans(); if(isAdmin) fetchPendingUsers(); }, 30000);
-        fetchBanners(); await fetchMembers(); if(isAdmin) fetchPendingUsers(); await fetchData(); fetchLoans();
+        if(!pollInterval) {
+            pollInterval = setInterval(() => { 
+                try{ fetchData(); } catch(e){} 
+                try{ fetchLoans(); } catch(e){} 
+                if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} }
+            }, 30000);
+        }
+        
+        try { fetchBanners(); } catch(e){}
+        try { await fetchMembers(); } catch(e){}
+        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
+        try { await fetchData(); } catch(e){}
+        try { await fetchLoans(); } catch(e){}
+        
     } catch (e) {
         console.error('Error fetching dashboard data:', e); showToast('error', 'שגיאה בטעינת חלק מהנתונים');
     } finally {
@@ -442,6 +450,7 @@ async function generateAIQuiz() {
     executeWithAIWarning(async () => {
         const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳';
         try {
+            // הוספת קונטקסט עסקי בבקשה, למרות שבשלב זה השרת שלנו עובד מול Prompts משפחתיים (יעודכן בשרת בהמשך)
             const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
@@ -804,6 +813,49 @@ async function deleteTransaction() {
         if(data.success) { showToast('success', 'הפעולה בוטלה!'); document.getElementById('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+
+// -------------------- הוספת פונקציות ההחזרים והמקדמות (Loans) --------------------
+
+async function fetchLoans() {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        let url; if (currentUser.role === 'ADMIN') { url = `${API}/loans?groupId=${currentGroup.id}`; } else { url = `${API}/loans?userId=${currentUser.id}`; }
+        const res = await fetch(url); const loans = await res.json(); renderLoans(loans);
+    } catch(e) { console.error('fetchLoans error:', e); }
+}
+
+function renderLoans(loans) {
+    if (currentUser.role === 'ADMIN') {
+        const panel = document.getElementById('admin-loans-panel'); const list = document.getElementById('admin-loans-list');
+        if (!panel || !list) return;
+        const pending = loans.filter(l => l.status === 'pending');
+        if (pending.length === 0) { panel.classList.add('hidden'); return; }
+        panel.classList.remove('hidden');
+        list.innerHTML = pending.map(l => `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div><p class="font-bold text-slate-800 text-sm">${l.nickname} – ₪${l.original_amount}</p><p class="text-xs text-slate-500">${l.reason || 'ללא סיבה'}</p></div><div class="flex gap-2"><button onclick="approveLoan(${l.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition">אשר תשלום</button><button onclick="rejectLoan(${l.id})" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button></div></div>`).join('');
+    } else {
+        const list = document.getElementById('my-loans-list'); if (!list) return;
+        if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין בקשות תשלום פעילות</p>'; return; }
+        list.innerHTML = loans.map(l => {
+            const statusMap = { pending: { label: 'ממתין לאישור מנהל', cls: 'bg-orange-100 text-orange-600' }, approved: { label: 'אושר שולם ✓', cls: 'bg-green-100 text-green-700' }, rejected: { label: 'נדחתה', cls: 'bg-red-100 text-red-600' } };
+            const s = statusMap[l.status] || { label: l.status, cls: 'bg-slate-100 text-slate-600' };
+            return `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div><p class="font-bold text-slate-800 text-sm">₪${l.original_amount}</p><p class="text-xs text-slate-500">${l.reason || ''} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p></div><span class="text-xs font-bold px-2 py-1 rounded-lg ${s.cls}">${s.label}</span></div>`;
+        }).join('');
+    }
+}
+
+async function approveLoan(loanId) {
+    if (!confirm('לאשר תשלום זה ולהעביר את הכסף לעובד?')) return;
+    const res = await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) }); const data = await res.json();
+    if (data.success) { triggerConfetti(); showToast('success', 'הבקשה אושרה והתקציב עודכן!'); fetchData(); fetchLoans(); } else showToast('error', data.error);
+}
+
+async function rejectLoan(loanId) {
+    if (!confirm('לדחות בקשה זו?')) return;
+    await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
+    showToast('success', 'הבקשה נדחתה'); fetchLoans();
+}
+
+// -------------------------------------------------------------------------
 
 function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { document.getElementById('assign-reward').value = bundle.reward; } }
 function openAssignModal() {
