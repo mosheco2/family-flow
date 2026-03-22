@@ -266,7 +266,7 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         const hasTokens = await handleAITokens(groupId); if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `Suggest 3 actionable tasks/goals related to: "${topic}". Suggest a fair monetary reward in ILS (integer 5-150). Output strictly as JSON array: [{"title": "task 1", "reward": 10}]`;
+        const prompt = `Suggest 3 actionable tasks/goals related to: "${topic}". Suggest a fair monetary reward in ILS (integer 5-150). Output strictly as JSON array: [{"title": "task 1", "reward": 10}, {"title": "task 2", "reward": 20}]`;
         const result = await model.generateContent(prompt);
         let parsedTasks = JSON.parse(result.response.text());
         if (!Array.isArray(parsedTasks)) { if (parsedTasks.tasks) parsedTasks = parsedTasks.tasks; else parsedTasks = Object.values(parsedTasks).find(val => Array.isArray(val)) || []; }
