@@ -227,8 +227,8 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת סביבה חדשה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="selectType('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
+                        <button type="button" onclick="handleTypeSelection('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
+                        <button type="button" onclick="handleTypeSelection('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
                     </div>
                     <input type="hidden" id="create-type" value="FAMILY">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה / העסק" class="modern-input">
@@ -1268,11 +1268,20 @@
     </div>
 
     <script>
-        // Override selectType locally to handle the new BUSINESS button
-        window.selectType = function(t) {
+        // הפונקציה שונתה ל-handleTypeSelection כדי למנוע התנגשות עם פונקציות בקבצים חיצוניים
+        window.handleTypeSelection = function(t) {
             document.getElementById('create-type').value = t;
-            document.getElementById('type-family').className = `flex-1 p-4 rounded-2xl border-2 text-center transition ${t === 'FAMILY' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold' : 'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`;
-            document.getElementById('type-business').className = `flex-1 p-4 rounded-2xl border-2 text-center transition ${t === 'BUSINESS' ? 'border-blue-500 bg-blue-50 text-blue-600 font-bold' : 'border-slate-100 text-slate-400 font-bold hover:bg-slate-50'}`;
+            
+            const familyBtn = document.getElementById('type-family');
+            const businessBtn = document.getElementById('type-business');
+            
+            if (t === 'FAMILY') {
+                familyBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition';
+                businessBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50';
+            } else {
+                businessBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition';
+                familyBtn.className = 'flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50';
+            }
         };
 
         function checkShopUnit() {
