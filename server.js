@@ -12,15 +12,14 @@ app.use(cors());
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb', extended: true}));
 
-// ==========================================
-// פתרון השגיאה: טעינה חכמה של קבצים סטטיים
-// ==========================================
+// ניתוב סטטי
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname)); 
 
 const apiKey = process.env.GEMINI_API_KEY || "";
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
+// חיבור למסד הנתונים
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -34,7 +33,7 @@ pool.connect().then(async (client) => {
     try {
         await client.query(`
             CREATE TABLE IF NOT EXISTS family_groups ( id SERIAL PRIMARY KEY, name VARCHAR(100), group_code VARCHAR(20) UNIQUE, type VARCHAR(20) DEFAULT 'FAMILY', ai_tokens INT DEFAULT 10, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
-            CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(100), role VARCHAR(20), birth_year INT, balance DECIMAL DEFAULT 0, allowance_amount DECIMAL DEFAULT 0, interest_rate DECIMAL DEFAULT 0 );
+            CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(100), role VARCHAR(20), birth_year INT, balance DECIMAL DEFAULT 0, allowance_amount DECIMAL DEFAULT 0, interest_rate DECIMAL DEFAULT 0, email VARCHAR(150), marketing_consent BOOLEAN DEFAULT FALSE );
             CREATE TABLE IF NOT EXISTS transactions ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, amount DECIMAL, description TEXT, category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10) );
             CREATE TABLE IF NOT EXISTS tasks ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, title VARCHAR(200), reward DECIMAL, assigned_to INT REFERENCES users(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deadline TIMESTAMP );
             CREATE TABLE IF NOT EXISTS shopping_list ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', estimated_price DECIMAL DEFAULT 0, status VARCHAR(20) DEFAULT 'pending', user_id INT REFERENCES users(id) ON DELETE CASCADE );
@@ -52,19 +51,36 @@ pool.connect().then(async (client) => {
 }).catch(err => console.error('DB Connection Error:', err));
 
 // ==========================================
-// Authentication
+// Authentication (התיקון המרכזי כאן)
 // ==========================================
 app.post('/api/groups', async (req, res) => {
     const { type, groupName, adminEmail, adminNickname, birthYear, password, marketingConsent } = req.body;
+    
+    // יצירת קוד ייחודי
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
     try {
-        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const gRes = await pool.query('INSERT INTO family_groups (name, group_code, type) VALUES ($1, $2, $3) RETURNING *', [groupName, code, type || 'FAMILY']);
-        const uRes = await pool.query(
-            'INSERT INTO users (group_id, nickname, password, role, birth_year, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nickname, role, balance', 
-            [gRes.rows[0].id, adminNickname, password, 'ADMIN', birthYear, adminEmail, marketingConsent || false]
+        // שלב 1: פתיחת הסביבה
+        const gRes = await pool.query(
+            'INSERT INTO family_groups (name, group_code, type) VALUES ($1, $2, $3) RETURNING id, name, group_code, type, ai_tokens, is_premium', 
+            [groupName, code, type || 'FAMILY']
         );
-        res.json({ success: true, group: gRes.rows[0], user: uRes.rows[0] });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+        
+        const newGroup = gRes.rows[0];
+
+        // שלב 2: פתיחת המשתמש וקישור לסביבה
+        const uRes = await pool.query(
+            'INSERT INTO users (group_id, nickname, password, role, birth_year, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nickname, role, balance, birth_year', 
+            [newGroup.id, adminNickname, password, 'ADMIN', birthYear, adminEmail, marketingConsent || false]
+        );
+        
+        const newUser = uRes.rows[0];
+
+        res.json({ success: true, group: newGroup, user: newUser });
+    } catch(e) { 
+        console.error('Registration Error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה בהקמת הסביבה: ' + e.message }); 
+    }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -98,7 +114,7 @@ app.get('/api/group/members', async (req, res) => {
 // ==========================================
 // Super Admin Routes
 // ==========================================
-let globalWelcomeMsg = 'ברוכים הבאים ל-Oneflow 360!';
+let globalWelcomeMsg = 'ברוכים הבאים ל-Oneflow Life!';
 let globalBanners = {};
 
 app.post('/api/superadmin/login', (req, res) => {
@@ -273,6 +289,48 @@ app.delete('/api/shopping/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM shopping_list WHERE id = $1', [req.params.id]); res.json({success: true}); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/shopping/checkout', async (req, res) => {
+    const { totalAmount, userId, storeName, branchName, boughtItems, missingItems, isBusiness } = req.body;
+    try {
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id = $1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+
+        // 1. תיעוד רכישה (תזרים)
+        const typeStr = isBusiness ? 'expense' : 'expense';
+        const catStr = isBusiness ? 'inventory' : 'groceries';
+        const descStr = `קנייה מרוכזת: ${storeName} ${branchName ? '('+branchName+')' : ''}`;
+        
+        await pool.query(
+            'INSERT INTO transactions (group_id, user_id, amount, description, category, type) VALUES ($1, $2, $3, $4, $5, $6)',
+            [groupId, userId, totalAmount, descStr, catStr, typeStr]
+        );
+
+        // 2. טיפול בפריטים שנרכשו - מחיקה מהעגלה והוספה למלאי
+        for (const item of boughtItems) {
+            await pool.query('DELETE FROM shopping_list WHERE id = $1', [item.id]);
+            
+            // הכנסה למלאי הפנימי (Pantry/Inventory)
+            const exist = await pool.query('SELECT id FROM pantry WHERE group_id = $1 AND item_name = $2', [groupId, item.name]);
+            if (exist.rows.length > 0) {
+                await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [item.quantity, exist.rows[0].id]);
+            } else {
+                await pool.query('INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)', [groupId, item.name, item.quantity]);
+            }
+        }
+
+        // 3. טיפול בחסרים - החזרה לסטטוס ממתין
+        for (const item of missingItems) {
+            await pool.query('UPDATE shopping_list SET status = $1 WHERE id = $2', ['pending', item.id]);
+        }
+
+        res.json({ success: true });
+    } catch(e) {
+        console.error("Checkout Error:", e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+
 // AI Usage Check Helper
 async function decrementAITokens(groupId) {
     const gRes = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
@@ -286,7 +344,6 @@ async function decrementAITokens(groupId) {
 // ניתוב חכם (מונע שגיאות 404 ו-Cannot GET)
 // ==========================================
 app.get('*', (req, res) => {
-    // נבדוק קודם אם הקובץ קיים ב-public, ואם לא - נביא מהתיקייה הראשית
     const publicPath = path.join(__dirname, 'public', req.path === '/' ? 'index.html' : req.path);
     const rootPath = path.join(__dirname, req.path === '/' ? 'index.html' : req.path);
     
@@ -295,7 +352,6 @@ app.get('*', (req, res) => {
     } else if (fs.existsSync(rootPath)) {
         res.sendFile(rootPath);
     } else {
-        // אם הקובץ לא נמצא, נחזיר תמיד את ה-index.html כברירת מחדל (מצוין ל-SPA)
         const fallbackIndex = fs.existsSync(path.join(__dirname, 'public', 'index.html')) 
             ? path.join(__dirname, 'public', 'index.html') 
             : path.join(__dirname, 'index.html');
