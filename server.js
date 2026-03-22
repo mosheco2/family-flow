@@ -818,8 +818,9 @@ app.get('/api/data/:userId', async (req, res) => {
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        const gRes = await pool.query('SELECT ai_tokens, is_premium, last_token_reset FROM family_groups WHERE id=$1', [user.group_id]);
-        const groupData = gRes.rows[0] || { ai_tokens: 10, is_premium: false };
+        // כאן נוסף השדה type בשליפה מה-DB
+        const gRes = await pool.query('SELECT type, ai_tokens, is_premium, last_token_reset FROM family_groups WHERE id=$1', [user.group_id]);
+        const groupData = gRes.rows[0] || { type: 'FAMILY', ai_tokens: 10, is_premium: false };
 
         let tasksRes={rows:[]}, shopRes={rows:[]}, allBRes={rows:[]}, pantryRes={rows:[]};
         try { tasksRes = await pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.id DESC`, [user.group_id]); } catch(e){ }
@@ -1601,6 +1602,7 @@ app.post('/api/timeclock/punch', async (req, res) => {
         const { userId, groupId } = req.body;
         const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
         if (openPunch.rows.length > 0) {
+            // מבצע דיווח יציאה
             const punchId = openPunch.rows[0].id;
             const punchIn = new Date(openPunch.rows[0].punch_in);
             const punchOut = new Date();
@@ -1608,6 +1610,7 @@ app.post('/api/timeclock/punch', async (req, res) => {
             await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
             res.json({ success: true, status: 'out' });
         } else {
+            // מבצע דיווח כניסה
             await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
             res.json({ success: true, status: 'in' });
         }
