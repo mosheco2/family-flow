@@ -303,71 +303,145 @@
                     <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* --- חלוניות נתונים (Stats) חדשות --- */}
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-house-user text-2xl text-indigo-500 mb-2"></i>
+                        <span class="text-3xl font-bold text-indigo-700" id="sa-stat-families">0</span>
+                        <span class="text-xs text-indigo-600 font-medium">משפחות פעילות</span>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-users text-2xl text-emerald-500 mb-2"></i>
+                        <span class="text-3xl font-bold text-emerald-700" id="sa-stat-family-users">0</span>
+                        <span class="text-xs text-emerald-600 font-medium">משתמשים (משפחות)</span>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-building text-2xl text-blue-500 mb-2"></i>
+                        <span class="text-3xl font-bold text-blue-700" id="sa-stat-businesses">0</span>
+                        <span class="text-xs text-blue-600 font-medium">עסקים פעילים</span>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-user-tie text-2xl text-sky-500 mb-2"></i>
+                        <span class="text-3xl font-bold text-sky-700" id="sa-stat-biz-users">0</span>
+                        <span class="text-xs text-sky-600 font-medium">משתמשים (עסקים)</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    {/* הודעת פתיחה משפחות */}
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
-                        <p class="text-xs text-slate-500 mb-3">טקסט זה יופיע בפופ-אפ לכל משתמש שמתחבר למערכת. השאירו ריק כדי לבטל.</p>
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה משפחות</h2>
+                        <p class="text-xs text-slate-500 mb-3">יופיע כפופ-אפ לכל משתמש שמתחבר למשפחה. השאירו ריק כדי לבטל.</p>
                         <textarea id="sa-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="ברוכים הבאים למערכת..."></textarea>
-                        <button onclick="saveWelcomeMsg()" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-blue-200 hover:bg-blue-700 transition">שמור הודעה</button>
+                        <button onclick="saveWelcomeMsg('FAMILY')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition">שמור הודעה</button>
                     </div>
                     
+                    {/* הודעת פתיחה עסקים */}
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> שינוי פרטי התחברות (מנהל ראשי)</h2>
-                        <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות שלך למערכת הניהול.</p>
-                        <div class="space-y-3">
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
-                                <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="למשל: admin">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
-                                <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="למשל: 123456">
-                            </div>
-                            <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg shadow-red-200 hover:bg-red-600 transition">עדכן פרטי התחברות</button>
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-building text-indigo-500 mr-2"></i> הודעת פתיחה לעסקים</h2>
+                        <p class="text-xs text-slate-500 mb-3">יופיע כפופ-אפ לכל משתמש שמתחבר לחשבון עסקי. השאירו ריק כדי לבטל.</p>
+                        <textarea id="sa-biz-welcome-msg" class="w-full p-4 rounded-xl border border-slate-300 h-32 mb-4 text-sm" placeholder="הודעה לצוות העובדים..."></textarea>
+                        <button onclick="saveWelcomeMsg('BUSINESS')" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg hover:bg-indigo-700 transition">שמור הודעה</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> שינוי פרטי התחברות (מנהל ראשי)</h2>
+                    <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות שלך למערכת הניהול.</p>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
+                            <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="למשל: admin">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
+                            <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="למשל: 123456">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold h-10 shadow-lg hover:bg-red-600 transition whitespace-nowrap">עדכן</button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
-                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
-                    </div>
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
+                    <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
+                </div>
 
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> ניהול באנרים פרסומיים (Top & Bottom)</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner)</h3>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
-                                    <input type="text" id="sa-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: מבצע מיוחד לחברי האפליקציה!">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
-                                    <input type="url" id="sa-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
-                                    <input type="text" id="sa-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner1.png">
-                                </div>
+                {/* באנרים למשפחות */}
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> באנרים פרסומיים (משפחות)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner)</h3>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                <input type="text" id="sa-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: מבצע מיוחד לחברי האפליקציה!">
                             </div>
-                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
-                                    <input type="text" id="sa-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
-                                    <input type="url" id="sa-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
-                                    <input type="text" id="sa-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
-                                </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                <input type="url" id="sa-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                <input type="text" id="sa-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner1.png">
                             </div>
                         </div>
-                        <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-pink-200 hover:bg-pink-600 transition hover:scale-[1.01]">שמור ופרסם באנרים במערכת</button>
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                <input type="text" id="sa-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                <input type="url" id="sa-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                <input type="text" id="sa-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
+                            </div>
+                        </div>
                     </div>
+                    <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-pink-600 transition">שמור ופרסם באנרים (משפחות)</button>
+                </div>
+                
+                {/* באנרים לעסקים */}
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-indigo-500 mr-2"></i> באנרים עסקיים (Oneflow BIZ)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner)</h3>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                <input type="text" id="sa-biz-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: שדרוג מערכת שעות...">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                <input type="url" id="sa-biz-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                <input type="text" id="sa-biz-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner1.png">
+                            </div>
+                        </div>
+                        <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                <input type="text" id="sa-biz-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: למדריך למשתמש לחץ כאן">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                <input type="url" id="sa-biz-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                <input type="text" id="sa-biz-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="saveBizBanners()" class="bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-indigo-600 transition">שמור ופרסם באנרים (עסקים)</button>
                 </div>
 
                 <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
@@ -1268,7 +1342,6 @@
     </div>
 
     <script>
-        // הפונקציה שונתה ל-handleTypeSelection כדי למנוע התנגשות עם פונקציות בקבצים חיצוניים
         window.handleTypeSelection = function(t) {
             document.getElementById('create-type').value = t;
             
