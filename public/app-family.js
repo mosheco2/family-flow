@@ -28,13 +28,13 @@ const CATEGORIES = {
 };
 const BUDGET_LABELS = { 'food': '🍔 מסעדות', 'groceries': '🛒 סופר ופארם', 'transport': '🚌 תחבורה ודלק', 'home': '🏠 דיור ותחזוקה', 'bills': '📄 חשבונות ותקשורת', 'fun': '🎉 פנאי ובילויים', 'clothes': '👕 ביגוד והנעלה', 'health': '💊 בריאות וביטוחים', 'education': '📚 חינוך וחוגים', 'vacation': '✈️ חופשות', 'pets': '🐶 חיות מחמד', 'gifts': '🎁 מתנות ותרומות', 'other': '💸 אחר', 'allocations': '👶 הפרשות כלליות', 'allowance': '💰 דמי כיס לילדים', 'tasks': '✅ תגמול על משימות', 'academy': '🎓 אתגרי אקדמיה', 'savings': '🐖 הפקדות לחיסכון' };
 const PRODUCT_DB = { 
-    "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "בצל יבש", "תפוחי אדמה", "בננות", "לימון", "תפוח עץ", "אבוקדו"], 
-    "חלב וביצים 🥛": ["חלב 3%", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה", "ביצים L", "יוגורט", "חמאה", "שמנת"], 
-    "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "פיתות", "לחמניות"], 
-    "מזווה ובישול 🍝": ["אורז", "פסטה", "פתיתים", "עדשים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "קפה", "תה"], 
-    "בשר ודגים 🍗": ["חזה עוף", "בשר טחון", "שניצל", "נקניקיות", "סלמון"], 
-    "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נוזל כלים", "אבקת כביסה", "שמפו", "משחת שיניים"], 
-    "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "בייגלה", "עוגיות", "שוקולד"] 
+    "ירקות ופירות 🍎": ["עגבניות", "מלפפונים", "פלפל אדום", "בצל יבש", "תפוחי אדמה", "בננות", "לימון", "תפוח עץ", "אבוקדו", "גזר", "בטטה", "חסות"], 
+    "חלב וביצים 🥛": ["חלב 3%", "קוטג' 5%", "גבינה לבנה 5%", "גבינה צהובה", "ביצים L", "יוגורט", "חמאה", "שמנת", "שוקו"], 
+    "לחם ומאפים 🍞": ["לחם אחיד", "לחם מלא", "פיתות", "לחמניות", "פירורי לחם"], 
+    "מזווה ובישול 🍝": ["אורז", "פסטה", "פתיתים", "עדשים", "שמן זית", "שמן קנולה", "סוכר", "מלח", "קמח", "קפה", "תה", "קטשופ", "טונה"], 
+    "בשר ודגים 🍗": ["חזה עוף", "בשר טחון", "שניצל", "נקניקיות", "סלמון", "קציצות"], 
+    "ניקיון וטואלטיקה 🧻": ["נייר טואלט", "מגבונים", "נוזל כלים", "אבקת כביסה", "שמפו", "משחת שיניים", "מרכך כביסה", "שקיות אשפה"], 
+    "חטיפים ומתוקים 🍫": ["במבה", "ביסלי", "בייגלה", "עוגיות", "שוקולד", "דוריטוס", "ופלים"] 
 };
 const FLAT_PRODUCTS = []; 
 for (const [cat, items] of Object.entries(PRODUCT_DB)) { items.forEach(i => FLAT_PRODUCTS.push({ name: i, category: cat })); }
@@ -55,19 +55,20 @@ async function loadFamilyDashboard() {
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
         ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
+        const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); 
-        document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; 
-        document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
+        const cName = document.getElementById('card-name'); if(cName) cName.innerText = currentUser.nickname.toUpperCase(); 
+        const cAllow = document.getElementById('card-allowance'); if(cAllow) cAllow.innerText = `₪${currentUser.allowance_amount || 0}`; 
+        const cInt = document.getElementById('card-interest'); if(cInt) cInt.innerText = `${currentUser.interest_rate || 0}%`; 
+        const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
     }
-    document.getElementById('btn-add-budget-cat').classList.remove('hidden'); 
-    updateBatteryUI();
+    const btnAddCat = document.getElementById('btn-add-budget-cat'); if(btnAddCat) btnAddCat.classList.remove('hidden'); 
+    
+    if(typeof updateBatteryUI === 'function') updateBatteryUI();
     setupForecastListeners();
     
     try {
@@ -81,8 +82,10 @@ async function loadFamilyDashboard() {
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         const finalizeLoad = async () => { 
-            const showedWelcome = await checkGlobalWelcome(); 
-            if (!showedWelcome) { checkAndStartTour(window.forceTourStart || false); window.forceTourStart = false; } 
+            if(typeof checkGlobalWelcome === 'function') {
+                const showedWelcome = await checkGlobalWelcome(); 
+                if (!showedWelcome && typeof checkAndStartTour === 'function') { checkAndStartTour(window.forceTourStart || false); window.forceTourStart = false; } 
+            }
         };
         if (preloader && !preloader.classList.contains('hidden')) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
@@ -99,100 +102,22 @@ function setupForecastListeners() {
 }
 
 // ==========================================
-// Tour & Onboarding
-// ==========================================
-
-function checkAndStartTour(force = false) { 
-    setTimeout(() => { 
-        try { 
-            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; 
-            if (force || !localStorage.getItem(tourKey)) { 
-                localStorage.setItem(tourKey, 'true'); 
-                switchTab('feed'); 
-                if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); 
-            } 
-        } catch(e) {} 
-    }, 1000); 
-}
-
-function triggerManualTour() { 
-    document.getElementById('profile-modal').classList.add('hidden'); 
-    setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); 
-}
-
-function startAdminTour() {
-    switchTab('feed'); const intro = introJs();
-    intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
-        steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו המשפחה שלכם מתנהלת פיננסית. בואו נצא לסיור קצר שיעשה לכם סדר." },
-            { element: '#tour-header', title: "מרכז השליטה שלכם", intro: "כאן תמצאו את קוד המשפחה שאיתו תזמינו את הילדים. לחיצה על המד של 'familAI' או על 'תפריט' תפתח את אזור ההגדרות והשדרוגים.", position: 'bottom' },
-            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת שלנו מונעת ע\"י בינה מלאכותית מתקדמת (familAI). כאן תוכלו לראות את כמות הפעולות היומית החינמית שנותרה לכם.", position: 'bottom' },
-            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תוכלו לראות בזמן אמת את היתרה הפנויה של המשפחה, כך שתמיד תדעו בדיוק איפה אתם עומדים.", position: 'bottom' },
-            { element: '#tour-fab-btn', title: "פעולה מהירה ⚡", intro: "לחיצה קטנה על כפתור הפלוס מאפשרת לכם לרשום הוצאה או הכנסה מכל מקום באפליקציה, בלי לבזבז זמן.", position: 'top' },
-            { element: '#tab-shop', title: "סופר חכם 🛒", intro: "הסוף לקבוצות וואטסאפ מבולגנות! רשימת קניות משותפת לכולם. בנוסף, תוכלו לצלם את הקבלה מהסופר ו-familAI תזין את הנתונים בעצמה!", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מזווה 📦", intro: "המקרר מתרוקן בלי ששמתם לב? עקבו אחרי המלאי בבית, וכשמוצר נגמר – העבירו אותו לרשימת הקניות בקליק אחד.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק המשפחתי 🏦", intro: "כאן בונים עצמאות פיננסית! הגדירו דמי כיס שבועיים אוטומטיים לילדים, חלקו ריביות על חסכונות ולמדו אותם לנהל כסף.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות הבית ✅", intro: "הדרך המושלמת לרתום את הילדים לעזרה: הגדירו משימות, תמחרו אותן, והילדים יצלמו את התוצר לטובת קבלת התגמול.", position: 'bottom' },
-            { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "ללמוד על כסף דרך משחק! יצרו לילדים אתגרים חינוכיים בהתאמה אישית עם ה-AI, ותגמלו אותם על תשובות נכונות.", position: 'bottom' },
-            { element: '#tab-budget', title: "תקציב ושליטה 📊", intro: "הגדירו יעדי הוצאות חודשיים לכל קטגוריה. familAI תנתח את ההוצאות שלכם ותספק לכם תובנות וטיפים יקרי ערך לחיסכון.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף תזרים 📅", intro: "מבט לעתיד! כאן תוכלו לראות את כל הפעולות העתידיות והקבועות שלכם, ולתכנן את התקציב קדימה בצורה חכמה.", position: 'bottom' },
-            { element: '#tab-recipes', title: "השף הפרטי שלכם 👨‍🍳", intro: "נתקעתם בלי רעיון לארוחת ערב? סמנו אילו מוצרים יש לכם במזווה, וה-AI שלנו ירקח עבורכם מתכון מושלם תוך שניות!", position: 'bottom' },
-            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "מכאן תוכלו לשלוח הזמנה מהירה בוואטסאפ לילדים ולבן/בת הזוג להצטרף. שיהיה בהצלחה!", position: 'bottom' }
-        ]
-    });
-    intro.onbeforechange(function(targetElement) { 
-        if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
-        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
-    });
-    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
-}
-
-function startChildTour() {
-    switchTab('feed'); const intro = introJs();
-    intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
-        steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף, לחסוך נכון, ולעזור בבית כמו גדולים. בואו נתחיל!" },
-            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "הכירו את familAI - העוזרת החכמה והסודית שלנו! כאן אפשר לראות את מד האנרגיה שלה להיום.", position: 'bottom' },
-            { element: '#user-balance', title: "הארנק האישי שלך 💳", intro: "כאן מופיע כל הכסף שהרווחת מביצוע משימות ומדמי הכיס. זה הזמן לחשוב על מה כדאי לחסוך!", position: 'bottom' },
-            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "מתחשק לך חטיף או ארטיק? אין צורך לשגע את ההורים, פשוט בקש להוסיף את זה לרשימת הקניות כאן.", position: 'bottom' },
-            { element: '#tab-pantry', title: "המזווה 📦", intro: "בא לך לנשנש משהו? כאן אפשר לבדוק בקלות אילו ממתקים או מוצרים טעימים כבר מחכים לכם בבית.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "המקום שבו הכסף שלך צומח! פתח 'קופת חיסכון' למטרה שאתה חולם עליה, ותראה את הריבית מצטברת.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "רוצה להרוויח כסף? בחר משימה, סיים אותה, צלם הוכחה - וקבל את התגמול ישר לארנק!", position: 'bottom' },
-            { element: '#tab-academy', title: "האקדמיה 🎓", intro: "מי אמר שללמוד זה משעמם? היכנס לכאן כדי לענות על חידונים כיפיים ותרוויח בונוסים על תשובות נכונות.", position: 'bottom' },
-            { element: '#tab-budget', title: "לאן הכסף הולך? 📊", intro: "כאן תוכל לראות על מה בזבזת את דמי הכיס החודש, וללמוד לתכנן קניות חכם יותר.", position: 'bottom' },
-            { element: '#tab-forecast', title: "התשקיף שלי 📅", intro: "כאן אפשר לראות אילו הכנסות והוצאות מתוכננות לך בהמשך התקופה, ולתכנן כמה כסף יישאר לך!", position: 'bottom' },
-            { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "רוצה להפתיע את המשפחה? בחר מוצרים שיש במטבח, והשף החכם ייתן לך מתכון מנצח וקל להכנה!", position: 'bottom' }
-        ]
-    });
-    intro.onbeforechange(function(targetElement) { 
-        if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
-        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
-    });
-    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
-}
-
-// ==========================================
 // Navigation & UI Updates
 // ==========================================
 
 function switchTab(t) { 
     ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
-    document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
+    const tContent = document.getElementById(`content-${t}`); if(tContent) tContent.classList.remove('hidden'); 
+    const tTab = document.getElementById(`tab-${t}`); if(tTab) tTab.classList.add('tab-active'); 
     
-    if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } 
+    if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); const fc = document.getElementById('fab-container'); if(fc) fc.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') renderPantry(); if (t === 'recipes') renderRecipePantrySelection(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
 }
 
-function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
-function toggleFab() { document.getElementById('fab-container').classList.toggle('fab-open'); }
+function scrollTabs(direction) { const s = document.getElementById('slider-scroll'); if(s) s.scrollBy({ left: direction * -150, behavior: 'smooth' }); }
+function toggleFab() { const f = document.getElementById('fab-container'); if(f) f.classList.toggle('fab-open'); }
 
 function updateBatteryUI() {
     const indicator = document.getElementById('ai-battery-indicator'); if(!indicator || !currentGroup) return;
@@ -209,18 +134,30 @@ function updateBatteryUI() {
 // ==========================================
 
 function showFamilAIModal(title, text) {
-    document.getElementById('familai-advisor-modal').classList.remove('hidden'); document.getElementById('familai-modal-subtitle').innerText = title;
-    if (text) { document.getElementById('familai-advisor-loading').classList.add('hidden'); document.getElementById('familai-advice-text').innerText = text; document.getElementById('familai-advisor-content').classList.remove('hidden'); } 
-    else { document.getElementById('familai-advisor-loading').classList.remove('hidden'); document.getElementById('familai-advisor-content').classList.add('hidden'); }
+    const modal = document.getElementById('familai-advisor-modal'); if(!modal) return;
+    modal.classList.remove('hidden'); 
+    const sub = document.getElementById('familai-modal-subtitle'); if(sub) sub.innerText = title;
+    if (text) { 
+        const load = document.getElementById('familai-advisor-loading'); if(load) load.classList.add('hidden'); 
+        const advText = document.getElementById('familai-advice-text'); if(advText) advText.innerText = text; 
+        const content = document.getElementById('familai-advisor-content'); if(content) content.classList.remove('hidden'); 
+    } else { 
+        const load = document.getElementById('familai-advisor-loading'); if(load) load.classList.remove('hidden'); 
+        const content = document.getElementById('familai-advisor-content'); if(content) content.classList.add('hidden'); 
+    }
 }
 
 function executeWithAIWarning(actionCallback) {
     if (currentGroup && currentGroup.is_premium) return actionCallback();
     const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
-    const modal = document.getElementById('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    const modal = document.getElementById('ai-warning-modal'); if(!modal) return actionCallback();
+    const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
     const leftEl = document.getElementById('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
-    const btnContinue = document.getElementById('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
-    newBtn.onclick = () => { const dontShow = document.getElementById('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    const btnContinue = document.getElementById('btn-ai-warning-continue'); 
+    if(btnContinue) {
+        const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+        newBtn.onclick = () => { const dontShow = document.getElementById('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    }
     modal.classList.remove('hidden');
 }
 
@@ -325,7 +262,7 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        try { renderChildTodo(); buildAndRenderFeed(); if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
+        try { renderChildTodo(); buildAndRenderFeed(); if (document.getElementById('tab-cashflow') && document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -346,8 +283,8 @@ function buildAndRenderFeed() {
 }
 
 function renderUnifiedFeed() {
-    const userFilter = document.getElementById('feed-user-filter') ? document.getElementById('feed-user-filter').value : 'all';
-    const dateFilter = document.getElementById('feed-date-filter') ? document.getElementById('feed-date-filter').value : 'all';
+    const filterEl = document.getElementById('feed-user-filter'); const userFilter = filterEl ? filterEl.value : 'all';
+    const dFilterEl = document.getElementById('feed-date-filter'); const dateFilter = dFilterEl ? dFilterEl.value : 'all';
     const list = document.getElementById('unified-feed-list'); if (!list) return;
     let filtered = feedCache;
     if (currentUser.role !== 'ADMIN') { filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); } 
@@ -387,7 +324,7 @@ function renderUnifiedFeed() {
 // Bank & Balance
 // ==========================================
 
-window.openBalanceAdjustmentModal = function(id, name) { document.getElementById('adjustment-user-id').value = id; document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`; document.getElementById('adjustment-amount').value = ''; document.getElementById('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); document.getElementById('balance-adjustment-modal').classList.remove('hidden'); };
+window.openBalanceAdjustmentModal = function(id, name) { document.getElementById('adjustment-user-id').value = id; document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`; document.getElementById('adjustment-amount').value = ''; document.getElementById('adjustment-reason').value = ''; if(typeof window.toggleAdjustmentType === 'function') window.toggleAdjustmentType('deduct'); document.getElementById('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
     if(!amount || amount <= 0) return showToast('error', 'נא להזין סכום תקין');
@@ -402,9 +339,9 @@ function openBankSettings(id, name, allowance, interest) { document.getElementBy
 async function submitBankSettings() { const uid = document.getElementById('bank-user-id').value; const allowance = document.getElementById('bank-allowance').value; const interest = document.getElementById('bank-interest').value; await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); document.getElementById('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
 async function triggerPayday() { if(!confirm('האם לבצע חלוקת דמי כיס וריבית לכל הילדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { triggerConfetti(); showToast('success', `חולקו ${data.totalDistributed} ש"ח בהצלחה!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה'); } }
 
-function openGoalModal() { if(currentUser.role === 'ADMIN') { document.getElementById('goal-user-select-container').classList.remove('hidden'); } document.getElementById('goal-title').value = ''; document.getElementById('goal-target').value = ''; document.getElementById('goal-modal').classList.remove('hidden'); }
+function openGoalModal() { if(currentUser.role === 'ADMIN') { const gc = document.getElementById('goal-user-select-container'); if(gc) gc.classList.remove('hidden'); } document.getElementById('goal-title').value = ''; document.getElementById('goal-target').value = ''; document.getElementById('goal-modal').classList.remove('hidden'); }
 function openDepositModal(id, title) { document.getElementById('deposit-goal-id').value = id; document.getElementById('deposit-goal-title').innerText = title; document.getElementById('goal-deposit-modal').classList.remove('hidden'); }
-async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && document.getElementById('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
+async function submitGoal() { const title = val('goal-title'); const target = val('goal-target'); const select = document.getElementById('goal-target-user'); const gc = document.getElementById('goal-user-select-container'); const targetUserId = (currentUser.role === 'ADMIN' && gc && gc.style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target }) }); triggerConfetti(); document.getElementById('goal-modal').classList.add('hidden'); fetchData(); }
 async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = document.getElementById('deposit-amount').value; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount }) }); const data = await res.json(); if (data.success) { triggerConfetti(); document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); } else showToast('error', data.error); }
 
 async function getFamilAIAdvice(childId, goalId) {
@@ -467,7 +404,7 @@ function setTaskMode(mode) {
 
 function openTaskModal(isSelf = false) { 
     document.getElementById('task-modal').classList.remove('hidden'); document.getElementById('task-is-self').value = isSelf; 
-    document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; document.getElementById('ai-task-results').classList.add('hidden');
+    document.getElementById('task-days').value = ''; document.getElementById('task-title').value = ''; document.getElementById('task-reward').value = ''; document.getElementById('ai-task-topic').value = ''; const aiRes = document.getElementById('ai-task-results'); if(aiRes) aiRes.classList.add('hidden');
     setTaskMode('manual'); const toggles = document.getElementById('task-mode-toggles'); const assigneeContainer = document.getElementById('task-assignee-container'); const rewardInput = document.getElementById('task-reward'); const assigneeSelect = document.getElementById('task-assignee');
 
     if(isSelf) { 
@@ -1011,15 +948,8 @@ async function deleteTransaction() {
 function openTransactionModal(t) { 
     document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה חדשה':'הוצאה חדשה'; 
     const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); 
-    document.getElementById('trans-date').value = new Date().toISOString().split('T')[0]; window.toggleTransType('onetime'); document.getElementById('transaction-modal').classList.remove('hidden'); 
+    document.getElementById('trans-date').value = new Date().toISOString().split('T')[0]; if(typeof window.toggleTransType === 'function') window.toggleTransType('onetime'); document.getElementById('transaction-modal').classList.remove('hidden'); 
 }
-
-window.toggleTransType = function(type) {
-    const isRecurring = type === 'recurring'; document.getElementById('trans-is-recurring').value = isRecurring;
-    document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition' : 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition';
-    document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-blue-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    if (isRecurring) { document.getElementById('trans-end-date-container').classList.remove('hidden'); } else { document.getElementById('trans-end-date-container').classList.add('hidden'); document.getElementById('trans-end-month').value = ''; }
-};
 
 async function submitTransaction() { 
     const amount = val('trans-amount'); if(!amount) return; if(val('trans-type') === 'expense') triggerShake(); else triggerConfetti(); 
