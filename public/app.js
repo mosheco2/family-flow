@@ -96,7 +96,15 @@ window.onload = async () => {
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 
-            if(session && session.user && session.user.id) { currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; }
+            if(session && session.user && session.group) { 
+                // בדיקת סוג החשבון להפניה אוטומטית לעסק
+                if (session.group.type === 'BUSINESS') {
+                    window.location.href = '/business.html';
+                    return;
+                }
+                
+                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
+            }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
@@ -259,7 +267,20 @@ async function authAction(endpoint, body) {
     try { 
         const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
         const data = await res.json(); 
-        if(data.success) { currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); await loadDashboard(); } else showToast('error', data.error); 
+        if(data.success) { 
+            currentUser = data.user; currentGroup = data.group; 
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            
+            // בדיקת סוג חשבון לאחר התחברות או יצירת סביבה חדשה
+            if (currentGroup.type === 'BUSINESS') {
+                window.location.href = '/business.html';
+                return;
+            }
+            
+            await loadDashboard(); 
+        } else {
+            showToast('error', data.error); 
+        }
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
