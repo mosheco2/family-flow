@@ -31,6 +31,9 @@ let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 
+// משתנה שמירת סטטוס שעון נוכחות אישי
+let isPunchedIn = false;
+
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
@@ -108,7 +111,7 @@ window.onload = async () => {
 
 async function checkGlobalWelcome() {
     try {
-        const res = await fetch(`${API}/settings/welcome`); const data = await res.json();
+        const res = await fetch(`${API}/settings/welcome?type=BUSINESS`); const data = await res.json();
         if (data.message && data.message.trim() !== '') {
             const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
             if (seen !== data.message) { document.getElementById('welcome-modal-text').innerText = data.message; setupPwaInstallSection(); document.getElementById('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
@@ -142,6 +145,7 @@ function startManagerTour() {
             { element: '#ai-battery-indicator', title: "כוח עיבוד AI ⚡", intro: "המערכת מונעת ע\"י בינה מלאכותית מתקדמת. כאן תוכלו לראות את כמות הפעולות היומיות שנותרו בחבילה שלכם.", position: 'bottom' },
             { element: '#user-balance', title: "קופת הארגון 💳", intro: "כאן תוכלו לראות בזמן אמת את יתרת התקציב או המאזן המרכזי של החברה.", position: 'bottom' },
             { element: '#tour-fab-btn', title: "פעולות מהירות ⚡", intro: "לחיצה על כפתור הפלוס מאפשרת לכם לרשום הוצאה, הכנסה או לאשר בקשת רכש מכל מקום במערכת.", position: 'top' },
+            { element: '#tab-timeclock', title: "נוכחות ⏱️", intro: "כאן תוכלו לעקוב אחר דוחות הנוכחות (שעות כניסה ויציאה) של כלל העובדים בארגון.", position: 'bottom' },
             { element: '#tab-shop', title: "ניהול רכש 🛒", intro: "הסוף לבלאגן בהזמנות ציוד! עובדים פותחים דרישות רכש, והמנהל מאשר, מפיק הזמנה ומעדכן את התקציב.", position: 'bottom' },
             { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "עקבו אחר ציוד משרדי וחומרי גלם. עובד יכול לדווח ניצול מלאי, וכשפריט אוזל הוא מועבר אוטומטית לרכש.", position: 'bottom' },
             { element: '#tab-bank', title: "תקציבים ובונוסים 🏦", intro: "נהלו תקציבי מחלקות, קופות קטנות ובונוסים לעובדים, ואשרו בקשות להחזרי הוצאות.", position: 'bottom' },
@@ -154,7 +158,7 @@ function startManagerTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else if(id === 'tab-timeclock') switchTab('timeclock'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -168,6 +172,7 @@ function startEmployeeTour() {
         steps: [
             { title: "ברוכים הבאים ל-Oneflow 360 Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
             { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
             { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
             { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
             { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
@@ -178,7 +183,7 @@ function startEmployeeTour() {
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = document.getElementById('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -218,13 +223,17 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { document.getElementById('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    ['feed','timeclock','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast'].forEach(x => { const el = document.getElementById(`content-${x}`); if(el) el.classList.add('hidden'); const btn = document.getElementById(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
     document.getElementById(`content-${t}`).classList.remove('hidden'); document.getElementById(`tab-${t}`).classList.add('tab-active'); 
     
     if (t !== 'shop') { const footer = document.getElementById('cart-footer'); if (footer) footer.classList.add('hidden'); document.getElementById('fab-container').classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
+    if (t === 'timeclock') {
+        if (currentUser.role === 'ADMIN') fetchTimeclockReport();
+        else checkTimeclockStatus();
+    }
 }
 
 function updateBatteryUI() {
@@ -279,12 +288,12 @@ async function loadDashboard() {
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
     } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['btn-self-task','bank-child-view','academy-user-view', 'timeclock-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
         const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות הרכש שלי';
@@ -306,6 +315,7 @@ async function loadDashboard() {
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
+        if(!isAdmin) { try { checkTimeclockStatus(); } catch(e){} }
         
     } catch (e) {
         console.error('Error fetching dashboard data:', e); showToast('error', 'שגיאה בטעינת חלק מהנתונים');
@@ -315,6 +325,115 @@ async function loadDashboard() {
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
 }
+
+// -------------------- שעון נוכחות --------------------
+
+async function checkTimeclockStatus() {
+    try {
+        const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`);
+        const data = await res.json();
+        const btn = document.getElementById('btn-punch');
+        const icon = document.getElementById('tc-icon');
+        const text = document.getElementById('tc-btn-text');
+        const info = document.getElementById('tc-active-info');
+        const startTime = document.getElementById('tc-start-time');
+        
+        if(!btn) return;
+        
+        isPunchedIn = data.isPunchedIn;
+        if (isPunchedIn) {
+            btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(239,68,68,0.4)] transition-all duration-300 bg-red-500 text-white hover:bg-red-600";
+            icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2";
+            text.innerText = "יציאה";
+            info.classList.remove('hidden');
+            const d = new Date(data.punchInTime);
+            startTime.innerText = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+        } else {
+            btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
+            icon.className = "fa-solid fa-fingerprint text-5xl mb-2";
+            text.innerText = "כניסה";
+            info.classList.add('hidden');
+        }
+    } catch(e) { console.error('Timeclock check error:', e); }
+}
+
+async function handlePunch() {
+    const btn = document.getElementById('btn-punch');
+    if(!btn || btn.disabled) return;
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-4xl"></i>';
+    
+    try {
+        const res = await fetch(`${API}/timeclock/punch`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if(data.success) {
+            triggerConfetti();
+            showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!');
+            checkTimeclockStatus();
+        } else {
+            showToast('error', data.error || 'שגיאה בדיווח');
+            btn.innerHTML = origHtml;
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+        btn.innerHTML = origHtml;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function fetchTimeclockReport() {
+    try {
+        const filterEl = document.getElementById('tc-user-filter');
+        if(filterEl && filterEl.options.length === 0) {
+            filterEl.innerHTML = '<option value="all">כלל העובדים</option>';
+            membersCache.forEach(m => {
+                if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${m.nickname}</option>`;
+            });
+        }
+        const userFilter = filterEl ? filterEl.value : 'all';
+        
+        const res = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`);
+        const data = await res.json();
+        const list = document.getElementById('timeclock-report-list');
+        if(!list) return;
+        
+        if(!data || data.length === 0) {
+            list.innerHTML = '<p class="text-center text-slate-400 text-sm py-10">אין דיווחי נוכחות להצגה</p>';
+            return;
+        }
+        
+        let html = '';
+        data.forEach(r => {
+            const inTime = new Date(r.punch_in);
+            const inStr = `${inTime.toLocaleDateString('he-IL')} ${inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
+            let outStr = '<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-0.5 rounded-full animate-pulse">פעיל</span>';
+            let totalStr = '-';
+            
+            if(r.punch_out) {
+                const outTime = new Date(r.punch_out);
+                outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+                const hours = Math.floor(r.total_minutes / 60);
+                const mins = r.total_minutes % 60;
+                totalStr = `${hours}ש' ו-${mins}ד'`;
+            }
+            
+            html += `<div class="p-4 hover:bg-slate-50 transition"><div class="flex justify-between items-center mb-1"><span class="font-bold text-slate-800 text-sm">${r.nickname}</span><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">${totalStr}</span></div><div class="flex justify-between text-xs text-slate-500"><span><i class="fa-solid fa-arrow-right-to-bracket text-green-500 mr-1"></i> ${inStr}</span><span><i class="fa-solid fa-arrow-right-from-bracket text-red-500 mr-1"></i> ${outStr}</span></div></div>`;
+        });
+        list.innerHTML = html;
+        
+    } catch(e) {
+        console.error('Report error', e);
+        showToast('error', 'שגיאה בטעינת דוח נוכחות');
+    }
+}
+
+// -------------------------------------------------------------------------
 
 window.openBalanceAdjustmentModal = function(id, name) { document.getElementById('adjustment-user-id').value = id; document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`; document.getElementById('adjustment-amount').value = ''; document.getElementById('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); document.getElementById('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
@@ -450,7 +569,6 @@ async function generateAIQuiz() {
     executeWithAIWarning(async () => {
         const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳';
         try {
-            // הוספת קונטקסט עסקי בבקשה, למרות שבשלב זה השרת שלנו עובד מול Prompts משפחתיים (יעודכן בשרת בהמשך)
             const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
@@ -814,49 +932,6 @@ async function deleteTransaction() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
-// -------------------- הוספת פונקציות ההחזרים והמקדמות (Loans) --------------------
-
-async function fetchLoans() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        let url; if (currentUser.role === 'ADMIN') { url = `${API}/loans?groupId=${currentGroup.id}`; } else { url = `${API}/loans?userId=${currentUser.id}`; }
-        const res = await fetch(url); const loans = await res.json(); renderLoans(loans);
-    } catch(e) { console.error('fetchLoans error:', e); }
-}
-
-function renderLoans(loans) {
-    if (currentUser.role === 'ADMIN') {
-        const panel = document.getElementById('admin-loans-panel'); const list = document.getElementById('admin-loans-list');
-        if (!panel || !list) return;
-        const pending = loans.filter(l => l.status === 'pending');
-        if (pending.length === 0) { panel.classList.add('hidden'); return; }
-        panel.classList.remove('hidden');
-        list.innerHTML = pending.map(l => `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div><p class="font-bold text-slate-800 text-sm">${l.nickname} – ₪${l.original_amount}</p><p class="text-xs text-slate-500">${l.reason || 'ללא סיבה'}</p></div><div class="flex gap-2"><button onclick="approveLoan(${l.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-green-600 transition">אשר תשלום</button><button onclick="rejectLoan(${l.id})" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-200 transition">דחה</button></div></div>`).join('');
-    } else {
-        const list = document.getElementById('my-loans-list'); if (!list) return;
-        if (!loans || loans.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-xs py-3">אין בקשות תשלום פעילות</p>'; return; }
-        list.innerHTML = loans.map(l => {
-            const statusMap = { pending: { label: 'ממתין לאישור מנהל', cls: 'bg-orange-100 text-orange-600' }, approved: { label: 'אושר שולם ✓', cls: 'bg-green-100 text-green-700' }, rejected: { label: 'נדחתה', cls: 'bg-red-100 text-red-600' } };
-            const s = statusMap[l.status] || { label: l.status, cls: 'bg-slate-100 text-slate-600' };
-            return `<div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2"><div><p class="font-bold text-slate-800 text-sm">₪${l.original_amount}</p><p class="text-xs text-slate-500">${l.reason || ''} • ${new Date(l.created_at).toLocaleDateString('he-IL')}</p></div><span class="text-xs font-bold px-2 py-1 rounded-lg ${s.cls}">${s.label}</span></div>`;
-        }).join('');
-    }
-}
-
-async function approveLoan(loanId) {
-    if (!confirm('לאשר תשלום זה ולהעביר את הכסף לעובד?')) return;
-    const res = await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) }); const data = await res.json();
-    if (data.success) { triggerConfetti(); showToast('success', 'הבקשה אושרה והתקציב עודכן!'); fetchData(); fetchLoans(); } else showToast('error', data.error);
-}
-
-async function rejectLoan(loanId) {
-    if (!confirm('לדחות בקשה זו?')) return;
-    await fetch(`${API}/loans/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, adminId: currentUser.id }) });
-    showToast('success', 'הבקשה נדחתה'); fetchLoans();
-}
-
-// -------------------------------------------------------------------------
-
 function updateAssignDetails() { const select = document.getElementById('assign-bundle-select'); const bundleId = select.value; const bundle = allBundles.find(b => b.id == bundleId); if(bundle) { document.getElementById('assign-reward').value = bundle.reward; } }
 function openAssignModal() {
     const cSelect = document.getElementById('assign-child-select'); cSelect.innerHTML = '<option value="" disabled selected>בחר עובד...</option>';
@@ -1179,7 +1254,6 @@ function exportShopToWhatsApp() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-// ... יתר הפונקציות המוכרות של הנגישות ועדכון הפרופיל ...
 function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
 async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
 function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
