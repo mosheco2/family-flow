@@ -2,7 +2,6 @@
 // Oneflow - Core & Common Functionality
 // ==========================================
 
-// ניתוב חכם ל-API - מזהה אוטומטית אם אנחנו בשרת מקומי (פיתוח) או ב-Render (פרודקשן)
 let API = '/api';
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
     API = 'http://localhost:3000/api';
@@ -85,14 +84,26 @@ function routeAppBasedOnType() {
     const isBusinessPage = window.location.pathname.includes('business.html');
     
     if (currentGroup && currentGroup.type === 'BUSINESS') {
-        if (isBusinessPage && typeof loadBusinessDashboard === 'function') {
-            loadBusinessDashboard();
+        if (isBusinessPage) {
+            if (typeof loadBusinessDashboard === 'function') {
+                loadBusinessDashboard();
+            } else {
+                console.error("loadBusinessDashboard missing");
+                showToast('error', 'שגיאה בטעינת המודול העסקי');
+                hidePreloaderAndShowAuth('login');
+            }
         } else {
             window.location.href = '/business.html'; 
         }
     } else {
-        if (!isBusinessPage && typeof loadFamilyDashboard === 'function') {
-            loadFamilyDashboard();
+        if (!isBusinessPage) {
+            if (typeof loadFamilyDashboard === 'function') {
+                loadFamilyDashboard();
+            } else {
+                console.error("loadFamilyDashboard missing");
+                showToast('error', 'שגיאה בטעינת מודול המשפחות');
+                hidePreloaderAndShowAuth('login');
+            }
         } else {
             window.location.href = '/index.html'; 
         }
