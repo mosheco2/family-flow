@@ -28,31 +28,16 @@ const pool = new Pool({
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
-      
-      // שדרוגים שקטים קודמים
-      try { await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
-      try { await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_list ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
-      
-      // תיקון באג הרישום הכפול למייל - הסרת המגבלה הישנה והוספת מגבלה משולבת (אימייל + סוג סביבה)
       try {
-          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
-          await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
-      } catch(e) { console.log('Email constraint exists or error:', e.message); }
-
-      // יצירת טבלת שעון נוכחות אם לא קיימת
+          await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE');
+          await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)');
+      } catch(e) {}
+      
       try {
-          await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
-              id SERIAL PRIMARY KEY,
-              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
-              user_id INT REFERENCES users(id) ON DELETE CASCADE,
-              punch_in TIMESTAMP NOT NULL,
-              punch_out TIMESTAMP,
-              total_minutes INT DEFAULT 0
-          )`);
-      } catch(e) { console.log('Time clock table error:', e.message); }
+          await client.query('ALTER TABLE shopping_list ADD COLUMN units_per_package INT DEFAULT 1');
+          await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1');
+          await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1');
+      } catch(e) {}
       
       client.release();
   })
@@ -108,14 +93,13 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS shopping_trips CASCADE;
             DROP TABLE IF EXISTS shopping_trip_items CASCADE;
             DROP TABLE IF EXISTS pantry CASCADE;
-            DROP TABLE IF EXISTS time_clock CASCADE;
             DROP TABLE IF EXISTS users CASCADE;
             DROP TABLE IF EXISTS family_groups CASCADE;
             DROP TABLE IF EXISTS system_settings CASCADE;
             DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(admin_email, type));
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100) UNIQUE, group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -126,14 +110,13 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE shopping_trips (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, buyer_id INT REFERENCES users(id), store_name VARCHAR(100), branch_name VARCHAR(100), total_amount DECIMAL(10,2), trip_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE shopping_trip_items (id SERIAL PRIMARY KEY, trip_id INT REFERENCES shopping_trips(id) ON DELETE CASCADE, item_name VARCHAR(100), normalized_name VARCHAR(100), quantity DECIMAL(10,2), unit VARCHAR(20) DEFAULT 'יח''', price_per_unit DECIMAL(10,2), units_per_package INT DEFAULT 1);
             CREATE TABLE pantry (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, item_name VARCHAR(100), quantity DECIMAL(10,2) DEFAULT 1, unit VARCHAR(20) DEFAULT 'יח''', updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, units_per_package INT DEFAULT 1);
-            CREATE TABLE time_clock (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, punch_in TIMESTAMP NOT NULL, punch_out TIMESTAMP, total_minutes INT DEFAULT 0);
             CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes time_clock table)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -698,52 +681,6 @@ app.post('/api/guide/chat', async (req, res) => {
 });
 
 
-// --- TIME CLOCK ENDPOINTS ---
-app.get('/api/timeclock/status', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        const openPunch = await pool.query('SELECT punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
-        res.json({ isPunchedIn: openPunch.rows.length > 0, punchInTime: openPunch.rows.length > 0 ? openPunch.rows[0].punch_in : null });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/timeclock/punch', async (req, res) => {
-    try {
-        const { userId, groupId } = req.body;
-        const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
-        if (openPunch.rows.length > 0) {
-            // מבצע דיווח יציאה
-            const punchId = openPunch.rows[0].id;
-            const punchIn = new Date(openPunch.rows[0].punch_in);
-            const punchOut = new Date();
-            const diffMins = Math.max(0, Math.round((punchOut - punchIn) / 60000));
-            await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
-            res.json({ success: true, status: 'out' });
-        } else {
-            // מבצע דיווח כניסה
-            await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
-            res.json({ success: true, status: 'in' });
-        }
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/timeclock/report', async (req, res) => {
-    try {
-        const { groupId, userId } = req.query;
-        let query, params;
-        if (userId === 'all') {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [groupId];
-        } else {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [userId];
-        }
-        const result = await pool.query(query, params);
-        res.json(result.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-
 // --- BASIC API ENDPOINTS ---
 app.post('/api/groups', async (req, res) => {
     const dbClient = await pool.connect();
@@ -1202,11 +1139,15 @@ app.post('/api/goals/deposit', async (req, res) => {
         if (parseFloat(u.balance) < parseFloat(amount)) { await dbClient.query('ROLLBACK'); return res.status(400).json({ error: 'אין מספיק יתרה' }); }
         await dbClient.query(`UPDATE users SET balance = balance - $1 WHERE id = $2`, [amount, userId]);
         await dbClient.query(`UPDATE goals SET current_amount = current_amount + $1 WHERE id = $2`, [amount, goalId]);
-        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`, [userId, u.group_id, amount, `הפקדה ליעד: ${g.title}`]);
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, $3, $4, 'savings', 'expense', FALSE)`, [userId, u.group_id, amount, `הפקדה/העברה ליעד: ${g.title}`]);
         await dbClient.query('COMMIT');
         res.json({ success: true });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
+
+// ============================================================
+// --- BUDGET ENDPOINTS ---
+// ============================================================
 
 app.get('/api/budget/filter', async (req, res) => {
     try {
@@ -1294,6 +1235,10 @@ app.post('/api/budget/update', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// --- LOANS ENDPOINTS ---
+// ============================================================
+
 app.post('/api/loans/request', async (req, res) => {
     try {
         const { userId, amount, reason } = req.body;
@@ -1357,6 +1302,10 @@ app.post('/api/loans/reject', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// --- ACADEMY ENDPOINTS ---
+// ============================================================
+
 app.post('/api/academy/assign', async (req, res) => {
     try {
         const { userId, bundleId, reward, days } = req.body;
@@ -1419,6 +1368,10 @@ app.post('/api/academy/submit', async (req, res) => {
         res.json({ success: true, passed, reward: passed ? finalReward : 0 });
     } catch (e) { await dbClient.query('ROLLBACK'); res.status(500).json({ error: e.message }); } finally { dbClient.release(); }
 });
+
+// ============================================================
+// --- SHOPPING & PANTRY ENDPOINTS ---
+// ============================================================
 
 app.post('/api/shopping/add', async (req, res) => {
     try {
@@ -1585,49 +1538,6 @@ app.post('/api/pantry/use', async (req, res) => {
 app.delete('/api/pantry/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); }
     catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- TIME CLOCK ENDPOINTS ---
-app.get('/api/timeclock/status', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        const openPunch = await pool.query('SELECT punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
-        res.json({ isPunchedIn: openPunch.rows.length > 0, punchInTime: openPunch.rows.length > 0 ? openPunch.rows[0].punch_in : null });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/timeclock/punch', async (req, res) => {
-    try {
-        const { userId, groupId } = req.body;
-        const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
-        if (openPunch.rows.length > 0) {
-            const punchId = openPunch.rows[0].id;
-            const punchIn = new Date(openPunch.rows[0].punch_in);
-            const punchOut = new Date();
-            const diffMins = Math.max(0, Math.round((punchOut - punchIn) / 60000));
-            await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
-            res.json({ success: true, status: 'out' });
-        } else {
-            await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
-            res.json({ success: true, status: 'in' });
-        }
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/timeclock/report', async (req, res) => {
-    try {
-        const { groupId, userId } = req.query;
-        let query, params;
-        if (userId === 'all') {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [groupId];
-        } else {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [userId];
-        }
-        const result = await pool.query(query, params);
-        res.json(result.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(port, () => {
