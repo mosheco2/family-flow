@@ -75,6 +75,18 @@
         .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
         .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .modal-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* כפתור שעון הנוכחות */
+        .punch-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .punch-btn::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; background: rgba(255, 255, 255, 0.5); opacity: 0; border-radius: 100%; transform: scale(1, 1) translate(-50%); transform-origin: 50% 50%;
+        }
+        @keyframes ripple { 0% { transform: scale(0, 0); opacity: 1; } 20% { transform: scale(25, 25); opacity: 1; } 100% { opacity: 0; transform: scale(40, 40); } }
+        .punch-btn:active::after { animation: ripple 1s ease-out; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -120,6 +132,7 @@
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
                         <div class="slider-scroll" id="slider-scroll">
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
+                            <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">קופה 💳</button>
@@ -162,6 +175,38 @@
                         </div>
 
                         <div id="unified-feed-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="content-timeclock" class="hidden">
+                        <div id="timeclock-admin-view" class="hidden space-y-4">
+                            <div class="flex justify-between items-center mb-2 px-2">
+                                <h3 class="font-bold text-slate-800 text-lg">דוח נוכחות ⏱️</h3>
+                                <button onclick="fetchTimeclockReport()" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition"><i class="fa-solid fa-rotate-right"></i> רענון</button>
+                            </div>
+                            <div class="px-2 mb-4">
+                                <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white"></select>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                <div id="timeclock-report-list" class="divide-y divide-slate-50 min-h-[150px]"></div>
+                            </div>
+                        </div>
+
+                        <div id="timeclock-user-view" class="hidden space-y-6">
+                            <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center min-h-[300px]">
+                                <h3 class="font-bold text-slate-800 text-xl mb-2" id="tc-status-title">שעון נוכחות</h3>
+                                <p class="text-sm text-slate-500 mb-8" id="tc-status-desc">לחץ כדי להתחיל או לסיים משמרת</p>
+                                
+                                <button id="btn-punch" onclick="handlePunch()" class="punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-300">
+                                    <i id="tc-icon" class="fa-solid fa-fingerprint text-5xl mb-2"></i>
+                                    <span id="tc-btn-text" class="font-bold text-lg">כניסה</span>
+                                </button>
+                                
+                                <div id="tc-active-info" class="mt-8 hidden flex flex-col items-center">
+                                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full animate-pulse mb-2">משמרת פעילה</span>
+                                    <span class="text-slate-500 text-sm font-medium">החלה ב- <span id="tc-start-time" class="font-bold text-slate-800"></span></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="content-bank" class="hidden">
