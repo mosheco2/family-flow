@@ -36,7 +36,7 @@ pool.connect()
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
       
-      // תיקון באג הרישום הכפול למייל - הסרת המגבלה הישנה והוספת מגבלה משולבת (אימייל + סוג סביבה)
+      // תיקון באג הרישום הכפול למייל
       try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
           await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
@@ -54,6 +54,10 @@ pool.connect()
           )`);
       } catch(e) { console.log('Time clock table error:', e.message); }
       
+      // הוספת עמודות מיקום GPS לטבלת הקבוצות/עסקים
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN location_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN location_lng DOUBLE PRECISION'); } catch(e) {}
+
       client.release();
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -67,6 +71,21 @@ const generateGroupCode = () => {
     for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     return code;
 };
+
+// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות (נוסחת Haversine)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // רדיוס כדור הארץ במטרים
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
 
 async function handleAITokens(groupId) {
     try {
@@ -115,7 +134,7 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(admin_email, type));
+            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, UNIQUE(admin_email, type));
             CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -698,7 +717,22 @@ app.post('/api/guide/chat', async (req, res) => {
 });
 
 
-// --- TIME CLOCK ENDPOINTS ---
+// --- TIME CLOCK ENDPOINTS WITH GPS ---
+
+// שמירת קואורדינטות העסק על ידי המנהל
+app.post('/api/timeclock/set-location', async (req, res) => {
+    try {
+        const { groupId, adminId, lat, lng } = req.body;
+        // בדיקה שהמבקש הוא אכן מנהל הארגון
+        const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
+        if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
+        
+        await pool.query('UPDATE family_groups SET location_lat=$1, location_lng=$2 WHERE id=$3', [lat, lng, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// בדיקת סטטוס השעון (נשאר ללא שינוי, לא צריך GPS כדי לראות אם אני פתוח)
 app.get('/api/timeclock/status', async (req, res) => {
     try {
         const { userId } = req.query;
@@ -707,9 +741,35 @@ app.get('/api/timeclock/status', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// דקירת כניסה/יציאה - עם ולידציה של GPS
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
-        const { userId, groupId } = req.body;
+        const { userId, groupId, lat, lng } = req.body;
+        
+        if (!lat || !lng) {
+            return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
+        }
+
+        // שליפת מיקום העסק
+        const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+        
+        const bizLat = gRes.rows[0].location_lat;
+        const bizLng = gRes.rows[0].location_lng;
+        
+        // אם המנהל לא הגדיר מיקום
+        if (!bizLat || !bizLng) {
+            return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
+        }
+        
+        // חישוב המרחק במטרים
+        const distance = calculateDistance(lat, lng, bizLat, bizLng);
+        const MAX_ALLOWED_DISTANCE = 150; // 150 מטר רדיוס (ניתן לשינוי בעתיד)
+        
+        if (distance > MAX_ALLOWED_DISTANCE) {
+            return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
+        }
+
         const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
         if (openPunch.rows.length > 0) {
             // מבצע דיווח יציאה
@@ -818,7 +878,6 @@ app.get('/api/data/:userId', async (req, res) => {
         if(uRes.rows.length===0) return res.status(404).json({error: 'No user'});
         const user = uRes.rows[0];
 
-        // כאן נוסף השדה type בשליפה מה-DB
         const gRes = await pool.query('SELECT type, ai_tokens, is_premium, last_token_reset FROM family_groups WHERE id=$1', [user.group_id]);
         const groupData = gRes.rows[0] || { type: 'FAMILY', ai_tokens: 10, is_premium: false };
 
@@ -1588,7 +1647,22 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
     catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- TIME CLOCK ENDPOINTS ---
+// --- TIME CLOCK ENDPOINTS WITH GPS ---
+
+// שמירת קואורדינטות העסק על ידי המנהל
+app.post('/api/timeclock/set-location', async (req, res) => {
+    try {
+        const { groupId, adminId, lat, lng } = req.body;
+        // בדיקה שהמבקש הוא אכן מנהל הארגון
+        const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
+        if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
+        
+        await pool.query('UPDATE family_groups SET location_lat=$1, location_lng=$2 WHERE id=$3', [lat, lng, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// בדיקת סטטוס השעון
 app.get('/api/timeclock/status', async (req, res) => {
     try {
         const { userId } = req.query;
@@ -1597,9 +1671,35 @@ app.get('/api/timeclock/status', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// דקירת כניסה/יציאה - עם ולידציה של GPS
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
-        const { userId, groupId } = req.body;
+        const { userId, groupId, lat, lng } = req.body;
+        
+        if (!lat || !lng) {
+            return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
+        }
+
+        // שליפת מיקום העסק
+        const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+        
+        const bizLat = gRes.rows[0].location_lat;
+        const bizLng = gRes.rows[0].location_lng;
+        
+        // אם המנהל לא הגדיר מיקום
+        if (!bizLat || !bizLng) {
+            return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
+        }
+        
+        // חישוב המרחק במטרים
+        const distance = calculateDistance(lat, lng, bizLat, bizLng);
+        const MAX_ALLOWED_DISTANCE = 150; // 150 מטר רדיוס (ניתן לשינוי בעתיד)
+        
+        if (distance > MAX_ALLOWED_DISTANCE) {
+            return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
+        }
+
         const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
         if (openPunch.rows.length > 0) {
             // מבצע דיווח יציאה
