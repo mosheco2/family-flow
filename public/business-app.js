@@ -88,16 +88,16 @@ window.onload = async () => {
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 
-            if(session && session.user && session.user.id) { 
+            if(session && session.user && session.group) { 
                 currentUser = session.user; currentGroup = session.group; 
                 clearTimeout(failsafeTimer); 
                 
-                // ודא שהמשתמש באמת שייך לממשק העסקי
+                // בדיקה קריטית: אם החשבון הוא לא של עסק, זרוק אותו חזרה לאפליקציה הרגילה
                 if(currentGroup.type !== 'BUSINESS') {
-                    // אם זה משפחה שהגיעה לכאן בטעות, ננתב חזרה לאפליקציה הרגילה
-                    window.location.href = '/';
-                    return;
+                    window.location.href = '/'; 
+                    return; 
                 }
+                
                 loadDashboard(); 
                 return; 
             }
@@ -198,7 +198,7 @@ async function handleLogin(e) {
         const data = await res.json(); 
         if(data.success) { 
             if(data.group.type !== 'BUSINESS') {
-                // המשתמש מנסה להתחבר למשפחה דרך עמוד עסקים (או להיפך). למרות שהשרת תומך, ברמת לקוח ננתב אותו:
+                // המשתמש מנסה להתחבר למשפחה דרך עמוד עסקים (או להיפך). ננתב אותו נכון:
                 localStorage.setItem('ofl_session', JSON.stringify({user:data.user, group:data.group}));
                 window.location.href = '/'; 
                 return;
