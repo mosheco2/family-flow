@@ -224,17 +224,17 @@
             </div>
             
             <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
-                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת בנק</h2>
+                <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת סביבה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
                         <button type="button" onclick="selectType('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="openAlertModal('שותפים', 'אפשרות לניהול קבוצת שותפים תתווסף למערכת בקרוב!')" id="type-group" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-users block text-xl mb-1"></i>שותפים</button>
+                        <button type="button" onclick="selectType('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
                     </div>
                     <input type="hidden" id="create-type" value="FAMILY">
-                    <input type="text" id="create-group-name" required placeholder="שם המשפחה" class="modern-input">
-                    <input type="email" id="create-email" required placeholder="מייל מנהל המשפחה (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
+                    <input type="text" id="create-group-name" required placeholder="שם הקבוצה / העסק" class="modern-input">
+                    <input type="email" id="create-email" required placeholder="מייל מנהל (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
                     <div class="flex gap-3">
-                        <input type="text" id="create-nickname" required placeholder="שם (הורה)" class="modern-input">
+                        <input type="text" id="create-nickname" required placeholder="שם מנהל" class="modern-input">
                         <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
                     </div>
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
@@ -248,12 +248,12 @@
                         <div class="flex items-start gap-2">
                             <label class="flex items-start gap-2 cursor-pointer">
                                 <input type="checkbox" id="create-marketing" class="w-4 h-4 accent-blue-600 mt-0.5">
-                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים, טיפים פיננסיים והטבות מ-Oneflow Life (רשות)</span>
+                                <span class="text-[11px] text-slate-600 leading-tight">אשמח לקבל למייל או לוואטסאפ עדכונים והטבות מ-Oneflow (רשות)</span>
                             </label>
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-green-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-green-200 mt-2 text-lg">סיום והרשמה</button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד משפחה ייחודי עבורכם.</p>
+                    <p class="text-[10px] text-slate-400 text-center mt-2">בסיום ההרשמה יווצר קוד התחברות ייחודי עבורכם.</p>
                 </form>
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
@@ -262,7 +262,7 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
                     <input type="hidden" id="join-role" value="MEMBER">
-                    <input type="text" id="join-code" required placeholder="קוד משפחה" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
+                    <input type="text" id="join-code" required placeholder="קוד התחברות" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
                     <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="join-password" required placeholder="בחר סיסמה לחשבון שלך" class="modern-input">
@@ -303,6 +303,25 @@
                     <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
                 </div>
                 
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-center">
+                        <p class="text-[10px] text-blue-500 font-bold uppercase tracking-wider mb-1">משפחות רשומות</p>
+                        <p class="text-3xl font-bold text-blue-700" id="sa-stat-family-groups">0</p>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 text-center">
+                        <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-wider mb-1">עסקים רשומים</p>
+                        <p class="text-3xl font-bold text-indigo-700" id="sa-stat-business-groups">0</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
+                        <p class="text-[10px] text-green-500 font-bold uppercase tracking-wider mb-1">משתמשי משפחות</p>
+                        <p class="text-3xl font-bold text-green-700" id="sa-stat-family-users">0</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-center">
+                        <p class="text-[10px] text-purple-500 font-bold uppercase tracking-wider mb-1">משתמשי עסקים</p>
+                        <p class="text-3xl font-bold text-purple-700" id="sa-stat-business-users">0</p>
+                    </div>
+                </div>
+                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה גלובלית</h2>
@@ -333,10 +352,10 @@
                     </div>
 
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> ניהול באנרים פרסומיים (Top & Bottom)</h2>
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-house text-pink-500 mr-2"></i> ניהול באנרים - משפחות</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                             <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner)</h3>
+                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner) - משפחות</h3>
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
                                     <input type="text" id="sa-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: מבצע מיוחד לחברי האפליקציה!">
@@ -351,7 +370,7 @@
                                 </div>
                             </div>
                             <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
+                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner) - משפחות</h3>
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
                                     <input type="text" id="sa-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
@@ -366,16 +385,53 @@
                                 </div>
                             </div>
                         </div>
-                        <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-pink-200 hover:bg-pink-600 transition hover:scale-[1.01]">שמור ופרסם באנרים במערכת</button>
+                        <button onclick="saveBanners('FAMILY')" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-pink-200 hover:bg-pink-600 transition hover:scale-[1.01]">שמור ופרסם באנרים למשפחות</button>
+                    </div>
+
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 md:col-span-2 mb-4">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-briefcase text-indigo-500 mr-2"></i> ניהול באנרים - עסקים</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר עליון (Top Banner) - עסקים</h3>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                    <input type="text" id="sa-biz-banner-top-text" class="modern-input py-2 text-sm" placeholder="למשל: כלי חדש לניהול עובדים!">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                    <input type="url" id="sa-biz-banner-top-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                    <input type="text" id="sa-biz-banner-top-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: biz-banner1.png">
+                                </div>
+                            </div>
+                            <div class="space-y-3 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner) - עסקים</h3>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
+                                    <input type="text" id="sa-biz-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקהילת העסקים שלנו">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
+                                    <input type="url" id="sa-biz-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
+                                    <input type="text" id="sa-biz-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: biz-banner2.png">
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="saveBanners('BUSINESS')" class="bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg shadow-indigo-200 hover:bg-indigo-600 transition hover:scale-[1.01]">שמור ופרסם באנרים לעסקים</button>
                     </div>
                 </div>
 
                 <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                        <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> משפחות ומשתמשים רשומים</h2>
+                        <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> סביבות ומשתמשים רשומים</h2>
                         <div class="relative w-full sm:w-64">
                             <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש לפי קוד או שם משפחה...">
+                            <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש לפי קוד או שם...">
                         </div>
                     </div>
                     <div id="sa-groups-list" class="space-y-3"></div>
