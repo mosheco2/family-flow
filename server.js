@@ -31,6 +31,7 @@ const pool = new Pool({
 pool.connect().then(async (client) => {
     console.log('✅ Connected to DB (Pool)');
     try {
+        // יצירת טבלאות בסיס
         await client.query(`
             CREATE TABLE IF NOT EXISTS family_groups ( id SERIAL PRIMARY KEY, name VARCHAR(100), group_code VARCHAR(20) UNIQUE, type VARCHAR(20) DEFAULT 'FAMILY', ai_tokens INT DEFAULT 10, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
             CREATE TABLE IF NOT EXISTS users ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), password VARCHAR(100), role VARCHAR(20), birth_year INT, balance DECIMAL DEFAULT 0, allowance_amount DECIMAL DEFAULT 0, interest_rate DECIMAL DEFAULT 0, email VARCHAR(150), marketing_consent BOOLEAN DEFAULT FALSE );
@@ -44,42 +45,50 @@ pool.connect().then(async (client) => {
             CREATE TABLE IF NOT EXISTS quiz_assignments ( id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT, status VARCHAR(20) DEFAULT 'assigned', score INT, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
         `);
         
-        try { await client.query('ALTER TABLE users ADD COLUMN email VARCHAR(150)'); } catch(e) {}
-        try { await client.query('ALTER TABLE users ADD COLUMN marketing_consent BOOLEAN DEFAULT FALSE'); } catch(e) {}
+        // הוספה בטוחה של שדות חדשים למסד הנתונים במידה ולא קיימים
+        try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150)'); } catch(e) { console.warn("Notice: Column email check failed", e.message); }
+        try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_consent BOOLEAN DEFAULT FALSE'); } catch(e) { console.warn("Notice: Column marketing_consent check failed", e.message); }
         
     } catch(e) { console.error('DB Init Error:', e); } finally { client.release(); }
 }).catch(err => console.error('DB Connection Error:', err));
 
 // ==========================================
-// Authentication (התיקון המרכזי כאן)
+// Authentication (התיקון המרכזי למנגנון ההרשמה)
 // ==========================================
 app.post('/api/groups', async (req, res) => {
     const { type, groupName, adminEmail, adminNickname, birthYear, password, marketingConsent } = req.body;
-    
-    // יצירת קוד ייחודי
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     
+    // אנו פותחים טרנזקציה בטוחה: אם המשתמש נכשל, הקבוצה לא תיווצר (וכך לא נשאר עם נתונים תלויים)
+    const client = await pool.connect();
     try {
-        // שלב 1: פתיחת הסביבה
-        const gRes = await pool.query(
+        await client.query('BEGIN'); // נעילת מסד נתונים
+
+        // 1. פתיחת קבוצה/עסק
+        const gRes = await client.query(
             'INSERT INTO family_groups (name, group_code, type) VALUES ($1, $2, $3) RETURNING id, name, group_code, type, ai_tokens, is_premium', 
             [groupName, code, type || 'FAMILY']
         );
-        
         const newGroup = gRes.rows[0];
 
-        // שלב 2: פתיחת המשתמש וקישור לסביבה
-        const uRes = await pool.query(
+        const parsedBirthYear = parseInt(birthYear) || null;
+
+        // 2. פתיחת מנהל וקישור לקבוצה שנוצרה
+        const uRes = await client.query(
             'INSERT INTO users (group_id, nickname, password, role, birth_year, email, marketing_consent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, nickname, role, balance, birth_year', 
-            [newGroup.id, adminNickname, password, 'ADMIN', birthYear, adminEmail, marketingConsent || false]
+            [newGroup.id, adminNickname, password, 'ADMIN', parsedBirthYear, adminEmail || null, marketingConsent || false]
         );
-        
         const newUser = uRes.rows[0];
 
+        await client.query('COMMIT'); // שמירה סופית
         res.json({ success: true, group: newGroup, user: newUser });
+        
     } catch(e) { 
+        await client.query('ROLLBACK'); // ביטול במקרה שגיאה
         console.error('Registration Error:', e);
-        res.status(500).json({ success: false, error: 'שגיאה בהקמת הסביבה: ' + e.message }); 
+        res.status(500).json({ success: false, error: 'תקלה ברישום: ' + e.message }); 
+    } finally {
+        client.release();
     }
 });
 
@@ -99,7 +108,7 @@ app.post('/api/join', async (req, res) => {
     try {
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode]);
         if(gRes.rows.length === 0) return res.status(404).json({ success: false, error: 'קוד סביבה לא קיים' });
-        await pool.query('INSERT INTO users (group_id, nickname, password, role, birth_year) VALUES ($1, $2, $3, $4, $5)', [gRes.rows[0].id, nickname, password, role || 'MEMBER', birthYear]);
+        await pool.query('INSERT INTO users (group_id, nickname, password, role, birth_year) VALUES ($1, $2, $3, $4, $5)', [gRes.rows[0].id, nickname, password, role || 'MEMBER', parseInt(birthYear) || null]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -114,7 +123,7 @@ app.get('/api/group/members', async (req, res) => {
 // ==========================================
 // Super Admin Routes
 // ==========================================
-let globalWelcomeMsg = 'ברוכים הבאים ל-Oneflow Life!';
+let globalWelcomeMsg = 'ברוכים הבאים ל-Oneflow 360!';
 let globalBanners = {};
 
 app.post('/api/superadmin/login', (req, res) => {
@@ -295,7 +304,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
         const uRes = await pool.query('SELECT group_id FROM users WHERE id = $1', [userId]);
         const groupId = uRes.rows[0].group_id;
 
-        // 1. תיעוד רכישה (תזרים)
         const typeStr = isBusiness ? 'expense' : 'expense';
         const catStr = isBusiness ? 'inventory' : 'groceries';
         const descStr = `קנייה מרוכזת: ${storeName} ${branchName ? '('+branchName+')' : ''}`;
@@ -305,11 +313,8 @@ app.post('/api/shopping/checkout', async (req, res) => {
             [groupId, userId, totalAmount, descStr, catStr, typeStr]
         );
 
-        // 2. טיפול בפריטים שנרכשו - מחיקה מהעגלה והוספה למלאי
         for (const item of boughtItems) {
             await pool.query('DELETE FROM shopping_list WHERE id = $1', [item.id]);
-            
-            // הכנסה למלאי הפנימי (Pantry/Inventory)
             const exist = await pool.query('SELECT id FROM pantry WHERE group_id = $1 AND item_name = $2', [groupId, item.name]);
             if (exist.rows.length > 0) {
                 await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [item.quantity, exist.rows[0].id]);
@@ -318,7 +323,6 @@ app.post('/api/shopping/checkout', async (req, res) => {
             }
         }
 
-        // 3. טיפול בחסרים - החזרה לסטטוס ממתין
         for (const item of missingItems) {
             await pool.query('UPDATE shopping_list SET status = $1 WHERE id = $2', ['pending', item.id]);
         }
@@ -330,8 +334,10 @@ app.post('/api/shopping/checkout', async (req, res) => {
     }
 });
 
+// ==========================================
+// AI Routes (Gemini Integration)
+// ==========================================
 
-// AI Usage Check Helper
 async function decrementAITokens(groupId) {
     const gRes = await pool.query('SELECT ai_tokens, is_premium FROM family_groups WHERE id = $1', [groupId]);
     if (!gRes.rows[0].is_premium) {
@@ -339,6 +345,86 @@ async function decrementAITokens(groupId) {
         await pool.query('UPDATE family_groups SET ai_tokens = ai_tokens - 1 WHERE id = $1', [groupId]);
     }
 }
+
+app.post('/api/shopping/scan-receipt', async (req, res) => {
+    const { userId, imageBase64, mimeType, isBusiness } = req.body;
+    try {
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id = $1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        
+        await decrementAITokens(groupId);
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = isBusiness 
+            ? "אתה מנהל רכש ארגוני. סרוק את חשבונית הספק הזו וחלץ ממנה את המוצרים שנרכשו, הכמויות והמחירים (התעלם ממע\"מ וסיכומים). החזר פלט כ-JSON בלבד במבנה: { \"items\": [ { \"name\": \"שם המוצר\", \"quantity\": כמות, \"price\": מחיר יחידה } ] }"
+            : "אתה קופאית אוטומטית למשפחה. סרוק את קבלת הסופרמקרט וחלץ ממנה מוצרים שנקנו. החזר פלט כ-JSON בלבד במבנה: { \"items\": [ { \"name\": \"שם המוצר\", \"quantity\": כמות, \"price\": מחיר } ] }";
+            
+        const imageParts = [{ inlineData: { data: imageBase64, mimeType } }];
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const responseText = result.response.text();
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+            const data = JSON.parse(jsonMatch[0]);
+            let count = 0;
+            for (const item of data.items) {
+                if (item.name && item.quantity) {
+                    await pool.query(
+                        'INSERT INTO shopping_list (group_id, item_name, quantity, estimated_price, user_id, status) VALUES ($1, $2, $3, $4, $5, $6)',
+                        [groupId, item.name, item.quantity, item.price || 0, userId, isBusiness ? 'in_cart' : 'pending']
+                    );
+                    count++;
+                }
+            }
+            res.json({ success: true, count });
+        } else {
+            res.json({ success: false, error: "לא נמצאו נתונים קריאים בתמונה" });
+        }
+    } catch(e) {
+        if (e.message === 'BATTERY_EMPTY') res.json({ error: 'BATTERY_EMPTY' });
+        else res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/pantry/familai-insight', async (req, res) => {
+    const { groupId, isBusiness } = req.body;
+    try {
+        await decrementAITokens(groupId);
+        const pRes = await pool.query('SELECT item_name, quantity FROM pantry WHERE group_id = $1', [groupId]);
+        const items = pRes.rows.map(r => `${r.item_name}: ${r.quantity}`).join(', ');
+        
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = isBusiness
+            ? `אתה מנהל רכש ויועץ תפעולי של ארגון. הנה המלאי כרגע בחברה: ${items}. כתוב פסקת תובנות ארגונית קצרה על מצב המלאי ומה כדאי להזמין בקרוב.`
+            : `אתה יועצת ניהול בית. הנה המזווה המשפחתי: ${items}. כתבי פסקה קצרה, נעימה וחכמה על המלאי ומה חסר.`;
+            
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text() });
+    } catch(e) { 
+        if (e.message === 'BATTERY_EMPTY') res.json({ error: 'BATTERY_EMPTY' });
+        else res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.post('/api/budget/familai-insight', async (req, res) => {
+    const { groupId, isBusiness } = req.body;
+    try {
+        await decrementAITokens(groupId);
+        const tRes = await pool.query('SELECT amount, category, type FROM transactions WHERE group_id = $1 ORDER BY date DESC LIMIT 30', [groupId]);
+        const txs = tRes.rows.map(t => `${t.type === 'income' ? '+' : '-'}${t.amount} (${t.category})`).join(', ');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = isBusiness
+            ? `אתה רואה חשבון ויועץ ארגוני. אלה הפעולות האחרונות בעסק: ${txs}. כתוב פסקת ניתוח קצרה למנכ"ל על קצב שריפת המזומנים (Burn Rate) ותובנות על הוצאות המחלקות.`
+            : `אתה יועץ כלכלת משפחה חכם. אלה ההוצאות וההכנסות האחרונות: ${txs}. תן טיפ חיסכון מותאם אישית בשפה קלילה ומעודדת למשפחה.`;
+            
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, insight: result.response.text() });
+    } catch(e) {
+        if (e.message === 'BATTERY_EMPTY') res.json({ error: 'BATTERY_EMPTY' });
+        else res.status(500).json({ error: e.message });
+    }
+});
 
 // ==========================================
 // ניתוב חכם (מונע שגיאות 404 ו-Cannot GET)
