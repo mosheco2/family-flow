@@ -69,10 +69,9 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-const hidePreloaderAndShowAuth = (view = 'login') => {
-    document.getElementById('auth-container').classList.remove('hidden'); switchView(view);
-    const preloader = document.getElementById('app-preloader');
-    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+// תוקן: אין צורך במסך התחברות ב-business.html, לכן ננתב לעמוד הראשי
+const hidePreloaderAndShowAuth = () => {
+    window.location.href = '/';
 };
 
 window.onload = async () => { 
@@ -80,9 +79,14 @@ window.onload = async () => {
     const btnMonthly = document.getElementById('btn-forecast-monthly'); const btnYearly = document.getElementById('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
+    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth(); } }, 7000);
+    
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { document.getElementById('join-code').value = inviteCode; if(inviteRole) document.getElementById('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    if (inviteCode) { 
+        // אם מגיעים עם לינק הזמנה, ננתב למסך הבית להרשמה
+        window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; 
+        return; 
+    }
     
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
@@ -92,18 +96,17 @@ window.onload = async () => {
                 currentUser = session.user; currentGroup = session.group; 
                 clearTimeout(failsafeTimer); 
                 
-                // בדיקה קריטית: אם החשבון הוא לא של עסק, זרוק אותו חזרה לאפליקציה הרגילה
+                // ודא שהמשתמש באמת שייך לממשק העסקי
                 if(currentGroup.type !== 'BUSINESS') {
                     window.location.href = '/'; 
                     return; 
                 }
-                
                 loadDashboard(); 
                 return; 
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth();
 };
 
 async function checkGlobalWelcome() {
@@ -185,7 +188,14 @@ function startEmployeeTour() {
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
 }
 
-function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
+function switchView(view) { 
+    ['login','create','join', 'sa-login'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if(el) el.classList.add('hidden');
+    }); 
+    const tg = document.getElementById(`view-${view}`);
+    if(tg) tg.classList.remove('hidden'); 
+}
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
@@ -198,7 +208,6 @@ async function handleLogin(e) {
         const data = await res.json(); 
         if(data.success) { 
             if(data.group.type !== 'BUSINESS') {
-                // המשתמש מנסה להתחבר למשפחה דרך עמוד עסקים (או להיפך). ננתב אותו נכון:
                 localStorage.setItem('ofl_session', JSON.stringify({user:data.user, group:data.group}));
                 window.location.href = '/'; 
                 return;
@@ -261,23 +270,31 @@ async function fetchBanners() {
 }
 
 async function loadDashboard() {
-    document.getElementById('auth-container').classList.add('hidden'); document.getElementById('dashboard-container').classList.remove('hidden'); document.getElementById('fab-container').classList.remove('hidden');
+    // תוקן: הגנה במקרה שחסר אלמנט ב-DOM (מונע קריסה)
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) authContainer.classList.add('hidden');
+    
+    document.getElementById('dashboard-container').classList.remove('hidden'); 
+    document.getElementById('fab-container').classList.remove('hidden');
+    
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; document.getElementById('dash-nickname').innerText = currentUser.nickname; 
+    document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; 
+    document.getElementById('dash-nickname').innerText = currentUser.nickname; 
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
         ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
+        const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        document.getElementById('req-title').innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות הרכש שלי';
+        const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות הרכש שלי';
     }
-    document.getElementById('btn-add-budget-cat').classList.remove('hidden'); updateBatteryUI();
+    const btnAddBudget = document.getElementById('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
+    updateBatteryUI();
     
     try {
         if(!pollInterval) pollInterval = setInterval(() => { fetchData(); fetchLoans(); if(isAdmin) fetchPendingUsers(); }, 30000);
@@ -334,7 +351,7 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'עובד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/חודש • ${m.interest_rate || 0}% תמריץ</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'עובד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/חודש • ${m.interest_rate || 0}% תמריץ</p><p class="text-xs font-bold text-slate-700 mt-1">תקצי נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
                 }); 
             } 
         } catch(err) {}
@@ -425,7 +442,6 @@ async function generateAIQuiz() {
     executeWithAIWarning(async () => {
         const btn = document.getElementById('btn-ai-gen'); if(!val('ai-topic')) return showToast('error', 'נא להזין נושא להכשרה'); btn.disabled = true; btn.innerText = 'ה-AI מעבד... ⏳';
         try {
-            // הוספת קונטקסט עסקי בבקשה, למרות שבשלב זה השרת שלנו עובד מול Prompts משפחתיים (יעודכן בשרת בהמשך)
             const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic') + " (בסביבה עסקית ארגונית)", groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
