@@ -134,9 +134,41 @@ async function loadSAData() {
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        document.getElementById('sa-welcome-msg').value = data.welcomeMsg || '';
+        
+        // מילוי שדות ההודעות
+        const familyMsgEl = document.getElementById('sa-welcome-msg');
+        if (familyMsgEl) familyMsgEl.value = data.welcomeMsg || '';
+        
+        const bizMsgEl = document.getElementById('sa-biz-welcome-msg');
+        if (bizMsgEl) bizMsgEl.value = data.businessWelcomeMsg || '';
+        
+        // מילוי שדות הבאנרים - עסקים
+        const bizTopText = document.getElementById('sa-biz-banner-top-text');
+        const bizTopLink = document.getElementById('sa-biz-banner-top-link');
+        const bizTopImg = document.getElementById('sa-biz-banner-top-img');
+        const bizBottomText = document.getElementById('sa-biz-banner-bottom-text');
+        const bizBottomLink = document.getElementById('sa-biz-banner-bottom-link');
+        const bizBottomImg = document.getElementById('sa-biz-banner-bottom-img');
+        
+        if(bizTopText) bizTopText.value = data.bizBannerTextTop || '';
+        if(bizTopLink) bizTopLink.value = data.bizBannerLinkTop || '';
+        if(bizTopImg) bizTopImg.value = data.bizBannerImgTop || '';
+        if(bizBottomText) bizBottomText.value = data.bizBannerTextBottom || '';
+        if(bizBottomLink) bizBottomLink.value = data.bizBannerLinkBottom || '';
+        if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
+
+        // עדכון כרטיסיות נתונים
+        const statFamilies = document.getElementById('sa-stat-families');
+        if (statFamilies && data.stats) statFamilies.innerText = data.stats.families || 0;
+        const statBiz = document.getElementById('sa-stat-businesses');
+        if (statBiz && data.stats) statBiz.innerText = data.stats.businesses || 0;
+        const statFamUsers = document.getElementById('sa-stat-family-users');
+        if (statFamUsers && data.stats) statFamUsers.innerText = data.stats.familyUsers || 0;
+        const statBizUsers = document.getElementById('sa-stat-biz-users');
+        if (statBizUsers && data.stats) statBizUsers.innerText = data.stats.businessUsers || 0;
+
         const actList = document.getElementById('sa-activity-list');
-        actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | משפחת <span class="text-blue-600 font-bold">${a.group_name}</span> | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`; }).join('');
+        actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${a.group_name} | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`; }).join('');
         if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
@@ -145,22 +177,43 @@ async function loadSAData() {
 function renderSAGroups(filterText = '') {
     const groupsList = document.getElementById('sa-groups-list'); let gHtml = ''; const term = filterText.toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
-    if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו משפחות התואמות לחיפוש.</p>'; return; }
+    if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
     filteredGroups.forEach(g => {
         let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${u.nickname} <span class="text-[10px] text-slate-400">(${u.role})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
-        if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים במשפחה זו.</p>';
+        if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
+        
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
-        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid fa-users"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${g.name} ${isPro}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens}</p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2">${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחק משפחה</button></div></div>${uHtml}</div></div>`;
+        
+        // התאמה לעסקים: הצגת סוג ותאריך
+        const typeBadge = g.type === 'BUSINESS' 
+            ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' 
+            : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
+            
+        const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
+
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${g.name} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2">${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
 
 function filterSAGroups() { const term = document.getElementById('sa-search-group').value; renderSAGroups(term); }
 async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
-async function saDeleteGroup(id) { if(!confirm('האם למחוק משפחה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משפחה נמחקה לחלוטין'); loadSAData(); }
-async function saveWelcomeMsg() { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ welcomeMsg: val('sa-welcome-msg') }) }); showToast('success', 'הודעת הפתיחה נשמרה!'); }
+async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
+
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const valId = type === 'BUSINESS' ? 'sa-biz-welcome-msg' : 'sa-welcome-msg';
+    const msg = val(valId);
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: msg } : { welcomeMsg: msg };
+    
+    try {
+        await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירת ההודעה');
+    }
+}
 
 async function checkGlobalWelcome() {
     try {
@@ -904,6 +957,25 @@ function renderLibrary() {
     } catch(err) { console.error(err); }
 }
 
+function renderMyAssignments(bundles) {
+    const list = document.getElementById('my-assignments-list'); const histList = document.getElementById('academy-history-list'); const histCont = document.getElementById('academy-history-container');
+    if (!list) return; list.innerHTML = ''; if (histList) histList.innerHTML = ''; let histCount = 0; let actCount = 0;
+    if(Array.isArray(bundles)) {
+        bundles.forEach(b => {
+            const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
+            if (b.status === 'assigned') {
+                actCount++; let dMsg = ""; if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500 font-bold bg-orange-50 px-1 rounded ml-2">עוד ${diff} ימים</span>` : `<span class="text-red-500 font-bold bg-red-50 px-1 rounded ml-2">איחור!</span>`; }
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center mb-3"><div class="flex-1"><h4 class="font-bold text-slate-800">${b.title}</h4><p class="text-xs text-slate-500 mt-1">תמריץ מעבר: ₪${reward} ${dMsg}</p></div><button onclick="startQuiz(${b.bundle_id})" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-blue-700 transition"><i class="fa-solid fa-play"></i> התחל</button></div>`;
+            } else {
+                histCount++; if(histList) { let sColor = b.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'; let sText = b.status === 'completed' ? 'הושלם' : 'נכשל';
+                histList.innerHTML += `<div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-700 text-sm">${b.title}</h4><p class="text-[10px] text-slate-400 mt-1">ציון: ${b.score}% • תמריץ: ₪${b.status==='completed'?reward:0}</p></div><span class="text-[10px] font-bold px-2 py-1 rounded ${sColor}">${sText}</span></div>`; }
+            }
+        });
+    }
+    if (actCount === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מטלות למידה פתוחות.</p>';
+    if (histCount > 0 && histCont) histCont.classList.remove('hidden'); else if(histCont) histCont.classList.add('hidden');
+}
+
 async function requestChallenge(bundleId = null) {
     const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
     try {
@@ -983,7 +1055,7 @@ function copyRecipe() { const text = document.getElementById('recipe-result-cont
 function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
 
 async function submitShopItem() { 
-    const itemInput = document.getElementById('shop-item'); const btn = document.querySelector('#shop-modal button.bg-pink-500'); 
+    const itemInput = document.getElementById('shop-item'); const btn = document.querySelector('#shop-modal button.bg-blue-600'); 
     const item = itemInput.value; const qty = val('shop-quantity'); const est = val('shop-est-price'); const unit = val('shop-unit') || "יח'"; 
     if(!item) return; if (btn.disabled) return; btn.disabled = true; btn.innerText = 'מוסיף...'; 
     try { 
@@ -1397,6 +1469,21 @@ function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] =
 function openAccessibilityModal() { document.getElementById('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { document.getElementById('accessibility-modal').classList.add('hidden'); }
 
+async function saveBizBanners() {
+    const bizTopText = val('sa-biz-banner-top-text'); const bizTopLink = val('sa-biz-banner-top-link'); const bizTopImg = val('sa-biz-banner-top-img');
+    const bizBottomText = val('sa-biz-banner-bottom-text'); const bizBottomLink = val('sa-biz-banner-bottom-link'); const bizBottomImg = val('sa-biz-banner-bottom-img');
+    
+    try {
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg }) 
+        });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'באנרים (עסקים) נשמרו והתעדכנו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
+    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
+}
+
 function applyBannersToDOM(banners) {
     const saTopText = document.getElementById('sa-banner-top-text'); const saTopLink = document.getElementById('sa-banner-top-link'); const saTopImg = document.getElementById('sa-banner-top-img'); const saBottomText = document.getElementById('sa-banner-bottom-text'); const saBottomLink = document.getElementById('sa-banner-bottom-link'); const saBottomImg = document.getElementById('sa-banner-bottom-img');
     if(saTopText) saTopText.value = banners.banner_top_text || ''; if(saTopLink) saTopLink.value = banners.banner_top_link || ''; if(saTopImg) saTopImg.value = banners.banner_top_img || ''; if(saBottomText) saBottomText.value = banners.banner_bottom_text || ''; if(saBottomLink) saBottomLink.value = banners.banner_bottom_link || ''; if(saBottomImg) saBottomImg.value = banners.banner_bottom_img || '';
@@ -1428,6 +1515,6 @@ async function saveBanners() {
             body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg }) 
         });
         const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
+        if(data.success) { showToast('success', 'באנרים (משפחות) נשמרו והתעדכנו באפליקציה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
