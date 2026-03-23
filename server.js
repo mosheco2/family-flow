@@ -36,7 +36,7 @@ pool.connect()
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
       
-      // תיקון באג הרישום הכפול למייל - הסרת המגבלה הישנה והוספת מגבלה משולבת (אימייל + סוג סביבה)
+      // תיקון באג הרישום הכפול למייל
       try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
           await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
@@ -72,9 +72,9 @@ const generateGroupCode = () => {
     return code;
 };
 
-// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות (נוסחת Haversine)
+// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // רדיוס כדור הארץ במטרים
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
@@ -112,7 +112,6 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // --- SYSTEM SETUP ---
-// ** שדרוג קריטי: פונקציית האתחול כוללת עכשיו את כל השדות החדשים לכל הטבלאות **
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`
@@ -135,7 +134,6 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
-            
             CREATE TABLE family_groups (
                 id SERIAL PRIMARY KEY, 
                 name VARCHAR(100), 
@@ -150,7 +148,6 @@ app.get('/setup-db', async (req, res) => {
                 location_lng DOUBLE PRECISION, 
                 UNIQUE(admin_email, type)
             );
-            
             CREATE TABLE users (
                 id SERIAL PRIMARY KEY, 
                 group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
@@ -163,21 +160,7 @@ app.get('/setup-db', async (req, res) => {
                 allowance_amount DECIMAL(10,2) DEFAULT 0.00, 
                 interest_rate DECIMAL(5,2) DEFAULT 0.00
             );
-            
-            CREATE TABLE transactions (
-                id SERIAL PRIMARY KEY, 
-                user_id INT REFERENCES users(id) ON DELETE CASCADE, 
-                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
-                amount DECIMAL(10,2), 
-                description VARCHAR(255), 
-                category VARCHAR(50), 
-                type VARCHAR(20), 
-                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-                is_manual BOOLEAN DEFAULT TRUE, 
-                is_recurring BOOLEAN DEFAULT FALSE, 
-                end_month VARCHAR(10)
-            );
-            
+            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -193,7 +176,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated with ALL new features! (Timeclock, AI, Pro, 360)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes time_clock table)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -881,6 +864,98 @@ app.get('/api/timeclock/report', async (req, res) => {
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---------------------------------------------------------
+// פונקציות ניהול יצירת סביבות חדשות בצורה בטוחה
+// ---------------------------------------------------------
+
+app.post('/api/groups', async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        let code = generateGroupCode();
+        
+        // יצירת הקבוצה (משפחה/עסק)
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
+            [req.body.type, req.body.groupName, req.body.adminEmail, code]
+        );
+        const group = gRes.rows[0];
+        
+        // המרת שנת הלידה כדי למנוע קריסה
+        const birthYear = parseInt(req.body.birthYear) || null;
+        
+        // יצירת משתמש המנהל
+        const uRes = await dbClient.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
+            [group.id, req.body.adminNickname, birthYear, req.body.password]
+        );
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true, user: uRes.rows[0], group: group });
+        
+    } catch (e) { 
+        if (dbClient) {
+            try { await dbClient.query('ROLLBACK'); } catch(rbErr) { console.error('Rollback failed', rbErr); }
+        }
+        console.error("Create Group Error:", e);
+        
+        if (e.message && e.message.includes('unique constraint')) {
+            res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' });
+        } else {
+            res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
+        }
+    } finally { 
+        if (dbClient) dbClient.release(); 
+    }
+});
+
+app.post('/api/join', async (req, res) => {
+    try {
+        const { groupCode, nickname, birthYear, password, role } = req.body;
+        if (!groupCode || !nickname || !password) return res.status(400).json({ error: 'חסרים נתונים חובה' });
+        
+        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
+        
+        const group = gRes.rows[0];
+        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+        const bYear = parseInt(birthYear) || null;
+        
+        await pool.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
+            [group.id, nickname, bYear, password, reqRole]
+        );
+        res.json({ success: true });
+    } catch (e) { 
+        console.error("Join Error:", e);
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    try {
+        if (!req.body.groupCode || !req.body.nickname || !req.body.password) {
+            return res.status(400).json({ error: 'חסרים פרטי התחברות' });
+        }
+        
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי' });
+        
+        const group = gRes.rows[0];
+        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
+        
+        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) { 
+        console.error("Login Error:", e);
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+    }
 });
 
 app.listen(port, () => {
