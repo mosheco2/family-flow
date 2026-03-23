@@ -116,6 +116,167 @@ window.onload = async () => {
     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth();
 };
 
+async function handleSALogin(e) {
+    e.preventDefault();
+    try {
+        const res = await fetch(`${API}/superadmin/login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code: val('sa-code'), password: val('sa-password')}) }); const data = await res.json();
+        if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); document.getElementById('auth-container').classList.add('hidden'); document.getElementById('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
+    } catch(err) { showToast('error', 'שגיאת תקשורת'); }
+}
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); document.getElementById('sa-dashboard-container').classList.add('hidden'); document.getElementById('auth-container').classList.remove('hidden'); switchView('login'); }
+
+async function updateSACredentials() {
+    const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
+    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
+    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); document.getElementById('sa-new-username').value = ''; document.getElementById('sa-new-password').value = ''; } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+}
+
+async function saveAllBanners() {
+    const safeVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    
+    const topText = safeVal('sa-banner-top-text'); 
+    const topLink = safeVal('sa-banner-top-link'); 
+    const topImg = safeVal('sa-banner-top-img');
+    const bottomText = safeVal('sa-banner-bottom-text'); 
+    const bottomLink = safeVal('sa-banner-bottom-link'); 
+    const bottomImg = safeVal('sa-banner-bottom-img');
+    
+    const bizTopText = safeVal('sa-biz-banner-top-text'); 
+    const bizTopLink = safeVal('sa-biz-banner-top-link'); 
+    const bizTopImg = safeVal('sa-biz-banner-top-img');
+    const bizBottomText = safeVal('sa-biz-banner-bottom-text'); 
+    const bizBottomLink = safeVal('sa-biz-banner-bottom-link'); 
+    const bizBottomImg = safeVal('sa-biz-banner-bottom-img');
+    
+    try {
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ 
+                topText, topLink, topImg, bottomText, bottomLink, bottomImg,
+                bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg 
+            }) 
+        });
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'הבאנרים נשמרו במערכת בהצלחה!'); 
+            fetchBanners(); 
+        } else { 
+            showToast('error', 'שגיאה בשמירת הבאנרים'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת מול השרת בשמירת באנרים'); 
+    }
+}
+
+async function loadSAData() {
+    fetchBanners();
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+        
+        // מילוי שדות ההודעות
+        const familyMsgEl = document.getElementById('sa-welcome-msg');
+        if (familyMsgEl) familyMsgEl.value = data.welcomeMsg || '';
+        
+        const bizMsgEl = document.getElementById('sa-biz-welcome-msg');
+        if (bizMsgEl) bizMsgEl.value = data.businessWelcomeMsg || '';
+        
+        // מילוי שדות הבאנרים
+        const topTextEl = document.getElementById('sa-banner-top-text');
+        if(topTextEl) topTextEl.value = data.adBannerTextTop || '';
+        const topLinkEl = document.getElementById('sa-banner-top-link');
+        if(topLinkEl) topLinkEl.value = data.adBannerLinkTop || '';
+        const topImgEl = document.getElementById('sa-banner-top-img');
+        if(topImgEl) topImgEl.value = data.adBannerImgTop || '';
+        
+        const bottomTextEl = document.getElementById('sa-banner-bottom-text');
+        if(bottomTextEl) bottomTextEl.value = data.adBannerTextBottom || '';
+        const bottomLinkEl = document.getElementById('sa-banner-bottom-link');
+        if(bottomLinkEl) bottomLinkEl.value = data.adBannerLinkBottom || '';
+        const bottomImgEl = document.getElementById('sa-banner-bottom-img');
+        if(bottomImgEl) bottomImgEl.value = data.adBannerImgBottom || '';
+
+        // מילוי שדות הבאנרים - עסקים
+        const bizTopText = document.getElementById('sa-biz-banner-top-text');
+        const bizTopLink = document.getElementById('sa-biz-banner-top-link');
+        const bizTopImg = document.getElementById('sa-biz-banner-top-img');
+        const bizBottomText = document.getElementById('sa-biz-banner-bottom-text');
+        const bizBottomLink = document.getElementById('sa-biz-banner-bottom-link');
+        const bizBottomImg = document.getElementById('sa-biz-banner-bottom-img');
+        
+        if(bizTopText) bizTopText.value = data.bizBannerTextTop || '';
+        if(bizTopLink) bizTopLink.value = data.bizBannerLinkTop || '';
+        if(bizTopImg) bizTopImg.value = data.bizBannerImgTop || '';
+        if(bizBottomText) bizBottomText.value = data.bizBannerTextBottom || '';
+        if(bizBottomLink) bizBottomLink.value = data.bizBannerLinkBottom || '';
+        if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
+
+        // עדכון כרטיסיות נתונים
+        const statFamilies = document.getElementById('sa-stat-families');
+        if (statFamilies && data.stats) statFamilies.innerText = data.stats.families || 0;
+        const statBiz = document.getElementById('sa-stat-businesses');
+        if (statBiz && data.stats) statBiz.innerText = data.stats.businesses || 0;
+        const statFamUsers = document.getElementById('sa-stat-family-users');
+        if (statFamUsers && data.stats) statFamUsers.innerText = data.stats.familyUsers || 0;
+        const statBizUsers = document.getElementById('sa-stat-biz-users');
+        if (statBizUsers && data.stats) statBizUsers.innerText = data.stats.businessUsers || 0;
+
+        const actList = document.getElementById('sa-activity-list');
+        if(actList) {
+            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${a.group_name} | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`; }).join('');
+            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        }
+        
+        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
+    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); console.error(e); }
+}
+
+function renderSAGroups(filterText = '') {
+    const groupsList = document.getElementById('sa-groups-list'); let gHtml = ''; const term = filterText.toLowerCase();
+    const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
+    if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
+    filteredGroups.forEach(g => {
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${u.nickname} <span class="text-[10px] text-slate-400">(${u.role})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+        if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
+        
+        const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
+        const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
+        const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
+        
+        // התאמה לעסקים: הצגת סוג ותאריך
+        const typeBadge = g.type === 'BUSINESS' 
+            ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' 
+            : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
+            
+        const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
+
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${g.name} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
+    }); 
+    groupsList.innerHTML = gHtml;
+}
+
+function filterSAGroups() { const term = document.getElementById('sa-search-group').value; renderSAGroups(term); }
+async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
+
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const valId = type === 'BUSINESS' ? 'sa-biz-welcome-msg' : 'sa-welcome-msg';
+    const msg = val(valId);
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: msg } : { welcomeMsg: msg };
+    
+    try {
+        await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירת ההודעה');
+    }
+}
+
 async function checkGlobalWelcome() {
     try {
         const res = await fetch(`${API}/settings/welcome?type=BUSINESS`); const data = await res.json();
@@ -239,7 +400,7 @@ function switchTab(t) {
     if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
     if (t === 'timeclock') {
         if (currentUser.role === 'ADMIN') fetchTimeclockReport();
-        checkTimeclockStatus(); // כולם צריכים לבדוק סטטוס
+        checkTimeclockStatus(); // כולם צריכים לבדוק סטטוס כי הוספנו שעון אישי למנהל גם
     }
 }
 
@@ -893,8 +1054,6 @@ function renderTasks(tasks) {
     });
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פרויקטים פעילים</div>'; else list.innerHTML = htmlStr;
 }
-
-async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
 
 function buildAndRenderFeed() {
     feedCache = [];
