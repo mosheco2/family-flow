@@ -29,7 +29,7 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // שדרוגים שקטים קודמים
+      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין
       try { await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
@@ -112,6 +112,7 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // --- SYSTEM SETUP ---
+// ** שדרוג קריטי: פונקציית האתחול כוללת עכשיו את כל השדות החדשים לכל הטבלאות **
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`
@@ -134,9 +135,49 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
-            CREATE TABLE family_groups (id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, UNIQUE(admin_email, type));
-            CREATE TABLE users (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00);
-            CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
+            
+            CREATE TABLE family_groups (
+                id SERIAL PRIMARY KEY, 
+                name VARCHAR(100), 
+                type VARCHAR(20) DEFAULT 'FAMILY', 
+                admin_email VARCHAR(100), 
+                group_code VARCHAR(10) UNIQUE, 
+                ai_tokens INT DEFAULT 10, 
+                last_token_reset DATE DEFAULT CURRENT_DATE, 
+                is_premium BOOLEAN DEFAULT FALSE, 
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                location_lat DOUBLE PRECISION, 
+                location_lng DOUBLE PRECISION, 
+                UNIQUE(admin_email, type)
+            );
+            
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY, 
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
+                nickname VARCHAR(50), 
+                birth_year INT, 
+                password_hash VARCHAR(100), 
+                role VARCHAR(20) DEFAULT 'MEMBER', 
+                status VARCHAR(20) DEFAULT 'pending', 
+                balance DECIMAL(10,2) DEFAULT 0.00, 
+                allowance_amount DECIMAL(10,2) DEFAULT 0.00, 
+                interest_rate DECIMAL(5,2) DEFAULT 0.00
+            );
+            
+            CREATE TABLE transactions (
+                id SERIAL PRIMARY KEY, 
+                user_id INT REFERENCES users(id) ON DELETE CASCADE, 
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
+                amount DECIMAL(10,2), 
+                description VARCHAR(255), 
+                category VARCHAR(50), 
+                type VARCHAR(20), 
+                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                is_manual BOOLEAN DEFAULT TRUE, 
+                is_recurring BOOLEAN DEFAULT FALSE, 
+                end_month VARCHAR(10)
+            );
+            
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE budget_allocations (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, category VARCHAR(50), target_user_id INT REFERENCES users(id) ON DELETE CASCADE, amount_limit DECIMAL(10,2) DEFAULT 0.00, UNIQUE(group_id, category, target_user_id));
             CREATE TABLE goals (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, target_user_id INT REFERENCES users(id) ON DELETE SET NULL, title VARCHAR(255), target_amount DECIMAL(10,2), current_amount DECIMAL(10,2) DEFAULT 0.00, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -152,7 +193,7 @@ app.get('/setup-db', async (req, res) => {
             
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes time_clock table)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated with ALL new features! (Timeclock, AI, Pro, 360)</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
