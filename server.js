@@ -335,18 +335,20 @@ app.get('/api/banners', async (req, res) => {
             
         const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
+        
+        // תיקון קריטי לזיהוי נכון של מפתחות הבאנרים ב-JS
         result.rows.forEach(r => { 
-            let k = r.key.replace('business_ad_', 'banner_').replace('ad_', 'banner_');
+            let k = isBiz ? r.key.replace('business_ad_banner_', 'banner_') : r.key.replace('ad_banner_', 'banner_');
             banners[k] = r.value; 
         });
         
         res.json({ success: true, banners: { 
-            banner_top_text: banners['banner_text_top'], 
-            banner_top_link: banners['banner_link_top'], 
-            banner_top_img: banners['banner_img_top'], 
-            banner_bottom_text: banners['banner_text_bottom'], 
-            banner_bottom_link: banners['banner_link_bottom'],
-            banner_bottom_img: banners['banner_img_bottom']
+            banner_top_text: banners['banner_text_top'] || '', 
+            banner_top_link: banners['banner_link_top'] || '', 
+            banner_top_img: banners['banner_img_top'] || '', 
+            banner_bottom_text: banners['banner_text_bottom'] || '', 
+            banner_bottom_link: banners['banner_link_bottom'] || '',
+            banner_bottom_img: banners['banner_img_bottom'] || ''
         } });
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
 });
@@ -447,25 +449,513 @@ app.get('/api/group/:groupId/report-360', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.get('/api/products', async (req, res) => {
+
+// ============================================================
+// --- CORE DATA ENDPOINTS (RESTORED FOR APP FUNCTIONALITY) ---
+// ============================================================
+
+app.get('/api/data/:userId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT barcode, name, category FROM global_products');
-        res.json(result.rows);
+        const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.userId]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const user = userRes.rows[0];
+        
+        const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
+        const group = groupRes.rows[0];
+
+        const tasks = await pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]);
+        const pantry = await pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]);
+        const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
+        const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
+        
+        const allBundles = await pool.query('SELECT * FROM quiz_bundles ORDER BY created_at DESC');
+        const userBundles = await pool.query(`
+            SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.default_reward, u.nickname as assignee_name 
+            FROM user_assignments ua 
+            JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
+            LEFT JOIN users u ON ua.user_id = u.id
+            WHERE ua.user_id = $1 OR $2 = 'ADMIN'
+        `, [user.id, user.role]);
+
+        for (let b of userBundles.rows) {
+            const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]);
+            b.questions = qRes.rows;
+        }
+
+        let weeklyStats = null;
+        if (user.role !== 'ADMIN') {
+            const startOfWeek = new Date(); startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            const spentRes = await pool.query("SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= $2", [user.id, startOfWeek]);
+            weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
+        }
+
+        res.json({
+            user, group, 
+            tasks: tasks.rows, 
+            pantry: pantry.rows, 
+            shopping_list: shoppingList.rows,
+            goals: goals.rows,
+            quiz_bundles: userBundles.rows,
+            all_bundles: allBundles.rows,
+            weekly_stats: weeklyStats
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/products', async (req, res) => {
+// ============================================================
+// --- SHOPPING LIST ENDPOINTS ---
+// ============================================================
+
+app.post('/api/shopping/add', async (req, res) => {
     try {
-        const { barcode, name, category } = req.body;
-        if (!barcode || !name) return res.status(400).json({ error: 'חסר ברקוד או שם מוצר' });
+        const { itemName, quantity, unit, estimatedPrice, userId, groupId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const actualGroupId = groupId || uRes.rows[0].group_id;
+        
         await pool.query(
-            `INSERT INTO global_products (barcode, name, category) VALUES ($1, $2, $3) ON CONFLICT (barcode) DO NOTHING`, 
-            [barcode, name, category || 'כללי']
+            `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price) VALUES ($1, $2, $3, $4, $5, $6)`,
+            [actualGroupId, userId, itemName, parseFloat(quantity) || 1, unit, parseFloat(estimatedPrice) || 0]
         );
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/shopping/update', async (req, res) => {
+    try {
+        const { itemId, status, estimatedPrice } = req.body;
+        if (status !== undefined) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [parseFloat(estimatedPrice) || 0, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shopping/clear/:groupId', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/checkout', async (req, res) => {
+    try {
+        const { totalAmount, userId, storeName, branchName, boughtItems, missingItems } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        
+        await pool.query('BEGIN');
+        
+        // Record trip
+        const tripRes = await pool.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [groupId, userId, storeName, branchName, totalAmount]);
+        const tripId = tripRes.rows[0].id;
+        
+        // Record transaction
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'groceries', 'expense')`, [userId, groupId, totalAmount, `רכש מלאי/סופר: ${storeName}`]);
+        
+        // Process bought items
+        for (let item of boughtItems) {
+            await pool.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit) VALUES ($1, $2, $3, $4)`, [tripId, item.name, item.quantity, item.price / (item.quantity||1)]);
+            
+            // Move to pantry
+            const pRes = await pool.query(`SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
+            if (pRes.rows.length > 0) {
+                await pool.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id=$2`, [item.quantity, pRes.rows[0].id]);
+            } else {
+                await pool.query(`INSERT INTO pantry (group_id, item_name, quantity) VALUES ($1, $2, $3)`, [groupId, item.name, item.quantity]);
+            }
+            
+            await pool.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+        }
+        
+        // Missing items remain pending
+        for (let item of missingItems) {
+            await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]);
+        }
+        
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        await pool.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.get('/api/shopping/history', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const trips = await pool.query('SELECT st.*, u.nickname FROM shopping_trips st LEFT JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC', [groupId]);
+        for (let t of trips.rows) {
+            const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
+            t.items = items.rows;
+        }
+        res.json(trips.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shopping/copy', async (req, res) => {
+    try {
+        const { tripId, userId } = req.body;
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+        const groupId = uRes.rows[0].group_id;
+        
+        const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
+        for(let i of items.rows) {
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [groupId, userId, i.item_name, i.quantity]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- PANTRY ENDPOINTS ---
+// ============================================================
+
+app.post('/api/pantry/add', async (req, res) => {
+    try {
+        const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if (existing.rows.length > 0) {
+            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
+        } else {
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [groupId, itemName, parseFloat(quantity) || 1, unit, parseInt(unitsPerPackage) || 1]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/pantry/update', async (req, res) => {
+    try {
+        const { itemId, quantity } = req.body;
+        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 0, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/pantry/use', async (req, res) => {
+    try {
+        const { groupId, itemName, usedQuantity, usedUnits } = req.body;
+        const pRes = await pool.query('SELECT * FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if(pRes.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+        
+        const item = pRes.rows[0];
+        let deductAmount = 0;
+        if (usedUnits > 0 && item.units_per_package > 0) deductAmount = usedUnits / item.units_per_package;
+        else deductAmount = usedQuantity;
+        
+        const newQty = Math.max(0, item.quantity - deductAmount);
+        if (newQty <= 0) {
+            await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]);
+        } else {
+            await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/pantry/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ============================================================
+// --- BUDGET ENDPOINTS ---
+// ============================================================
+
+app.get('/api/budget/filter', async (req, res) => {
+    try {
+        const { groupId, targetUserId } = req.query;
+        let query = `
+            SELECT c.category, c.amount_limit as limit, COALESCE(SUM(t.amount), 0) as spent
+            FROM budget_allocations c
+            LEFT JOIN transactions t ON c.category = t.category AND t.group_id = c.group_id AND t.type = 'expense' AND t.date >= date_trunc('month', CURRENT_DATE)
+        `;
+        let params = [groupId];
+        
+        if (targetUserId !== 'all') {
+            query += ` AND t.user_id = $2`;
+            params.push(targetUserId);
+        }
+        
+        query += ` WHERE c.group_id = $1 GROUP BY c.category, c.amount_limit`;
+        
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/budget/update', async (req, res) => {
+    try {
+        const { groupId, category, limit, targetUserId } = req.body;
+        const finalUserId = targetUserId === 'all' ? null : targetUserId;
+        await pool.query(`
+            INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) 
+            VALUES ($1, $2, $3, $4) 
+            ON CONFLICT (group_id, category, target_user_id) 
+            DO UPDATE SET amount_limit = $4
+        `, [groupId, category, finalUserId, parseFloat(limit) || 0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- TRANSACTIONS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const { groupId, userId, limit } = req.query;
+        let q = `SELECT t.*, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1`;
+        let p = [groupId];
+        if(userId !== 'all') { q += ` AND t.user_id = $2`; p.push(userId); }
+        q += ` ORDER BY t.date DESC LIMIT $${p.length + 1}`; p.push(limit || 200);
+        const result = await pool.query(q, p); res.json(result.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/transaction', async (req, res) => {
+    try {
+        const { userId, amount, description, category, type, date, isRecurring, endMonth, groupId } = req.body;
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
+        if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.put('/api/transaction/:id', async (req, res) => {
+    try {
+        const { amount, description, category, requesterId, groupId } = req.body;
+        const oldTx = await pool.query('SELECT amount, type, user_id FROM transactions WHERE id=$1', [req.params.id]);
+        if(oldTx.rows.length===0) return res.status(404).json({error:'Not found'});
+        const tx = oldTx.rows[0];
+        const diff = parseFloat(amount) - parseFloat(tx.amount);
+        await pool.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [parseFloat(amount)||0, description, category, req.params.id]);
+        if (diff !== 0) {
+            if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [diff, tx.user_id]);
+            else await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [diff, tx.user_id]);
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/transaction/:id', async (req, res) => {
+    try {
+        const txRes = await pool.query('SELECT * FROM transactions WHERE id=$1', [req.params.id]);
+        if(txRes.rows.length===0) return res.status(404).json({error:'Not found'});
+        const tx = txRes.rows[0];
+        await pool.query('DELETE FROM transactions WHERE id=$1', [req.params.id]);
+        if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [tx.amount, tx.user_id]);
+        else await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [tx.amount, tx.user_id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- LOANS ENDPOINTS ---
+// ============================================================
+
+app.get('/api/loans', async (req, res) => {
+    try {
+        const loans = await pool.query('SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id=$1 ORDER BY l.created_at DESC', [req.query.groupId]);
+        res.json(loans.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/request', async (req, res) => {
+    try {
+        const { userId, amount, reason, groupId } = req.body;
+        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, parseFloat(amount)||0, parseFloat(amount)||0, reason]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/approve', async (req, res) => {
+    try {
+        const { loanId, userId, amount, adminId } = req.body;
+        const l = await pool.query('SELECT group_id FROM loans WHERE id=$1', [loanId]);
+        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, [userId, l.rows[0].group_id, parseFloat(amount)||0]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/reject', async (req, res) => {
+    try {
+        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- GOALS ENDPOINTS ---
+// ============================================================
+
+app.post('/api/goals', async (req, res) => {
+    try {
+        const { userId, targetUserId, title, target, groupId } = req.body;
+        await pool.query('INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)', [userId, targetUserId || null, title, parseFloat(target)||0]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/goals/deposit', async (req, res) => {
+    try {
+        const { userId, goalId, amount, groupId } = req.body;
+        await pool.query('BEGIN');
+        await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
+        const g = await pool.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id=$2 RETURNING title', [parseFloat(amount)||0, goalId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'savings', 'expense')`, [userId, groupId, parseFloat(amount)||0, 'הפקדה ליעד: ' + g.rows[0].title]);
+        await pool.query('COMMIT');
+        res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- MEMBERS & ADMIN TOOLS ---
+// ============================================================
+
+app.get('/api/group/members', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        res.json(users.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/admin/pending-users', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const users = await pool.query('SELECT id, nickname, role, birth_year FROM users WHERE group_id=$1 AND status=$2', [groupId, 'pending']);
+        res.json(users.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/approve-user', async (req, res) => {
+    try {
+        await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/users/:id/password', async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const u = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.params.id]);
+        if(u.rows[0].password_hash !== oldPassword) return res.status(401).json({error: 'סיסמה נוכחית שגויה'});
+        await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newPassword, req.params.id]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/adjust-balance', async (req, res) => {
+    try {
+        const { adminId, groupId, childId, type, amount, reason } = req.body;
+        const actAmount = type === 'deduct' ? -(parseFloat(amount)||0) : (parseFloat(amount)||0);
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [actAmount, childId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'other', $5)`, [childId, groupId, parseFloat(amount)||0, reason, type === 'deduct' ? 'expense' : 'income']);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/update-settings', async (req, res) => {
+    try {
+        const { userId, allowance, interest } = req.body;
+        await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/admin/payday', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const users = await pool.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`, [groupId]);
+        let totalDistributed = 0;
+        await pool.query('BEGIN');
+        for(let u of users.rows) {
+            let toAdd = parseFloat(u.allowance_amount) || 0;
+            let bal = parseFloat(u.balance) || 0;
+            if(bal > 0 && parseFloat(u.interest_rate) > 0) {
+                toAdd += bal * (parseFloat(u.interest_rate) / 100);
+            }
+            if(toAdd > 0) {
+                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
+                totalDistributed += toAdd;
+            }
+        }
+        await pool.query('COMMIT');
+        res.json({success:true, totalDistributed});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- TASKS ENDPOINTS ---
+// ============================================================
+
+app.post('/api/tasks', async (req, res) => {
+    try {
+        const { title, reward, assignedTo, days, status, groupId } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/tasks/update', async (req, res) => {
+    try {
+        const { taskId, status, finalReward } = req.body;
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId]);
+        const t = tRes.rows[0];
+        const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        await pool.query('BEGIN');
+        await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
+        if (status === 'approved') {
+            await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
+        }
+        await pool.query('COMMIT');
+        res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- ACADEMY ENDPOINTS ---
+// ============================================================
+
+app.post('/api/academy/assign', async (req, res) => {
+    try {
+        const { userId, bundleId, reward, days, groupId } = req.body;
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/academy/submit', async (req, res) => {
+    try {
+        const { userId, bundleId, score, groupId } = req.body;
+        const b = await pool.query('SELECT threshold, default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
+        const passed = score >= b.rows[0].threshold;
+        const status = passed ? 'completed' : 'failed';
+        await pool.query('BEGIN');
+        if (ua.rows.length > 0) {
+            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
+            if (passed) {
+                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
+                await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, userId]);
+                await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
+            }
+        }
+        await pool.query('COMMIT');
+        res.json({success:true});
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
 
 // ============================================================
 // --- AI ENDPOINTS (ADAPTED FOR FAMILY / BUSINESS) ---
@@ -734,7 +1224,7 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         for (let i = 0; i < items.length; i++) {
              const item = items[i];
              const normName = normalizedArray[i] || item.name;
-             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, item.qty || 1, item.price || 0]);
+             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, parseFloat(item.qty) || 1, parseFloat(item.price) || 0]);
         }
         res.json({ success: true, count: items.length });
     } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
