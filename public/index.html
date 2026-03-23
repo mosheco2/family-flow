@@ -313,7 +313,6 @@
                     <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
                 </div>
                 
-                {/* --- חלוניות נתונים (Stats) --- */}
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
                         <i class="fa-solid fa-house-user text-2xl text-indigo-500 mb-2"></i>
@@ -338,7 +337,6 @@
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    {/* הודעת פתיחה משפחות */}
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bullhorn text-blue-500 mr-2"></i> הודעת פתיחה משפחות</h2>
                         <p class="text-xs text-slate-500 mb-3">יופיע כפופ-אפ לכל משתמש שמתחבר למשפחה. השאירו ריק כדי לבטל.</p>
@@ -346,7 +344,6 @@
                         <button onclick="saveWelcomeMsg('FAMILY')" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition">שמור הודעה</button>
                     </div>
                     
-                    {/* הודעת פתיחה עסקים */}
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-building text-indigo-500 mr-2"></i> הודעת פתיחה לעסקים</h2>
                         <p class="text-xs text-slate-500 mb-3">יופיע כפופ-אפ לכל משתמש שמתחבר לחשבון עסקי. השאירו ריק כדי לבטל.</p>
@@ -378,7 +375,6 @@
                     <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2"></div>
                 </div>
 
-                {/* באנרים למשפחות */}
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
                     <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-pink-500 mr-2"></i> באנרים פרסומיים (משפחות)</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -413,10 +409,8 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="saveBanners()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-pink-600 transition">שמור ופרסם באנרים (משפחות)</button>
                 </div>
                 
-                {/* באנרים לעסקים */}
                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
                     <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-ad text-indigo-500 mr-2"></i> באנרים עסקיים (Oneflow BIZ)</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -451,8 +445,11 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="saveBizBanners()" class="bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold w-full shadow-lg hover:bg-indigo-600 transition">שמור ופרסם באנרים (עסקים)</button>
                 </div>
+                
+                <button onclick="saveAllBanners()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg mb-8">
+                    <i class="fa-solid fa-save mr-2"></i> שמור ופרסם את כל הבאנרים למערכת
+                </button>
 
                 <div class="mt-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -1367,7 +1364,10 @@
                             <h1 class="text-2xl font-bold text-slate-800 mb-1">דוח 360 - תמונת מצב</h1>
                             <p class="text-sm text-slate-500" id="report-360-date"></p>
                         </div>
-                        <img src="logo.png" alt="Oneflow Life" class="w-16 h-16 object-contain">
+                        <div class="flex flex-col items-center">
+                            <img src="logo.png" alt="Oneflow Life" class="w-16 h-16 object-contain">
+                            <p class="text-[10px] font-bold mt-1 text-slate-500">Oneflow Life</p>
+                        </div>
                     </div>
                     
                     <div class="mb-6">
