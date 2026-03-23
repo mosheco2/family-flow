@@ -97,6 +97,69 @@
         .report-table th { background-color: #f8fafc; padding: 8px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold; color: #334155; }
         .report-table td { padding: 8px; border: 1px solid #e2e8f0; color: #1e293b; }
         .report-badge { background-color: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #cbd5e1; }
+
+        /* IntroJS Overrides for modern modal look */
+        .introjs-tooltip { 
+            font-family: 'Rubik', sans-serif !important; 
+            border-radius: 2rem !important; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; 
+            padding: 1.5rem !important; 
+            border: none !important; 
+            overflow: hidden !important; 
+            text-align: center !important; 
+        }
+        .introjs-tooltip::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; left: 0; right: 0; height: 8px; 
+            background: linear-gradient(to right, #0f172a, #475569); 
+        }
+        .introjs-tooltipbuttons { 
+            border-top: none !important; 
+            padding-top: 1rem !important; 
+            display: flex; 
+            gap: 0.5rem; 
+            justify-content: center; 
+        }
+        .introjs-button { 
+            border-radius: 0.75rem !important; 
+            text-shadow: none !important; 
+            font-weight: bold !important; 
+            font-family: 'Rubik', sans-serif !important; 
+            padding: 0.75rem 1.5rem !important; 
+            flex: 1; 
+            text-align: center; 
+        }
+        .introjs-nextbutton { 
+            background-color: #0f172a !important; 
+            color: white !important; 
+            border: none !important; 
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.3) !important; 
+        }
+        .introjs-prevbutton { 
+            color: #64748b !important; 
+            background: #f8fafc !important; 
+            border: 1px solid #e2e8f0 !important; 
+        }
+        .introjs-skipbutton { 
+            color: #94a3b8 !important; 
+            font-weight: 500 !important; 
+            background: transparent !important; 
+        }
+        .introjs-bullets ul li a.active { background: #0f172a !important; }
+
+        /* Accessibility Classes */
+        body.acc-text-lg { font-size: 110%; }
+        body.acc-text-lg .text-xs { font-size: 0.85rem; }
+        body.acc-text-lg .text-sm { font-size: 1rem; }
+        body.acc-text-lg .text-base { font-size: 1.125rem; }
+        body.acc-grayscale { filter: grayscale(100%); }
+        body.acc-contrast { filter: contrast(125%) saturate(120%); }
+        body.acc-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px; }
+        body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
+
+        /* Hide broken banner images */
+        img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -147,7 +210,7 @@
             <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (לדוגמה: ABCD12)">
-                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
+                    <input type="text" id="login-nickname" required class="modern-input" placeholder="שם משתמש">
                     <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
                     <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
                         <span id="btn-login-text">כניסה</span>
@@ -165,10 +228,10 @@
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת סביבה חדשה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
-                        <button type="button" onclick="handleTypeSelection('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
-                        <button type="button" onclick="handleTypeSelection('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
+                        <button type="button" onclick="handleTypeSelection('FAMILY')" id="type-family" class="flex-1 p-4 rounded-2xl border-2 border-slate-100 text-slate-400 font-bold transition hover:bg-slate-50"><i class="fa-solid fa-house block text-xl mb-1"></i>משפחה</button>
+                        <button type="button" onclick="handleTypeSelection('BUSINESS')" id="type-business" class="flex-1 p-4 rounded-2xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold transition"><i class="fa-solid fa-briefcase block text-xl mb-1"></i>עסקים</button>
                     </div>
-                    <input type="hidden" id="create-type" value="FAMILY">
+                    <input type="hidden" id="create-type" value="BUSINESS">
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה / העסק" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
                     <div class="flex gap-3">
@@ -706,6 +769,7 @@
                                     <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) לארגון
                                 </button>
                             </div>
+                            
                         </div>
                         <div id="admin-members-tools" class="hidden">
                             <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל המנהל</button>
@@ -835,7 +899,7 @@
                     <h4 class="font-bold text-indigo-800 text-sm mb-2 flex items-center justify-center gap-2"><i class="fa-solid fa-mobile-screen"></i> התקנת האפליקציה</h4>
                     
                     <div id="pwa-ios-instructions" class="hidden text-xs text-indigo-700 leading-relaxed text-center">
-                        כדי להתקין את Oneflow Life, לחצו על כפתור השיתוף <i class="fa-solid fa-arrow-up-from-bracket mx-1 bg-white p-1 rounded shadow-sm"></i> בתחתית המסך שלכם, ואז בחרו ב-<strong>"הוסף למסך הבית"</strong> <i class="fa-solid fa-square-plus mx-1"></i>.
+                        כדי להתקין את Oneflow Life BIZ, לחצו על כפתור השיתוף <i class="fa-solid fa-arrow-up-from-bracket mx-1 bg-white p-1 rounded shadow-sm"></i> בתחתית המסך שלכם, ואז בחרו ב-<strong>"הוסף למסך הבית"</strong> <i class="fa-solid fa-square-plus mx-1"></i>.
                     </div>
                     
                     <div id="pwa-android-instructions" class="hidden text-xs text-indigo-700 leading-relaxed text-center">
@@ -851,10 +915,19 @@
         <div id="ai-warning-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[999] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-slate-800"></div>
-                <div class="flex justify-center mb-4 mt-2"><div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-800 text-2xl"><i class="fa-solid fa-microchip"></i></div></div>
+                <div class="flex justify-center mb-4 mt-2">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-800 text-2xl">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                </div>
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">ביצוע תהליך AI ⚡</h3>
                 <p id="ai-warning-text" class="text-slate-600 text-sm text-center mb-4">פעולה זו מנצלת משאבי שרת. נותרו <span id="ai-warning-left" class="font-bold text-slate-800">--</span> מתוך <span class="font-bold">10</span> פעולות במסלול החינמי.</p>
-                <label class="flex items-center gap-2 cursor-pointer mb-6 justify-center"><input type="checkbox" id="ai-warning-dont-show" class="w-4 h-4 accent-slate-800"><span class="text-xs text-slate-500 font-medium">אל תציג הודעה זו שוב היום</span></label>
+                
+                <label class="flex items-center gap-2 cursor-pointer mb-6 justify-center">
+                    <input type="checkbox" id="ai-warning-dont-show" class="w-4 h-4 accent-slate-800">
+                    <span class="text-xs text-slate-500 font-medium">הבנתי, אל תציג הודעה זו שוב היום</span>
+                </label>
+
                 <div class="space-y-2">
                     <button id="btn-ai-warning-continue" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">המשך עיבוד</button>
                     <button onclick="openAlertModal('ONEFLOW PRO', 'שדרוג למסלול העסקי יעלה בקרוב!')" class="w-full bg-yellow-50 text-yellow-700 border border-yellow-200 py-3 rounded-xl font-bold hover:bg-yellow-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-crown"></i> שדרוג למסלול ללא הגבלת משאבים</button>
@@ -865,13 +938,19 @@
 
         <div id="ai-battery-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="flex justify-center mb-4 relative z-10"><div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-inner transform -translate-y-2 border-4 border-white overflow-hidden p-2 opacity-70"><i class="fa-solid fa-battery-empty text-4xl text-slate-400"></i></div></div>
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-inner transform -translate-y-2 border-4 border-white overflow-hidden p-2 opacity-70">
+                        <i class="fa-solid fa-battery-empty text-4xl text-slate-400"></i>
+                    </div>
+                </div>
                 <h3 class="text-xl font-bold mb-2 text-slate-800">מכסת פעולות AI הסתיימה להיום</h3>
                 <p class="text-sm text-slate-500 mb-6 leading-relaxed">ניצלתם את כל מכסת הקריאות לשרת ה-AI שלכם להיום. המכסה תתחדש אוטומטית מחר.</p>
+                
                 <div id="ai-upgrade-section" class="hidden mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                     <p class="text-xs font-bold text-slate-800 mb-2">דרוש לכם כוח עיבוד נוסף ברמה הארגונית?</p>
                     <button onclick="openAlertModal('ONEFLOW PRO', 'שדרוג המסלול העסקי יעלה בקרוב!')" id="btn-upgrade-premium" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:scale-[1.02] transition">שדרוג למסלול PRO</button>
                 </div>
+                
                 <button onclick="closeAiBatteryModal()" class="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, סגור</button>
             </div>
         </div>
@@ -890,9 +969,13 @@
 
         <div id="ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="absolute top-0 left-0 right-0 h-16 bg-slate-100"></div>
-                <div class="flex justify-center mb-4 relative z-10"><div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2"><i class="fa-solid fa-brain text-4xl text-slate-700"></i></div></div>
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">מחולל הכשרות מבוסס AI ✨</h3>
+                <div class="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-slate-700 to-slate-900 opacity-10"></div>
+                <div class="flex justify-center mb-4 relative z-10">
+                    <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg transform -translate-y-2 border-4 border-white overflow-hidden p-2">
+                        <i class="fa-solid fa-brain text-4xl text-slate-700"></i>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">יצירת חפיפה / נהלים ✨</h3>
                 <p class="text-sm text-slate-500 mb-4 text-center">הגדירו נושא והמערכת תבנה הליך חפיפה אוטומטי לעובד.</p>
                 <label class="text-xs font-bold text-slate-400">רמת ההכשרה</label>
                 <select id="ai-age" class="modern-input mb-3 bg-white"><option value="18+">חומר מקצועי לעובד בוגר</option></select>
@@ -913,11 +996,17 @@
                 <div id="task-mode-toggles" class="flex gap-2 mb-4 bg-slate-200/50 p-1.5 rounded-xl"><button onclick="setTaskMode('manual')" id="btn-mode-manual" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white text-slate-800 shadow-sm transition">✍️ הזנה ידנית</button><button onclick="setTaskMode('ai')" id="btn-mode-ai" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-800 transition">✨ סיוע AI</button></div>
                 <div id="task-mode-manual" class="space-y-3 flex-1 flex flex-col justify-end">
                     <div><input type="text" id="task-title" class="modern-input text-sm" placeholder="תיאור הטיקט / משימה"></div>
-                    <div id="task-reward-group"><input type="number" id="task-reward" class="modern-input text-sm" placeholder="תגמול בונוס (₪) - אופציונלי"></div>
+                    
+                    <div id="task-reward-group">
+                        <input type="number" id="task-reward" class="modern-input text-sm" placeholder="תגמול בונוס (₪) - אופציונלי">
+                    </div>
+                    
                     <div class="flex gap-3 mt-4 pt-2"><button onclick="closeTaskModal()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button id="btn-submit-task" onclick="submitTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">הקצה משימה</button></div>
                 </div>
                 <div id="task-mode-ai" class="hidden space-y-3 flex-1 flex flex-col min-h-0">
-                    <div class="flex justify-center mb-2"><i class="fa-solid fa-microchip text-4xl text-slate-500"></i></div>
+                    <div class="flex justify-center mb-2">
+                        <i class="fa-solid fa-microchip text-4xl text-slate-500"></i>
+                    </div>
                     <p class="text-xs text-slate-500 text-center px-2 font-medium leading-relaxed mb-2">תנו למנוע הבינה המלאכותית שלנו לפרק עבורכם פרויקט גדול לתתי משימות ברורות עבור הצוות.</p>
                     <input type="text" id="ai-task-topic" class="modern-input text-sm" placeholder="תאר את הפרויקט או הדרישה הכללית...">
                     <button onclick="generateAITasks()" id="btn-ai-task-gen" class="w-full mt-2 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:scale-[1.02] transition flex items-center justify-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> הצע תכנית עבודה</button>
@@ -1168,12 +1257,12 @@
 
         <div id="profile-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-xl font-bold mb-4 text-slate-800">פרופיל עסקי 👤</h3>
+                <h3 class="text-xl font-bold mb-4 text-slate-800">הפרופיל שלי 👤</h3>
                 
                 <div id="profile-upgrade-section" class="hidden mb-6 bg-gradient-to-br from-slate-100 to-slate-200 p-4 rounded-2xl border border-slate-300 text-right">
                     <h4 class="font-bold text-slate-800 mb-1 flex items-center justify-center gap-2"><i class="fa-solid fa-crown text-yellow-500"></i> מסלול PRO</h4>
                     <p class="text-xs text-slate-600 mb-3 leading-relaxed text-center">תיהנו מכוח עיבוד ללא הגבלה של מערכות ה-AI וניהול הרשאות מתקדם בארגון שלכם.</p>
-                    <button id="btn-profile-upgrade" type="button" onclick="openAlertModal('ONEFLOW PRO', 'שדרוג למנוי פרימיום העסקי יעלה בקרוב למערכת!')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">שדרגו כעת</button>
+                    <button id="btn-profile-upgrade" type="button" onclick="openAlertModal('ONEFLOW PRO', 'שדרוג למנוי פרימיום יעלה בקרוב למערכת!')" class="w-full bg-slate-800 text-white py-2.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">שדרגו כעת</button>
                 </div>
 
                 <form onsubmit="submitChangePassword(event)" class="space-y-3">
