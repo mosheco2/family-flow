@@ -232,7 +232,7 @@ function switchTab(t) {
     if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
     if (t === 'timeclock') {
         if (currentUser.role === 'ADMIN') fetchTimeclockReport();
-        else checkTimeclockStatus();
+        checkTimeclockStatus(); // כולם צריכים לבדוק סטטוס כי הוספנו שעון אישי למנהל גם
     }
 }
 
@@ -293,11 +293,15 @@ async function loadDashboard() {
         const profileUp = document.getElementById('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
     } else { 
-        ['btn-self-task','bank-child-view','academy-user-view', 'timeclock-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
+        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); });
         const profileUp = document.getElementById('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         document.getElementById('card-name').innerText = currentUser.nickname.toUpperCase(); document.getElementById('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; document.getElementById('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
         const reqTitle = document.getElementById('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות הרכש שלי';
     }
+    
+    // שעון אישי תמיד מוצג
+    document.getElementById('timeclock-user-view').classList.remove('hidden');
+    
     const btnAddBudget = document.getElementById('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
     updateBatteryUI();
     
@@ -315,7 +319,7 @@ async function loadDashboard() {
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
-        if(!isAdmin) { try { checkTimeclockStatus(); } catch(e){} }
+        try { checkTimeclockStatus(); } catch(e){}
         
     } catch (e) {
         console.error('Error fetching dashboard data:', e); showToast('error', 'שגיאה בטעינת חלק מהנתונים');
@@ -327,6 +331,42 @@ async function loadDashboard() {
 }
 
 // -------------------- שעון נוכחות --------------------
+
+// פונקציית מנהל להגדרת מיקום העסק
+async function setBusinessLocation() {
+    if (!navigator.geolocation) {
+        return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום');
+    }
+    
+    if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס ממיקום זה.')) return;
+
+    showToast('info', 'מאתר מיקום נוכחי...');
+    
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        try {
+            const res = await fetch(`${API}/timeclock/set-location`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng })
+            });
+            const data = await res.json();
+            if(data.success) {
+                showToast('success', 'מיקום העסק הוגדר בהצלחה במערכת!');
+            } else {
+                showToast('error', data.error || 'שגיאה בשמירת המיקום');
+            }
+        } catch(e) {
+            showToast('error', 'שגיאת תקשורת עם השרת');
+        }
+    }, (error) => {
+        console.error('GPS error:', error);
+        if (error.code === 1) showToast('error', 'יש לאשר גישה למיקום (GPS) בהגדרות הדפדפן');
+        else showToast('error', 'שגיאה באיתור המיקום הנוכחי');
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+}
 
 async function checkTimeclockStatus() {
     try {
@@ -360,31 +400,48 @@ async function checkTimeclockStatus() {
 async function handlePunch() {
     const btn = document.getElementById('btn-punch');
     if(!btn || btn.disabled) return;
+    
+    if (!navigator.geolocation) {
+        return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום, חובה שירותי מיקום לדיווח נוכחות.');
+    }
+
     btn.disabled = true;
     const origHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-4xl"></i>';
+    btn.innerHTML = '<i class="fa-solid fa-location-crosshairs fa-spin text-4xl"></i>';
     
-    try {
-        const res = await fetch(`${API}/timeclock/punch`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        if(data.success) {
-            triggerConfetti();
-            showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!');
-            checkTimeclockStatus();
-        } else {
-            showToast('error', data.error || 'שגיאה בדיווח');
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        try {
+            const res = await fetch(`${API}/timeclock/punch`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng })
+            });
+            const data = await res.json();
+            if(data.success) {
+                triggerConfetti();
+                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!');
+                checkTimeclockStatus();
+            } else {
+                showToast('error', data.error || 'שגיאה בדיווח');
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        } catch(e) {
+            showToast('error', 'שגיאת תקשורת עם השרת');
             btn.innerHTML = origHtml;
+            btn.disabled = false;
         }
-    } catch(e) {
-        showToast('error', 'שגיאת תקשורת');
+    }, (error) => {
+        console.error('GPS error:', error);
+        if (error.code === 1) showToast('error', 'חובה לאשר גישה למיקום (GPS) כדי לדווח נוכחות!');
+        else showToast('error', 'שגיאה באיתור המיקום הנוכחי, נסה שוב');
+        
         btn.innerHTML = origHtml;
-    } finally {
         btn.disabled = false;
-    }
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
 async function fetchTimeclockReport() {
