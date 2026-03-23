@@ -336,9 +336,8 @@ app.get('/api/banners', async (req, res) => {
         const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
         
-        // תיקון קריטי לזיהוי נכון של מפתחות הבאנרים ב-JS
         result.rows.forEach(r => { 
-            let k = isBiz ? r.key.replace('business_ad_banner_', 'banner_') : r.key.replace('ad_banner_', 'banner_');
+            let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_');
             banners[k] = r.value; 
         });
         
@@ -508,13 +507,13 @@ app.get('/api/data/:userId', async (req, res) => {
 
 app.post('/api/shopping/add', async (req, res) => {
     try {
-        const { itemName, quantity, unit, estimatedPrice, userId, groupId } = req.body;
+        const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         const actualGroupId = groupId || uRes.rows[0].group_id;
         
         await pool.query(
-            `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price) VALUES ($1, $2, $3, $4, $5, $6)`,
-            [actualGroupId, userId, itemName, parseFloat(quantity) || 1, unit, parseFloat(estimatedPrice) || 0]
+            `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [actualGroupId, userId, itemName, parseFloat(quantity) || 1, unit, parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -679,7 +678,7 @@ app.get('/api/budget/filter', async (req, res) => {
         query += ` WHERE c.group_id = $1 GROUP BY c.category, c.amount_limit`;
         
         const result = await pool.query(query, params);
-        res.json(result.rows);
+        res.json(result.rows || []);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
