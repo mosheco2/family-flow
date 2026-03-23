@@ -1,7 +1,3 @@
-דילגת על קובץ - business-app.js
-
-
-
 // Oneflow 360 Pro - Business Logic Application
 
 
