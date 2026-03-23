@@ -15,6 +15,56 @@ introStyle.innerHTML = `
         .introjs-tooltip { position: relative !important; max-width: 350px !important; margin: 0 auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; }
         .introjs-arrow { display: none !important; }
     }
+    
+    /* IntroJS Overrides for modern modal look */
+    .introjs-tooltip { 
+        font-family: 'Rubik', sans-serif !important; 
+        border-radius: 2rem !important; 
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; 
+        padding: 1.5rem !important; 
+        border: none !important; 
+        overflow: hidden !important; 
+        text-align: center !important; 
+    }
+    .introjs-tooltip::before { 
+        content: ''; 
+        position: absolute; 
+        top: 0; left: 0; right: 0; height: 8px; 
+        background: linear-gradient(to right, #3b82f6, #a855f7); 
+    }
+    .introjs-tooltipbuttons { 
+        border-top: none !important; 
+        padding-top: 1rem !important; 
+        display: flex; 
+        gap: 0.5rem; 
+        justify-content: center; 
+    }
+    .introjs-button { 
+        border-radius: 0.75rem !important; 
+        text-shadow: none !important; 
+        font-weight: bold !important; 
+        font-family: 'Rubik', sans-serif !important; 
+        padding: 0.75rem 1.5rem !important; 
+        flex: 1; 
+        text-align: center; 
+    }
+    .introjs-nextbutton { 
+        background-color: #3b82f6 !important; 
+        color: white !important; 
+        border: none !important; 
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important; 
+    }
+    .introjs-prevbutton { 
+        color: #64748b !important; 
+        background: #f8fafc !important; 
+        border: 1px solid #e2e8f0 !important; 
+    }
+    .introjs-skipbutton { 
+        color: #94a3b8 !important; 
+        font-weight: 500 !important; 
+        background: transparent !important; 
+    }
+    .introjs-bullets ul li a.active { background: #3b82f6 !important; }
 `;
 document.head.appendChild(introStyle);
 
@@ -72,10 +122,8 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-const hidePreloaderAndShowAuth = (view = 'login') => {
-    document.getElementById('auth-container').classList.remove('hidden'); switchView(view);
-    const preloader = document.getElementById('app-preloader');
-    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+const hidePreloaderAndShowAuth = () => {
+    window.location.href = '/';
 };
 
 window.onload = async () => { 
@@ -83,10 +131,13 @@ window.onload = async () => {
     const btnMonthly = document.getElementById('btn-forecast-monthly'); const btnYearly = document.getElementById('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { console.warn('Failsafe triggered'); hidePreloaderAndShowAuth('login'); } }, 7000);
+    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth(); } }, 7000);
     
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { document.getElementById('join-code').value = inviteCode; if(inviteRole) document.getElementById('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
+    if (inviteCode) { 
+        window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; 
+        return; 
+    }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
@@ -112,7 +163,7 @@ window.onload = async () => {
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth();
 };
 
 async function handleSALogin(e) {
@@ -492,7 +543,7 @@ async function loadDashboard() {
     document.getElementById('dashboard-container').classList.remove('hidden'); 
     document.getElementById('fab-container').classList.remove('hidden');
     
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
+    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
     document.getElementById('dash-group-name').innerHTML = `${currentGroup.name} ${codeBadge}`; 
     document.getElementById('dash-nickname').innerText = currentUser.nickname; 
 
@@ -742,7 +793,7 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'עובד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/חודש • ${m.interest_rate || 0}% תמריץ</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${m.nickname || 'עובד'}</h4><p class="text-[10px] text-slate-400">₪${m.allowance_amount || 0}/חודש • ${m.interest_rate || 0}% תמריץ</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${m.nickname}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${m.nickname}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
                 }); 
             } 
         } catch(err) {}
@@ -817,7 +868,7 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        try { renderChildTodo(); buildAndRenderFeed(); if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
+        try { renderEmployeeTodo(); buildAndRenderFeed(); if (document.getElementById('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
     } catch(e) {}
 }
 
@@ -1041,7 +1092,7 @@ async function submitPantryUse() {
     const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
     try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: qty, usedUnits: units }) }); const data = await res.json();
+        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); document.getElementById('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
 }
@@ -1057,7 +1108,11 @@ function renderPantry() {
 function openPantryModal() { document.getElementById('pantry-modal').classList.remove('hidden'); }
 
 async function submitPantryItem() {
-    const name = val('pantry-item'); const qty = val('pantry-quantity'); const unit = val('pantry-unit') || "יח'"; const upp = val('pantry-upp') || 1; if(!name) return;
+    const name = val('pantry-item'); 
+    const qty = parseFloat(val('pantry-quantity')) || 1; 
+    const unit = val('pantry-unit') || "יח'"; 
+    const upp = parseInt(val('pantry-upp')) || 1; 
+    if(!name) return showToast('error', 'יש להזין שם מוצר');
     
     const btn = document.getElementById('btn-submit-pantry');
     if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
@@ -1185,7 +1240,7 @@ function renderCashflow() {
         if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); }
     }
     if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
-    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
+    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין פעולות להצגה בתקופה זו.</p>'; return; }
     let html = '';
     filtered.forEach(t => {
         const isIncome = t.type === 'income'; const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
@@ -1220,10 +1275,10 @@ async function submitEditTransaction() {
 }
 
 async function deleteTransaction() {
-    const id = val('edit-trans-id'); if(!confirm('האם לבטל פעולה זו לחלוטין מרישומי המערכת? היתרה תתעדכן בהתאם.')) return;
+    const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
     try {
         const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
-        if(data.success) { showToast('success', 'הפעולה בוטלה!'); document.getElementById('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
+        if(data.success) { showToast('success', 'הפעולה נמחקה!'); document.getElementById('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
@@ -1347,7 +1402,11 @@ function filterSuggestions(val) { const list = document.getElementById('suggesti
 
 async function submitShopItem() { 
     const itemInput = document.getElementById('shop-item'); const btn = document.getElementById('btn-submit-shop'); 
-    const item = itemInput.value; const qty = val('shop-quantity'); const est = val('shop-est-price'); const unit = val('shop-unit') || "יח'"; 
+    const item = itemInput.value; 
+    const qty = parseFloat(val('shop-quantity')) || 1; 
+    const est = parseFloat(val('shop-est-price')) || 0; 
+    const unit = val('shop-unit') || "יח'"; 
+    
     if(!item) return; if (btn && btn.disabled) return; 
     if(btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try { 
@@ -1416,7 +1475,7 @@ async function updateRow(id, type, value) {
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
     else if (type === 'check') { const row = document.getElementById(`row-${id}`); const input = document.getElementById(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
     else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = document.getElementById(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: value})}); const data = await res.json(); const freshWisdomDiv = document.getElementById(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = value; } 
+    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = document.getElementById(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
     if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
 }
 
@@ -1514,10 +1573,12 @@ function openShopModal() { document.getElementById('shop-modal').classList.remov
 function openLoanModal() { document.getElementById('loan-modal').classList.remove('hidden'); }
 
 async function submitLoan() { 
+    const amount = parseFloat(val('loan-amount')) || 0;
+    if(amount <= 0) return showToast('error', 'נא להזין סכום תקין');
     const btn = document.getElementById('btn-submit-loan');
     if (btn) { btn.disabled = true; btn.innerText = 'שולח...'; }
     try {
-        await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:val('loan-amount'), reason:val('loan-reason'), groupId: currentGroup.id})}); 
+        await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:amount, reason:val('loan-reason'), groupId: currentGroup.id})}); 
         document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת ההחזר נשלחה למנהל 📨'); fetchData(); fetchLoans(); 
     } catch(e) {
         showToast('error', 'שגיאה בשליחת בקשה');
@@ -1586,32 +1647,36 @@ window.rejectLoan = async function(loanId) {
 
 async function fetchBudget() {
     const cat = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id;
-    const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
-    let data = await res.json();
-    if (!Array.isArray(data)) data = []; // הגנה למקרה של תשובה ריקה מהשרת
-    
-    const list = document.getElementById('budget-list'); list.innerHTML = '';
-    const baseCategories = CATEGORIES.expense.map(c => c.value);
-    data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
-    baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
-    let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
-    data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
+    try {
+        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
+        let data = await res.json();
+        if (!Array.isArray(data)) data = []; // הגנה למקרה של תשובה ריקה/שגויה מהשרת
+        
+        const list = document.getElementById('budget-list'); list.innerHTML = '';
+        const baseCategories = CATEGORIES.expense.map(c => c.value);
+        data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
+        baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
+        let childrenTotalSpent = 0; let childrenTotalLimit = 0; let childrenItems = []; let otherItems = [];
+        data.forEach(b => { if (childrenCategories.includes(b.category) || b.category === 'allocations') { childrenTotalSpent += parseFloat(b.spent) || 0; childrenTotalLimit += parseFloat(b.limit) || 0; childrenItems.push(b); } else { otherItems.push(b); } });
 
-    const createRow = (category, spent, limit, isSub = false) => {
-        const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
-        const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
-        const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
-        const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
-        return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
-    };
+        const createRow = (category, spent, limit, isSub = false) => {
+            const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
+            const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
+            const editBtn = (category !== 'allocations') ? `<button onclick="openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
+            const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
+            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+        };
 
-    if (childrenItems.length > 0) {
-        const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
-        const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
-        const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי עובדים / שכר' : 'תקציב פעילות שאושר לי';
-        list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
+        if (childrenItems.length > 0) {
+            const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
+            const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
+            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי עובדים / שכר' : 'תקציב פעילות שאושר לי';
+            list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
+        }
+        otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
+    } catch(e) {
+        console.error('Error fetching budget:', e);
     }
-    otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
 }
 
 function openAddBudgetCategoryModal() { document.getElementById('new-budget-cat-name').value = ''; document.getElementById('add-budget-cat-modal').classList.remove('hidden'); }
@@ -1629,7 +1694,7 @@ async function submitNewBudgetCat() {
     } catch(e) {
         showToast('error', 'שגיאה בשמירת סעיף תקציבי');
     } finally {
-        if(btn) { btn.disabled = false; btn.innerText = 'הוסף לתקציב'; }
+        if(btn) { btn.disabled = false; btn.innerText = 'הוסף לקטגוריה'; }
     }
 }
 
@@ -1655,7 +1720,7 @@ function exportShopToWhatsApp() {
 
 function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
 async function submitBudgetUpdate() { 
-    const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; 
+    const cat = document.getElementById('budget-cat-id').value; const limit = parseFloat(document.getElementById('budget-limit').value) || 0; 
     const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; 
     
     const btn = document.getElementById('btn-submit-budget-update');
