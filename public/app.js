@@ -509,7 +509,7 @@ async function fetchMembers() {
                 membersCache.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'הורה/מנהל' : 'ילד/בן משפחה'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
                 }); 
             }
         } catch(err) {}
@@ -836,6 +836,7 @@ function renderPantry() {
 }
 
 function openPantryModal() { document.getElementById('pantry-modal').classList.remove('hidden'); }
+
 async function submitPantryItem() {
     const name = val('pantry-item'); 
     const qty = parseFloat(val('pantry-quantity')) || 1; 
@@ -855,6 +856,7 @@ async function submitPantryItem() {
         if(btn) { btn.disabled = false; btn.innerText = 'הוסף למלאי'; }
     }
 }
+
 async function updatePantryQty(id, newQty) {
     if(newQty <= 0) { if(!confirm('המוצר נגמר! האם למחוק אותו מהמזווה? (מומלץ להוסיף לעגלת הקניות במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
@@ -1171,11 +1173,12 @@ async function submitShopItem() {
     const qty = parseFloat(val('shop-quantity')) || 1; 
     const est = parseFloat(val('shop-est-price')) || 0; 
     const unit = val('shop-unit') || "יח'"; 
+    const upp = parseInt(val('shop-upp')) || 1;
     
     if(!item) return; if (btn && btn.disabled) return; 
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, userId: currentUser.id, groupId: currentGroup.id}) }); const data = await res.json(); 
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); const data = await res.json(); 
         if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); itemInput.value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('shop-unit').value = "יח'"; document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'נוסף לרשימה'); fetchData(); } 
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול השרת');
@@ -1312,7 +1315,8 @@ async function submitGoal() { const title = val('goal-title'); const target = pa
 async function submitDeposit() { const goalId = document.getElementById('deposit-goal-id').value; const amount = parseFloat(document.getElementById('deposit-amount').value) || 0; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount, groupId: currentGroup.id }) }); const data = await res.json(); if (data.success) { document.getElementById('goal-deposit-modal').classList.add('hidden'); fetchData(); showToast('success', 'העברה בוצעה'); } else showToast('error', data.error); }
 
 function openTransactionModal(t) { 
-    document.getElementById('trans-type').value=t; document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה / מימון':'הוצאה תפעולית'; 
+    document.getElementById('trans-type').value=t; 
+    document.getElementById('trans-modal-title').innerText=t==='income'?'הכנסה':'הוצאה'; 
     const s=document.getElementById('trans-cat'); s.innerHTML=''; CATEGORIES[t].forEach(c=>s.innerHTML+=`<option value="${c.value}">${c.label}</option>`); 
     document.getElementById('trans-date').value = new Date().toISOString().split('T')[0]; window.toggleTransType('onetime'); document.getElementById('transaction-modal').classList.remove('hidden'); 
 }
@@ -1470,7 +1474,7 @@ async function submitPastedList() {
     const btn = document.getElementById('btn-submit-paste'); btn.disabled = true; btn.innerText = 'קולט נתונים...';
     const lines = text.split('\n').filter(l => l.trim() !== '');
     try {
-        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); }
+        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
         document.getElementById('paste-list-modal').classList.add('hidden'); showToast('success', `נקלטו ${lines.length} שורות מהרשימה!`); fetchData();
     } catch(e) { showToast('error', 'שגיאה בקליטת הרשימה'); } finally { btn.disabled = false; btn.innerText = 'קלוט רשימה'; }
 }
