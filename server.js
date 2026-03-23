@@ -958,6 +958,268 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// פונקציות Dashboard Fetching (תוקנו ושודרגו)
+// ---------------------------------------------------------
+
+app.get('/api/data/:userId', async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const uRes = await pool.query('SELECT * FROM users WHERE id=$1', [userId]);
+        if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        const user = uRes.rows[0];
+
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE id=$1', [user.group_id]);
+        const group = gRes.rows[0];
+
+        // נתונים במקביל ליעילות
+        const [tasksRes, shoppingRes, pantryRes, bundlesRes, allBundlesRes, goalsRes, statsRes] = await Promise.all([
+            pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id=$1 ORDER BY t.created_at DESC`, [group.id]),
+            pool.query(`SELECT s.*, u.nickname as requester_name FROM shopping_list s LEFT JOIN users u ON s.requester_id = u.id WHERE s.group_id=$1 AND s.status != 'bought' ORDER BY s.added_at DESC`, [group.id]),
+            pool.query('SELECT * FROM pantry WHERE group_id=$1 ORDER BY item_name', [group.id]),
+            pool.query(`SELECT ua.id as assignment_id, ua.status, ua.score, ua.custom_reward, ua.deadline, ua.assigned_at, qb.*, u.nickname as assignee_name, ua.user_id FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id JOIN users u ON ua.user_id = u.id WHERE u.group_id=$1 ORDER BY ua.assigned_at DESC`, [group.id]),
+            pool.query(`SELECT * FROM quiz_bundles WHERE type = $1 OR type IN ('math', 'reading', 'financial') ORDER BY created_at DESC`, [group.type === 'BUSINESS' ? 'professional' : 'financial']),
+            pool.query(`SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id=$1 OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$2)`, [userId, group.id]),
+            pool.query(`SELECT COALESCE(SUM(amount),0) as spent, (SELECT allowance_amount FROM users WHERE id=$1) as limit FROM transactions WHERE user_id=$1 AND category='allowance' AND type='expense' AND date >= date_trunc('week', CURRENT_DATE)`, [userId])
+        ]);
+
+        res.json({
+            user: user,
+            group: group,
+            tasks: tasksRes.rows,
+            shopping_list: shoppingRes.rows,
+            pantry: pantryRes.rows,
+            quiz_bundles: bundlesRes.rows,
+            all_bundles: allBundlesRes.rows,
+            goals: goalsRes.rows,
+            weekly_stats: statsRes.rows[0]
+        });
+
+    } catch (e) {
+        console.error("Data Fetch Error:", e);
+        res.status(500).json({ error: 'שגיאה בשליפת נתונים' });
+    }
+});
+
+app.post('/api/tasks', async (req, res) => {
+    try {
+        const { title, reward, assignedTo, days, status, groupId } = req.body;
+        if (!title || !groupId) return res.status(400).json({error: 'נתונים חסרים'});
+        
+        let deadline = null;
+        if (days) {
+            deadline = new Date();
+            deadline.setDate(deadline.getDate() + parseInt(days));
+        }
+
+        await pool.query(
+            `INSERT INTO tasks (group_id, assigned_to, title, reward, status, deadline) VALUES ($1, $2, $3, $4, $5, $6)`, 
+            [groupId, assignedTo, reward, status || 'pending', deadline]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/tasks/update', async (req, res) => {
+    try {
+        const { taskId, status, finalReward } = req.body;
+        if (finalReward !== undefined) {
+             await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, finalReward, taskId]);
+        } else {
+             await pool.query('UPDATE tasks SET status=$1 WHERE id=$2', [status, taskId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/transaction', async (req, res) => {
+    try {
+        const { userId, groupId, amount, description, category, type, date, isRecurring, endMonth } = req.body;
+        if (!userId || !groupId || !amount) return res.status(400).json({error: 'נתונים חסרים'});
+
+        await pool.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
+            [userId, groupId, amount, description, category, type, date, isRecurring, endMonth]
+        );
+        
+        if (!isRecurring && new Date(date) <= new Date()) {
+            const operator = type === 'income' ? '+' : '-';
+            await pool.query(`UPDATE users SET balance = balance ${operator} $1 WHERE id=$2`, [amount, userId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.put('/api/transaction/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, description, category, requesterId, groupId } = req.body;
+        
+        const oldTx = await pool.query('SELECT * FROM transactions WHERE id=$1', [id]);
+        if(oldTx.rows.length === 0) return res.status(404).json({error: 'פעולה לא נמצאה'});
+        
+        const tx = oldTx.rows[0];
+        
+        // תיקון יתרה אם זו לא פעולה עתידית/קבועה
+        if (!tx.is_recurring && new Date(tx.date) <= new Date()) {
+             const undoOp = tx.type === 'income' ? '-' : '+';
+             await pool.query(`UPDATE users SET balance = balance ${undoOp} $1 WHERE id=$2`, [tx.amount, tx.user_id]);
+             
+             const redoOp = tx.type === 'income' ? '+' : '-';
+             await pool.query(`UPDATE users SET balance = balance ${redoOp} $1 WHERE id=$2`, [amount, tx.user_id]);
+        }
+        
+        await pool.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [amount, description, category, id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/transaction/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const oldTx = await pool.query('SELECT * FROM transactions WHERE id=$1', [id]);
+        if(oldTx.rows.length > 0) {
+            const tx = oldTx.rows[0];
+            if (!tx.is_recurring && new Date(tx.date) <= new Date()) {
+                const undoOp = tx.type === 'income' ? '-' : '+';
+                await pool.query(`UPDATE users SET balance = balance ${undoOp} $1 WHERE id=$2`, [tx.amount, tx.user_id]);
+            }
+        }
+        await pool.query('DELETE FROM transactions WHERE id=$1', [id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// הוספה לקניות
+app.post('/api/shopping/add', async (req, res) => {
+    try {
+        const { itemName, quantity, unit, estimatedPrice, userId, groupId } = req.body;
+        if (!groupId) return res.status(400).json({error: 'groupId is required'});
+        await pool.query(
+            `INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [groupId, userId, itemName, itemName, quantity || 1, unit || "יח'", estimatedPrice || 0]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// עדכון סטטוס/מחיר של פריט בקניות
+app.post('/api/shopping/update', async (req, res) => {
+    try {
+        const { itemId, status, estimatedPrice } = req.body;
+        if (status) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [estimatedPrice, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/shopping/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/shopping/clear/:groupId', async (req, res) => {
+    try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// הוספה למזווה
+app.post('/api/pantry/add', async (req, res) => {
+    try {
+        const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
+        if (!groupId) return res.status(400).json({error: 'groupId is required'});
+        await pool.query(
+            `INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`,
+            [groupId, itemName, quantity, unit, unitsPerPackage || 1]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/pantry/update', async (req, res) => {
+    try {
+        const { itemId, quantity } = req.body;
+        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.delete('/api/pantry/delete/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/pantry/use', async (req, res) => {
+    try {
+        const { groupId, itemName, usedQuantity, usedUnits } = req.body;
+        const itemRes = await pool.query('SELECT * FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        if(itemRes.rows.length === 0) return res.status(404).json({error: 'לא נמצא מוצר במלאי'});
+        const item = itemRes.rows[0];
+        
+        let decrement = 0;
+        if(usedUnits) {
+             const upp = item.units_per_package || 1;
+             decrement = parseFloat(usedUnits) / upp;
+        } else {
+             decrement = parseFloat(usedQuantity);
+        }
+        
+        const newQty = parseFloat(item.quantity) - decrement;
+        if(newQty <= 0) {
+             await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]);
+        } else {
+             await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]);
+        }
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/budget/filter', async (req, res) => {
+    try {
+        const { groupId, targetUserId } = req.query;
+        let query = `
+            SELECT b.category, b.amount_limit as limit, 
+                   COALESCE((SELECT SUM(amount) FROM transactions WHERE group_id=$1 AND category=b.category AND type='expense' AND date >= date_trunc('month', CURRENT_DATE)), 0) as spent
+            FROM budget_allocations b WHERE b.group_id=$1
+        `;
+        let params = [groupId];
+        
+        if (targetUserId && targetUserId !== 'all') {
+             query += ` AND b.target_user_id=$2`;
+             params.push(targetUserId);
+        }
+        
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/budget/update', async (req, res) => {
+    try {
+        const { groupId, category, limit, targetUserId } = req.body;
+        if (!groupId) return res.status(400).json({error: 'groupId is required'});
+        
+        const userId = targetUserId === 'all' ? null : targetUserId;
+        
+        await pool.query(`
+            INSERT INTO budget_allocations (group_id, category, amount_limit, target_user_id) 
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (group_id, category, target_user_id) 
+            DO UPDATE SET amount_limit = $3
+        `, [groupId, category, limit, userId]);
+        
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.post('/api/loans/request', async (req, res) => {
+    try {
+        const { userId, amount, reason, groupId } = req.body;
+        if (!groupId) return res.status(400).json({error: 'groupId is required'});
+        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason, status) VALUES ($1, $2, $3, $3, $4, $5)', [userId, groupId, amount, reason, 'pending']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// האזנה לשרת - חובה ב-Render או כל סביבה שמריצה את האפליקציה!
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
