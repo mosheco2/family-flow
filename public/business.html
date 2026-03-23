@@ -27,6 +27,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
 
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; padding-bottom: 0; }
@@ -87,6 +88,15 @@
         }
         @keyframes ripple { 0% { transform: scale(0, 0); opacity: 1; } 20% { transform: scale(25, 25); opacity: 1; } 100% { opacity: 0; transform: scale(40, 40); } }
         .punch-btn:active::after { animation: ripple 1s ease-out; }
+
+        /* עיצוב ייעודי לדוח ה-PDF העסקי */
+        .report-page { background: white; padding: 20px; color: #1e293b; text-align: right; direction: rtl; }
+        .report-page h1 { font-size: 24px; font-weight: bold; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 20px; color: #1e293b; }
+        .report-page h2 { font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+        .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        .report-table th { background-color: #f8fafc; padding: 8px; text-align: right; border: 1px solid #e2e8f0; font-weight: bold; color: #334155; }
+        .report-table td { padding: 8px; border: 1px solid #e2e8f0; color: #1e293b; }
+        .report-badge { background-color: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #cbd5e1; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -416,6 +426,12 @@
                                 <button onclick="openInviteModal()" id="tour-invite-btn" class="text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-solid fa-user-plus text-sm"></i> הוסף איש צוות</button>
                             </div>
                             <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
+                            
+                            <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
+                                <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-slate-100 text-slate-700 border border-slate-200 py-2.5 px-6 rounded-xl font-bold hover:bg-slate-200 transition shadow-sm flex justify-center items-center gap-2">
+                                    <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) לארגון
+                                </button>
+                            </div>
                         </div>
                         <div id="admin-members-tools" class="hidden">
                             <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל המנהל</button>
@@ -822,7 +838,7 @@
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">בקשת החזר הוצאות / מקדמה</h3>
                 <input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום מבוקש"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="פירוט הוצאה / סיבה?">
-                <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div>
+                <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">שגר בקשה להנהלה</button></div>
             </div>
         </div>
         
@@ -886,6 +902,65 @@
                 <button onclick="resetAccessibility()" class="w-full mt-6 bg-red-50 text-red-500 py-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-100">איפוס הגדרות נגישות</button>
             </div>
         </div>
+
+        <div id="report-360-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative">
+                <button onclick="document.getElementById('report-360-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+                
+                <div id="report-360-content" class="report-page bg-white p-4">
+                    <div class="flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-800 mb-1">דוח 360 - תמונת מצב לארגון</h1>
+                            <p class="text-sm text-slate-500" id="report-360-date"></p>
+                        </div>
+                        <img src="logo.png" alt="Oneflow Life BIZ" class="w-16 h-16 object-contain grayscale">
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">פרטי העסק</h2>
+                        <table class="report-table">
+                            <tr><th class="w-1/3">שם הארגון:</th><td id="report-360-group-name"></td></tr>
+                            <tr><th>סוג סביבה:</th><td id="report-360-group-type"></td></tr>
+                            <tr><th>קוד ארגוני:</th><td id="report-360-group-code" class="font-mono"></td></tr>
+                            <tr><th>מייל מנהל:</th><td id="report-360-group-email"></td></tr>
+                        </table>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">הרכב מנהלים ועובדים</h2>
+                        <table class="report-table w-full text-sm">
+                            <thead>
+                                <tr class="bg-slate-50"><th class="text-right p-2 border">שם משתמש</th><th class="text-right p-2 border">תפקיד</th><th class="text-right p-2 border">יתרת בונוס/תקציב</th></tr>
+                            </thead>
+                            <tbody id="report-360-users-list"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">תנועות תזרים (30 ימים אחרונים)</h2>
+                        <table class="report-table w-full text-sm">
+                            <thead>
+                                <tr class="bg-slate-50"><th class="text-right p-2 border">תאריך</th><th class="text-right p-2 border">משתמש</th><th class="text-right p-2 border">תיאור</th><th class="text-right p-2 border">סכום</th></tr>
+                            </thead>
+                            <tbody id="report-360-tx-list"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">סיכום סטטוס משימות</h2>
+                        <ul id="report-360-tasks-list" class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-4"></ul>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex gap-3 pt-4 border-t border-slate-100">
+                    <button onclick="document.getElementById('report-360-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
+                    <button onclick="download360PDF()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> הורד כ-PDF 📥
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
