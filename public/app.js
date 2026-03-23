@@ -130,19 +130,21 @@ async function updateSACredentials() {
 }
 
 async function saveAllBanners() {
-    const topText = val('sa-banner-top-text'); 
-    const topLink = val('sa-banner-top-link'); 
-    const topImg = val('sa-banner-top-img');
-    const bottomText = val('sa-banner-bottom-text'); 
-    const bottomLink = val('sa-banner-bottom-link'); 
-    const bottomImg = val('sa-banner-bottom-img');
+    const safeVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
     
-    const bizTopText = val('sa-biz-banner-top-text'); 
-    const bizTopLink = val('sa-biz-banner-top-link'); 
-    const bizTopImg = val('sa-biz-banner-top-img');
-    const bizBottomText = val('sa-biz-banner-bottom-text'); 
-    const bizBottomLink = val('sa-biz-banner-bottom-link'); 
-    const bizBottomImg = val('sa-biz-banner-bottom-img');
+    const topText = safeVal('sa-banner-top-text'); 
+    const topLink = safeVal('sa-banner-top-link'); 
+    const topImg = safeVal('sa-banner-top-img');
+    const bottomText = safeVal('sa-banner-bottom-text'); 
+    const bottomLink = safeVal('sa-banner-bottom-link'); 
+    const bottomImg = safeVal('sa-banner-bottom-img');
+    
+    const bizTopText = safeVal('sa-biz-banner-top-text'); 
+    const bizTopLink = safeVal('sa-biz-banner-top-link'); 
+    const bizTopImg = safeVal('sa-biz-banner-top-img');
+    const bizBottomText = safeVal('sa-biz-banner-bottom-text'); 
+    const bizBottomLink = safeVal('sa-biz-banner-bottom-link'); 
+    const bizBottomImg = safeVal('sa-biz-banner-bottom-img');
     
     try {
         const res = await fetch(`${API}/superadmin/banners`, { 
@@ -919,7 +921,7 @@ function renderCashflow() {
         if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); }
     }
     if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
-    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין פעולות להצגה בתקופה זו.</p>'; return; }
+    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
     let html = '';
     filtered.forEach(t => {
         const isIncome = t.type === 'income'; const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
@@ -1035,7 +1037,7 @@ async function requestChallenge(bundleId = null) {
     const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
     try {
         const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId }) }); const data = await res.json();
-        if (data.success) { triggerConfetti(); showToast('success', 'המבחן נוסף בהצלחה!'); fetchData(); } else showToast('error', data.error);
+        if (data.success) { triggerConfetti(); showToast('success', 'הלומדה שויכה בהצלחה!'); fetchData(); } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
 }
 
@@ -1400,9 +1402,9 @@ async function renderForecast() {
             
             const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
             const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; const prefix = isIncome ? '+' : '-';
-            const recBadge = isRecurring ? '<span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
+            const recBadge = isRecurring ? '<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
             const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
-            html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-indigo-100 transition"><div class="flex-1 overflow-hidden"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p><p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p></div><span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+            html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-slate-200 transition"><div class="flex-1 overflow-hidden"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p><p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p></div><span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span></div>`;
         });
     }
     list.innerHTML = html;
