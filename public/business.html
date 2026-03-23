@@ -178,23 +178,11 @@
                     </div>
 
                     <div id="content-timeclock" class="hidden">
-                        <div id="timeclock-admin-view" class="hidden space-y-4">
-                            <div class="flex justify-between items-center mb-2 px-2">
-                                <h3 class="font-bold text-slate-800 text-lg">דוח נוכחות ⏱️</h3>
-                                <button onclick="fetchTimeclockReport()" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition"><i class="fa-solid fa-rotate-right"></i> רענון</button>
-                            </div>
-                            <div class="px-2 mb-4">
-                                <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white"></select>
-                            </div>
-                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                                <div id="timeclock-report-list" class="divide-y divide-slate-50 min-h-[150px]"></div>
-                            </div>
-                        </div>
-
-                        <div id="timeclock-user-view" class="hidden space-y-6">
+                        
+                        <div id="timeclock-user-view" class="space-y-6 mb-6">
                             <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center min-h-[300px]">
                                 <h3 class="font-bold text-slate-800 text-xl mb-2" id="tc-status-title">שעון נוכחות</h3>
-                                <p class="text-sm text-slate-500 mb-8" id="tc-status-desc">לחץ כדי להתחיל או לסיים משמרת</p>
+                                <p class="text-sm text-slate-500 mb-8" id="tc-status-desc">לחץ כדי להתחיל או לסיים משמרת (יש לאשר מיקום)</p>
                                 
                                 <button id="btn-punch" onclick="handlePunch()" class="punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-300">
                                     <i id="tc-icon" class="fa-solid fa-fingerprint text-5xl mb-2"></i>
@@ -207,6 +195,23 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div id="timeclock-admin-view" class="hidden space-y-4 mt-8 pt-6 border-t border-slate-200">
+                            <div class="flex justify-between items-center mb-2 px-2">
+                                <h3 class="font-bold text-slate-800 text-lg">דוח נוכחות צוות ⏱️</h3>
+                                <div class="flex gap-2">
+                                    <button onclick="setBusinessLocation()" class="text-white bg-slate-800 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-700 transition shadow-md flex items-center gap-1" title="לחץ כשתהיה במשרד כדי לקבוע שזה המיקום המורשה לדיווח נוכחות"><i class="fa-solid fa-location-dot"></i> הגדר מיקום עסק</button>
+                                    <button onclick="fetchTimeclockReport()" class="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-blue-100 transition shadow-sm flex items-center gap-1"><i class="fa-solid fa-rotate-right"></i> רענון דוח</button>
+                                </div>
+                            </div>
+                            <div class="px-2 mb-4">
+                                <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white"></select>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                <div id="timeclock-report-list" class="divide-y divide-slate-50 min-h-[150px]"></div>
+                            </div>
+                        </div>
+                        
                     </div>
 
                     <div id="content-bank" class="hidden">
@@ -817,7 +822,7 @@
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">בקשת החזר הוצאות / מקדמה</h3>
                 <input type="number" id="loan-amount" class="modern-input mb-3" placeholder="סכום מבוקש"><input type="text" id="loan-reason" class="modern-input mb-6" placeholder="פירוט הוצאה / סיבה?">
-                <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">שגר בקשה להנהלה</button></div>
+                <div class="flex gap-3"><button onclick="document.getElementById('loan-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitLoan()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold">שלח</button></div>
             </div>
         </div>
         
