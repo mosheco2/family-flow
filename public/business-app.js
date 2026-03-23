@@ -19,7 +19,7 @@ introStyle.innerHTML = `
 document.head.appendChild(introStyle);
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
-let currentUser = null; let currentGroup = null; let pollInterval = null;
+let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
@@ -87,6 +87,13 @@ window.onload = async () => {
     if (inviteCode) { 
         window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; 
         return; 
+    }
+    
+    const savedSAToken = localStorage.getItem('ofl_sa_token');
+    if (savedSAToken) {
+        saToken = savedSAToken; clearTimeout(failsafeTimer); document.getElementById('auth-container').classList.add('hidden'); document.getElementById('sa-dashboard-container').classList.remove('hidden');
+        const preloader = document.getElementById('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+        loadSAData(); return;
     }
     
     const saved = localStorage.getItem('ofl_session'); 
@@ -232,7 +239,7 @@ function switchTab(t) {
     if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
     if (t === 'timeclock') {
         if (currentUser.role === 'ADMIN') fetchTimeclockReport();
-        checkTimeclockStatus(); // כולם צריכים לבדוק סטטוס כי הוספנו שעון אישי למנהל גם
+        checkTimeclockStatus(); // כולם צריכים לבדוק סטטוס
     }
 }
 
@@ -887,6 +894,8 @@ function renderTasks(tasks) {
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פרויקטים פעילים</div>'; else list.innerHTML = htmlStr;
 }
 
+async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+
 function buildAndRenderFeed() {
     feedCache = [];
     if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
@@ -1066,7 +1075,7 @@ async function requestChallenge(bundleId = null) {
     try {
         const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId }) }); const data = await res.json();
         if (data.success) { triggerConfetti(); showToast('success', 'הלומדה שויכה בהצלחה!'); fetchData(); } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bolt"></i> רענון נהלים מהיר'; } }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
 }
 
 async function startQuiz(bundleId) {
@@ -1313,6 +1322,140 @@ function exportShopToWhatsApp() {
 
 function openBudgetModal(catId, catName, currentLimit) { document.getElementById('budget-cat-name').innerText = catName; document.getElementById('budget-cat-id').value = catId; document.getElementById('budget-limit').value = currentLimit > 0 ? currentLimit : ''; document.getElementById('budget-modal').classList.remove('hidden'); }
 async function submitBudgetUpdate() { const cat = document.getElementById('budget-cat-id').value; const limit = document.getElementById('budget-limit').value; const target = currentUser.role === 'ADMIN' ? (document.getElementById('budget-filter').value || 'all') : currentUser.id; await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); document.getElementById('budget-modal').classList.add('hidden'); fetchBudget(); }
+
+// -------------------------------------
+// פונקציות לתשקיף חכם (Forecast)
+// -------------------------------------
+
+window.toggleForecastMode = function(mode) {
+    currentForecastMode = mode;
+    document.getElementById('btn-forecast-monthly').className = mode === 'monthly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    document.getElementById('btn-forecast-yearly').className = mode === 'yearly' ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    document.getElementById('forecast-month-filter').classList.toggle('hidden', mode !== 'monthly');
+    document.getElementById('forecast-year-filter').classList.toggle('hidden', mode !== 'yearly');
+    renderForecast();
+};
+
+function populateForecastPeriods() {
+    const mSelect = document.getElementById('forecast-month-filter'); const ySelect = document.getElementById('forecast-year-filter');
+    if (mSelect && mSelect.options.length === 0) { const now = new Date(); for(let i=0; i<12; i++) { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; const label = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }); mSelect.innerHTML += `<option value="${monthStr}">${label}</option>`; } }
+    if (ySelect && ySelect.options.length === 0) { const curYear = new Date().getFullYear(); for(let i=0; i<5; i++) { ySelect.innerHTML += `<option value="${curYear + i}">שנת ${curYear + i}</option>`; } }
+}
+
+async function renderForecast() {
+    populateForecastPeriods();
+    const list = document.getElementById('forecast-list');
+    if(!list) return;
+    if(!currentGroup || !currentGroup.id) return;
+    const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+    const periodVal = currentForecastMode === 'monthly' ? document.getElementById('forecast-month-filter').value : document.getElementById('forecast-year-filter').value;
+    
+    let startDate, endDate;
+    if (currentForecastMode === 'monthly') {
+        if (!periodVal) {
+            const now = new Date(); startDate = new Date(now.getFullYear(), now.getMonth(), 1); endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        } else {
+            const [year, month] = periodVal.split('-'); startDate = new Date(year, parseInt(month) - 1, 1); endDate = new Date(year, parseInt(month), 0, 23, 59, 59);
+        }
+    } else {
+        const year = periodVal ? parseInt(periodVal) : new Date().getFullYear();
+        startDate = new Date(year, 0, 1); endDate = new Date(year, 11, 31, 23, 59, 59);
+    }
+    
+    let startingBalance = 0;
+    if (targetUserId === 'all') { startingBalance = membersCache.reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0); } 
+    else { const user = membersCache.find(m => String(m.id) === String(targetUserId)); if (user) startingBalance = parseFloat(user.balance) || 0; }
+    
+    const items = [];
+    let txList = targetUserId !== 'all' ? allTransactions.filter(t => String(t.user_id) === String(targetUserId)) : allTransactions;
+    
+    txList.forEach(t => {
+        const txDate = new Date(t.date); const amt = parseFloat(t.amount); const isRecurring = t.is_recurring === true || String(t.is_recurring).toLowerCase() === 'true';
+        if (!isRecurring) {
+            if (txDate >= startDate && txDate <= endDate) items.push({ ...t, amount: amt, date_str: txDate.toLocaleDateString('he-IL') });
+        } else {
+            let txStartMonth = new Date(txDate.getFullYear(), txDate.getMonth(), 1); let validEnd = true; let endD = null;
+            if (t.end_month) { const [endYear, endMonth] = t.end_month.split('-'); endD = new Date(endYear, parseInt(endMonth), 0, 23, 59, 59); if (startDate > endD) validEnd = false; }
+            if (endDate < txStartMonth) validEnd = false;
+            if (validEnd) {
+                if (currentForecastMode === 'monthly') { items.push({ ...t, amount: amt, date_str: 'קבוע (חודשי)' }); } 
+                else if (currentForecastMode === 'yearly') {
+                    let monthsActive = 0;
+                    for (let m = 0; m < 12; m++) {
+                        let checkStart = new Date(startDate.getFullYear(), m, 1); let checkEnd = new Date(startDate.getFullYear(), m + 1, 0, 23, 59, 59); let isActive = checkStart >= txStartMonth;
+                        if (endD && checkEnd > endD) isActive = false; if (isActive) monthsActive++;
+                    }
+                    if (monthsActive > 0) items.push({ ...t, amount: amt * monthsActive, description: `${t.description} (x${monthsActive} ח')`, date_str: 'קבוע (שנתי)' });
+                }
+            }
+        }
+    });
+    forecastCache = { startingBalance, items };
+    const itemsToRender = forecastCache.items || [];
+    let totalIncome = 0; let totalExpense = 0; let projectedNetChange = 0;
+    const incomeData = {}; const expenseData = {};
+    let html = ''; const now = new Date();
+    
+    if(itemsToRender.length === 0) {
+        html = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-4">אין פעולות עתידיות או קבועות צפויות בתקופה זו</p>';
+    } else {
+        itemsToRender.forEach(item => {
+            const isIncome = item.type === 'income'; const amt = parseFloat(item.amount); const itemDate = new Date(item.date); const isRecurring = item.is_recurring === true || String(item.is_recurring).toLowerCase() === 'true';
+            if(isIncome) { totalIncome += amt; incomeData[item.category] = (incomeData[item.category] || 0) + amt; } else { totalExpense += amt; expenseData[item.category] = (expenseData[item.category] || 0) + amt; }
+            
+            if (isRecurring || itemDate > now) { if (isIncome) projectedNetChange += amt; else projectedNetChange -= amt; }
+            
+            const icon = isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+            const amountClass = isIncome ? 'text-green-600' : 'text-red-600'; const prefix = isIncome ? '+' : '-';
+            const recBadge = isRecurring ? '<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 rounded-full font-bold ml-2 shadow-sm whitespace-nowrap">קבועה <i class="fa-solid fa-rotate text-[8px]"></i></span>' : '';
+            const userName = currentUser.role === 'ADMIN' && item.user_name ? `<span class="text-[9px] bg-slate-100 px-1.5 rounded text-slate-500 ml-1 font-normal">${item.user_name}</span>` : '';
+            html += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-2 flex items-center justify-between text-right hover:border-slate-200 transition"><div class="flex-1 overflow-hidden"><p class="font-bold text-slate-800 leading-tight flex items-center mt-0.5">${icon} <span class="mr-2 truncate">${item.description}</span> ${userName} ${recBadge}</p><p class="text-[10px] text-slate-400 mt-1">${item.date_str}</p></div><span class="font-bold text-base ${amountClass} whitespace-nowrap shrink-0" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+        });
+    }
+    list.innerHTML = html;
+    const startBalance = parseFloat(forecastCache.startingBalance) || 0;
+    const projectedBalance = startBalance + projectedNetChange;
+    document.getElementById('forecast-net-change').innerText = `₪${projectedNetChange.toFixed(2)}`;
+    document.getElementById('forecast-net-change').className = `text-lg font-bold ${projectedNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
+    document.getElementById('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
+    drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
+}
+
+function drawForecastCharts(incomeData, expenseData) {
+    const container = document.getElementById('forecast-charts'); if(!container) return;
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
+    container.innerHTML = `<div class="w-full max-w-[250px]"><h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4><div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div></div>`;
+    const ctx = document.getElementById('ratioChart'); if(!ctx) return;
+    if(forecastRatioChart) forecastRatioChart.destroy();
+    const totalInc = Object.values(incomeData).reduce((a, b) => a + b, 0); const totalExp = Object.values(expenseData).reduce((a, b) => a + b, 0);
+    if(totalInc > 0 || totalExp > 0) {
+        forecastRatioChart = new Chart(ctx, {
+            type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalInc, totalExp], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { font: { family: 'Rubik' } } }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += '₪' + context.parsed.toFixed(1); } return label; } } } } }
+        });
+    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין פעולות עתידיות להצגת גרף</p>'; }
+}
+
+function getForecastInsight() {
+    executeWithAIWarning(async () => {
+        showAIModal('רואת העתידות', null); document.getElementById('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי לתקופה...';
+        try {
+            const periodVal = currentForecastMode === 'monthly' ? document.getElementById('forecast-month-filter').value : document.getElementById('forecast-year-filter').value;
+            const targetUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const res = await fetch(`${API}/forecast/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, period: periodVal, mode: currentForecastMode, targetUserId: targetUserId }) }); 
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { document.getElementById('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.insight) { showAIModal('רואת העתידות', data.insight); }
+            else { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התשקיף'); }
+        } catch(e) { document.getElementById('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
+}
+
+// -------------------------------------
+// סיום - תשקיף חכם (Forecast)
+// -------------------------------------
+
+
 function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
 function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = document.getElementById(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
 function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
