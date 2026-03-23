@@ -1324,3 +1324,116 @@ async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { meth
 function openProfileModal() { document.getElementById('old-password').value = ''; document.getElementById('new-password').value = ''; document.getElementById('profile-modal').classList.remove('hidden'); }
 async function submitChangePassword(e) { e.preventDefault(); const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value; const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהארגון לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
+
+// -------------------- פונקציות דוח 360 --------------------
+
+async function open360Report(groupId) {
+    showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
+    try {
+        let url, headers = {};
+        if (saToken) {
+            url = `${API}/superadmin/group-360/${groupId}`;
+            headers = { 'Authorization': saToken };
+        } else {
+            url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`;
+        }
+
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+
+        if (!data.success) {
+            return showToast('error', data.error || 'שגיאה בהפקת הדוח');
+        }
+
+        // --- רינדור הנתונים למודל (מותאם לטרמינולוגיה עסקית) ---
+        
+        const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
+        document.getElementById('report-360-group-name').innerText = data.group.name;
+        document.getElementById('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
+        document.getElementById('report-360-group-code').innerText = data.group.group_code;
+        document.getElementById('report-360-group-email').innerText = data.group.admin_email;
+        document.getElementById('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        // טבלת משתמשים + סך יתרות/התחייבויות
+        const usersList = document.getElementById('report-360-users-list');
+        let usersHtml = '';
+        let totalBalances = 0;
+        data.users.forEach(u => {
+            const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
+            const bal = parseFloat(u.balance) || 0;
+            totalBalances += bal;
+            usersHtml += `<tr>
+                <td>${u.nickname}</td>
+                <td><span class="report-badge">${roleStr}</span></td>
+                <td class="font-bold font-mono">₪${bal.toFixed(2)}</td>
+            </tr>`;
+        });
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300">
+            <td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td>
+            <td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td>
+        </tr>`;
+        usersList.innerHTML = usersHtml;
+
+        // טבלת תנועות
+        const txList = document.getElementById('report-360-tx-list');
+        let txHtml = '';
+        if(data.transactions && data.transactions.length > 0) {
+            data.transactions.forEach(t => {
+                const dateStr = new Date(t.date).toLocaleDateString('he-IL');
+                const isInc = t.type === 'income';
+                // בעסקים: ירוק = הכנסה, אדום = הוצאה.
+                const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
+                txHtml += `<tr>
+                    <td class="text-xs">${dateStr}</td>
+                    <td>${t.user_name || 'מערכת'}</td>
+                    <td class="text-xs">${t.description}</td>
+                    <td class="font-bold text-left">${amtStr}</td>
+                </tr>`;
+            });
+        } else {
+            txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>';
+        }
+        txList.innerHTML = txHtml;
+
+        // סיכום משימות / פרויקטים
+        const tasksList = document.getElementById('report-360-tasks-list');
+        let tasksHtml = '';
+        if(data.tasksSummary && data.tasksSummary.length > 0) {
+            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
+            data.tasksSummary.forEach(ts => {
+                tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`;
+            });
+        } else {
+            tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>';
+        }
+        tasksList.innerHTML = tasksHtml;
+
+        // הצגת המודל
+        document.getElementById('report-360-modal').classList.remove('hidden');
+
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח');
+        console.error(e);
+    }
+}
+
+function download360PDF() {
+    const element = document.getElementById('report-360-content');
+    const groupName = document.getElementById('report-360-group-name').innerText;
+    
+    const opt = {
+        margin:       10,
+        filename:     `OneflowBIZ_Report_${groupName}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // שימוש בספריית html2pdf
+    html2pdf().set(opt).from(element).save().then(() => {
+        showToast('success', 'הדוח הורד בהצלחה למכשירך!');
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
+        console.error(err);
+    });
+}
