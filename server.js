@@ -29,24 +29,21 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין - חסימת קריסות שרת בגלל עמודות חסרות!
+      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
-      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {} // חשוב לתיקון התזרים
-      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {} // חשוב לתיקון התקציב
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
+      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
       
-      // הוספת העמודה units_per_package בבטחה כדי למנוע את שגיאת ההוספה למזווה ולקניות
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       
-      // תיקון באג הרישום הכפול למייל
       try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
           await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
       } catch(e) { console.log('Email constraint exists or error:', e.message); }
 
-      // יצירת טבלת שעון נוכחות אם לא קיימת
       try {
           await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
               id SERIAL PRIMARY KEY,
@@ -58,7 +55,6 @@ pool.connect()
           )`);
       } catch(e) { console.log('Time clock table error:', e.message); }
       
-      // הוספת עמודות מיקום GPS לטבלת הקבוצות/עסקים
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
 
@@ -114,6 +110,55 @@ const handleAIError = (e, res, defaultMsg) => {
     if (e.message && e.message.includes('429')) return res.status(429).json({ error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
     res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
 };
+
+// --- FORCE DATABASE UPGRADE ---
+app.get('/api/force-upgrade', async (req, res) => {
+    let client;
+    try {
+        client = await pool.connect();
+        const results = [];
+        const queries = [
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE',
+            'ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE',
+            'ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
+            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION',
+            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'
+        ];
+
+        for (let q of queries) {
+            try {
+                await client.query(q);
+                results.push({ query: q, status: 'success' });
+            } catch (err) {
+                results.push({ query: q, status: 'error', error: err.message });
+            }
+        }
+        
+        try {
+            await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                punch_in TIMESTAMP NOT NULL,
+                punch_out TIMESTAMP,
+                total_minutes INT DEFAULT 0
+            )`);
+            results.push({ query: 'time_clock table', status: 'success' });
+        } catch(err) {
+            results.push({ query: 'time_clock table', status: 'error', error: err.message });
+        }
+
+        res.json({ success: true, message: 'Database upgrade process finished. Check details.', details: results });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        if(client) client.release();
+    }
+});
 
 // --- SYSTEM SETUP ---
 app.get('/setup-db', async (req, res) => {
