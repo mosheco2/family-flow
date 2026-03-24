@@ -600,7 +600,7 @@
                         </div>
 
                         <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
-                            <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור</h4>
+                            <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור הורה</h4>
                             <div id="shop-requests-list" class="space-y-2"></div>
                         </div>
                         <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
@@ -611,7 +611,7 @@
                             <button onclick="getPantryInsight()" id="btn-pantry-insight" class="hidden absolute top-6 left-6 text-[10px] font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-200 transition flex items-center gap-1 z-10"><i class="fa-solid fa-wand-magic-sparkles"></i> דוח מלאי AI</button>
                             
                             <div class="flex justify-between items-center mb-2">
-                                <h3 class="font-bold text-slate-800 text-lg">מזווה ומלאי 📦</h3>
+                                <h3 class="font-bold text-slate-800 text-lg">מזווה וארונות 📦</h3>
                             </div>
                             <p id="pantry-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mt-2 mb-3"><i class="fa-solid fa-circle-info text-blue-500"></i> עקבו כאן אחרי המלאי בבית. כשמשהו נגמר - כפתור העגלה יעביר אותו ישירות לרשימת הקניות!</p>
                             <div class="flex gap-2">
@@ -731,8 +731,8 @@
                                 <select id="budget-filter" onchange="fetchBudget()" class="text-xs p-2 bg-slate-50 rounded-lg outline-none hidden ml-24"></select>
                             </div>
                             <p id="budget-hint" class="text-xs text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 mb-6"><i class="fa-solid fa-circle-info text-blue-500"></i> כאן מגדירים יעד הוצאות לכל תחום. ה-AI ינתח ויעזור לכם לעמוד ביעדים ולחסוך!</p>
-                            <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition hidden"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה</button>
-                            <div id="budget-list" class="space-y-6"></div>
+                            <button id="btn-add-budget-cat" onclick="openAddBudgetCategoryModal()" class="w-full mb-6 bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition hidden"><i class="fa-solid fa-plus"></i> הוסף קטגוריה חדשה לתקציב</button>
+                            <div id="budget-list" class="space-y-6 pb-20"></div>
                         </div>
                     </div>
 
@@ -797,13 +797,13 @@
                             
                             <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
                                 <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
-                                    <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) לסביבה
+                                    <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) למשפחה
                                 </button>
                             </div>
                             
                         </div>
                         <div id="admin-members-tools" class="hidden">
-                            <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל המנהל</button>
+                            <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל הורה</button>
                             <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כל בני המשפחה לשם אבטחה ובקרה.</p>
                         </div>
                         <div id="admin-panel" class="bg-yellow-50 rounded-[2rem] p-2 border border-yellow-100 hidden">
@@ -819,7 +819,7 @@
         
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
             <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ בעגלה</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
-            <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום וחיוב</button>
+            <button onclick="openCheckoutSummary()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-green-200 hover:scale-105 transition">סיום ואישור רשימת קניות</button>
         </div>
         
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
@@ -1111,9 +1111,9 @@
         
         <div id="shop-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-lg font-bold mb-4 text-center">הוספה לבקשת רכש</h3>
+                <h3 class="text-lg font-bold mb-4 text-center">הוסף מוצר לקניות</h3>
                 <div class="space-y-4">
-                    <div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר לצוות? (למשל: עכבר למחשב)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div>
+                    <div class="relative"><input type="text" id="shop-item" class="modern-input" placeholder="מה חסר בבית? (למשל: חלב, לחם)" oninput="filterSuggestions(this.value)"><ul id="suggestions" class="suggestions-list hidden"></ul></div>
                     <div class="flex gap-2">
                         <div class="flex-1 relative"><input type="number" id="shop-est-price" class="modern-input text-left" placeholder="0"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₪ יחידה (משוער)</span></div>
                         <div class="w-20 relative"><input type="number" id="shop-quantity" class="modern-input text-center px-1" value="1" min="0.1" step="0.1"><span class="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">כמות</span></div>
@@ -1132,9 +1132,9 @@
 
         <div id="paste-list-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-lg font-bold mb-2 text-center text-slate-800">ייבוא רשימת דרישות 📋</h3>
-                <p class="text-xs text-slate-500 mb-4 text-center">הדביקו כאן רשימה מוכנה (כל פריט בשורה נפרדת). המערכת תזהה ותוסיף לרשימת הרכש.</p>
-                <textarea id="paste-list-text" class="modern-input h-40 text-sm mb-4 leading-relaxed" placeholder="לדוגמה:&#10;מחשב נייד&#10;עכבר אלחוטי&#10;חבילת עטים..."></textarea>
+                <h3 class="text-lg font-bold mb-2 text-center text-slate-800">הדבקת רשימת קניות 📋</h3>
+                <p class="text-xs text-slate-500 mb-4 text-center">הדביקו כאן רשימה מוכנה מוואטסאפ או מהפתקים (כל פריט בשורה נפרדת). המערכת תוסיף אותם אוטומטית.</p>
+                <textarea id="paste-list-text" class="modern-input h-40 text-sm mb-4 leading-relaxed" placeholder="לדוגמה:&#10;חלב&#10;לחם אחיד&#10;ביצים..."></textarea>
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('paste-list-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                     <button onclick="submitPastedList()" id="btn-submit-paste" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">קלוט רשימה</button>
@@ -1144,9 +1144,9 @@
         
         <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-lg font-bold mb-4 text-center">הוספה למלאי / ציוד ארגוני</h3>
+                <h3 class="text-lg font-bold mb-4 text-center">הוספה למזווה או ארונות</h3>
                 <div class="space-y-4">
-                    <input type="text" id="pantry-item" class="modern-input" placeholder="שם הפריט...">
+                    <input type="text" id="pantry-item" class="modern-input" placeholder="שם המוצר...">
                     <div class="flex gap-2">
                         <div class="flex-1 relative"><input type="number" id="pantry-quantity" class="modern-input text-center" value="1" min="0.1" step="0.1"><span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמות</span></div>
                         <div class="flex-1 relative"><select id="pantry-unit" onchange="checkPantryUnit()" class="modern-input text-center px-1 py-3 bg-white"><option value="יח'">יח'</option><option value="ק&quot;ג">ק"ג</option><option value="גרם">גרם</option><option value="מארז">מארז</option><option value="קרטון">קרטון</option><option value="ליטר">ליטר</option></select></div>
@@ -1158,17 +1158,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex gap-3 mt-6"><button onclick="document.getElementById('pantry-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button id="btn-submit-pantry" onclick="submitPantryItem()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">הוסף למאגר</button></div>
+                <div class="flex gap-3 mt-6"><button onclick="document.getElementById('pantry-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button id="btn-submit-pantry" onclick="submitPantryItem()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">הוסף לבית</button></div>
             </div>
         </div>
 
         <div id="confirm-checkout-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">אישור פקודת רכש 🧾</h3>
-                <p class="text-center text-slate-500 text-sm mb-6">נא לוודא שכל מחירי הספק מעודכנים בטרם האישור.</p>
-                <div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם ספק (למשל: אופיס דיפו)"><input type="text" id="checkout-branch" class="modern-input" placeholder="הערות להזמנה (אופציונלי)"></div>
-                <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים שיאושרו למלאי:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים בספק:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>לתשלום:</span><span class="text-slate-800" id="summ-total">₪0.00</span></div></div>
-                <div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg">אשר הוצאה לקופה</button></div>
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">אישור רשימת קניות 🧾</h3>
+                <p class="text-center text-slate-500 text-sm mb-6">האם לאשר את הקנייה ולהעביר את המוצרים למזווה?</p>
+                <div class="space-y-3 mb-4"><input type="text" id="checkout-store" class="modern-input" placeholder="שם הסופר/חנות (למשל: רמי לוי)"><input type="text" id="checkout-branch" class="modern-input" placeholder="הערות להזמנה (אופציונלי)"></div>
+                <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 space-y-2"><div class="flex justify-between text-sm text-slate-600"><span>פריטים שנרכשו:</span><span class="font-bold" id="summ-count">0</span></div><div class="flex justify-between text-sm text-slate-600"><span>פריטים חסרים:</span><span class="font-bold text-orange-500" id="summ-missing">0</span></div><div class="h-px bg-slate-200 my-2"></div><div class="flex justify-between text-lg font-bold text-slate-800"><span>סה"כ קנייה:</span><span class="text-slate-800" id="summ-total">₪0.00</span></div></div>
+                <div class="flex gap-3"><button onclick="document.getElementById('confirm-checkout-modal').classList.add('hidden')" class="bg-slate-100 py-3.5 px-6 rounded-xl font-bold text-slate-500">חזור</button><button onclick="submitFinalCheckout()" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg">סיים ואשר קנייה</button></div>
             </div>
         </div>
         
@@ -1374,7 +1374,7 @@
                             <tr><th class="w-1/3">שם:</th><td id="report-360-group-name"></td></tr>
                             <tr><th>סוג סביבה:</th><td id="report-360-group-type"></td></tr>
                             <tr><th>קוד הצטרפות:</th><td id="report-360-group-code" class="font-mono"></td></tr>
-                            <tr><th>מייל מנהל:</th><td id="report-360-group-email"></td></tr>
+                            <tr><th>מייל הורה אחראי:</th><td id="report-360-group-email"></td></tr>
                         </table>
                     </div>
 
@@ -1382,14 +1382,14 @@
                         <h2 class="text-lg font-bold text-blue-600 mb-3 border-b border-slate-100 pb-1">חברי משפחה</h2>
                         <table class="report-table w-full text-sm">
                             <thead>
-                                <tr class="bg-slate-50"><th class="text-right p-2 border">שם משתמש</th><th class="text-right p-2 border">תפקיד</th><th class="text-right p-2 border">יתרה</th></tr>
+                                <tr class="bg-slate-50"><th class="text-right p-2 border">שם</th><th class="text-right p-2 border">תפקיד</th><th class="text-right p-2 border">יתרה</th></tr>
                             </thead>
                             <tbody id="report-360-users-list"></tbody>
                         </table>
                     </div>
 
                     <div class="mb-6">
-                        <h2 class="text-lg font-bold text-blue-600 mb-3 border-b border-slate-100 pb-1">תנועות תזרים (30 ימים אחרונים)</h2>
+                        <h2 class="text-lg font-bold text-blue-600 mb-3 border-b border-slate-100 pb-1">תנועות אחרונות (30 ימים אחרונים)</h2>
                         <table class="report-table w-full text-sm">
                             <thead>
                                 <tr class="bg-slate-50"><th class="text-right p-2 border">תאריך</th><th class="text-right p-2 border">משתמש</th><th class="text-right p-2 border">תיאור</th><th class="text-right p-2 border">סכום</th></tr>
@@ -1399,7 +1399,7 @@
                     </div>
 
                     <div class="mb-6">
-                        <h2 class="text-lg font-bold text-blue-600 mb-3 border-b border-slate-100 pb-1">סיכום משימות</h2>
+                        <h2 class="text-lg font-bold text-blue-600 mb-3 border-b border-slate-100 pb-1">סיכום משימות בית</h2>
                         <ul id="report-360-tasks-list" class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-4"></ul>
                     </div>
                 </div>
