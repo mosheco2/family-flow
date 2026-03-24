@@ -30,11 +30,13 @@ pool.connect()
       console.log('✅ Connected to DB (Pool)');
       
       // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין
-      try { await client.query('ALTER TABLE transactions ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
-      try { await client.query('ALTER TABLE transactions ADD COLUMN end_month VARCHAR(10)'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_list ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE pantry ADD COLUMN units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
+      
+      // הוספת העמודה units_per_package בבטחה כדי למנוע את שגיאת ההוספה
+      try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       
       // תיקון באג הרישום הכפול למייל
       try {
@@ -55,8 +57,8 @@ pool.connect()
       } catch(e) { console.log('Time clock table error:', e.message); }
       
       // הוספת עמודות מיקום GPS לטבלת הקבוצות/עסקים
-      try { await client.query('ALTER TABLE family_groups ADD COLUMN location_lat DOUBLE PRECISION'); } catch(e) {}
-      try { await client.query('ALTER TABLE family_groups ADD COLUMN location_lng DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
 
       client.release();
   })
@@ -336,6 +338,7 @@ app.get('/api/banners', async (req, res) => {
         const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
         
+        // תיקון: הבטחת בניית המפתחות כך שצד הלקוח ימצא אותם בלי קשר למשפחה או עסק
         result.rows.forEach(r => { 
             let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_');
             banners[k] = r.value; 
@@ -403,8 +406,6 @@ app.post('/api/admin/send-credentials', async (req, res) => {
             emailContent += `שם משתמש: ${u.nickname}\nסיסמה: ${u.password_hash}\nתפקיד: ${roleStr}\n---\n`;
         });
         emailContent += `\nבברכה,\nצוות Oneflow`;
-
-        console.log(`\n======================================\n📨 === EMAIL TO: ${adminEmail} === 📨\n${emailContent}\n======================================\n`);
 
         if (process.env.SMTP_USER && process.env.SMTP_PASS) {
             const transporter = nodemailer.createTransport({
@@ -511,12 +512,13 @@ app.post('/api/shopping/add', async (req, res) => {
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         const actualGroupId = groupId || uRes.rows[0].group_id;
         
+        // תיקון: וידוא עמודת units_per_package בהוספה
         await pool.query(
             `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [actualGroupId, userId, itemName, parseFloat(quantity) || 1, unit, parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post('/api/shopping/update', async (req, res) => {
@@ -616,10 +618,11 @@ app.post('/api/pantry/add', async (req, res) => {
         if (existing.rows.length > 0) {
             await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
         } else {
+            // תיקון: וידוא עמודת units_per_package בהוספה
             await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [groupId, itemName, parseFloat(quantity) || 1, unit, parseInt(unitsPerPackage) || 1]);
         }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 app.post('/api/pantry/update', async (req, res) => {
@@ -663,10 +666,20 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
+        
+        // תיקון: אנחנו רוצים להביא גם קטגוריות שהוגדר להן יעד אך אין בהן הוצאות
+        // וגם הוצאות שאין להן יעד מוגדר.
         let query = `
-            SELECT c.category, c.amount_limit as limit, COALESCE(SUM(t.amount), 0) as spent
+            SELECT 
+                COALESCE(c.category, t.category) as category, 
+                COALESCE(MAX(c.amount_limit), 0) as limit, 
+                COALESCE(SUM(t.amount), 0) as spent
             FROM budget_allocations c
-            LEFT JOIN transactions t ON c.category = t.category AND t.group_id = c.group_id AND t.type = 'expense' AND t.date >= date_trunc('month', CURRENT_DATE)
+            FULL OUTER JOIN transactions t 
+                ON c.category = t.category 
+                AND t.group_id = $1 
+                AND t.type = 'expense' 
+                AND t.date >= date_trunc('month', CURRENT_DATE)
         `;
         let params = [groupId];
         
@@ -675,7 +688,7 @@ app.get('/api/budget/filter', async (req, res) => {
             params.push(targetUserId);
         }
         
-        query += ` WHERE c.group_id = $1 GROUP BY c.category, c.amount_limit`;
+        query += ` WHERE c.group_id = $1 OR t.group_id = $1 GROUP BY COALESCE(c.category, t.category)`;
         
         const result = await pool.query(query, params);
         res.json(result.rows || []);
