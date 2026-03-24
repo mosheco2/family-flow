@@ -509,13 +509,19 @@ app.get('/api/data/:userId', async (req, res) => {
 app.post('/api/shopping/add', async (req, res) => {
     try {
         const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const actualGroupId = groupId || uRes.rows[0].group_id;
+        let actualGroupId = parseInt(groupId);
         
-        // תיקון: וידוא עמודת units_per_package בהוספה
+        // הגנה מקריסה כשהלקוח לא מעביר groupId (למשל, בעת רענון)
+        if (isNaN(actualGroupId) && userId) {
+            const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+            if (uRes.rows.length > 0) actualGroupId = uRes.rows[0].group_id;
+        }
+        
+        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+        
         await pool.query(
             `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [actualGroupId, userId, itemName, parseFloat(quantity) || 1, unit, parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]
+            [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -614,12 +620,17 @@ app.post('/api/shopping/copy', async (req, res) => {
 app.post('/api/pantry/add', async (req, res) => {
     try {
         const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
-        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
+        const actualGroupId = parseInt(groupId);
+        
+        // הגנה מפני מזהה קבוצה חסר
+        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [actualGroupId, itemName]);
         if (existing.rows.length > 0) {
             await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
         } else {
-            // תיקון: וידוא עמודת units_per_package בהוספה
-            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [groupId, itemName, parseFloat(quantity) || 1, unit, parseInt(unitsPerPackage) || 1]);
+            // הוספת המוצר למזווה בבטחה
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -666,29 +677,41 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
-        
-        // תיקון: אנחנו רוצים להביא גם קטגוריות שהוגדר להן יעד אך אין בהן הוצאות
-        // וגם הוצאות שאין להן יעד מוגדר.
-        let query = `
-            SELECT 
-                COALESCE(c.category, t.category) as category, 
-                COALESCE(MAX(c.amount_limit), 0) as limit, 
-                COALESCE(SUM(t.amount), 0) as spent
-            FROM budget_allocations c
-            FULL OUTER JOIN transactions t 
-                ON c.category = t.category 
-                AND t.group_id = $1 
-                AND t.type = 'expense' 
-                AND t.date >= date_trunc('month', CURRENT_DATE)
-        `;
         let params = [groupId];
+        let targetFilterA = '';
+        let targetFilterE = '';
         
-        if (targetUserId !== 'all') {
-            query += ` AND t.user_id = $2`;
+        // הגנה מפני undefined strings
+        if (targetUserId && targetUserId !== 'all' && targetUserId !== 'undefined') {
             params.push(targetUserId);
+            targetFilterA = `AND (target_user_id = $2 OR target_user_id IS NULL)`;
+            targetFilterE = `AND user_id = $2`;
         }
-        
-        query += ` WHERE c.group_id = $1 OR t.group_id = $1 GROUP BY COALESCE(c.category, t.category)`;
+
+        // שימוש ב-CTE לשאילתה חסינת תקלות המשלבת הקצאות אל מול הוצאות
+        const query = `
+            WITH Allocations AS (
+                SELECT category, amount_limit 
+                FROM budget_allocations 
+                WHERE group_id = $1 ${targetFilterA}
+            ),
+            Expenses AS (
+                SELECT category, SUM(amount) as spent 
+                FROM transactions 
+                WHERE group_id = $1 
+                AND type = 'expense' 
+                AND date >= date_trunc('month', CURRENT_DATE)
+                ${targetFilterE}
+                GROUP BY category
+            )
+            SELECT 
+                COALESCE(a.category, e.category) as category, 
+                COALESCE(MAX(a.amount_limit), 0) as limit, 
+                COALESCE(MAX(e.spent), 0) as spent
+            FROM Allocations a
+            FULL OUTER JOIN Expenses e ON a.category = e.category
+            GROUP BY COALESCE(a.category, e.category)
+        `;
         
         const result = await pool.query(query, params);
         res.json(result.rows || []);
