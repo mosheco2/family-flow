@@ -29,11 +29,13 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין
+      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין - חסימת קריסות שרת בגלל עמודות חסרות!
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {} // חשוב לתיקון התזרים
+      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {} // חשוב לתיקון התקציב
       
-      // הוספת העמודה units_per_package בבטחה כדי למנוע את שגיאת ההוספה
+      // הוספת העמודה units_per_package בבטחה כדי למנוע את שגיאת ההוספה למזווה ולקניות
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
@@ -469,8 +471,10 @@ app.get('/api/data/:userId', async (req, res) => {
         const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
         
         const allBundles = await pool.query('SELECT * FROM quiz_bundles ORDER BY created_at DESC');
+        
+        // התיקון לקריסה: שינוי ל-qb.reward as default_reward כפי שמוגדר בטבלה
         const userBundles = await pool.query(`
-            SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.default_reward, u.nickname as assignee_name 
+            SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name 
             FROM user_assignments ua 
             JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
             LEFT JOIN users u ON ua.user_id = u.id
@@ -750,9 +754,12 @@ app.get('/api/transactions', async (req, res) => {
 app.post('/api/transaction', async (req, res) => {
     try {
         const { userId, amount, description, category, type, date, isRecurring, endMonth, groupId } = req.body;
+        // הכנסה מאובטחת של הפעולה, תוך סימון "ידני" כברירת מחדל לפעולות המתווספות מהממשק
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
+        
         if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
         else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
+        
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -974,7 +981,8 @@ app.post('/api/academy/assign', async (req, res) => {
 app.post('/api/academy/submit', async (req, res) => {
     try {
         const { userId, bundleId, score, groupId } = req.body;
-        const b = await pool.query('SELECT threshold, default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
+        // תיקון שאיבת default_reward מהטבלה המקורית לתוך ה-Query
+        const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
         const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
         const passed = score >= b.rows[0].threshold;
         const status = passed ? 'completed' : 'failed';
