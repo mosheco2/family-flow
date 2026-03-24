@@ -470,6 +470,7 @@ async function fetchData() {
         if (currentUser.role === 'ADMIN') {
             const balEl = getEl('user-balance'); 
             if(balEl) {
+                // הצגת היתרה הכללית שמחושבת על ידי השרת (הכנסות פחות הוצאות)
                 const realBalance = data.group.admin_total_balance || 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
@@ -794,7 +795,7 @@ function renderPantry() {
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
                 <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
-                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
+                <span class="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
             </div>`;
         } else {
             qtyDisplay = `
@@ -854,7 +855,7 @@ function openPantryUseModal(name, unit, qty, upp) {
     
     const container = getEl('use-pantry-qty').parentElement;
     container.innerHTML = `
-        <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
+        <div class="text-center mb-4 bg-orange-50 text-orange-700 py-2.5 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
             <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
             <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות)</span>
         </div>
@@ -862,7 +863,7 @@ function openPantryUseModal(name, unit, qty, upp) {
         <div class="space-y-3">
             <div class="relative">
                 <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">כמה יחידות לקחת?</label>
-                <input type="number" id="use-pantry-units" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+                <input type="number" id="use-pantry-units" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-orange-500 transition">
             </div>
             
             <div class="relative">
@@ -1386,7 +1387,7 @@ async function fetchBudget() {
         if (childrenItems.length > 0) {
             const pct = childrenTotalLimit > 0 ? (childrenTotalSpent / childrenTotalLimit) * 100 : 0; let color = 'bg-slate-600'; if (pct > 80) color = 'bg-slate-500'; if (pct > 100) color = 'bg-red-600';
             const limitDisplay = childrenTotalLimit > 0 ? `₪${childrenTotalLimit}` : 'לא הוגדר'; let subItemsHtml = ''; childrenItems.forEach(cb => { subItemsHtml += createRow(cb.category, cb.spent, cb.limit, true); });
-            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי יעדים ובונוסים' : 'התקציב שלי';
+            const childrenSectionTitle = currentUser.role === 'ADMIN' ? 'תקציבי ילדים ודמי כיס' : 'התקציב שלי';
             list.innerHTML += `<div class="mb-8 bg-slate-100 p-4 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:bg-slate-50"><div class="flex justify-between items-end mb-2 cursor-pointer" onclick="document.getElementById('children-budget-details').classList.toggle('hidden')"><span class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-500"></i> ${childrenSectionTitle} <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i></span><span class="text-xs font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200">סה"כ: ₪${childrenTotalSpent} / ${limitDisplay}</span></div><div class="w-full bg-slate-300 rounded-full h-2.5 overflow-hidden mb-1 shadow-inner"><div class="${color} h-2.5 rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div><div id="children-budget-details" class="hidden mt-5 pt-4 border-t border-slate-200">${subItemsHtml}</div></div>`;
         }
         otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
@@ -1605,7 +1606,7 @@ async function open360Report(groupId) {
             const bal = parseFloat(u.balance) || 0; totalBalances += bal;
             usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
         const txList = getEl('report-360-tx-list');
@@ -1622,9 +1623,9 @@ async function open360Report(groupId) {
         const tasksList = getEl('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
+            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
             data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
+        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
 
         getEl('report-360-modal').classList.remove('hidden');
@@ -1633,7 +1634,7 @@ async function open360Report(groupId) {
 
 function download360PDF() {
     const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: `OneflowBIZ_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
 }
 
