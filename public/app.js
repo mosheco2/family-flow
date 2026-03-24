@@ -174,7 +174,6 @@ function applyBannersToDOM(banners) {
         if(text || img) { 
             let html = ''; 
             if(img) {
-                // הגנה על קישורים חיצוניים כדי שלא יתווסף סלאש בהתחלה
                 const imgSrc = img.startsWith('http') ? img : `/${img}`;
                 html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
             }
@@ -202,14 +201,12 @@ async function loadSAData() {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
         
-        // מילוי שדות ההודעות
         const familyMsgEl = document.getElementById('sa-welcome-msg');
         if (familyMsgEl) familyMsgEl.value = data.welcomeMsg || '';
         
         const bizMsgEl = document.getElementById('sa-biz-welcome-msg');
         if (bizMsgEl) bizMsgEl.value = data.businessWelcomeMsg || '';
         
-        // מילוי שדות הבאנרים
         const topTextEl = document.getElementById('sa-banner-top-text');
         if(topTextEl) topTextEl.value = data.adBannerTextTop || '';
         const topLinkEl = document.getElementById('sa-banner-top-link');
@@ -224,7 +221,6 @@ async function loadSAData() {
         const bottomImgEl = document.getElementById('sa-banner-bottom-img');
         if(bottomImgEl) bottomImgEl.value = data.adBannerImgBottom || '';
 
-        // מילוי שדות הבאנרים - עסקים
         const bizTopText = document.getElementById('sa-biz-banner-top-text');
         const bizTopLink = document.getElementById('sa-biz-banner-top-link');
         const bizTopImg = document.getElementById('sa-biz-banner-top-img');
@@ -239,7 +235,6 @@ async function loadSAData() {
         if(bizBottomLink) bizBottomLink.value = data.bizBannerLinkBottom || '';
         if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
 
-        // עדכון כרטיסיות נתונים
         const statFamilies = document.getElementById('sa-stat-families');
         if (statFamilies && data.stats) statFamilies.innerText = data.stats.families || 0;
         const statBiz = document.getElementById('sa-stat-businesses');
@@ -271,7 +266,6 @@ function renderSAGroups(filterText = '') {
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         
-        // התאמה לעסקים: הצגת סוג ותאריך
         const typeBadge = g.type === 'BUSINESS' 
             ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' 
             : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
@@ -712,6 +706,107 @@ async function askTutor() {
     });
 }
 
+// === פונקציות השף (Recipes) ===
+function renderRecipePantrySelection() {
+    const list = document.getElementById('recipe-pantry-items-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!pantryCache || pantryCache.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400">המזווה ריק. הוסיפו מוצרים למזווה כדי שהשף יוכל להשתמש בהם.</p>';
+        return;
+    }
+    pantryCache.forEach(p => {
+        list.innerHTML += `
+        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded cursor-pointer hover:bg-slate-100 transition">
+            <input type="checkbox" class="recipe-pantry-cb w-3 h-3 accent-orange-500" value="${p.item_name}" checked>
+            <span class="text-[11px] text-slate-600 font-medium">${p.item_name}</span>
+        </label>`;
+    });
+}
+
+function selectAllRecipePantry() {
+    const cbs = document.querySelectorAll('.recipe-pantry-cb');
+    if(cbs.length === 0) return;
+    const firstState = cbs[0].checked;
+    cbs.forEach(cb => cb.checked = !firstState);
+}
+
+function toggleRecipeCustomInput() {
+    const isCustom = document.getElementById('recipe-ignore-pantry').checked;
+    const customArea = document.getElementById('recipe-custom-ingredients');
+    const pantryArea = document.getElementById('recipe-pantry-selection');
+    if (isCustom) {
+        customArea.classList.remove('hidden');
+        pantryArea.classList.add('hidden');
+    } else {
+        customArea.classList.add('hidden');
+        pantryArea.classList.remove('hidden');
+    }
+}
+
+async function generateRecipe() {
+    executeWithAIWarning(async () => {
+        const mealType = val('recipe-meal-type');
+        const diners = val('recipe-diners');
+        const ignorePantry = document.getElementById('recipe-ignore-pantry').checked;
+        const customIngredients = val('recipe-custom-ingredients');
+        
+        let pantryItems = [];
+        if (!ignorePantry) {
+            document.querySelectorAll('.recipe-pantry-cb:checked').forEach(cb => pantryItems.push(cb.value));
+            if (pantryItems.length === 0) return showToast('error', 'יש לבחור לפחות מוצר אחד מהמזווה, או לסמן "התעלם מהמזווה"');
+        } else {
+            if (!customIngredients) return showToast('error', 'יש להקליד מצרכים חלופיים בתיבה');
+        }
+
+        const btn = document.getElementById('btn-generate-recipe');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> familAI רוקחת מתכון...';
+        
+        try {
+            const res = await fetch(`${API}/recipes/generate`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, mealType, diners, ignorePantry, customIngredients, pantryItems: pantryItems.join(', ') })
+            });
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) return;
+            
+            if (data.success) {
+                let formattedRecipe = data.recipe;
+                // עיבוד Markdown בסיסי להצגה יפה
+                formattedRecipe = formattedRecipe.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-orange-600 mt-4 mb-2">$1</h3>');
+                formattedRecipe = formattedRecipe.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-slate-800 mt-5 mb-3">$1</h2>');
+                formattedRecipe = formattedRecipe.replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc">$1</li>');
+                formattedRecipe = formattedRecipe.replace(/^\d+\. (.*$)/gim, '<li class="ml-4 list-decimal font-bold text-slate-700"><span class="font-normal">$1</span></li>');
+                formattedRecipe = formattedRecipe.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+                
+                document.getElementById('recipe-result-content').innerHTML = formattedRecipe;
+                document.getElementById('recipe-result-container').classList.remove('hidden');
+                document.getElementById('recipe-result-container').scrollIntoView({ behavior: 'smooth' });
+                triggerConfetti();
+            } else {
+                showToast('error', data.error || 'שגיאה ביצירת המתכון');
+            }
+        } catch (e) {
+            showToast('error', 'תקלה בתקשורת עם השרת');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו';
+        }
+    });
+}
+
+function copyRecipe() {
+    const text = document.getElementById('recipe-result-content').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('success', 'המתכון הועתק ללוח!');
+    }).catch(err => {
+        showToast('error', 'שגיאה בהעתקה');
+    });
+}
+// ==========================
+
 function setTaskMode(mode) {
     const mBtn = document.getElementById('btn-mode-manual'); const aBtn = document.getElementById('btn-mode-ai'); const mDiv = document.getElementById('task-mode-manual'); const aDiv = document.getElementById('task-mode-ai');
     if (mode === 'manual') { mBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold bg-white text-blue-600 shadow-sm transition'; aBtn.className = 'flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-purple-600 transition'; mDiv.classList.remove('hidden'); aDiv.classList.add('hidden'); } 
@@ -911,7 +1006,7 @@ async function submitPantryItem() {
 }
 
 async function updatePantryQty(id, newQty) {
-    if(newQty <= 0) { if(!confirm('המוצר נגמר! האם למחוק אותו מהבית? (מומלץ להוסיף לעגלת הקניות במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
+    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לרשימת הקניות!'); fetchData(); }
@@ -1317,7 +1412,7 @@ async function submitFinalCheckout() {
     });
     
     await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
-    document.getElementById('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הפקודה בוצעה ואושרה לבית!'); fetchData();
+    document.getElementById('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הפקודה בוצעה ואושרה למלאי!'); fetchData();
 }
 
 async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); document.getElementById('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
@@ -1359,8 +1454,14 @@ async function submitTransaction() {
     
     const isRecurring = document.getElementById('trans-is-recurring').value === 'true'; let transDate = val('trans-date'); if (!transDate) transDate = new Date().toISOString().split('T')[0];
     try {
-        await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
-        document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נרשם בהצלחה!'); fetchData(); 
+        const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('transaction-modal').classList.add('hidden'); showToast('success', 'נרשם בהצלחה!'); fetchData(); 
+        } else {
+            showToast('error', data.error || 'שגיאה ברישום הפעולה');
+        }
     } catch(e) {
         showToast('error', 'שגיאת שרת בשמירת פעולה');
     } finally {
