@@ -918,7 +918,7 @@
 
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('pantry-use-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
-                    <button onclick="submitPantryUse()" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 transition hover:bg-orange-600">עדכן מלאי</button>
+                    <button onclick="submitPantryUse()" class="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 transition hover:bg-orange-600">השתמשתי</button>
                 </div>
             </div>
         </div>
@@ -1456,7 +1456,7 @@
         function toggleTransType(type) {
             const isRecurring = type === 'recurring';
             document.getElementById('trans-is-recurring').value = isRecurring;
-            document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+            document.getElementById('btn-trans-onetime').className = !isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
             document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
             
             if (isRecurring) {
