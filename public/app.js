@@ -469,8 +469,13 @@ async function fetchData() {
         }
 
         if (currentUser.role === 'ADMIN') {
-            const totalAdminBalance = membersCache.filter(m => m.role === 'ADMIN').reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0);
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${totalAdminBalance}`;
+            const balEl = getEl('user-balance'); 
+            if(balEl) {
+                // הצגת היתרה הכללית שמחושבת על ידי השרת (הכנסות פחות הוצאות)
+                const realBalance = data.group.admin_total_balance || 0;
+                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
+                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            }
         } else {
             const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
@@ -1136,7 +1141,17 @@ function renderShopList() {
         const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
         let bestPriceHtml = '';
-        if (i.best_price && i.best_price.price_per_unit > 0) { const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); bestPriceHtml = `<div class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid fa-tag"></i> זול בעבר: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; }
+        
+        // --- תוספת: תצוגת חוכמת ההמונים לרשימת הקניות ---
+        if (i.best_price && i.best_price.price_per_unit > 0) { 
+            const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
+            const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL');
+            const sourceText = i.best_price.is_local ? 'קנית בעבר' : 'חוכמת ההמונים';
+            const badgeColor = i.best_price.is_local ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600';
+            const icon = i.best_price.is_local ? 'fa-clock-rotate-left' : 'fa-users';
+            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
+        }
+
         shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
@@ -1425,19 +1440,41 @@ async function renderForecast() {
     getEl('forecast-net-change').innerText = `₪${projectedNetChange.toFixed(2)}`;
     getEl('forecast-net-change').className = `text-lg font-bold ${projectedNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     getEl('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
-    drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
+    
+    // --- תוספת: סכום הכנסות והוצאות ליד הגרף ---
+    drawForecastCharts({ income: totalIncome }, { expense: totalExpense }, totalIncome, totalExpense);
 }
 
-function drawForecastCharts(incomeData, expenseData) {
+function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) {
     const container = getEl('forecast-charts'); if(!container) return;
-    container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
-    container.innerHTML = `<div class="w-full max-w-[250px]"><h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4><div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div></div>`;
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-center gap-6";
+    
+    // הוספת בלוק הסכומים במצב נתון
+    let sumsHtml = `
+        <div class="flex flex-col gap-3 w-full md:w-auto text-center md:text-right">
+            <div class="bg-green-50 border border-green-100 p-3 rounded-xl">
+                <span class="text-[10px] text-green-600 font-bold block mb-1">סה"כ הכנסות צפויות:</span>
+                <span class="text-lg font-black text-green-700">₪${totalIncome.toFixed(2)}</span>
+            </div>
+            <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
+                <span class="text-[10px] text-red-600 font-bold block mb-1">סה"כ הוצאות צפויות:</span>
+                <span class="text-lg font-black text-red-700">₪${totalExpense.toFixed(2)}</span>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = `
+        ${sumsHtml}
+        <div class="w-full max-w-[200px]">
+            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">יחס (הכנסות/הוצאות)</h4>
+            <div class="relative h-40 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
+        </div>
+    `;
     const ctx = getEl('ratioChart'); if(!ctx) return;
     if(forecastRatioChart) forecastRatioChart.destroy();
-    const totalInc = Object.values(incomeData).reduce((a, b) => a + b, 0); const totalExp = Object.values(expenseData).reduce((a, b) => a + b, 0);
-    if(totalInc > 0 || totalExp > 0) {
-        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalInc, totalExp], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { font: { family: 'Rubik' } } } } } });
-    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין פעולות להצגת גרף</p>'; }
+    if(totalIncome > 0 || totalExpense > 0) {
+        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalIncome, totalExpense], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 w-full">אין פעולות עתידיות להצגת נתונים</p>'; }
 }
 
 function getForecastInsight() {
@@ -1501,7 +1538,7 @@ async function open360Report(groupId) {
             const bal = parseFloat(u.balance) || 0; totalBalances += bal;
             usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ מאזן קופות ילדים:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
         const txList = getEl('report-360-tx-list');
@@ -1532,4 +1569,5 @@ function download360PDF() {
     const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
 }
+
 // === סוף הקובץ ===
