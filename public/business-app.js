@@ -1,29 +1,6 @@
 // Oneflow 360 Pro - Business Logic Application
-
 const introStyle = document.createElement('style');
-introStyle.innerHTML = `
-    .introjs-showElement { z-index: 9999998 !important; transform: none !important; }
-    .introjs-fixParent { z-index: auto !important; opacity: 1.0 !important; transform: none !important; filter: none !important; }
-    body.introjs-active .slider-container, body.introjs-active .slider-scroll, body.introjs-active .overflow-hidden { overflow: visible !important; }
-    body.introjs-active header.sticky { z-index: 1 !important; }
-    .introjs-overlay { z-index: 9999996 !important; }
-    .introjs-helperLayer { z-index: 9999997 !important; }
-    .introjs-tooltipReferenceLayer { z-index: 9999998 !important; }
-    .introjs-tooltip { z-index: 9999999 !important; }
-    @media (max-width: 768px) {
-        .introjs-tooltipReferenceLayer { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; margin: 0 !important; right: auto !important; bottom: auto !important; width: 90vw !important; }
-        .introjs-tooltip { position: relative !important; max-width: 350px !important; margin: 0 auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; }
-        .introjs-arrow { display: none !important; }
-    }
-    .introjs-tooltip { font-family: 'Rubik', sans-serif !important; border-radius: 2rem !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; padding: 1.5rem !important; border: none !important; overflow: hidden !important; text-align: center !important; }
-    .introjs-tooltip::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 8px; background: linear-gradient(to right, #3b82f6, #a855f7); }
-    .introjs-tooltipbuttons { border-top: none !important; padding-top: 1rem !important; display: flex; gap: 0.5rem; justify-content: center; }
-    .introjs-button { border-radius: 0.75rem !important; text-shadow: none !important; font-weight: bold !important; font-family: 'Rubik', sans-serif !important; padding: 0.75rem 1.5rem !important; flex: 1; text-align: center; }
-    .introjs-nextbutton { background-color: #3b82f6 !important; color: white !important; border: none !important; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important; }
-    .introjs-prevbutton { color: #64748b !important; background: #f8fafc !important; border: 1px solid #e2e8f0 !important; }
-    .introjs-skipbutton { color: #94a3b8 !important; font-weight: 500 !important; background: transparent !important; }
-    .introjs-bullets ul li a.active { background: #3b82f6 !important; }
-`;
+introStyle.innerHTML = `.introjs-showElement{z-index:9999998!important;transform:none!important;}.introjs-fixParent{z-index:auto!important;opacity:1.0!important;transform:none!important;filter:none!important;}body.introjs-active .slider-container,body.introjs-active .slider-scroll,body.introjs-active .overflow-hidden{overflow:visible!important;}body.introjs-active header.sticky{z-index:1!important;}.introjs-overlay{z-index:9999996!important;}.introjs-helperLayer{z-index:9999997!important;}.introjs-tooltipReferenceLayer{z-index:9999998!important;}.introjs-tooltip{z-index:9999999!important;}@media (max-width:768px){.introjs-tooltipReferenceLayer{position:fixed!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;right:auto!important;bottom:auto!important;width:90vw!important;}.introjs-tooltip{position:relative!important;max-width:350px!important;margin:0 auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;}.introjs-arrow{display:none!important;}}.introjs-tooltip{font-family:'Rubik',sans-serif!important;border-radius:2rem!important;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25)!important;padding:1.5rem!important;border:none!important;overflow:hidden!important;text-align:center!important;}.introjs-tooltip::before{content:'';position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(to right,#3b82f6,#a855f7);}.introjs-tooltipbuttons{border-top:none!important;padding-top:1rem!important;display:flex;gap:0.5rem;justify-content:center;}.introjs-button{border-radius:0.75rem!important;text-shadow:none!important;font-weight:bold!important;font-family:'Rubik',sans-serif!important;padding:0.75rem 1.5rem!important;flex:1;text-align:center;}.introjs-nextbutton{background-color:#3b82f6!important;color:white!important;border:none!important;box-shadow:0 10px 15px -3px rgba(59,130,246,0.3)!important;}.introjs-prevbutton{color:#64748b!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;}.introjs-skipbutton{color:#94a3b8!important;font-weight:500!important;background:transparent!important;}.introjs-bullets ul li a.active{background:#3b82f6!important;}`;
 document.head.appendChild(introStyle);
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
@@ -34,13 +11,12 @@ let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forceTourStart = false;
-
 let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 let isPunchedIn = false;
-
 let deferredPrompt = null;
+
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
 function setupPwaInstallSection() {
@@ -78,8 +54,10 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-const hidePreloaderAndShowAuth = () => {
-    window.location.href = '/';
+const hidePreloaderAndShowAuth = (view = 'login') => {
+    document.getElementById('auth-container').classList.remove('hidden'); switchView(view);
+    const preloader = document.getElementById('app-preloader');
+    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
 
 window.onload = async () => { 
@@ -87,13 +65,9 @@ window.onload = async () => {
     const btnMonthly = document.getElementById('btn-forecast-monthly'); const btnYearly = document.getElementById('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth(); } }, 7000);
-    
+    const failsafeTimer = setTimeout(() => { const preloader = document.getElementById('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { 
-        window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; 
-        return; 
-    }
+    if (inviteCode) { document.getElementById('join-code').value = inviteCode; if(inviteRole) document.getElementById('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
@@ -101,25 +75,18 @@ window.onload = async () => {
         const preloader = document.getElementById('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
         loadSAData(); return;
     }
-    
+
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 
             if(session && session.user && session.group) { 
-                currentUser = session.user; currentGroup = session.group; 
-                clearTimeout(failsafeTimer); 
-                
-                if(currentGroup.type !== 'BUSINESS') {
-                    window.location.href = '/'; 
-                    return; 
-                }
-                loadDashboard(); 
-                return; 
+                if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
+                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth();
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
 async function handleSALogin(e) {
@@ -129,6 +96,7 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); document.getElementById('auth-container').classList.add('hidden'); document.getElementById('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
+
 function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); document.getElementById('sa-dashboard-container').classList.add('hidden'); document.getElementById('auth-container').classList.remove('hidden'); switchView('login'); }
 
 async function updateSACredentials() {
@@ -147,12 +115,8 @@ async function saveAllBanners() {
     const bottomText = safeVal('sa-banner-bottom-text'); const bottomLink = safeVal('sa-banner-bottom-link'); const bottomImg = safeVal('sa-banner-bottom-img');
     const bizTopText = safeVal('sa-biz-banner-top-text'); const bizTopLink = safeVal('sa-biz-banner-top-link'); const bizTopImg = safeVal('sa-biz-banner-top-img');
     const bizBottomText = safeVal('sa-biz-banner-bottom-text'); const bizBottomLink = safeVal('sa-biz-banner-bottom-link'); const bizBottomImg = safeVal('sa-biz-banner-bottom-img');
-    
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { 
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg }) 
-        });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבאנרים נשמרו במערכת בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת בשמירת באנרים'); }
@@ -163,10 +127,8 @@ function applyBannersToDOM(banners) {
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
         if(text || img) { 
-            let html = ''; 
-            if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
-            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
-            el.innerHTML = html; el.href = link || '#'; 
+            let html = ''; if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
+            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; 
             if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
             el.classList.remove('hidden'); el.classList.add('flex'); 
         } else { el.classList.add('hidden'); el.classList.remove('flex'); }
@@ -187,30 +149,24 @@ async function loadSAData() {
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        
         const familyMsgEl = document.getElementById('sa-welcome-msg'); if (familyMsgEl) familyMsgEl.value = data.welcomeMsg || '';
         const bizMsgEl = document.getElementById('sa-biz-welcome-msg'); if (bizMsgEl) bizMsgEl.value = data.businessWelcomeMsg || '';
-        
         const topTextEl = document.getElementById('sa-banner-top-text'); if(topTextEl) topTextEl.value = data.adBannerTextTop || '';
         const topLinkEl = document.getElementById('sa-banner-top-link'); if(topLinkEl) topLinkEl.value = data.adBannerLinkTop || '';
         const topImgEl = document.getElementById('sa-banner-top-img'); if(topImgEl) topImgEl.value = data.adBannerImgTop || '';
-        
         const bottomTextEl = document.getElementById('sa-banner-bottom-text'); if(bottomTextEl) bottomTextEl.value = data.adBannerTextBottom || '';
         const bottomLinkEl = document.getElementById('sa-banner-bottom-link'); if(bottomLinkEl) bottomLinkEl.value = data.adBannerLinkBottom || '';
         const bottomImgEl = document.getElementById('sa-banner-bottom-img'); if(bottomImgEl) bottomImgEl.value = data.adBannerImgBottom || '';
-
         const bizTopText = document.getElementById('sa-biz-banner-top-text'); if(bizTopText) bizTopText.value = data.bizBannerTextTop || '';
         const bizTopLink = document.getElementById('sa-biz-banner-top-link'); if(bizTopLink) bizTopLink.value = data.bizBannerLinkTop || '';
         const bizTopImg = document.getElementById('sa-biz-banner-top-img'); if(bizTopImg) bizTopImg.value = data.bizBannerImgTop || '';
         const bizBottomText = document.getElementById('sa-biz-banner-bottom-text'); if(bizBottomText) bizBottomText.value = data.bizBannerTextBottom || '';
         const bizBottomLink = document.getElementById('sa-biz-banner-bottom-link'); if(bizBottomLink) bizBottomLink.value = data.bizBottomLink || '';
         const bizBottomImg = document.getElementById('sa-biz-banner-bottom-img'); if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
-
         const statFamilies = document.getElementById('sa-stat-families'); if (statFamilies && data.stats) statFamilies.innerText = data.stats.families || 0;
         const statBiz = document.getElementById('sa-stat-businesses'); if (statBiz && data.stats) statBiz.innerText = data.stats.businesses || 0;
         const statFamUsers = document.getElementById('sa-stat-family-users'); if (statFamUsers && data.stats) statFamUsers.innerText = data.stats.familyUsers || 0;
         const statBizUsers = document.getElementById('sa-stat-biz-users'); if (statBizUsers && data.stats) statBizUsers.innerText = data.stats.businessUsers || 0;
-
         const actList = document.getElementById('sa-activity-list');
         if(actList) {
             actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${a.group_name} | <span class="font-bold">${a.user_name}</span> | ${a.description}</div> ${amountHtml}</div>`; }).join('');
@@ -428,7 +384,13 @@ async function loadDashboard() {
     updateBatteryUI();
     
     try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
+        if(!pollInterval) {
+            pollInterval = setInterval(() => { 
+                try{ fetchData(); } catch(e){} 
+                try{ fetchLoans(); } catch(e){} 
+                if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} }
+            }, 30000);
+        }
         try { fetchBanners(); } catch(e){}
         try { await fetchMembers(); } catch(e){}
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
@@ -446,7 +408,7 @@ async function loadDashboard() {
 
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
-    if (!navigator.geolocation) return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום');
+    if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
     if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס ממיקום זה.')) return;
     showToast('info', 'מאתר מיקום נוכחי...');
     navigator.geolocation.getCurrentPosition(async (position) => {
@@ -514,6 +476,8 @@ async function fetchTimeclockReport() {
         list.innerHTML = html;
     } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
 }
+
+// -------------------------------------------------------------------------
 
 window.openBalanceAdjustmentModal = function(id, name) { document.getElementById('adjustment-user-id').value = id; document.getElementById('adjustment-user-name').innerText = `עבור: ${name}`; document.getElementById('adjustment-amount').value = ''; document.getElementById('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); document.getElementById('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
@@ -885,13 +849,14 @@ async function submitPantryItem() {
     try {
         const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
         const data = await res.json();
+        
         if (data.success) {
             document.getElementById('pantry-modal').classList.add('hidden'); 
             val('pantry-item', ''); val('pantry-quantity', 1); 
             document.getElementById('pantry-unit').value = "יח'"; document.getElementById('pantry-upp').value = 1; 
             fetchData(); showToast('success', 'המוצר נקלט במלאי');
         } else {
-            showToast('error', data.error || 'שגיאת שרת בהוספת פריט למלאי');
+            showToast('error', data.error || 'שגיאת שרת בהוספת הפריט');
         }
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול השרת');
@@ -1658,11 +1623,6 @@ function getForecastInsight() {
     });
 }
 
-// -------------------------------------
-// סיום - תשקיף חכם (Forecast)
-// -------------------------------------
-
-
 function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
 function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = document.getElementById(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
 function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
@@ -1675,28 +1635,15 @@ function openProfileModal() { document.getElementById('old-password').value = ''
 async function submitChangePassword(e) { e.preventDefault(); const oldP = document.getElementById('old-password').value; const newP = document.getElementById('new-password').value; const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); document.getElementById('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
 async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את "${name}" מהארגון לצמיתות? פעולה זו תמחק גם את הנתונים שלו.`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
-// -------------------- פונקציות דוח 360 --------------------
-
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
     try {
         let url, headers = {};
-        if (saToken) {
-            url = `${API}/superadmin/group-360/${groupId}`;
-            headers = { 'Authorization': saToken };
-        } else {
-            url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`;
-        }
+        if (saToken) { url = `${API}/superadmin/group-360/${groupId}`; headers = { 'Authorization': saToken }; } 
+        else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
+        const res = await fetch(url, { headers }); const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
 
-        const res = await fetch(url, { headers });
-        const data = await res.json();
-
-        if (!data.success) {
-            return showToast('error', data.error || 'שגיאה בהפקת הדוח');
-        }
-
-        // --- רינדור הנתונים למודל (מותאם לטרמינולוגיה עסקית) ---
-        
         const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
         document.getElementById('report-360-group-name').innerText = data.group.name;
         document.getElementById('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
@@ -1704,86 +1651,42 @@ async function open360Report(groupId) {
         document.getElementById('report-360-group-email').innerText = data.group.admin_email;
         document.getElementById('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-        // טבלת משתמשים + סך יתרות/התחייבויות
         const usersList = document.getElementById('report-360-users-list');
-        let usersHtml = '';
-        let totalBalances = 0;
+        let usersHtml = ''; let totalBalances = 0;
         data.users.forEach(u => {
             const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
-            const bal = parseFloat(u.balance) || 0;
-            totalBalances += bal;
-            usersHtml += `<tr>
-                <td>${u.nickname}</td>
-                <td><span class="report-badge">${roleStr}</span></td>
-                <td class="font-bold font-mono">₪${bal.toFixed(2)}</td>
-            </tr>`;
+            const bal = parseFloat(u.balance) || 0; totalBalances += bal;
+            usersHtml += `<tr><td>${u.nickname}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300">
-            <td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td>
-            <td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td>
-        </tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
-        // טבלת תנועות
         const txList = document.getElementById('report-360-tx-list');
         let txHtml = '';
         if(data.transactions && data.transactions.length > 0) {
             data.transactions.forEach(t => {
-                const dateStr = new Date(t.date).toLocaleDateString('he-IL');
-                const isInc = t.type === 'income';
-                // בעסקים: ירוק = הכנסה, אדום = הוצאה.
+                const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
                 const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
-                txHtml += `<tr>
-                    <td class="text-xs">${dateStr}</td>
-                    <td>${t.user_name || 'מערכת'}</td>
-                    <td class="text-xs">${t.description}</td>
-                    <td class="font-bold text-left">${amtStr}</td>
-                </tr>`;
+                txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${t.user_name || 'מערכת'}</td><td class="text-xs">${t.description}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
             });
-        } else {
-            txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>';
-        }
+        } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
         txList.innerHTML = txHtml;
 
-        // סיכום משימות / פרויקטים
         const tasksList = document.getElementById('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
             const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
-            data.tasksSummary.forEach(ts => {
-                tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`;
-            });
-        } else {
-            tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>';
-        }
+            data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
+        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
 
-        // הצגת המודל
         document.getElementById('report-360-modal').classList.remove('hidden');
-
-    } catch(e) {
-        showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח');
-        console.error(e);
-    }
+    } catch(e) { showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח'); console.error(e); }
 }
 
 function download360PDF() {
     const element = document.getElementById('report-360-content');
     const groupName = document.getElementById('report-360-group-name').innerText;
-    
-    const opt = {
-        margin:       10,
-        filename:     `OneflowBIZ_Report_${groupName}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    // שימוש בספריית html2pdf
-    html2pdf().set(opt).from(element).save().then(() => {
-        showToast('success', 'הדוח הורד בהצלחה למכשירך!');
-    }).catch(err => {
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-        console.error(err);
-    });
+    const opt = { margin: 10, filename: `OneflowBIZ_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); console.error(err); });
 }
