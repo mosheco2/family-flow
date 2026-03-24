@@ -6,7 +6,7 @@ document.head.appendChild(introStyle);
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 
-// פונקציות עזר לייעול וקיצור הקוד (מניעת חיתוך)
+// פונקציות עזר למניעת שבירת קוד ולקיצור
 const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -60,17 +60,20 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-const hidePreloaderAndShowAuth = () => { window.location.href = '/'; };
+const hidePreloaderAndShowAuth = (view = 'login') => {
+    getEl('auth-container').classList.remove('hidden'); switchView(view);
+    const preloader = getEl('app-preloader');
+    if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
+};
 
 window.onload = async () => { 
     initAccessibility();
     const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
     if(btnMonthly) btnMonthly.addEventListener('click', () => toggleForecastMode('monthly')); if(btnYearly) btnYearly.addEventListener('click', () => toggleForecastMode('yearly'));
 
-    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) hidePreloaderAndShowAuth(); }, 7000);
-    
+    const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
-    if (inviteCode) { window.location.href = `/?code=${inviteCode}&role=${inviteRole}`; return; }
+    if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
     const savedSAToken = localStorage.getItem('ofl_sa_token');
     if (savedSAToken) {
@@ -78,19 +81,18 @@ window.onload = async () => {
         const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
         loadSAData(); return;
     }
-    
+
     const saved = localStorage.getItem('ofl_session'); 
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 
             if(session && session.user && session.group) { 
-                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); 
-                if(currentGroup.type !== 'BUSINESS') { window.location.href = '/'; return; }
-                loadDashboard(); return; 
+                if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
+                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth();
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -120,8 +122,8 @@ async function saveAllBanners() {
     try {
         const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
         const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו במערכת בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת בשמירת באנרים'); }
+        if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
+    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
 
 function applyBannersToDOM(banners) {
@@ -167,7 +169,6 @@ async function loadSAData() {
             actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
-        
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
@@ -540,8 +541,13 @@ async function fetchData() {
         }
 
         if (currentUser.role === 'ADMIN') {
-            const totalAdminBalance = membersCache.filter(m => m.role === 'ADMIN').reduce((sum, m) => sum + (parseFloat(m.balance) || 0), 0);
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${totalAdminBalance}`;
+            const balEl = getEl('user-balance'); 
+            if(balEl) {
+                // הצגת היתרה הכללית שמחושבת על ידי השרת (הכנסות פחות הוצאות)
+                const realBalance = data.group.admin_total_balance || 0;
+                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
+                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            }
         } else {
             const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
@@ -708,8 +714,7 @@ function selectAITask(title, reward) { getEl('task-title').value = title; getEl(
 async function submitTask() { 
     const isSelf = val('task-is-self') === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
     if(!isSelf && !assignee) return showToast('error', 'יש לבחור עובד לטיקט'); if(!title) return showToast('error', 'נא לפרט את תוכן המשימה');
-    const btn = getEl('btn-submit-task');
-    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     const statusToSend = isSelf ? 'done' : 'pending';
     try {
         await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: reward || 0, assignedTo: assignee, days: days, status: statusToSend, groupId: currentGroup.id }) }); 
@@ -807,8 +812,8 @@ function renderPantry() {
     const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
     pantryCache.forEach(p => {
-        const n = safeStr(p.item_name); const u = safeStr(p.unit);
-        list.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2"><div class="flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4><p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${p.units_per_package || 1} יח'</p></div><div class="flex items-center gap-2"><div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3"><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button><span>${p.quantity} ${p.unit || "יח'"}</span><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button></div></div></div><div class="flex gap-2 mt-1 border-t border-slate-50 pt-2"><button onclick="openPantryUseModal('${n}', '${u}')" class="flex-1 bg-slate-100 text-slate-700 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly"></i> דיווח שימוש</button><button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> העבר לרכש</button></div></div>`;
+        const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
+        list.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2"><div class="flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4><p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${p.units_per_package || 1} יח'</p></div><div class="flex items-center gap-2"><div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3"><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button><span>${p.quantity} ${u}</span><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button></div></div></div><div class="flex gap-2 mt-1 border-t border-slate-50 pt-2"><button onclick="openPantryUseModal('${n}', '${u}')" class="flex-1 bg-slate-100 text-slate-700 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly"></i> דיווח שימוש</button><button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> העבר לרכש</button></div></div>`;
     });
 }
 
@@ -857,8 +862,9 @@ function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id
 async function submitTaskApproval() {
     const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
     getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
-    await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
-    showToast('success', 'המשימה אושרה והבונוס שוחרר לעובד!'); fetchData();
+    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
+    const data = await res.json();
+    if(data.success) { showToast('success', 'המשימה אושרה והבונוס שוחרר לעובד!'); fetchData(); } else showToast('error', data.error);
 }
 
 function renderTasks(tasks) {
@@ -890,9 +896,7 @@ function buildAndRenderFeed() {
 }
 
 function renderUnifiedFeed() {
-    const userFilter = val('feed-user-filter') || 'all';
-    const dateFilter = val('feed-date-filter') || 'all';
-    const list = getEl('unified-feed-list'); if (!list) return;
+    const userFilter = val('feed-user-filter') || 'all'; const dateFilter = val('feed-date-filter') || 'all'; const list = getEl('unified-feed-list'); if (!list) return;
     let filtered = feedCache;
     if (currentUser.role !== 'ADMIN') { filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); } 
     else if (userFilter !== 'all' && userFilter !== '') { filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); }
@@ -931,12 +935,8 @@ function renderCashflow() {
     const list = getEl('cashflow-list'); if (!list) return;
     const userFilter = val('cashflow-user-filter') || 'all'; const dateFilter = val('cashflow-date-filter') || 'all';
     let filtered = allTransactions; 
-    if (currentUser.role !== 'ADMIN') {
-        filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden');
-    } else {
-        const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden');
-        if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); }
-    }
+    if (currentUser.role !== 'ADMIN') { filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); } 
+    else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); } }
     if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
     if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
     let html = '';
@@ -989,8 +989,9 @@ function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() =>
 async function submitAssignQuiz() {
     const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
     if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
-    await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
-    getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); fetchData();
+    const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+    const data = await res.json();
+    if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); fetchData(); } else showToast('error', data.error);
 }
 
 function renderAdminAcademy() {
@@ -1157,7 +1158,17 @@ function renderShopList() {
         const savedWisdom = wisdomCache[i.id]; const showWisdom = savedWisdom && savedWisdom.length > 0;
         const unitPrice = parseFloat(i.estimated_price) || 0; const totalRowPrice = unitPrice * parseFloat(i.quantity);
         let bestPriceHtml = '';
-        if (i.best_price && i.best_price.price_per_unit > 0) { const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL'); bestPriceHtml = `<div class="text-[9px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid fa-tag"></i> זול בעבר: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; }
+        
+        // --- תוספת: תצוגת חוכמת ההמונים לרשימת הקניות ---
+        if (i.best_price && i.best_price.price_per_unit > 0) { 
+            const bestP = parseFloat(i.best_price.price_per_unit).toFixed(2); 
+            const dDate = new Date(i.best_price.trip_date).toLocaleDateString('he-IL');
+            const sourceText = i.best_price.is_local ? 'קנית בעבר' : 'חוכמת ההמונים';
+            const badgeColor = i.best_price.is_local ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600';
+            const icon = i.best_price.is_local ? 'fa-clock-rotate-left' : 'fa-users';
+            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
+        }
+
         shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
@@ -1209,8 +1220,9 @@ async function submitFinalCheckout() {
             boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
         }
     });
-    await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
-    getEl('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הפקודה בוצעה ואושרה למלאי!'); fetchData();
+    const res = await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
+    const data = await res.json();
+    if(data.success) { getEl('confirm-checkout-modal').classList.add('hidden'); showToast('success', 'הקניה בוצעה ואושרה למזווה!'); fetchData(); } else showToast('error', data.error);
 }
 
 async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
@@ -1230,7 +1242,7 @@ async function submitBankSettings() { const uid = val('bank-user-id'); const all
 async function triggerPayday() { if(!confirm('האם לאשר תשלום תקציבים ובונוסים לעובדים?')) return; toggleLoader('payday', true); try { const res = await fetch(`${API}/admin/payday`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { showToast('success', `חולקו ${data.totalDistributed} ש"ח לעובדים!`); fetchData(); } else { showToast('error', data.error); } } catch(e) { showToast('error', 'שגיאה בשרת'); } }
 function openGoalModal() { if(currentUser.role === 'ADMIN') { getEl('goal-user-select-container').classList.remove('hidden'); } getEl('goal-title').value = ''; getEl('goal-target').value = ''; getEl('goal-modal').classList.remove('hidden'); }
 function openDepositModal(id, title) { getEl('deposit-goal-id').value = id; getEl('deposit-goal-title').innerText = title; getEl('goal-deposit-modal').classList.remove('hidden'); }
-async function submitGoal() { const title = val('goal-title'); const target = parseFloat(val('goal-target')) || 0; const select = getEl('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && getEl('goal-user-select-container').style.display !== 'none') ? select.value : null; await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target, groupId: currentGroup.id }) }); getEl('goal-modal').classList.add('hidden'); fetchData(); showToast('success', 'יעד הוגדר בהצלחה'); }
+async function submitGoal() { const title = val('goal-title'); const target = parseFloat(val('goal-target')) || 0; const select = getEl('goal-target-user'); const targetUserId = (currentUser.role === 'ADMIN' && getEl('goal-user-select-container').style.display !== 'none') ? select.value : null; const res = await fetch(`${API}/goals`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, targetUserId, title, target, groupId: currentGroup.id }) }); const data = await res.json(); if(data.success) { getEl('goal-modal').classList.add('hidden'); fetchData(); showToast('success', 'יעד הוגדר בהצלחה'); } else showToast('error', data.error); }
 async function submitDeposit() { const goalId = val('deposit-goal-id'); const amount = parseFloat(val('deposit-amount')) || 0; if(!amount || amount <= 0) return; const res = await fetch(`${API}/goals/deposit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, goalId, amount, groupId: currentGroup.id }) }); const data = await res.json(); if (data.success) { getEl('goal-deposit-modal').classList.add('hidden'); fetchData(); showToast('success', 'העברה בוצעה'); } else showToast('error', data.error); }
 
 function openTransactionModal(t) { 
@@ -1445,19 +1457,41 @@ async function renderForecast() {
     getEl('forecast-net-change').innerText = `₪${projectedNetChange.toFixed(2)}`;
     getEl('forecast-net-change').className = `text-lg font-bold ${projectedNetChange >= 0 ? 'text-green-600' : 'text-red-600'}`;
     getEl('forecast-projected-balance').innerText = `₪${projectedBalance.toFixed(2)}`;
-    drawForecastCharts({ income: totalIncome }, { expense: totalExpense });
+    
+    // --- תוספת: סכום הכנסות והוצאות ליד הגרף ---
+    drawForecastCharts({ income: totalIncome }, { expense: totalExpense }, totalIncome, totalExpense);
 }
 
-function drawForecastCharts(incomeData, expenseData) {
+function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) {
     const container = getEl('forecast-charts'); if(!container) return;
-    container.className = "mt-6 border-t border-slate-100 pt-6 flex justify-center";
-    container.innerHTML = `<div class="w-full max-w-[250px]"><h4 class="text-sm font-bold text-center text-slate-600 mb-2">הכנסות מול הוצאות</h4><div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div></div>`;
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-center gap-6";
+    
+    // הוספת בלוק הסכומים במצב נתון
+    let sumsHtml = `
+        <div class="flex flex-col gap-3 w-full md:w-auto text-center md:text-right">
+            <div class="bg-green-50 border border-green-100 p-3 rounded-xl">
+                <span class="text-[10px] text-green-600 font-bold block mb-1">סה"כ הכנסות צפויות:</span>
+                <span class="text-lg font-black text-green-700">₪${totalIncome.toFixed(2)}</span>
+            </div>
+            <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
+                <span class="text-[10px] text-red-600 font-bold block mb-1">סה"כ הוצאות צפויות:</span>
+                <span class="text-lg font-black text-red-700">₪${totalExpense.toFixed(2)}</span>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = `
+        ${sumsHtml}
+        <div class="w-full max-w-[200px]">
+            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">יחס (הכנסות/הוצאות)</h4>
+            <div class="relative h-40 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
+        </div>
+    `;
     const ctx = getEl('ratioChart'); if(!ctx) return;
     if(forecastRatioChart) forecastRatioChart.destroy();
-    const totalInc = Object.values(incomeData).reduce((a, b) => a + b, 0); const totalExp = Object.values(expenseData).reduce((a, b) => a + b, 0);
-    if(totalInc > 0 || totalExp > 0) {
-        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalInc, totalExp], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { font: { family: 'Rubik' } } } } } });
-    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין פעולות להצגת גרף</p>'; }
+    if(totalIncome > 0 || totalExpense > 0) {
+        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalIncome, totalExpense], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 w-full">אין פעולות עתידיות להצגת נתונים</p>'; }
 }
 
 function getForecastInsight() {
@@ -1491,6 +1525,7 @@ async function fetchPendingUsers() {
         } else { if(container) container.classList.add('hidden'); } 
     } catch(e) {} 
 }
+
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
 function openProfileModal() { getEl('old-password').value = ''; getEl('new-password').value = ''; getEl('profile-modal').classList.remove('hidden'); }
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
@@ -1504,13 +1539,13 @@ async function open360Report(groupId) {
         else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
 
         const res = await fetch(url, { headers }); const data = await res.json();
-        if (!data.success) { return showToast('error', data.error || 'שגיאה בהפקת הדוח'); }
-        
+        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
+
         const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
-        getEl('report-360-group-name').innerText = data.group.name;
+        getEl('report-360-group-name').innerText = safeStr(data.group.name);
         getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
         getEl('report-360-group-code').innerText = data.group.group_code;
-        getEl('report-360-group-email').innerText = data.group.admin_email;
+        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
         getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         const usersList = getEl('report-360-users-list');
@@ -1520,7 +1555,7 @@ async function open360Report(groupId) {
             const bal = parseFloat(u.balance) || 0; totalBalances += bal;
             usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
         const txList = getEl('report-360-tx-list');
@@ -1537,9 +1572,9 @@ async function open360Report(groupId) {
         const tasksList = getEl('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
+            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
             data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
+        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
 
         getEl('report-360-modal').classList.remove('hidden');
@@ -1548,8 +1583,7 @@ async function open360Report(groupId) {
 
 function download360PDF() {
     const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `OneflowBIZ_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
 }
-
 // === סוף הקובץ ===
