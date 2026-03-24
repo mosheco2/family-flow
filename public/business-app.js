@@ -1181,7 +1181,7 @@ async function updatePantryQty(id, newQty) {
 }
 async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
 
-function renderChildTodo() {
+function renderEmployeeTodo() {
     const todoSection = document.getElementById('child-todo-section'); const todoList = document.getElementById('child-todo-list');
     if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
     let hasItems = false; let htmlStr = '';
@@ -1641,7 +1641,7 @@ async function submitLoan() {
     if (btn) { btn.disabled = true; btn.innerText = 'שולח...'; }
     try {
         await fetch(`${API}/loans/request`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, amount:amount, reason:val('loan-reason'), groupId: currentGroup.id})}); 
-        document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשה נשלחה להורה 📨'); fetchData(); fetchLoans(); 
+        document.getElementById('loan-modal').classList.add('hidden'); showToast('success', 'בקשת ההלוואה נשלחה להורה 📨'); fetchData(); fetchLoans(); 
     } catch(e) {
         showToast('error', 'שגיאה בשליחת בקשה');
     } finally {
@@ -1690,7 +1690,7 @@ async function fetchLoans() {
 }
 
 window.approveLoan = async function(loanId, userId, amount) {
-    if(!confirm(`האם לאשר העברה ע"ס ₪${amount}?`)) return;
+    if(!confirm(`האם לאשר החזר ע"ס ₪${amount}?`)) return;
     try {
         await fetch(`${API}/loans/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ loanId, userId, amount, adminId: currentUser.id }) });
         showToast('success', 'בקשה אושרה');
