@@ -171,7 +171,18 @@ function applyBannersToDOM(banners) {
     const appTop = document.getElementById('app-banner-top'); const appBottom = document.getElementById('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
-        if(text || img) { let html = ''; if(img) html += `<img src="/${img}" alt="Banner" class="w-full object-cover block">`; if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } el.classList.remove('hidden'); el.classList.add('flex'); } 
+        if(text || img) { 
+            let html = ''; 
+            if(img) {
+                // הגנה על קישורים חיצוניים כדי שלא יתווסף סלאש בהתחלה
+                const imgSrc = img.startsWith('http') ? img : `/${img}`;
+                html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
+            }
+            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
+            el.innerHTML = html; el.href = link || '#'; 
+            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            el.classList.remove('hidden'); el.classList.add('flex'); 
+        } 
         else { el.classList.add('hidden'); el.classList.remove('flex'); }
     };
     renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
@@ -372,14 +383,69 @@ function startChildTour() {
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
 }
 
-function switchView(view) { ['login','create','join', 'sa-login'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden')); document.getElementById(`view-${view}`).classList.remove('hidden'); }
-function selectType(t) { document.getElementById('create-type').value=t; document.getElementById('type-family').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='FAMILY'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; document.getElementById('type-group').className=`flex-1 p-4 rounded-2xl border-2 text-center transition ${t==='GROUP'?'border-blue-500 bg-blue-50 text-blue-600 font-bold':'border-slate-100 text-slate-400'}`; }
+function switchView(view) { 
+    ['login','create','join', 'sa-login'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if(el) el.classList.add('hidden');
+    }); 
+    const tg = document.getElementById(`view-${view}`);
+    if(tg) tg.classList.remove('hidden'); 
+}
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = document.getElementById('tos-modal'); if(modal) modal.classList.remove('hidden'); }
 function closeTosModal() { const modal = document.getElementById('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
-async function handleLogin(e) { e.preventDefault(); forceTourStart = false; authAction('login', { groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }); }
-async function handleCreate(e) { e.preventDefault(); if(!document.getElementById('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; authAction('groups', { type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }); }
+async function handleLogin(e) { 
+    e.preventDefault(); forceTourStart = false; 
+    toggleLoader('login', true); 
+    try { 
+        const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) }); 
+        const data = await res.json(); 
+        if(data.success) { 
+            currentUser = data.user; currentGroup = data.group; 
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+
+            // בדיקת סוג חשבון לאחר התחברות
+            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) {
+                window.location.href = '/business.html';
+                return;
+            } else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) {
+                window.location.href = '/';
+                return;
+            }
+            
+            await loadDashboard(); 
+        } else showToast('error', data.error); 
+    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+}
+
+async function handleCreate(e) { 
+    e.preventDefault(); 
+    if(!document.getElementById('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    forceTourStart = true; 
+    
+    toggleLoader('login', true); 
+    try { 
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }) }); 
+        const data = await res.json(); 
+        if(data.success) { 
+            currentUser = data.user; currentGroup = data.group; 
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            
+            // במידה ויצרנו עסק דרך דף עסקים - אין סיבה לרפרש לדף אחר, נטען ישירות.
+            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) {
+                window.location.href = '/business.html';
+                return;
+            } else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) {
+                window.location.href = '/';
+                return;
+            }
+            
+            await loadDashboard(); 
+        } else showToast('error', data.error); 
+    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+}
+
 async function handleJoin(e) { 
     e.preventDefault(); 
     if(!document.getElementById('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
@@ -387,28 +453,6 @@ async function handleJoin(e) {
     const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל המשפחה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
-}
-
-async function authAction(endpoint, body) { 
-    toggleLoader('login', true); 
-    try { 
-        const res = await fetch(`${API}/${endpoint}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); 
-        const data = await res.json(); 
-        if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; 
-            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
-            
-            // בדיקת סוג חשבון לאחר התחברות או יצירת סביבה חדשה
-            if (currentGroup.type === 'BUSINESS') {
-                window.location.href = '/business.html';
-                return;
-            }
-            
-            await loadDashboard(); 
-        } else {
-            showToast('error', data.error); 
-        }
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
 function logout() { localStorage.removeItem('ofl_session'); location.reload(); }
@@ -509,7 +553,7 @@ async function fetchMembers() {
                 membersCache.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${m.nickname}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'הורה/מנהל' : 'ילד/בן משפחה'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${m.nickname || 'משתמש'}</span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
                 }); 
             }
         } catch(err) {}
@@ -848,10 +892,19 @@ async function submitPantryItem() {
     if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     
     try {
-        await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
-        document.getElementById('pantry-modal').classList.add('hidden'); val('pantry-item', ''); val('pantry-quantity', 1); document.getElementById('pantry-unit').value = "יח'"; document.getElementById('pantry-upp').value = 1; fetchData(); showToast('success', 'המוצר נוסף למזווה');
+        const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('pantry-modal').classList.add('hidden'); 
+            val('pantry-item', ''); val('pantry-quantity', 1); 
+            document.getElementById('pantry-unit').value = "יח'"; document.getElementById('pantry-upp').value = 1; 
+            fetchData(); showToast('success', 'המוצר נוסף למזווה');
+        } else {
+            showToast('error', data.error || 'שגיאת שרת בהוספת פריט למזווה');
+        }
     } catch(e) {
-        showToast('error', 'שגיאת שרת בהוספת פריט למזווה');
+        showToast('error', 'שגיאת תקשורת מול השרת');
     } finally {
         if(btn) { btn.disabled = false; btn.innerText = 'הוסף למלאי'; }
     }
@@ -1130,41 +1183,6 @@ async function finishQuiz() {
 
 function closeQuiz() { document.getElementById('quiz-runner-modal').classList.add('hidden'); document.getElementById('question-container').classList.remove('hidden'); document.getElementById('quiz-result').classList.add('hidden'); }
 
-function renderRecipePantrySelection() {
-    const list = document.getElementById('recipe-pantry-items-list'); if(!list) return; list.innerHTML = '';
-    if(pantryCache.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400">המזווה ריק. הוסיפו מוצרים קודם בטאב המזווה.</p>'; return; }
-    pantryCache.forEach(p => { list.innerHTML += `<label class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-1 rounded cursor-pointer hover:bg-blue-50 transition"><input type="checkbox" value="${p.item_name}" class="recipe-pantry-cb w-3 h-3 accent-orange-500"><span class="text-xs text-slate-700">${p.item_name}</span></label>`; });
-}
-
-function toggleRecipeCustomInput() {
-    const ignore = document.getElementById('recipe-ignore-pantry').checked; const customInput = document.getElementById('recipe-custom-ingredients'); const pantrySel = document.getElementById('recipe-pantry-selection');
-    if(ignore) { customInput.classList.remove('hidden'); pantrySel.classList.add('opacity-50', 'pointer-events-none'); } else { customInput.classList.add('hidden'); pantrySel.classList.remove('opacity-50', 'pointer-events-none'); }
-}
-
-function selectAllRecipePantry() { const cbs = document.querySelectorAll('.recipe-pantry-cb'); let allChecked = true; cbs.forEach(cb => { if(!cb.checked) allChecked = false; }); cbs.forEach(cb => cb.checked = !allChecked); }
-
-async function generateRecipe() {
-    const mealType = val('recipe-meal-type'); const diners = val('recipe-diners'); const ignore = document.getElementById('recipe-ignore-pantry').checked; const customIng = val('recipe-custom-ingredients');
-    let pantryItems = []; document.querySelectorAll('.recipe-pantry-cb:checked').forEach(cb => pantryItems.push(cb.value));
-    if(!ignore && pantryItems.length === 0) return showToast('error', 'יש לבחור מוצרים מהמזווה או לסמן התעלמות ולהקליד ידנית');
-    if(ignore && !customIng) return showToast('error', 'יש להקליד מצרכים ידנית בתיבה');
-    
-    const btn = document.getElementById('btn-generate-recipe');
-    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> השף חושב...'; }
-    
-    try {
-        const res = await fetch(`${API}/recipes/generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, mealType, diners, ignorePantry: ignore, customIngredients: customIng, pantryItems: pantryItems.join(', ') }) }); const data = await res.json();
-        if(!handleAIResponseCheck(data)) return;
-        if(data.success) {
-            const container = document.getElementById('recipe-result-container'); const content = document.getElementById('recipe-result-content');
-            let html = data.recipe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); html = html.replace(/\n/g, '<br>');
-            content.innerHTML = html; container.classList.remove('hidden'); container.scrollIntoView({ behavior: 'smooth' }); triggerConfetti();
-        } else { showToast('error', data.error || 'שגיאה ביצירת מתכון'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); } finally { if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> צור מתכון עכשיו'; } }
-}
-
-function copyRecipe() { const text = document.getElementById('recipe-result-content').innerText; navigator.clipboard.writeText(text); showToast('success', 'המתכון הועתק בהצלחה!'); }
-
 function filterSuggestions(val) { const list = document.getElementById('suggestions'); list.innerHTML = ''; if (!val) { list.classList.add('hidden'); return; } const filtered = FLAT_PRODUCTS.filter(p => p.name.includes(val)).slice(0, 8); if (filtered.length > 0) { list.classList.remove('hidden'); filtered.forEach(p => { const li = document.createElement('div'); li.className = 'suggestion-item'; li.innerHTML = `<div class="flex justify-between"><span>${p.name}</span><span class="text-[10px] text-slate-400">${p.category}</span></div>`; li.onclick = () => { document.getElementById('shop-item').value = p.name; list.classList.add('hidden'); }; list.appendChild(li); }); } else { list.classList.add('hidden'); } }
 
 async function submitShopItem() { 
@@ -1178,8 +1196,20 @@ async function submitShopItem() {
     if(!item) return; if (btn && btn.disabled) return; 
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); const data = await res.json(); 
-        if (data.success) { document.getElementById('shop-modal').classList.add('hidden'); itemInput.value = ''; document.getElementById('shop-est-price').value = ''; document.getElementById('shop-quantity').value = 1; document.getElementById('shop-unit').value = "יח'"; document.getElementById('suggestions').classList.add('hidden'); if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; showToast('success', 'נוסף לרשימה'); fetchData(); } 
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
+        const data = await res.json(); 
+        
+        if (data.success) { 
+            document.getElementById('shop-modal').classList.add('hidden'); 
+            itemInput.value = ''; document.getElementById('shop-est-price').value = ''; 
+            document.getElementById('shop-quantity').value = 1; document.getElementById('shop-unit').value = "יח'"; 
+            document.getElementById('shop-upp').value = 1; document.getElementById('suggestions').classList.add('hidden'); 
+            if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg; 
+            showToast('success', 'נוסף לרשימה'); 
+            fetchData(); 
+        } else {
+            showToast('error', data.error || 'שגיאת שרת בהוספת פריט לרכש');
+        }
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול השרת');
     } finally { 
