@@ -510,11 +510,40 @@ app.get('/api/data/:userId', async (req, res) => {
         const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
         const group = groupRes.rows[0];
 
+        // הוספת חישוב יתרת הארגון (סכימת תנועות למנהל)
+        const adminBalRes = await pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]);
+        group.admin_total_balance = adminBalRes.rows[0].total;
+
         const tasks = await pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]);
         const pantry = await pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]);
-        const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
-        const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
         
+        const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
+        
+        // הוספת חוכמת ההמונים לרשימת הקניות
+        for (let item of shoppingList.rows) {
+            const bestPriceRes = await pool.query(`
+                SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id 
+                FROM shopping_trip_items sti 
+                JOIN shopping_trips st ON sti.trip_id = st.id 
+                WHERE (sti.item_name = $1 OR sti.normalized_name = $2) 
+                  AND sti.price_per_unit > 0
+                ORDER BY sti.price_per_unit ASC 
+                LIMIT 1
+            `, [item.item_name, item.normalized_name || item.item_name]);
+
+            if (bestPriceRes.rows.length > 0) {
+                const bp = bestPriceRes.rows[0];
+                item.best_price = {
+                    price_per_unit: bp.price_per_unit,
+                    store_name: bp.store_name || 'ספק לא ידוע',
+                    branch_name: bp.branch_name || '',
+                    trip_date: bp.trip_date,
+                    is_local: bp.group_id === group.id
+                };
+            }
+        }
+
+        const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
         const allBundles = await pool.query('SELECT * FROM quiz_bundles ORDER BY created_at DESC');
         
         // התיקון לקריסה: שינוי ל-qb.reward as default_reward כפי שמוגדר בטבלה
