@@ -517,9 +517,8 @@ function switchTab(t) {
     if (t === 'timeclock') {
         if (currentUser.role === 'ADMIN') fetchTimeclockReport();
         checkTimeclockStatus();
-    }
-if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
-
+    if(bizBottomImg) bizBottomImg.value = data.bizBannerImgBottom || '';
+}
         const statFamilies = document.getElementById('sa-stat-families');
         if (statFamilies && data.stats) statFamilies.innerText = data.stats.families || 0;
         const statBiz = document.getElementById('sa-stat-businesses');
