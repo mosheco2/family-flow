@@ -2112,5 +2112,44 @@ async function submitPantryUse() {
 }
 
 async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
+// ==========================================
+// --- פונקציות שחזור קוד סביבה למייל ---
+// ==========================================
 
+function openForgotCodeModal() {
+    getEl('forgot-code-email').value = '';
+    getEl('forgot-code-modal').classList.remove('hidden');
+}
+
+async function submitForgotCode() {
+    const email = val('forgot-code-email');
+    if (!email) return showToast('error', 'נא להזין כתובת אימייל תקינה');
+    
+    const btn = getEl('btn-submit-forgot');
+    btn.disabled = true;
+    btn.innerText = 'שולח...';
+    
+    try {
+        const res = await fetch(`${API}/forgot-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // לא מחזירים שגיאה אם המייל לא קיים כדי למנוע דליית מידע
+            showToast('success', 'בקשתך התקבלה! אם המייל קיים במערכת, הקוד נשלח אליו עכשיו.');
+            getEl('forgot-code-modal').classList.add('hidden');
+        } else {
+            showToast('error', data.error || 'אירעה שגיאה בשליחת המייל');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'שלח קוד';
+    }
+}
 // === סוף הקובץ ===
