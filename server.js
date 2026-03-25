@@ -111,6 +111,30 @@ const handleAIError = (e, res, defaultMsg) => {
     res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
 };
 
+// --- עזר לשליחת מיילים אוטומטית ---
+async function sendSystemEmail(to, subject, htmlContent) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
+        return false;
+    }
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        });
+        await transporter.sendMail({
+            from: `"Oneflow System" <${process.env.SMTP_USER}>`,
+            to: to,
+            subject: subject,
+            html: htmlContent
+        });
+        return true;
+    } catch (e) {
+        console.error('❌ שגיאה בשליחת מייל:', e);
+        return false;
+    }
+}
+
 // --- FORCE DATABASE UPGRADE ---
 app.get('/api/force-upgrade', async (req, res) => {
     let client;
@@ -1509,8 +1533,32 @@ app.get('/api/timeclock/report', async (req, res) => {
 });
 
 // ---------------------------------------------------------
-// פונקציות ניהול יצירת סביבות חדשות בצורה בטוחה
+// פונקציות ניהול יצירת סביבות חדשות ומיילים
 // ---------------------------------------------------------
+
+// פונקציית עזר לשליחת מיילים
+async function sendSystemEmail(to, subject, htmlContent) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.log('⚠️ דילוג על שליחת מייל - לא מוגדרים פרטי SMTP בשרת');
+        return false;
+    }
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        });
+        await transporter.sendMail({
+            from: `"Oneflow System" <${process.env.SMTP_USER}>`,
+            to: to,
+            subject: subject,
+            html: htmlContent
+        });
+        return true;
+    } catch (e) {
+        console.error('❌ שגיאה בשליחת מייל:', e);
+        return false;
+    }
+}
 
 app.post('/api/groups', async (req, res) => {
     let dbClient;
@@ -1545,6 +1593,46 @@ app.post('/api/groups', async (req, res) => {
         );
         
         await dbClient.query('COMMIT');
+        
+        // שליחת מיילים לאחר הצלחה מובטחת
+        try {
+            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
+            
+            // 1. מייל התראה למנהל המערכת (לך)
+            const adminAlertHtml = `
+                <div style="direction: rtl; font-family: Arial, sans-serif;">
+                    <h3>🎉 משתמש חדש הצטרף למערכת!</h3>
+                    <p><strong>סוג סביבה:</strong> ${sysType}</p>
+                    <p><strong>שם הקבוצה:</strong> ${req.body.groupName}</p>
+                    <p><strong>אימייל מנהל הקבוצה:</strong> ${req.body.adminEmail}</p>
+                    <p><strong>קוד זיהוי במערכת:</strong> ${code}</p>
+                </div>
+            `;
+            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+
+            // 2. מייל תודה ופרטי התחברות למשתמש שנרשם
+            if (req.body.adminEmail) {
+                const userThanksHtml = `
+                    <div style="direction: rtl; font-family: Arial, sans-serif;">
+                        <h2>ברוכים הבאים ל-${sysType}! 🚀</h2>
+                        <p>שלום ${req.body.adminNickname},</p>
+                        <p>תודה שבחרתם לפתוח סביבה חדשה ב-Oneflow. הסביבה הוגדרה ומוכנה לעבודה.</p>
+                        <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                            <h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות שלך כמנהל/ת:</h3>
+                            <p><strong>קוד הסביבה:</strong> <span style="font-family: monospace; font-size: 16px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${code}</span></p>
+                            <p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p>
+                            <p><strong>סיסמה:</strong> ${req.body.password}</p>
+                        </div>
+                        <p>כדי לצרף משתמשים נוספים (ילדים/עובדים), יש למסור להם את <strong>קוד הסביבה</strong> ואת הקישור למערכת.</p>
+                        <p>בהצלחה!<br>צוות Oneflow</p>
+                    </div>
+                `;
+                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+            }
+        } catch (mailErr) {
+            console.error('Error during post-registration emails:', mailErr);
+        }
+        
         res.json({ success: true, user: uRes.rows[0], group: group });
         
     } catch (e) { 
@@ -1560,6 +1648,44 @@ app.post('/api/groups', async (req, res) => {
         }
     } finally { 
         if (dbClient) dbClient.release(); 
+    }
+});
+
+// נתיב לשחזור קוד סביבה למייל
+app.post('/api/forgot-code', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
+
+        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE admin_email = $1', [email]);
+        
+        if (gRes.rows.length === 0) {
+            // החזרת תשובה חיובית תמיד כדי למנוע זיהוי מיילים במערכת על ידי תוקפים (Security Best Practice)
+            return res.json({ success: true });
+        }
+
+        const group = gRes.rows[0];
+        const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
+
+        const recoveryHtml = `
+            <div style="direction: rtl; font-family: Arial, sans-serif;">
+                <h2>שחזור קוד כניסה - ${sysType}</h2>
+                <p>שלום רב,</p>
+                <p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p>
+                <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                    <p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-family: monospace; font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p>
+                </div>
+                <p>אם לא ביקשת שחזור קוד, ניתן להתעלם מהודעה זו.</p>
+                <p>בברכה,<br>צוות Oneflow</p>
+            </div>
+        `;
+
+        await sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        res.json({ success: true });
+
+    } catch (e) {
+        console.error("Forgot Code Error:", e);
+        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' });
     }
 });
 
