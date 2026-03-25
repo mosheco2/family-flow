@@ -853,25 +853,37 @@ function openPantryUseModal(name, unit, qty, upp) {
     getEl('use-pantry-title').innerText = `מה לקחת מ: ${name}?`; 
     getEl('use-pantry-name').value = name; 
     
-    const container = getEl('use-pantry-qty').parentElement;
-    container.innerHTML = `
-        <div class="text-center mb-4 bg-orange-50 text-orange-700 py-2.5 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
-            <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-            <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות)</span>
-        </div>
-        
-        <div class="space-y-3">
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">כמה יחידות לקחת?</label>
-                <input type="number" id="use-pantry-units" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-orange-500 transition">
+    let dynContainer = getEl('pantry-dyn-container');
+    if (!dynContainer) {
+        const origInput = getEl('use-pantry-qty');
+        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
+            dynContainer = document.createElement('div');
+            dynContainer.id = 'pantry-dyn-container';
+            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
+            origInput.parentElement.style.display = 'none';
+        }
+    }
+    
+    if (dynContainer) {
+        dynContainer.innerHTML = `
+            <div class="text-center mb-4 bg-orange-50 text-orange-700 py-2.5 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
+                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות)</span>
             </div>
             
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: שימוש לפי מארז / משקל שלם</label>
-                <input type="number" step="0.1" id="use-pantry-qty" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+            <div class="space-y-3">
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">כמה יחידות לקחת?</label>
+                    <input type="number" id="use-pantry-units-dyn" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-orange-500 transition">
+                </div>
+                
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: שימוש לפי מארז / משקל שלם</label>
+                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
     
     const display = getEl('use-pantry-unit-display');
     if(display) display.innerText = unit || "יח'"; 
@@ -879,8 +891,17 @@ function openPantryUseModal(name, unit, qty, upp) {
 }
 
 async function submitPantryUse() {
-    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
+    const name = val('use-pantry-name'); 
+    const dynQty = val('use-pantry-qty-dyn');
+    const origQty = val('use-pantry-qty');
+    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
+    
+    const dynUnits = val('use-pantry-units-dyn');
+    const origUnits = val('use-pantry-units');
+    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
+
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    
     try {
         const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
@@ -1580,7 +1601,7 @@ async function fetchPendingUsers() {
 async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
 function openProfileModal() { getEl('old-password').value = ''; getEl('new-password').value = ''; getEl('profile-modal').classList.remove('hidden'); }
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
-async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
+async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
@@ -1590,13 +1611,13 @@ async function open360Report(groupId) {
         else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
 
         const res = await fetch(url, { headers }); const data = await res.json();
-        if (!data.success) { return showToast('error', data.error || 'שגיאה בהפקת הדוח'); }
-        
+        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
+
         const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
-        getEl('report-360-group-name').innerText = data.group.name;
+        getEl('report-360-group-name').innerText = safeStr(data.group.name);
         getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
         getEl('report-360-group-code').innerText = data.group.group_code;
-        getEl('report-360-group-email').innerText = data.group.admin_email;
+        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
         getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         const usersList = getEl('report-360-users-list');
@@ -1606,7 +1627,7 @@ async function open360Report(groupId) {
             const bal = parseFloat(u.balance) || 0; totalBalances += bal;
             usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
         const txList = getEl('report-360-tx-list');
@@ -1623,9 +1644,9 @@ async function open360Report(groupId) {
         const tasksList = getEl('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
+            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
             data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
+        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
 
         getEl('report-360-modal').classList.remove('hidden');
@@ -1634,8 +1655,69 @@ async function open360Report(groupId) {
 
 function download360PDF() {
     const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `OneflowBIZ_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
+}
+
+// === פונקציות המזווה - תמיכה ביחידות ===
+function openPantryUseModal(name, unit, qty, upp) { 
+    const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
+    getEl('use-pantry-title').innerText = `מה לקחת מ: ${name}?`; 
+    getEl('use-pantry-name').value = name; 
+    
+    let dynContainer = getEl('pantry-dyn-container');
+    if (!dynContainer) {
+        const origInput = getEl('use-pantry-qty');
+        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
+            dynContainer = document.createElement('div');
+            dynContainer.id = 'pantry-dyn-container';
+            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
+            origInput.parentElement.style.display = 'none';
+        }
+    }
+    
+    if (dynContainer) {
+        dynContainer.innerHTML = `
+            <div class="text-center mb-4 bg-orange-50 text-orange-700 py-2.5 rounded-xl border border-orange-100 shadow-sm flex flex-col gap-1">
+                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות)</span>
+            </div>
+            
+            <div class="space-y-3">
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">כמה יחידות לקחת?</label>
+                    <input type="number" id="use-pantry-units-dyn" placeholder="יחידות בודדות" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-orange-500 transition">
+                </div>
+                
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: שימוש לפי מארז / משקל שלם</label>
+                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+                </div>
+            </div>
+        `;
+    }
+    
+    const display = getEl('use-pantry-unit-display');
+    if(display) display.innerText = unit || "יח'"; 
+    getEl('pantry-use-modal').classList.remove('hidden'); 
+}
+
+async function submitPantryUse() {
+    const name = val('use-pantry-name'); 
+    const dynQty = val('use-pantry-qty-dyn');
+    const origQty = val('use-pantry-qty');
+    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
+    
+    const dynUnits = val('use-pantry-units-dyn');
+    const origUnits = val('use-pantry-units');
+    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
+
+    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    
+    try {
+        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
 }
 
 // === סוף הקובץ ===
