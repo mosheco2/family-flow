@@ -72,17 +72,13 @@ const generateGroupCode = () => {
     return code;
 };
 
-// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
     const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
 }
@@ -125,13 +121,12 @@ async function sendSystemEmail(to, subject, htmlContent) {
     
     console.log(`📧 מנסה לשלוח מייל אל: ${to} (מאת החשבון: ${user})...`);
     try {
-        // התחברות קשיחה לשרתי גוגל
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { 
-                user: user, 
-                pass: pass 
-            }
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: user, pass: pass },
+            tls: { rejectUnauthorized: false }
         });
         
         await transporter.sendMail({
@@ -148,6 +143,40 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
+
+// =========================================================
+// נתיב לבדיקת תקינות המייל ישירות מהדפדפן (Test Route)
+// =========================================================
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+        const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+
+        if (!user || !pass) {
+            return res.send('<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה: משתני הסביבה (SMTP_USER או SMTP_PASS) לא מוגדרים ב-Render!</h1>');
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user, pass },
+            tls: { rejectUnauthorized: false }
+        });
+
+        await transporter.sendMail({
+            from: `"Oneflow System Test" <${user}>`,
+            to: user, // שולח לעצמך כדי לבדוק
+            subject: '✅ בדיקת מערכת המיילים - Oneflow',
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>אם קיבלת את המייל הזה, המערכת מוגדרת נכון ויכולה לשלוח מיילים.</p></div>'
+        });
+
+        res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה!</h1><h2 style="text-align:center; direction:rtl;">כנס לתיבת הג'ימייל שלך (או לתיקיית דואר זבל) ובדוק אם קיבלת הודעה מ-Oneflow.</h2>');
+    } catch (error) {
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל חסמה את השליחה. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; text-align:left; font-family:monospace; margin:20px auto; max-width:800px; border:1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl;">העתק את השגיאה שמופיעה למעלה ושלח לי אותה.</p>`);
+    }
+});
+
 
 // --- FORCE DATABASE UPGRADE ---
 app.get('/api/force-upgrade', async (req, res) => {
