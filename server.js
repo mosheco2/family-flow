@@ -111,33 +111,40 @@ const handleAIError = (e, res, defaultMsg) => {
     res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
 };
 
-// --- עזר לשליחת מיילים אוטומטית ---
+// =========================================================
+// פונקציית עזר משודרגת לשליחת מיילים אוטומטית 
+// =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
         return false;
     }
+    
+    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
+        // התחברות קשיחה לשרתי גוגל + ניקוי רווחים מהסיסמה במקרה של העתקה שגויה
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
             auth: { 
                 user: process.env.SMTP_USER.trim(), 
-                pass: process.env.SMTP_PASS.replace(/\s/g, '') // טיפול ברווחים שעלולים להכשיל את ההתחברות
+                pass: process.env.SMTP_PASS.replace(/\s/g, '') 
             },
             tls: { rejectUnauthorized: false }
         });
+        
         await transporter.sendMail({
-            from: `"Oneflow System" <${process.env.SMTP_USER}>`,
+            from: `"Oneflow System" <${process.env.SMTP_USER.trim()}>`,
             to: to,
             subject: subject,
             html: htmlContent
         });
-        console.log(`✅ מייל נשלח בהצלחה אל: ${to}`);
+        
+        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
-        console.error('❌ שגיאה בשליחת מייל:', e);
+        console.error('❌ שגיאה חמורה בשליחת המייל דרך Gmail:', e);
         return false;
     }
 }
@@ -474,7 +481,7 @@ app.post('/api/groups', async (req, res) => {
         
         // יצירת הקבוצה (משפחה/עסק)
         const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, LOWER($3), $4) RETURNING *`, 
             [req.body.type, req.body.groupName, req.body.adminEmail, code]
         );
         const group = gRes.rows[0];
