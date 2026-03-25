@@ -223,7 +223,6 @@ function executeWithAIWarning(actionCallback) {
     newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
     modal.classList.remove('hidden');
 }
-
 async function checkTimeclockStatus() {
     try {
         const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`); const data = await res.json();
@@ -242,7 +241,6 @@ async function checkTimeclockStatus() {
         fetchTimeclockReport();
     } catch(e) {}
 }
-
 async function handlePunch() {
     const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
     if (!navigator.geolocation) return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום, חובה שירותי מיקום לדיווח נוכחות.');
