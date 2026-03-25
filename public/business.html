@@ -1414,7 +1414,17 @@
         }
     </script>
     <script src="business-app.js" defer></script>
-    
+    <div id="forgot-code-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
+                <h3 class="text-xl font-bold mb-2 text-slate-800">שחזור קוד סביבה 📧</h3>
+                <p class="text-sm text-slate-500 mb-6">הזינו את כתובת המייל של מנהל/ת הסביבה, ונשלח אליכם את הקוד למייל מיד.</p>
+                <input type="email" id="forgot-code-email" required placeholder="כתובת אימייל" class="modern-input mb-6 text-left dir-ltr">
+                <div class="flex gap-3">
+                    <button type="button" onclick="document.getElementById('forgot-code-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button type="button" id="btn-submit-forgot" onclick="submitForgotCode()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">שלח קוד</button>
+                </div>
+            </div>
+        </div>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
