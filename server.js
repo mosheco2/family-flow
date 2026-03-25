@@ -72,13 +72,17 @@ const generateGroupCode = () => {
     return code;
 };
 
+// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
     const Δλ = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
 }
@@ -107,76 +111,36 @@ const handleAIError = (e, res, defaultMsg) => {
     res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
 };
 
-// =========================================================
-// פונקציית עזר משודרגת לשליחת מיילים אוטומטית 
-// =========================================================
+// --- עזר לשליחת מיילים אוטומטית ---
 async function sendSystemEmail(to, subject, htmlContent) {
-    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
-    const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
-
-    if (!user || !pass) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
         return false;
     }
-    
-    console.log(`📧 מנסה לשלוח מייל אל: ${to} (מאת החשבון: ${user})...`);
     try {
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
-            auth: { user: user, pass: pass },
+            auth: { 
+                user: process.env.SMTP_USER.trim(), 
+                pass: process.env.SMTP_PASS.replace(/\s/g, '') // טיפול ברווחים שעלולים להכשיל את ההתחברות
+            },
             tls: { rejectUnauthorized: false }
         });
-        
         await transporter.sendMail({
-            from: `"Oneflow System" <${user}>`,
+            from: `"Oneflow System" <${process.env.SMTP_USER}>`,
             to: to,
             subject: subject,
             html: htmlContent
         });
-        
-        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
+        console.log(`✅ מייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
-        console.error('❌ שגיאה חמורה בשליחת המייל דרך Gmail:', e.message);
+        console.error('❌ שגיאה בשליחת מייל:', e);
         return false;
     }
 }
-
-// =========================================================
-// נתיב לבדיקת תקינות המייל ישירות מהדפדפן (Test Route)
-// =========================================================
-app.get('/api/test-email', async (req, res) => {
-    try {
-        const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
-        const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
-
-        if (!user || !pass) {
-            return res.send('<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה: משתני הסביבה (SMTP_USER או SMTP_PASS) לא מוגדרים ב-Render!</h1>');
-        }
-
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: { user, pass },
-            tls: { rejectUnauthorized: false }
-        });
-
-        await transporter.sendMail({
-            from: `"Oneflow System Test" <${user}>`,
-            to: user, // שולח לעצמך כדי לבדוק
-            subject: '✅ בדיקת מערכת המיילים - Oneflow',
-            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>אם קיבלת את המייל הזה, המערכת מוגדרת נכון ויכולה לשלוח מיילים.</p></div>'
-        });
-
-        res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה!</h1><h2 style="text-align:center; direction:rtl;">כנס לתיבת הג'ימייל שלך (או לתיקיית דואר זבל) ובדוק אם קיבלת הודעה מ-Oneflow.</h2>');
-    } catch (error) {
-        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל חסמה את השליחה. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; text-align:left; font-family:monospace; margin:20px auto; max-width:800px; border:1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl;">העתק את השגיאה שמופיעה למעלה ושלח לי אותה.</p>`);
-    }
-});
-
 
 // --- FORCE DATABASE UPGRADE ---
 app.get('/api/force-upgrade', async (req, res) => {
@@ -510,7 +474,7 @@ app.post('/api/groups', async (req, res) => {
         
         // יצירת הקבוצה (משפחה/עסק)
         const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, LOWER($3), $4) RETURNING *`, 
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
             [req.body.type, req.body.groupName, req.body.adminEmail, code]
         );
         const group = gRes.rows[0];
