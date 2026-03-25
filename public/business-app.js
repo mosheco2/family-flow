@@ -225,19 +225,24 @@ function executeWithAIWarning(actionCallback) {
 }
 
 function injectBusinessUI() {
+    // עדכון סעיף 7: הכנסת כפתור המשמרות בתוך container הטאבים
     if(!getEl('tab-shifts')) {
         const nav = getEl('slider-scroll');
-        if(nav) nav.insertAdjacentHTML('beforeend', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn min-w-max px-4 py-2 rounded-2xl text-sm font-bold text-slate-500 bg-white border border-slate-200 transition-all shadow-sm"><i class="fa-solid fa-calendar-days"></i> משמרות</button>`);
+        if(nav) {
+            // הוספת טאב "משמרות" יחד עם כל שאר הטאבים הקיימים (כמו משימות וכו')
+            nav.insertAdjacentHTML('afterbegin', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn min-w-max px-4 py-2 rounded-2xl text-sm font-bold text-slate-500 bg-white border border-slate-200 transition-all shadow-sm"><i class="fa-solid fa-calendar-days"></i> משמרות</button>`);
+        }
         
-        const dash = getEl('dashboard-container');
-        if(dash) {
-            dash.insertAdjacentHTML('afterbegin', `
+        const mainContainer = getEl('dashboard-container');
+        if(mainContainer) {
+            // יצירת אזור התוכן לטאב "משמרות" מתחת לבאנר בדומה לשאר האזורים
+            mainContainer.insertAdjacentHTML('beforeend', `
             <div id="content-shifts" class="hidden pb-24 pt-4 px-4 w-full max-w-lg mx-auto">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-black text-slate-800">סידור עבודה</h2>
+                <div class="flex justify-between items-center mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-sm">
+                    <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-clipboard-user text-indigo-500 mr-1"></i> סידור עבודה</h2>
                     <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> בקשת שיבוץ</button>
                 </div>
-                <div id="shifts-list" class="space-y-3"></div>
+                <div id="shifts-list" class="space-y-3 mt-2"></div>
             </div>
             `);
         }
@@ -378,7 +383,7 @@ async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
     const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password') }) }); 
     const d=await res.json(); 
-    if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור הנהלה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
+    if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
 
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
@@ -414,6 +419,7 @@ function handleAIResponseCheck(data) {
 }
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
+function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
@@ -431,7 +437,12 @@ async function loadDashboard() {
         
         const tcHeader = getEl('timeclock-admin-view');
         if(tcHeader && !getEl('tc-month-filter')) {
-            tcHeader.insertAdjacentHTML('afterbegin', `<select id="tc-month-filter" onchange="fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select><button onclick="openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> דיווח נוכחות ידני</button>`);
+            // הוספת כפתור ייצוא ל-PDF למנהל
+            tcHeader.insertAdjacentHTML('afterbegin', `
+                <select id="tc-month-filter" onchange="fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select>
+                <button onclick="exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-red-100 hover:bg-red-100 transition ml-2"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
+                <button onclick="openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> דיווח נוכחות ידני</button>
+            `);
             for(let i=0; i<12; i++) {
                 let d = new Date(); d.setMonth(d.getMonth()-i);
                 getEl('tc-month-filter').innerHTML += `<option value="${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}">${d.getMonth()+1}/${d.getFullYear()}</option>`;
@@ -441,7 +452,13 @@ async function loadDashboard() {
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
         const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         getEl('card-name').innerText = currentUser.nickname.toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות הרכש שלי';
+        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
+        
+        // הוספת כפתור ייצוא ל-PDF לעובד
+        const tcUserHeader = getEl('timeclock-user-view');
+        if(tcUserHeader && !getEl('btn-export-pdf-user')) {
+             tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
+        }
     }
     getEl('timeclock-user-view').classList.remove('hidden');
     const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
@@ -494,6 +511,8 @@ async function checkTimeclockStatus() {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
             icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; text.innerText = "כניסה"; info.classList.add('hidden');
         }
+        // רענון נתונים כדי שהשורה תופיע מיד
+        fetchTimeclockReport();
     } catch(e) {}
 }
 
@@ -506,7 +525,12 @@ async function handlePunch() {
         try {
             const res = await fetch(`${API}/timeclock/punch`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) });
             const data = await res.json();
-            if(data.success) { triggerConfetti(); showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); checkTimeclockStatus(); } 
+            if(data.success) { 
+                triggerConfetti(); 
+                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
+                checkTimeclockStatus(); // קורא גם ל-fetchTimeclockReport() כדי שהרשימה תתעדכן מיד
+                fetchData(); // כדי לעדכן מאזן ויתרות אם יש צורך
+            } 
             else { showToast('error', data.error || 'שגיאה בדיווח'); btn.innerHTML = origHtml; btn.disabled = false; }
         } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); btn.innerHTML = origHtml; btn.disabled = false; }
     }, (error) => {
@@ -534,7 +558,7 @@ async function submitManualPunch() {
         await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         showToast('success', 'דווח בהצלחה!');
         getEl('manual-punch-modal').classList.add('hidden');
-        fetchTimeclockReport();
+        fetchTimeclockReport(); // רענון אוטומטי של הרשימה
     } catch(e) {
         showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
     } finally { getEl('btn-submit-mp').disabled = false; }
@@ -545,7 +569,9 @@ async function fetchTimeclockReport() {
         const filterEl = getEl('tc-user-filter');
         const monthFilter = getEl('tc-month-filter') ? getEl('tc-month-filter').value : 'all';
         if(filterEl && filterEl.options.length === 0) { filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
-        const userFilter = filterEl ? filterEl.value : 'all';
+        
+        // עובד רגיל רואה רק את שלו, מנהל רואה לפי הסינון
+        const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
         
         let reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
         const res = await fetch(reqUrl); let data = await res.json();
@@ -559,10 +585,15 @@ async function fetchTimeclockReport() {
         if(!data || data.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-10">אין דיווחי נוכחות לתקופה זו</p>'; return; }
         
         let html = ''; let userSummaries = {};
+        
+        // ציור רשימת משמרות לפי הדרישה (שורה אחת קומפקטית לכל משמרת)
         data.forEach(r => {
-            const inTime = new Date(r.punch_in); const inStr = `${inTime.toLocaleDateString('he-IL')} ${inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}`;
-            let outStr = '<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-0.5 rounded-full animate-pulse">פעיל</span>'; 
-            let totalStr = '-'; let costStr = '';
+            const inTime = new Date(r.punch_in); 
+            const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
+            const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            let outStr = '...'; 
+            let totalStr = '-'; 
+            let costStr = '';
             
             const user = membersCache.find(m => m.nickname === r.nickname) || {};
             const hourlyRate = parseFloat(user.allowance_amount) || 0;
@@ -570,14 +601,29 @@ async function fetchTimeclockReport() {
             if(r.punch_out) { 
                 const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
                 const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
-                totalStr = `${hours}ש' ו-${mins}ד'`;
+                totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
                 const cost = (r.total_minutes / 60) * hourlyRate;
-                if(currentUser.role === 'ADMIN') costStr = `<span class="text-xs text-slate-500 mr-2">₪${cost.toFixed(1)}</span>`;
+                if(currentUser.role === 'ADMIN') costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
                 
                 if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
                 userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
+            } else {
+                outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
             }
-            html += `<div class="p-4 hover:bg-slate-50 transition border-b border-slate-50 last:border-0"><div class="flex justify-between items-center mb-1"><span class="font-bold text-slate-800 text-sm">${safeStr(r.nickname)}</span><div class="flex items-center">${costStr}<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">${totalStr}</span></div></div><div class="flex justify-between text-xs text-slate-500"><span><i class="fa-solid fa-arrow-right-to-bracket text-green-500 mr-1"></i> ${inStr}</span><span><i class="fa-solid fa-arrow-right-from-bracket text-red-500 mr-1"></i> ${outStr}</span></div></div>`;
+            
+            // שורה אחת המכילה: שם עובד (למנהלים) + תאריך | כניסה-יציאה | סה"כ | (עלות)
+            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : '';
+            html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                        <div class="flex items-center gap-2">
+                            ${nameDisp}
+                            <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
+                            <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
+                        </div>
+                        <div class="flex items-center">
+                            ${costStr}
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
+                        </div>
+                     </div>`;
         });
         
         let summaryHtml = '';
@@ -590,8 +636,50 @@ async function fetchTimeclockReport() {
             }
             summaryHtml += `</div></div>`;
         }
-        list.innerHTML = summaryHtml + `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm">${html}</div>`;
+        
+        // יצירת קונטיינר לייצוא PDF
+        list.innerHTML = `
+            ${summaryHtml}
+            <div id="pdf-report-content" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                ${html}
+            </div>
+        `;
     } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
+}
+
+function exportTimeclockPDF() {
+    const element = getEl('pdf-report-content');
+    if(!element) return showToast('error', 'אין נתונים לייצוא');
+    
+    showToast('info', 'מייצר קובץ PDF...');
+    const period = getEl('tc-month-filter') ? getEl('tc-month-filter').options[getEl('tc-month-filter').selectedIndex].text : 'כל התקופה';
+    const userName = currentUser.role === 'ADMIN' ? (getEl('tc-user-filter') ? getEl('tc-user-filter').options[getEl('tc-user-filter').selectedIndex].text : 'כל העובדים') : currentUser.nickname;
+    const filename = `Report_${userName}_${period}.pdf`.replace(/ /g, '_');
+    
+    // מעטפת נקייה ל-PDF כדי שיראה טוב
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.padding = '20px';
+    pdfWrapper.style.direction = 'rtl';
+    pdfWrapper.style.fontFamily = 'sans-serif';
+    pdfWrapper.innerHTML = `
+        <h2 style="font-size: 18px; margin-bottom: 5px; color: #1e293b;">דוח נוכחות - ${safeStr(currentGroup.name)}</h2>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">עובד: ${userName} | תקופה: ${period} | הופק ב: ${new Date().toLocaleDateString('he-IL')}</p>
+        <div style="font-size: 12px;">${element.innerHTML}</div>
+    `;
+
+    const opt = { 
+        margin: 10, 
+        filename: filename, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        showToast('success', 'דוח נשמר בהצלחה!');
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת ה-PDF');
+    });
 }
 
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
@@ -999,26 +1087,37 @@ function openPantryUseModal(name, unit, qty, upp) {
     getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
     getEl('use-pantry-name').value = name; 
     
-    // סידור מחדש של שדות הדיווח בחלונית שיהיו ברורים לגמרי
-    const container = getEl('use-pantry-qty').parentElement;
-    container.innerHTML = `
-        <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
-            <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-            <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
-        </div>
-        
-        <div class="space-y-3">
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
-                <input type="number" id="use-pantry-units" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+    let dynContainer = getEl('pantry-dyn-container');
+    if (!dynContainer) {
+        const origInput = getEl('use-pantry-qty');
+        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
+            dynContainer = document.createElement('div');
+            dynContainer.id = 'pantry-dyn-container';
+            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
+            origInput.parentElement.style.display = 'none';
+        }
+    }
+    
+    if (dynContainer) {
+        dynContainer.innerHTML = `
+            <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
+                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
             </div>
             
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
-                <input type="number" step="0.1" id="use-pantry-qty" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+            <div class="space-y-3">
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
+                    <input type="number" id="use-pantry-units-dyn" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+                </div>
+                
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
+                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
     
     const display = getEl('use-pantry-unit-display');
     if(display) display.innerText = unit || "יח'"; 
@@ -1026,8 +1125,17 @@ function openPantryUseModal(name, unit, qty, upp) {
 }
 
 async function submitPantryUse() {
-    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
+    const name = val('use-pantry-name'); 
+    const dynQty = val('use-pantry-qty-dyn');
+    const origQty = val('use-pantry-qty');
+    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
+    
+    const dynUnits = val('use-pantry-units-dyn');
+    const origUnits = val('use-pantry-units');
+    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
+
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    
     try {
         const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
@@ -1803,7 +1911,7 @@ async function open360Report(groupId) {
             const bal = parseFloat(u.balance) || 0; totalBalances += bal;
             usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
         });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
         usersList.innerHTML = usersHtml;
 
         const txList = getEl('report-360-tx-list');
@@ -1820,9 +1928,9 @@ async function open360Report(groupId) {
         const tasksList = getEl('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
+            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
             data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
+        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
 
         getEl('report-360-modal').classList.remove('hidden');
@@ -1831,7 +1939,7 @@ async function open360Report(groupId) {
 
 function download360PDF() {
     const element = getEl('report-360-content'); const groupName = getEl('report-360-group-name').innerText;
-    const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const opt = { margin: 10, filename: `OneflowBIZ_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
 }
 
@@ -1910,25 +2018,37 @@ function openPantryUseModal(name, unit, qty, upp) {
     getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
     getEl('use-pantry-name').value = name; 
     
-    const container = getEl('use-pantry-qty').parentElement;
-    container.innerHTML = `
-        <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
-            <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-            <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
-        </div>
-        
-        <div class="space-y-3">
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
-                <input type="number" id="use-pantry-units" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+    let dynContainer = getEl('pantry-dyn-container');
+    if (!dynContainer) {
+        const origInput = getEl('use-pantry-qty');
+        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
+            dynContainer = document.createElement('div');
+            dynContainer.id = 'pantry-dyn-container';
+            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
+            origInput.parentElement.style.display = 'none';
+        }
+    }
+    
+    if (dynContainer) {
+        dynContainer.innerHTML = `
+            <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
+                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
             </div>
             
-            <div class="relative">
-                <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
-                <input type="number" step="0.1" id="use-pantry-qty" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+            <div class="space-y-3">
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
+                    <input type="number" id="use-pantry-units-dyn" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+                </div>
+                
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
+                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
     
     const display = getEl('use-pantry-unit-display');
     if(display) display.innerText = unit || "יח'"; 
@@ -1936,8 +2056,17 @@ function openPantryUseModal(name, unit, qty, upp) {
 }
 
 async function submitPantryUse() {
-    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
+    const name = val('use-pantry-name'); 
+    const dynQty = val('use-pantry-qty-dyn');
+    const origQty = val('use-pantry-qty');
+    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
+    
+    const dynUnits = val('use-pantry-units-dyn');
+    const origUnits = val('use-pantry-units');
+    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
+
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    
     try {
         const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
