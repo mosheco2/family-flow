@@ -224,66 +224,179 @@ function executeWithAIWarning(actionCallback) {
     modal.classList.remove('hidden');
 }
 
-function injectBusinessUI() {
-    // עדכון סעיף 7: הכנסת כפתור המשמרות בתוך container הטאבים
-    if(!getEl('tab-shifts')) {
-        const nav = getEl('slider-scroll');
-        if(nav) {
-            // הוספת טאב "משמרות" יחד עם כל שאר הטאבים הקיימים (כמו משימות וכו')
-            nav.insertAdjacentHTML('afterbegin', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn min-w-max px-4 py-2 rounded-2xl text-sm font-bold text-slate-500 bg-white border border-slate-200 transition-all shadow-sm"><i class="fa-solid fa-calendar-days"></i> משמרות</button>`);
+async function checkTimeclockStatus() {
+    try {
+        const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`); const data = await res.json();
+        const btn = getEl('btn-punch'); const icon = getEl('tc-icon'); const text = getEl('tc-btn-text'); const info = getEl('tc-active-info'); const startTime = getEl('tc-start-time');
+        if(!btn) return;
+        isPunchedIn = data.isPunchedIn;
+        if (isPunchedIn) {
+            btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(239,68,68,0.4)] transition-all duration-300 bg-red-500 text-white hover:bg-red-600";
+            icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2"; text.innerText = "יציאה"; info.classList.remove('hidden');
+            const d = new Date(data.punchInTime); startTime.innerText = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+        } else {
+            btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
+            icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; text.innerText = "כניסה"; info.classList.add('hidden');
+        }
+        // רענון נתונים כדי שהשורה תופיע מיד בעת פתיחת הטאב או שינוי סטטוס
+        fetchTimeclockReport();
+    } catch(e) {}
+}
+
+async function handlePunch() {
+    const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
+    if (!navigator.geolocation) return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום, חובה שירותי מיקום לדיווח נוכחות.');
+    btn.disabled = true; const origHtml = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-location-crosshairs fa-spin text-4xl"></i>';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude; const lng = position.coords.longitude;
+        try {
+            const res = await fetch(`${API}/timeclock/punch`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) });
+            const data = await res.json();
+            if(data.success) { 
+                triggerConfetti(); 
+                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
+                // קריאה מפורשת כדי לרענן את מצב הכפתור והרשימה למטה מיד!
+                await checkTimeclockStatus(); 
+                fetchData(); // לעדכן מאזן ויתרות אם יש צורך
+            } 
+            else { showToast('error', data.error || 'שגיאה בדיווח'); btn.innerHTML = origHtml; btn.disabled = false; }
+        } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); btn.innerHTML = origHtml; btn.disabled = false; }
+    }, (error) => {
+        if (error.code === 1) showToast('error', 'חובה לאשר גישה למיקום (GPS) כדי לדווח נוכחות!'); else showToast('error', 'שגיאה באיתור המיקום הנוכחי, נסה שוב');
+        btn.innerHTML = origHtml; btn.disabled = false;
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+}
+
+async function submitManualPunch() {
+    const uid = val('mp-user'); const date = val('mp-date'); const start = val('mp-start'); const end = val('mp-end');
+    if(!uid || !date || !start || !end) return showToast('error', 'נא למלא את כל השדות');
+    
+    const punchIn = `${date}T${start}:00`; const punchOut = `${date}T${end}:00`;
+    const diffMins = Math.round((new Date(punchOut) - new Date(punchIn)) / 60000);
+    if(diffMins <= 0) return showToast('error', 'שעת יציאה חייבת להיות אחרי שעת כניסה');
+    
+    getEl('btn-submit-mp').disabled = true;
+    try {
+        await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
+        showToast('success', 'דווח בהצלחה!');
+        getEl('manual-punch-modal').classList.add('hidden');
+        fetchTimeclockReport(); // רענון אוטומטי של הרשימה
+    } catch(e) {
+        showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
+    } finally { getEl('btn-submit-mp').disabled = false; }
+}
+
+async function fetchTimeclockReport() {
+    try {
+        const filterEl = getEl('tc-user-filter');
+        const monthFilter = getEl('tc-month-filter') ? getEl('tc-month-filter').value : 'all';
+        if(filterEl && filterEl.options.length === 0) { filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+        
+        const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
+        
+        let reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
+        const res = await fetch(reqUrl); let data = await res.json();
+        
+        if (monthFilter !== 'all') {
+            const [y, m] = monthFilter.split('-');
+            data = data.filter(r => { const d = new Date(r.punch_in); return d.getFullYear() == y && (d.getMonth() + 1) == m; });
         }
         
-        const mainContainer = getEl('dashboard-container');
-        if(mainContainer) {
-            // יצירת אזור התוכן לטאב "משמרות" מתחת לבאנר בדומה לשאר האזורים
-            mainContainer.insertAdjacentHTML('beforeend', `
-            <div id="content-shifts" class="hidden pb-24 pt-4 px-4 w-full max-w-lg mx-auto">
-                <div class="flex justify-between items-center mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-sm">
-                    <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-clipboard-user text-indigo-500 mr-1"></i> סידור עבודה</h2>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> בקשת שיבוץ</button>
-                </div>
-                <div id="shifts-list" class="space-y-3 mt-2"></div>
-            </div>
-            `);
+        const list = getEl('timeclock-report-list'); if(!list) return;
+        if(!data || data.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-10">אין דיווחי נוכחות לתקופה זו</p>'; return; }
+        
+        let html = ''; let userSummaries = {};
+        
+        data.forEach(r => {
+            const inTime = new Date(r.punch_in); 
+            const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
+            const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            let outStr = '...'; 
+            let totalStr = '-'; 
+            let costStr = '';
+            
+            const user = membersCache.find(m => m.nickname === r.nickname) || {};
+            const hourlyRate = parseFloat(user.allowance_amount) || 0;
+            
+            if(r.punch_out) { 
+                const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
+                const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
+                totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
+                const cost = (r.total_minutes / 60) * hourlyRate;
+                if(currentUser.role === 'ADMIN') costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
+                
+                if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
+                userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
+            } else {
+                outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
+            }
+            
+            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : '';
+            html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                        <div class="flex items-center gap-2">
+                            ${nameDisp}
+                            <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
+                            <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
+                        </div>
+                        <div class="flex items-center">
+                            ${costStr}
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
+                        </div>
+                     </div>`;
+        });
+        
+        let summaryHtml = '';
+        if(currentUser.role === 'ADMIN' && Object.keys(userSummaries).length > 0) {
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום עלויות שכר (תקופה נבחרת):</h4><div class="space-y-2">`;
+            for(let name in userSummaries) {
+                const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(1); const minH = s.minHours;
+                const minWarning = (minH > 0 && (s.minutes/60) < minH) ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">חסרות ${ (minH - (s.minutes/60)).toFixed(1) } שעות למינימום</span>` : '';
+                summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${name} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
+            }
+            summaryHtml += `</div></div>`;
         }
+        
+        list.innerHTML = `
+            ${summaryHtml}
+            <div id="pdf-report-content" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                ${html}
+            </div>
+        `;
+    } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
+}
 
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
-                <div class="bg-indigo-50 p-6 text-center relative">
-                    <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                    </div>
-                    <button id="btn-submit-shift" onclick="submitShift()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
-                </div>
-            </div>
-        </div>
-        <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
-                <div class="bg-indigo-50 p-6 text-center relative">
-                    <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                    </div>
-                    <button id="btn-submit-mp" onclick="submitManualPunch()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
+function exportTimeclockPDF() {
+    const element = getEl('pdf-report-content');
+    if(!element) return showToast('error', 'אין נתונים לייצוא');
+    
+    showToast('info', 'מייצר קובץ PDF...');
+    const period = getEl('tc-month-filter') ? getEl('tc-month-filter').options[getEl('tc-month-filter').selectedIndex].text : 'כל התקופה';
+    const userName = currentUser.role === 'ADMIN' ? (getEl('tc-user-filter') ? getEl('tc-user-filter').options[getEl('tc-user-filter').selectedIndex].text : 'כל העובדים') : currentUser.nickname;
+    const filename = `Report_${userName}_${period}.pdf`.replace(/ /g, '_');
+    
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.padding = '20px';
+    pdfWrapper.style.direction = 'rtl';
+    pdfWrapper.style.fontFamily = 'sans-serif';
+    pdfWrapper.innerHTML = `
+        <h2 style="font-size: 18px; margin-bottom: 5px; color: #1e293b;">דוח נוכחות - ${safeStr(currentGroup.name)}</h2>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">עובד: ${userName} | תקופה: ${period} | הופק ב: ${new Date().toLocaleDateString('he-IL')}</p>
+        <div style="font-size: 12px;">${element.innerHTML}</div>
+    `;
+
+    const opt = { 
+        margin: 10, 
+        filename: filename, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        showToast('success', 'דוח נשמר בהצלחה!');
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת ה-PDF');
+    });
 }
 
 function startManagerTour() {
