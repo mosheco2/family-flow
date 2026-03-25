@@ -119,8 +119,14 @@ async function sendSystemEmail(to, subject, htmlContent) {
     }
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { 
+                user: process.env.SMTP_USER.trim(), 
+                pass: process.env.SMTP_PASS.replace(/\s/g, '') // טיפול ברווחים שעלולים להכשיל את ההתחברות
+            },
+            tls: { rejectUnauthorized: false }
         });
         await transporter.sendMail({
             from: `"Oneflow System" <${process.env.SMTP_USER}>`,
@@ -128,6 +134,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
             subject: subject,
             html: htmlContent
         });
+        console.log(`✅ מייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
         console.error('❌ שגיאה בשליחת מייל:', e);
@@ -452,6 +459,144 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     }
 });
 
+
+// =========================================================
+// פונקציות יצירת סביבות ושליחת מיילים
+// =========================================================
+
+app.post('/api/groups', async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        let code = generateGroupCode();
+        
+        // יצירת הקבוצה (משפחה/עסק)
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
+            [req.body.type, req.body.groupName, req.body.adminEmail, code]
+        );
+        const group = gRes.rows[0];
+        
+        // המרת שנת הלידה כדי למנוע קריסה
+        const birthYear = parseInt(req.body.birthYear) || null;
+        
+        // יצירת משתמש המנהל
+        const uRes = await dbClient.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
+            [group.id, req.body.adminNickname, birthYear, req.body.password]
+        );
+
+        // --- הוספת תנועת פתיחה כדי שהקבוצה תופיע מיד למנהל הראשי ---
+        const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) 
+             VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, 
+            [uRes.rows[0].id, group.id, welcomeText]
+        );
+        
+        await dbClient.query('COMMIT');
+        
+        // שליחת מיילים - מתבצע ברקע בלי await כדי לא לתקוע את הלקוח
+        try {
+            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
+            
+            // 1. מייל התראה למנהל המערכת (לך)
+            const adminAlertHtml = `
+                <div style="direction: rtl; font-family: Arial, sans-serif;">
+                    <h3>🎉 משתמש חדש הצטרף למערכת!</h3>
+                    <p><strong>סוג סביבה:</strong> ${sysType}</p>
+                    <p><strong>שם הקבוצה:</strong> ${req.body.groupName}</p>
+                    <p><strong>אימייל מנהל הקבוצה:</strong> ${req.body.adminEmail}</p>
+                    <p><strong>קוד זיהוי במערכת:</strong> ${code}</p>
+                </div>
+            `;
+            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+
+            // 2. מייל תודה ופרטי התחברות למשתמש שנרשם
+            if (req.body.adminEmail) {
+                const userThanksHtml = `
+                    <div style="direction: rtl; font-family: Arial, sans-serif;">
+                        <h2>ברוכים הבאים ל-${sysType}! 🚀</h2>
+                        <p>שלום ${req.body.adminNickname},</p>
+                        <p>תודה שבחרתם לפתוח סביבה חדשה ב-Oneflow. הסביבה הוגדרה ומוכנה לעבודה.</p>
+                        <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                            <h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות שלך כמנהל/ת:</h3>
+                            <p><strong>קוד הסביבה:</strong> <span style="font-family: monospace; font-size: 16px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${code}</span></p>
+                            <p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p>
+                            <p><strong>סיסמה:</strong> ${req.body.password}</p>
+                        </div>
+                        <p>כדי לצרף משתמשים נוספים (ילדים/עובדים), יש למסור להם את <strong>קוד הסביבה</strong> ואת הקישור למערכת.</p>
+                        <p>בהצלחה!<br>צוות Oneflow</p>
+                    </div>
+                `;
+                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+            }
+        } catch (mailErr) {
+            console.error('Error during post-registration emails:', mailErr);
+        }
+        
+        res.json({ success: true, user: uRes.rows[0], group: group });
+        
+    } catch (e) { 
+        if (dbClient) {
+            try { await dbClient.query('ROLLBACK'); } catch(rbErr) { console.error('Rollback failed', rbErr); }
+        }
+        console.error("Create Group Error:", e);
+        
+        if (e.message && e.message.includes('unique constraint')) {
+            res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' });
+        } else {
+            res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
+        }
+    } finally { 
+        if (dbClient) dbClient.release(); 
+    }
+});
+
+// נתיב לשחזור קוד סביבה למייל
+app.post('/api/forgot-code', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
+
+        console.log(`🔍 מחפש סביבה עבור המייל: ${email}`);
+        // שימוש ב-LOWER כדי לבטל רגישות לאותיות גדולות/קטנות
+        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE LOWER(admin_email) = LOWER($1)', [email]);
+        
+        if (gRes.rows.length === 0) {
+            console.log(`❌ לא נמצאה סביבה למייל: ${email}`);
+            return res.json({ success: true });
+        }
+
+        const group = gRes.rows[0];
+        const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
+
+        const recoveryHtml = `
+            <div style="direction: rtl; font-family: Arial, sans-serif;">
+                <h2>שחזור קוד כניסה - ${sysType}</h2>
+                <p>שלום רב,</p>
+                <p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p>
+                <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                    <p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-family: monospace; font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p>
+                </div>
+                <p>אם לא ביקשת שחזור קוד, ניתן להתעלם מהודעה זו.</p>
+                <p>בברכה,<br>צוות Oneflow</p>
+            </div>
+        `;
+
+        // אנו מפעילים את שליחת המייל *ברקע* (בלי await) כדי לא לעכב את הלקוח
+        sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        
+        res.json({ success: true });
+
+    } catch (e) {
+        console.error("Forgot Code Error:", e);
+        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' });
+    }
+});
+
 app.post('/api/admin/send-credentials', async (req, res) => {
     try {
         const { groupId, adminId } = req.body;
@@ -466,7 +611,12 @@ app.post('/api/admin/send-credentials', async (req, res) => {
 
         const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
         
-        let emailContent = `שלום מנהל/ת ${groupType === 'BUSINESS' ? 'ארגון' : 'משפחת'} ${groupName},\n\nלהלן פרטי הגישה של המשתמשים למערכת Oneflow:\n\n`;
+        let emailContent = `
+            <div style="direction: rtl; font-family: Arial, sans-serif;">
+                <h2>פרטי הגישה של משתמשי הסביבה: ${groupName}</h2>
+                <p>להלן רשימת המשתמשים וסיסמאות הגישה שלהם:</p>
+                <ul>
+        `;
         usersRes.rows.forEach(u => {
             let roleStr = '';
             if (groupType === 'BUSINESS') {
@@ -474,28 +624,19 @@ app.post('/api/admin/send-credentials', async (req, res) => {
             } else {
                 roleStr = u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה';
             }
-            emailContent += `שם משתמש: ${u.nickname}\nסיסמה: ${u.password_hash}\nתפקיד: ${roleStr}\n---\n`;
+            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
         });
-        emailContent += `\nבברכה,\nצוות Oneflow`;
+        emailContent += `</ul><br><p>בברכה,<br>צוות Oneflow</p></div>`;
 
-        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-            });
-            await transporter.sendMail({
-                from: `"Oneflow" <${process.env.SMTP_USER}>`,
-                to: adminEmail,
-                subject: 'Oneflow - פרטי גישה של משתמשי הסביבה',
-                text: emailContent
-            });
-        }
+        // אנו מפעילים את שליחת המייל *ברקע* (בלי await)
+        sendSystemEmail(adminEmail, 'Oneflow - פרטי גישה של משתמשי הסביבה', emailContent);
 
         res.json({ success: true });
     } catch(e) { 
         res.status(500).json({ error: e.message }); 
     }
 });
+
 
 // שליפת דוח 360 להורה/מנהל הקבוצה
 app.get('/api/group/:groupId/report-360', async (req, res) => {
@@ -1445,14 +1586,11 @@ app.post('/api/guide/chat', async (req, res) => {
     }
 });
 
-
 // --- TIME CLOCK ENDPOINTS WITH GPS ---
 
-// שמירת קואורדינטות העסק על ידי המנהל
 app.post('/api/timeclock/set-location', async (req, res) => {
     try {
         const { groupId, adminId, lat, lng } = req.body;
-        // בדיקה שהמבקש הוא אכן מנהל הארגון
         const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
         if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
         
@@ -1461,7 +1599,6 @@ app.post('/api/timeclock/set-location', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// בדיקת סטטוס השעון
 app.get('/api/timeclock/status', async (req, res) => {
     try {
         const { userId } = req.query;
@@ -1470,7 +1607,6 @@ app.get('/api/timeclock/status', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// דקירת כניסה/יציאה - עם ולידציה של GPS
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
         const { userId, groupId, lat, lng } = req.body;
@@ -1479,21 +1615,18 @@ app.post('/api/timeclock/punch', async (req, res) => {
             return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
         }
 
-        // שליפת מיקום העסק
         const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         
         const bizLat = gRes.rows[0].location_lat;
         const bizLng = gRes.rows[0].location_lng;
         
-        // אם המנהל לא הגדיר מיקום
         if (!bizLat || !bizLng) {
             return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
         }
         
-        // חישוב המרחק במטרים
         const distance = calculateDistance(lat, lng, bizLat, bizLng);
-        const MAX_ALLOWED_DISTANCE = 150; // 150 מטר רדיוס (ניתן לשינוי בעתיד)
+        const MAX_ALLOWED_DISTANCE = 150; 
         
         if (distance > MAX_ALLOWED_DISTANCE) {
             return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
@@ -1501,7 +1634,6 @@ app.post('/api/timeclock/punch', async (req, res) => {
 
         const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
         if (openPunch.rows.length > 0) {
-            // מבצע דיווח יציאה
             const punchId = openPunch.rows[0].id;
             const punchIn = new Date(openPunch.rows[0].punch_in);
             const punchOut = new Date();
@@ -1509,7 +1641,6 @@ app.post('/api/timeclock/punch', async (req, res) => {
             await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
             res.json({ success: true, status: 'out' });
         } else {
-            // מבצע דיווח כניסה
             await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
             res.json({ success: true, status: 'in' });
         }
@@ -1532,206 +1663,12 @@ app.get('/api/timeclock/report', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ---------------------------------------------------------
-// פונקציות ניהול יצירת סביבות חדשות ומיילים
-// ---------------------------------------------------------
-
-// פונקציית עזר לשליחת מיילים
-async function sendSystemEmail(to, subject, htmlContent) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.log('⚠️ דילוג על שליחת מייל - לא מוגדרים פרטי SMTP בשרת');
-        return false;
-    }
+app.post('/api/timeclock/manual', async (req, res) => {
     try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        });
-        await transporter.sendMail({
-            from: `"Oneflow System" <${process.env.SMTP_USER}>`,
-            to: to,
-            subject: subject,
-            html: htmlContent
-        });
-        return true;
-    } catch (e) {
-        console.error('❌ שגיאה בשליחת מייל:', e);
-        return false;
-    }
-}
-
-app.post('/api/groups', async (req, res) => {
-    let dbClient;
-    try {
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
-        
-        let code = generateGroupCode();
-        
-        // יצירת הקבוצה (משפחה/עסק)
-        const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
-            [req.body.type, req.body.groupName, req.body.adminEmail, code]
-        );
-        const group = gRes.rows[0];
-        
-        // המרת שנת הלידה כדי למנוע קריסה
-        const birthYear = parseInt(req.body.birthYear) || null;
-        
-        // יצירת משתמש המנהל
-        const uRes = await dbClient.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
-            [group.id, req.body.adminNickname, birthYear, req.body.password]
-        );
-
-        // --- הוספת תנועת פתיחה כדי שהקבוצה תופיע מיד למנהל הראשי ---
-        const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
-        await dbClient.query(
-            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) 
-             VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, 
-            [uRes.rows[0].id, group.id, welcomeText]
-        );
-        
-        await dbClient.query('COMMIT');
-        
-        // שליחת מיילים לאחר הצלחה מובטחת
-        try {
-            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
-            
-            // 1. מייל התראה למנהל המערכת (לך)
-            const adminAlertHtml = `
-                <div style="direction: rtl; font-family: Arial, sans-serif;">
-                    <h3>🎉 משתמש חדש הצטרף למערכת!</h3>
-                    <p><strong>סוג סביבה:</strong> ${sysType}</p>
-                    <p><strong>שם הקבוצה:</strong> ${req.body.groupName}</p>
-                    <p><strong>אימייל מנהל הקבוצה:</strong> ${req.body.adminEmail}</p>
-                    <p><strong>קוד זיהוי במערכת:</strong> ${code}</p>
-                </div>
-            `;
-            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
-
-            // 2. מייל תודה ופרטי התחברות למשתמש שנרשם
-            if (req.body.adminEmail) {
-                const userThanksHtml = `
-                    <div style="direction: rtl; font-family: Arial, sans-serif;">
-                        <h2>ברוכים הבאים ל-${sysType}! 🚀</h2>
-                        <p>שלום ${req.body.adminNickname},</p>
-                        <p>תודה שבחרתם לפתוח סביבה חדשה ב-Oneflow. הסביבה הוגדרה ומוכנה לעבודה.</p>
-                        <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                            <h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות שלך כמנהל/ת:</h3>
-                            <p><strong>קוד הסביבה:</strong> <span style="font-family: monospace; font-size: 16px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${code}</span></p>
-                            <p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p>
-                            <p><strong>סיסמה:</strong> ${req.body.password}</p>
-                        </div>
-                        <p>כדי לצרף משתמשים נוספים (ילדים/עובדים), יש למסור להם את <strong>קוד הסביבה</strong> ואת הקישור למערכת.</p>
-                        <p>בהצלחה!<br>צוות Oneflow</p>
-                    </div>
-                `;
-                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
-            }
-        } catch (mailErr) {
-            console.error('Error during post-registration emails:', mailErr);
-        }
-        
-        res.json({ success: true, user: uRes.rows[0], group: group });
-        
-    } catch (e) { 
-        if (dbClient) {
-            try { await dbClient.query('ROLLBACK'); } catch(rbErr) { console.error('Rollback failed', rbErr); }
-        }
-        console.error("Create Group Error:", e);
-        
-        if (e.message && e.message.includes('unique constraint')) {
-            res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' });
-        } else {
-            res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
-        }
-    } finally { 
-        if (dbClient) dbClient.release(); 
-    }
-});
-
-// נתיב לשחזור קוד סביבה למייל
-app.post('/api/forgot-code', async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
-
-        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE admin_email = $1', [email]);
-        
-        if (gRes.rows.length === 0) {
-            // החזרת תשובה חיובית תמיד כדי למנוע זיהוי מיילים במערכת על ידי תוקפים (Security Best Practice)
-            return res.json({ success: true });
-        }
-
-        const group = gRes.rows[0];
-        const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
-
-        const recoveryHtml = `
-            <div style="direction: rtl; font-family: Arial, sans-serif;">
-                <h2>שחזור קוד כניסה - ${sysType}</h2>
-                <p>שלום רב,</p>
-                <p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p>
-                <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                    <p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-family: monospace; font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p>
-                </div>
-                <p>אם לא ביקשת שחזור קוד, ניתן להתעלם מהודעה זו.</p>
-                <p>בברכה,<br>צוות Oneflow</p>
-            </div>
-        `;
-
-        await sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        const { groupId, userId, punchIn, punchOut, totalMins } = req.body;
+        await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_out, total_minutes) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, punchIn, punchOut, totalMins]);
         res.json({ success: true });
-
-    } catch (e) {
-        console.error("Forgot Code Error:", e);
-        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' });
-    }
-});
-
-app.post('/api/join', async (req, res) => {
-    try {
-        const { groupCode, nickname, birthYear, password, role } = req.body;
-        if (!groupCode || !nickname || !password) return res.status(400).json({ error: 'חסרים נתונים חובה' });
-        
-        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
-        
-        const group = gRes.rows[0];
-        const reqRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
-        const bYear = parseInt(birthYear) || null;
-        
-        await pool.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, $5, 'pending')`, 
-            [group.id, nickname, bYear, password, reqRole]
-        );
-        res.json({ success: true });
-    } catch (e) { 
-        console.error("Join Error:", e);
-        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
-    }
-});
-
-app.post('/api/login', async (req, res) => {
-    try {
-        if (!req.body.groupCode || !req.body.nickname || !req.body.password) {
-            return res.status(400).json({ error: 'חסרים פרטי התחברות' });
-        }
-        
-        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי' });
-        
-        const group = gRes.rows[0];
-        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
-        
-        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
-        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
-        
-        res.json({ success: true, user: uRes.rows[0], group: group });
-    } catch (e) { 
-        console.error("Login Error:", e);
-        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
-    }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // האזנה לשרת
