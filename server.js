@@ -115,27 +115,27 @@ const handleAIError = (e, res, defaultMsg) => {
 // פונקציית עזר משודרגת לשליחת מיילים אוטומטית 
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+    const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+
+    if (!user || !pass) {
         console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
         return false;
     }
     
-    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
+    console.log(`📧 מנסה לשלוח מייל אל: ${to} (מאת החשבון: ${user})...`);
     try {
-        // התחברות קשיחה לשרתי גוגל + ניקוי רווחים מהסיסמה במקרה של העתקה שגויה
+        // התחברות קשיחה לשרתי גוגל
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
+            service: 'gmail',
             auth: { 
-                user: process.env.SMTP_USER.trim(), 
-                pass: process.env.SMTP_PASS.replace(/\s/g, '') 
-            },
-            tls: { rejectUnauthorized: false }
+                user: user, 
+                pass: pass 
+            }
         });
         
         await transporter.sendMail({
-            from: `"Oneflow System" <${process.env.SMTP_USER.trim()}>`,
+            from: `"Oneflow System" <${user}>`,
             to: to,
             subject: subject,
             html: htmlContent
@@ -144,7 +144,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
         console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
-        console.error('❌ שגיאה חמורה בשליחת המייל דרך Gmail:', e);
+        console.error('❌ שגיאה חמורה בשליחת המייל דרך Gmail:', e.message);
         return false;
     }
 }
