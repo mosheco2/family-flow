@@ -231,10 +231,53 @@ function injectBusinessUI() {
         
         const dash = getEl('dashboard-container');
         if(dash) {
-            dash.insertAdjacentHTML('beforeend', `<div id="content-shifts" class="hidden pb-24 pt-4 px-4 w-full max-w-lg mx-auto"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-black text-slate-800">סידור עבודה</h2><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> בקשת שיבוץ</button></div><div id="shifts-list" class="space-y-3"></div></div>`);
+            dash.insertAdjacentHTML('afterbegin', `
+            <div id="content-shifts" class="hidden pb-24 pt-4 px-4 w-full max-w-lg mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-black text-slate-800">סידור עבודה</h2>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> בקשת שיבוץ</button>
+                </div>
+                <div id="shifts-list" class="space-y-3"></div>
+            </div>
+            `);
         }
 
-        document.body.insertAdjacentHTML('beforeend', `<div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4"><div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl"><div class="bg-indigo-50 p-6 text-center relative"><button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button><h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3></div><div class="p-6 space-y-4"><div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div><div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div><div class="flex gap-2"><div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div><div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div></div><button id="btn-submit-shift" onclick="submitShift()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button></div></div></div><div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4"><div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl"><div class="bg-indigo-50 p-6 text-center relative"><button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button><h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3></div><div class="p-6 space-y-4"><div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div><div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div><div class="flex gap-2"><div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div><div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div></div><button id="btn-submit-mp" onclick="submitManualPunch()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button></div></div></div>`);
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="bg-indigo-50 p-6 text-center relative">
+                    <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    </div>
+                    <button id="btn-submit-shift" onclick="submitShift()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
+                </div>
+            </div>
+        </div>
+        <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="bg-indigo-50 p-6 text-center relative">
+                    <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    </div>
+                    <button id="btn-submit-mp" onclick="submitManualPunch()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
+                </div>
+            </div>
+        </div>
+        `);
     }
 }
 
@@ -594,7 +637,7 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
                 }); 
             } 
         } catch(err) {}
@@ -880,26 +923,9 @@ function handleProductImageUpload(event, target) {
 
 function closeBarcodeScanner() { const modal = getEl('barcode-scanner-modal'); if(modal) modal.classList.add('hidden'); }
 
-function openPantryUseModal(name, unit, qty, upp) { 
-    getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
-    getEl('use-pantry-name').value = name; 
-    
-    const container = getEl('use-pantry-qty').parentElement;
-    container.innerHTML = `<input type="number" id="use-pantry-qty" placeholder="מארזים / קילו שלמים" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2 outline-none font-bold text-slate-700 text-center"><input type="number" id="use-pantry-units" placeholder="יחידות בודדות (מתוך ${upp} ב${unit})" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700 text-center">`;
-    
-    const display = getEl('use-pantry-unit-display');
-    if(display) display.innerText = unit || "יח'"; 
-    getEl('pantry-use-modal').classList.remove('hidden'); 
-}
-
-async function submitPantryUse() {
-    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
-    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
-    try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
-}
+// ======================================
+// הוספה וגריעה חכמה מהמזווה (כולל שברים)
+// ======================================
 
 function renderPantry() {
     const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
@@ -908,9 +934,44 @@ function renderPantry() {
         const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
         const totalSubUnits = Math.round(packQty * upp);
-        let qtyDisplay = upp > 1 ? `<span class="text-lg font-black">${totalSubUnits}</span> <span class="text-[10px]">יח' מתוך מארזים</span>` : `<span class="text-lg font-black">${packQty}</span> <span class="text-xs">${u}</span>`;
         
-        list.innerHTML += `<div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col mb-2"><div class="flex justify-between items-center mb-2"><div class="flex-1"><h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4><p class="text-[10px] text-slate-400">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p></div><div class="flex items-center gap-2"><div class="bg-slate-100 px-3 py-1 rounded-lg font-bold text-slate-700 flex items-center gap-3"><button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) - 1})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-minus"></i></button>${qtyDisplay}<button onclick="updatePantryQty(${p.id}, ${parseFloat(p.quantity) + 1})" class="text-slate-400 hover:text-green-500"><i class="fa-solid fa-plus"></i></button></div></div></div><div class="flex gap-2 mt-1 border-t border-slate-50 pt-2"><button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly"></i> דיווח שימוש</button><button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down"></i> העבר לרכש</button></div></div>`;
+        let qtyDisplay = '';
+        if (upp > 1) {
+            qtyDisplay = `
+            <div class="flex flex-col items-center px-3 min-w-[75px]">
+                <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
+                <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
+            </div>`;
+        } else {
+            qtyDisplay = `
+            <div class="flex flex-col items-center px-3 min-w-[75px]">
+                <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
+                <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
+            </div>`;
+        }
+
+        const minusAmount = packQty - (1 / upp);
+        const plusAmount = packQty + (1 / upp);
+
+        list.innerHTML += `
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex-1 pr-2">
+                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
+                </div>
+                <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
+                    <button onclick="updatePantryQty(${p.id}, ${minusAmount})" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-minus text-sm"></i></button>
+                    ${qtyDisplay}
+                    <button onclick="updatePantryQty(${p.id}, ${plusAmount})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
+                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
+                <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
+            </div>
+        </div>`;
     });
 }
 
@@ -932,6 +993,47 @@ async function updatePantryQty(id, newQty) {
     if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
     else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
+
+function openPantryUseModal(name, unit, qty, upp) { 
+    const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
+    getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
+    getEl('use-pantry-name').value = name; 
+    
+    // סידור מחדש של שדות הדיווח בחלונית שיהיו ברורים לגמרי
+    const container = getEl('use-pantry-qty').parentElement;
+    container.innerHTML = `
+        <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
+            <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+            <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
+        </div>
+        
+        <div class="space-y-3">
+            <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
+                <input type="number" id="use-pantry-units" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+            </div>
+            
+            <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
+                <input type="number" step="0.1" id="use-pantry-qty" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+            </div>
+        </div>
+    `;
+    
+    const display = getEl('use-pantry-unit-display');
+    if(display) display.innerText = unit || "יח'"; 
+    getEl('pantry-use-modal').classList.remove('hidden'); 
+}
+
+async function submitPantryUse() {
+    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
+    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    try {
+        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
+}
+
 async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
 
 function renderEmployeeTodo() {
@@ -982,9 +1084,6 @@ function renderTasks(tasks) {
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין פרויקטים פעילים</div>'; else list.innerHTML = htmlStr;
 }
 
-// -------------------------------------
-// מנגנון משמרות (Shifts - Roster) מבוסס Tasks
-// -------------------------------------
 function renderShifts() {
     const shiftTasks = allTasks.filter(t => t.title.startsWith('SHIFT|'));
     const list = getEl('shifts-list'); if(!list) return;
@@ -1721,7 +1820,7 @@ async function open360Report(groupId) {
         const tasksList = getEl('report-360-tasks-list');
         let tasksHtml = '';
         if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הנהלה', 'approved': 'בוצעו בהצלחה' };
+            const statusMap = { 'pending': 'פתוחות (ממתין לביצוע)', 'done': 'ממתין לאישור הורה', 'approved': 'בוצעו בהצלחה' };
             data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
         } else { tasksHtml = '<li>אין משימות מוגדרות במערכת.</li>'; }
         tasksList.innerHTML = tasksHtml;
@@ -1735,4 +1834,116 @@ function download360PDF() {
     const opt = { margin: 10, filename: `Oneflow_Report_${groupName}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     html2pdf().set(opt).from(element).save().then(() => { showToast('success', 'הדוח הורד בהצלחה למכשירך!'); }).catch(err => { showToast('error', 'שגיאה ביצירת קובץ ה-PDF'); });
 }
+
+// === פונקציות ניהול יחידות למזווה ===
+// פונקציות המזווה הותאמו לתמוך בשברים ויחידות בודדות
+
+function renderPantry() {
+    const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
+    if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
+    pantryCache.forEach(p => {
+        const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
+        const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
+        const totalSubUnits = Math.round(packQty * upp);
+        
+        let qtyDisplay = '';
+        if (upp > 1) {
+            qtyDisplay = `
+            <div class="flex flex-col items-center px-3 min-w-[75px]">
+                <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
+                <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
+            </div>`;
+        } else {
+            qtyDisplay = `
+            <div class="flex flex-col items-center px-3 min-w-[75px]">
+                <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
+                <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
+            </div>`;
+        }
+
+        const minusAmount = packQty - (1 / upp);
+        const plusAmount = packQty + (1 / upp);
+
+        list.innerHTML += `
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex-1 pr-2">
+                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
+                </div>
+                <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
+                    <button onclick="updatePantryQty(${p.id}, ${minusAmount})" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-minus text-sm"></i></button>
+                    ${qtyDisplay}
+                    <button onclick="updatePantryQty(${p.id}, ${plusAmount})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
+                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
+                <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
+            </div>
+        </div>`;
+    });
+}
+
+function openPantryModal() { getEl('pantry-modal').classList.remove('hidden'); }
+
+async function submitPantryItem() {
+    const name = val('pantry-item'); const qty = parseFloat(val('pantry-quantity')) || 1; const unit = val('pantry-unit') || "יח'"; const upp = parseInt(val('pantry-upp')) || 1; 
+    if(!name) return showToast('error', 'יש להזין שם מוצר');
+    const btn = getEl('btn-submit-pantry'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try {
+        const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
+        const data = await res.json();
+        if (data.success) { getEl('pantry-modal').classList.add('hidden'); val('pantry-item', ''); val('pantry-quantity', 1); getEl('pantry-unit').value = "יח'"; getEl('pantry-upp').value = 1; fetchData(); showToast('success', 'המוצר נקלט במלאי'); } 
+        else { showToast('error', data.error || 'שגיאת שרת בהוספת הפריט'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הוסף למאגר'; } }
+}
+
+async function updatePantryQty(id, newQty) {
+    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
+    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
+}
+
+function openPantryUseModal(name, unit, qty, upp) { 
+    const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
+    getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
+    getEl('use-pantry-name').value = name; 
+    
+    const container = getEl('use-pantry-qty').parentElement;
+    container.innerHTML = `
+        <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
+            <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
+            <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
+        </div>
+        
+        <div class="space-y-3">
+            <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
+                <input type="number" id="use-pantry-units" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
+            </div>
+            
+            <div class="relative">
+                <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
+                <input type="number" step="0.1" id="use-pantry-qty" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
+            </div>
+        </div>
+    `;
+    
+    const display = getEl('use-pantry-unit-display');
+    if(display) display.innerText = unit || "יח'"; 
+    getEl('pantry-use-modal').classList.remove('hidden'); 
+}
+
+async function submitPantryUse() {
+    const name = val('use-pantry-name'); const qty = val('use-pantry-qty'); const units = val('use-pantry-units');
+    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
+    try {
+        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
+}
+
+async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
+
 // === סוף הקובץ ===
