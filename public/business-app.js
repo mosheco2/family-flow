@@ -437,7 +437,7 @@ async function loadDashboard() {
         
         const tcHeader = getEl('timeclock-admin-view');
         if(tcHeader && !getEl('tc-month-filter')) {
-            // הוספת כפתור ייצוא ל-PDF למנהל
+            // הוספת כפתור ייצוא ל-PDF למנהל בנוסף לכפתורים הקיימים
             tcHeader.insertAdjacentHTML('afterbegin', `
                 <select id="tc-month-filter" onchange="fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select>
                 <button onclick="exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-red-100 hover:bg-red-100 transition ml-2"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
@@ -454,7 +454,7 @@ async function loadDashboard() {
         getEl('card-name').innerText = currentUser.nickname.toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}`; 
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
         
-        // הוספת כפתור ייצוא ל-PDF לעובד
+        // הוספת כפתור ייצוא ל-PDF לעובד בלבד
         const tcUserHeader = getEl('timeclock-user-view');
         if(tcUserHeader && !getEl('btn-export-pdf-user')) {
              tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
@@ -511,7 +511,7 @@ async function checkTimeclockStatus() {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
             icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; text.innerText = "כניסה"; info.classList.add('hidden');
         }
-        // רענון נתונים כדי שהשורה תופיע מיד
+        // רענון אוטומטי של הרשימה למטה בכל פעם שהסטטוס נבדק (פותר את הבעיה שלא רואים יציאה/כניסה)
         fetchTimeclockReport();
     } catch(e) {}
 }
@@ -528,8 +528,9 @@ async function handlePunch() {
             if(data.success) { 
                 triggerConfetti(); 
                 showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-                checkTimeclockStatus(); // קורא גם ל-fetchTimeclockReport() כדי שהרשימה תתעדכן מיד
-                fetchData(); // כדי לעדכן מאזן ויתרות אם יש צורך
+                // רענון כפול: גם הסטטוס וגם כל הדף כדי למשוך את השורה החדשה מיד
+                await checkTimeclockStatus(); 
+                fetchData(); 
             } 
             else { showToast('error', data.error || 'שגיאה בדיווח'); btn.innerHTML = origHtml; btn.disabled = false; }
         } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); btn.innerHTML = origHtml; btn.disabled = false; }
@@ -558,7 +559,8 @@ async function submitManualPunch() {
         await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         showToast('success', 'דווח בהצלחה!');
         getEl('manual-punch-modal').classList.add('hidden');
-        fetchTimeclockReport(); // רענון אוטומטי של הרשימה
+        // רענון אוטומטי של הרשימה
+        fetchTimeclockReport();
     } catch(e) {
         showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
     } finally { getEl('btn-submit-mp').disabled = false; }
@@ -586,7 +588,7 @@ async function fetchTimeclockReport() {
         
         let html = ''; let userSummaries = {};
         
-        // ציור רשימת משמרות לפי הדרישה (שורה אחת קומפקטית לכל משמרת)
+        // ציור רשימת משמרות - שורה אחת קומפקטית לכל משמרת (סעיף 4)
         data.forEach(r => {
             const inTime = new Date(r.punch_in); 
             const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
@@ -611,7 +613,7 @@ async function fetchTimeclockReport() {
                 outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
             }
             
-            // שורה אחת המכילה: שם עובד (למנהלים) + תאריך | כניסה-יציאה | סה"כ | (עלות)
+            // עיצוב בשורה אחת (שם עובד רק למנהלים)
             const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : '';
             html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                         <div class="flex items-center gap-2">
@@ -637,7 +639,7 @@ async function fetchTimeclockReport() {
             summaryHtml += `</div></div>`;
         }
         
-        // יצירת קונטיינר לייצוא PDF
+        // יצירת קונטיינר לייצוא PDF הכולל הכל
         list.innerHTML = `
             ${summaryHtml}
             <div id="pdf-report-content" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -645,6 +647,42 @@ async function fetchTimeclockReport() {
             </div>
         `;
     } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
+}
+
+// פונקציה חדשה: ייצוא ל-PDF (סעיף 5 ו-6)
+function exportTimeclockPDF() {
+    const element = getEl('pdf-report-content');
+    if(!element) return showToast('error', 'אין נתונים לייצוא');
+    
+    showToast('info', 'מייצר קובץ PDF...');
+    const period = getEl('tc-month-filter') ? getEl('tc-month-filter').options[getEl('tc-month-filter').selectedIndex].text : 'כל התקופה';
+    const userName = currentUser.role === 'ADMIN' ? (getEl('tc-user-filter') ? getEl('tc-user-filter').options[getEl('tc-user-filter').selectedIndex].text : 'כל העובדים') : currentUser.nickname;
+    const filename = `Report_${userName}_${period}.pdf`.replace(/ /g, '_');
+    
+    // מעטפת נקייה ל-PDF כדי שהעיצוב יראה טוב בהדפסה
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.padding = '20px';
+    pdfWrapper.style.direction = 'rtl';
+    pdfWrapper.style.fontFamily = 'sans-serif';
+    pdfWrapper.innerHTML = `
+        <h2 style="font-size: 18px; margin-bottom: 5px; color: #1e293b;">דוח נוכחות - ${safeStr(currentGroup.name)}</h2>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">עובד: ${userName} | תקופה: ${period} | הופק ב: ${new Date().toLocaleDateString('he-IL')}</p>
+        <div style="font-size: 12px;">${element.innerHTML}</div>
+    `;
+
+    const opt = { 
+        margin: 10, 
+        filename: filename, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        showToast('success', 'דוח נשמר בהצלחה!');
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת ה-PDF');
+    });
 }
 
 function exportTimeclockPDF() {
