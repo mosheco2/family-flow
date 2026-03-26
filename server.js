@@ -53,8 +53,14 @@ pool.connect()
           )`);
       } catch(e) {}
       
-      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
+try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
+
+      // טבלאות החנות הוירטואלית B2C
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), image_url TEXT, is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
 
       client.release();
   })
@@ -1460,4 +1466,109 @@ app.post('/api/timeclock/manual', async (req, res) => {
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
+});
+// ============================================================
+// --- STORE / E-COMMERCE ENDPOINTS (B2B/B2C) ---
+// ============================================================
+
+app.get('/api/store/settings/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
+        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0 } });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/settings', async (req, res) => {
+    try {
+        const { groupId, isActive, welcomeMessage, phone, minOrder } = req.body;
+        await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/catalog/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/catalog', async (req, res) => {
+    try {
+        const { groupId, name, description, price, category, imageUrl } = req.body;
+        await pool.query('INSERT INTO store_catalog (group_id, name, description, price, category, image_url) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, name, description, parseFloat(price)||0, category, imageUrl]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/catalog/toggle', async (req, res) => {
+    try {
+        const { itemId, isAvailable } = req.body;
+        await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2', [isAvailable, itemId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/catalog/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/orders/:groupId', async (req, res) => {
+    try {
+        const orders = await pool.query('SELECT * FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        for (let o of orders.rows) {
+            const items = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
+            o.items = items.rows;
+        }
+        res.json(orders.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/orders', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, customerName, customerPhone, items, totalAmount } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        const oRes = await dbClient.query('INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount) VALUES ($1, $2, $3, $4) RETURNING id', [groupId, customerName, customerPhone, parseFloat(totalAmount)||0]);
+        const orderId = oRes.rows[0].id;
+        
+        let itemsHtmlList = '';
+        for (let item of items) {
+            await dbClient.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)', [orderId, item.catalogId, item.name, item.quantity, item.price]);
+            itemsHtmlList += `<li>${item.name} - כמות: ${item.quantity} - ₪${item.price}</li>`;
+        }
+        await dbClient.query('COMMIT');
+        
+        // שליחת מייל לבעל העסק על הזמנה חדשה
+        const gRes = await pool.query('SELECT admin_email, name FROM family_groups WHERE id=$1', [groupId]);
+        if(gRes.rows.length > 0 && gRes.rows[0].admin_email) {
+            const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
+                <h2 style="color:#0f172a;">הזמנה חדשה בחנות שלך! 🛍️</h2>
+                <p>התקבלה הזמנה חדשה מאת: <strong>${customerName}</strong> (טלפון: ${customerPhone})</p>
+                <p style="font-size:18px;">סה"כ לתשלום: <strong style="color:#16a34a;">₪${totalAmount}</strong></p>
+                <div style="background:white; padding:15px; border-radius:8px; margin-top:15px;">
+                    <h3 style="margin-top:0; border-b:1px solid #eee; padding-bottom:5px;">פירוט הפריטים:</h3>
+                    <ul>${itemsHtmlList}</ul>
+                </div>
+                <p style="margin-top:20px;">היכנס למערכת כדי לנהל את ההזמנה ולעדכן סטטוס.</p>
+            </div>`;
+            sendSystemEmail(gRes.rows[0].admin_email, `הזמנה חדשה מ-${customerName} - ₪${totalAmount}`, emailHtml);
+        }
+        
+        res.json({ success: true, orderId });
+    } catch(e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message }); 
+    } finally { if(dbClient) dbClient.release(); }
+});
+
+app.post('/api/store/orders/status', async (req, res) => {
+    try {
+        const { orderId, status } = req.body;
+        await pool.query('UPDATE store_orders SET status=$1 WHERE id=$2', [status, orderId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
