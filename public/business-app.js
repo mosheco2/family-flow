@@ -2218,7 +2218,7 @@ async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
     btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        await fetch(`${API}/store/settings`, {
+        const res = await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({
                 groupId: currentGroup.id,
@@ -2231,8 +2231,14 @@ async function saveStoreSettings() {
                 logoUrl: val('store-logo-base64') || null
             })
         });
-        showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
-    } catch(e) { showToast('error', 'שגיאה בשמירת הגדרות'); }
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+        } else {
+            showToast('error', 'שגיאת שרת: ' + (data.error || 'לא ידוע'));
+        }
+    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
 
