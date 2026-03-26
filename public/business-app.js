@@ -2196,6 +2196,7 @@ function switchSalesTab(subTab) {
     if(subTab === 'catalog') fetchStoreCatalog();
     if(subTab === 'settings') fetchStoreSettings();
 }
+
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -2290,6 +2291,7 @@ function renderStoreCatalog() {
     });
     list.innerHTML = html;
 }
+
 function openStoreProductModal(id = null) {
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id);
@@ -2358,9 +2360,14 @@ async function deleteStoreProduct(id) {
 async function fetchStoreOrders() {
     try {
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
-        storeOrdersCache = await res.json();
+        const data = await res.json();
+        if (data.error) {
+            console.error("Store Orders Error:", data.error);
+            return;
+        }
+        storeOrdersCache = Array.isArray(data) ? data : [];
         renderStoreOrders();
-    } catch(e) {}
+    } catch(e) { console.error("Network error fetching orders", e); }
 }
 
 function renderStoreOrders() {
@@ -2456,6 +2463,7 @@ async function generateStoreProductAI() {
         finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
     });
 }
+
 // ==========================================
 // --- העלאת ודחיסת תמונות לחנות ---
 // ==========================================
@@ -2483,6 +2491,7 @@ function handleProductImageBase64(event) {
         showToast('success', 'התמונה הועלתה ומוכנה לשמירה!');
     });
 }
+
 // ==========================================
 // --- עוזרת עסקית AI גלובלית ---
 // ==========================================
