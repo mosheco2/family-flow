@@ -1572,3 +1572,20 @@ app.post('/api/store/orders/status', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// --- משיכת נתוני חנות ציבורית (ללקוחות) לפי קוד קישור ---
+app.get('/api/storefront/:code', async (req, res) => {
+    try {
+        const gRes = await pool.query("SELECT id, name FROM family_groups WHERE group_code = $1", [req.params.code.toUpperCase()]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'חנות לא נמצאה' });
+        
+        const groupId = gRes.rows[0].id;
+        const groupName = gRes.rows[0].name;
+
+        const sRes = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]);
+        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '' };
+
+        const cRes = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category, name', [groupId]);
+
+        res.json({ success: true, groupId, groupName, settings, catalog: cRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
