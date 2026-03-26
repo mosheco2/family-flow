@@ -661,32 +661,57 @@
                                 </div>
                                 <div id="store-catalog-list" class="space-y-3 min-h-[150px]"></div>
                             </div>
-
-                            <div id="sales-view-settings" class="hidden space-y-4">
+<div id="sales-view-settings" class="hidden space-y-4">
                                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <span class="font-bold text-slate-700 text-sm">סטטוס החנות:</span>
+                                    <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+                                        <span class="font-bold text-slate-700 text-sm">סטטוס החנות (פעילה/סגורה):</span>
                                         <label class="relative inline-flex items-center cursor-pointer">
                                             <input type="checkbox" id="store-is-active" class="sr-only peer">
                                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                                         </label>
                                     </div>
-                                    <div class="space-y-3">
-                                        <div><label class="text-[10px] font-bold text-slate-500">הודעת פתיחה לקונים:</label><input type="text" id="store-welcome-msg" class="modern-input py-2 text-sm" placeholder="למשל: ברוכים הבאים לחנות שלנו!"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">טלפון לבירורים בחנות:</label><input type="text" id="store-phone" class="modern-input py-2 text-sm" placeholder="050-0000000"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm" placeholder="0"></div>
+                                    
+                                    <div class="flex items-center gap-4 mb-4">
+                                        <div class="w-16 h-16 rounded-full bg-white border-2 border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0" id="store-logo-preview-container">
+                                            <i class="fa-solid fa-store text-2xl text-slate-300" id="store-logo-placeholder"></i>
+                                            <img id="store-logo-preview" class="hidden w-full h-full object-cover">
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">לוגו החנות:</label>
+                                            <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו חדש (יכווץ אוטומטית)</button>
+                                            <input type="hidden" id="store-logo-base64">
+                                        </div>
                                     </div>
-                                    <button onclick="saveStoreSettings()" id="btn-save-store-settings" class="w-full mt-4 bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">שמור הגדרות חנות</button>
+
+                                    <div class="space-y-3">
+                                        <div class="flex gap-2">
+                                            <div class="flex-1">
+                                                <label class="text-[10px] font-bold text-slate-500">סוג החנות (עיצוב התצוגה):</label>
+                                                <select id="store-type" class="modern-input py-2 text-sm bg-white">
+                                                    <option value="retail">מוצרים / קמעונאות 🛍️ (גריד תמונות)</option>
+                                                    <option value="food">מסעדה / מזון 🍔 (תפריט רשימה)</option>
+                                                </select>
+                                            </div>
+                                            <div class="w-1/3">
+                                                <label class="text-[10px] font-bold text-slate-500">מינימום הזמנה (₪):</label>
+                                                <input type="number" id="store-min-order" class="modern-input py-2 text-sm" placeholder="0">
+                                            </div>
+                                        </div>
+                                        <div><label class="text-[10px] font-bold text-slate-500">סלוגן החנות (יופיע מתחת לשם העסק):</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="למשל: הטעמים הכי טובים בעיר!"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500">הודעת פתיחה / מבצע קופץ (אופציונלי):</label><input type="text" id="store-welcome-msg" class="modern-input py-2 text-sm" placeholder="למשל: 10% הנחה על כל התפריט היום!"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500">טלפון לבירורים והזמנות:</label><input type="text" id="store-phone" class="modern-input py-2 text-sm" placeholder="050-0000000"></div>
+                                    </div>
+                                    <button onclick="saveStoreSettings()" id="btn-save-store-settings" class="w-full mt-5 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הגדרות חנות</button>
                                 </div>
                                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                                    <p class="text-xs font-bold text-blue-800 mb-2">הקישור ליירוט לקוחות (שתפו בוואטסאפ / באינסטגרם):</p>
+                                    <p class="text-xs font-bold text-blue-800 mb-2">הקישור המיוחד לחנות שלכם (לחצו להעתקה):</p>
                                     <div class="flex gap-2">
                                         <input type="text" id="store-public-link" readonly class="modern-input py-2 text-[10px] text-left dir-ltr bg-white text-slate-500 border border-blue-200">
-                                        <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition"><i class="fa-solid fa-copy"></i> העתק</button>
+                                        <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition shrink-0"><i class="fa-solid fa-copy"></i> העתק</button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
                     </div>
                     <div id="content-pantry" class="hidden">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
@@ -1151,31 +1176,41 @@
                 </div>
             </div>
         </div>
-        <div id="store-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+       <div id="store-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center text-slate-800">מוצר חדש בחנות 🛒</h3>
                 <div class="space-y-3">
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם המוצר:</label><input type="text" id="sp-name" class="modern-input py-2.5 text-sm" placeholder="למשל: מחשב נייד לנובו"></div>
+                    
+                    <div class="flex flex-col items-center justify-center bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 mb-2 cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('sp-image-upload').click()">
+                        <div id="sp-image-placeholder" class="text-center">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-400 mb-2"></i>
+                            <p class="text-xs font-bold text-slate-600">לחץ להעלאת תמונת מוצר</p>
+                            <p class="text-[9px] text-slate-400 mt-1">יוקטן אוטומטית לשמירה על מהירות</p>
+                        </div>
+                        <img id="sp-image-preview" class="hidden h-24 object-contain rounded-lg shadow-sm">
+                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
+                        <input type="hidden" id="sp-image-base64">
+                    </div>
+
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם המוצר/מנה:</label><input type="text" id="sp-name" class="modern-input py-2.5 text-sm" placeholder="למשל: המבורגר הבית"></div>
                     <div class="flex gap-2">
                         <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר (₪):</label><input type="number" id="sp-price" class="modern-input py-2.5 text-sm" placeholder="0.00"></div>
-                        <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">קטגוריה:</label><input type="text" id="sp-category" class="modern-input py-2.5 text-sm" placeholder="למשל: מחשבים"></div>
+                        <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">קטגוריה:</label><input type="text" id="sp-category" class="modern-input py-2.5 text-sm" placeholder="למשל: עיקריות / מבצעים"></div>
                     </div>
                     <div>
                         <div class="flex justify-between items-end mb-1">
-                            <label class="text-[10px] font-bold text-slate-500">תיאור המוצר:</label>
+                            <label class="text-[10px] font-bold text-slate-500">תיאור המוצר (אופציונלי):</label>
                             <button onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI</button>
                         </div>
-                        <textarea id="sp-desc" class="modern-input py-2.5 text-sm h-24" placeholder="תיאור שיווקי של המוצר..."></textarea>
+                        <textarea id="sp-desc" class="modern-input py-2.5 text-sm h-20" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
                     </div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">קישור לתמונה (אופציונלי):</label><input type="url" id="sp-image" class="modern-input py-2.5 text-sm text-left dir-ltr" placeholder="https://..."></div>
                 </div>
                 <div class="flex gap-3 mt-6">
                     <button onclick="getEl('store-product-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                    <button id="btn-submit-sp" onclick="submitStoreProduct()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור מוצר</button>
+                    <button id="btn-submit-sp" onclick="submitStoreProduct()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור מוצר לקטלוג</button>
                 </div>
             </div>
         </div>
-
         <div id="store-order-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
