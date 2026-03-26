@@ -105,7 +105,8 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // =========================================================
-// פונקציית מערכת המיילים מול ג'ימייל (הגדרות אגרסיביות לעקיפת חסימות ענן)
+// פונקציית מערכת המיילים מול ג'ימייל
+// כולל הגדרות אגרסיביות לעקיפת חסימות והארכת זמני המתנה
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
     const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
@@ -123,10 +124,8 @@ async function sendSystemEmail(to, subject, htmlContent) {
             port: 465,
             secure: true,
             auth: { user: user, pass: pass },
-            tls: { 
-                rejectUnauthorized: false 
-            },
-            connectionTimeout: 15000, // נותן 15 שניות לחיבור לפני Timeout
+            tls: { rejectUnauthorized: false },
+            connectionTimeout: 15000,
             greetingTimeout: 15000,
             socketTimeout: 15000
         });
@@ -146,7 +145,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
     }
 }
 
-// נתיב בדיקה - Test Route למיילים
+// נתיב בדיקה - Test Route למיילים דרך ג'ימייל
 app.get('/api/test-email', async (req, res) => {
     try {
         const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
@@ -157,26 +156,21 @@ app.get('/api/test-email', async (req, res) => {
         }
 
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com', 
-            port: 465, 
-            secure: true,
-            auth: { user, pass }, 
-            tls: { rejectUnauthorized: false },
-            connectionTimeout: 15000,
-            greetingTimeout: 15000,
-            socketTimeout: 15000
+            host: 'smtp.gmail.com', port: 465, secure: true,
+            auth: { user, pass }, tls: { rejectUnauthorized: false },
+            connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000
         });
 
         await transporter.sendMail({
             from: `"Oneflow System Test" <${user}>`,
             to: user,
             subject: '✅ בדיקת מערכת המיילים - Oneflow',
-            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעבור את החסימה ולשלוח מיילים מהשרת.</p></div>'
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל ולשלוח מייל בהצלחה.</p></div>'
         });
 
         res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה לתיבה שלך!</h1>');
     } catch (error) {
-        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל חסמה את השליחה (Timeout/Drop). זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border:1px solid #ccc;">${error.message}</div>`);
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל/Render חסמו את השליחה. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl;">יש לפתוח קריאת שירות ב-Render ולבקש: Please unblock SMTP ports 465 and 587.</p>`);
     }
 });
 
