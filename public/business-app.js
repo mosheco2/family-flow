@@ -2176,10 +2176,6 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-let storeCatalogCache = [];
-let storeOrdersCache = [];
-let currentStoreOrderId = null;
-
 function switchSalesTab(subTab) {
     ['orders', 'catalog', 'settings'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
