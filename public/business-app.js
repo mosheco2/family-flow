@@ -22,6 +22,11 @@ let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 let isPunchedIn = false;
 
+// משתני החנות
+let storeCatalogCache = [];
+let storeOrdersCache = [];
+let currentStoreOrderId = null;
+
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
