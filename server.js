@@ -125,9 +125,10 @@ async function sendSystemEmail(to, subject, htmlContent) {
             secure: true,
             auth: { user: user, pass: pass },
             tls: { rejectUnauthorized: false },
-            connectionTimeout: 15000,
-            greetingTimeout: 15000,
-            socketTimeout: 15000
+            pool: true, // שימוש חוזר בחיבורים כדי למנוע חסימות timeout
+            connectionTimeout: 60000, // הוארך ל-60 שניות (פתרון ל-Render)
+            greetingTimeout: 60000,
+            socketTimeout: 60000
         });
         
         await transporter.sendMail({
@@ -158,7 +159,8 @@ app.get('/api/test-email', async (req, res) => {
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com', port: 465, secure: true,
             auth: { user, pass }, tls: { rejectUnauthorized: false },
-            connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 15000
+            pool: true,
+            connectionTimeout: 60000, greetingTimeout: 60000, socketTimeout: 60000
         });
 
         await transporter.sendMail({
@@ -433,15 +435,42 @@ app.post('/api/groups', async (req, res) => {
         
         await dbClient.query('COMMIT');
         
-        // שליחת מיילים ברקע
+        // --- מערכת שליחת המיילים ---
         try {
             const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
-            const adminAlertHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h3>🎉 סביבה חדשה!</h3><p><strong>סוג:</strong> ${sysType}</p><p><strong>קבוצה:</strong> ${req.body.groupName}</p><p><strong>אימייל:</strong> ${req.body.adminEmail}</p><p><strong>קוד:</strong> ${code}</p></div>`;
+            
+            // 1. התראה ל-ADMIN העולמי (mcgames1978@gmail.com)
+            const adminAlertHtml = `
+                <div style="direction: rtl; font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
+                    <h2 style="color: #1e3a8a;">🎉 סביבה חדשה הוקמה במערכת!</h2>
+                    <div style="background-color: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <p><strong>סוג מערכת:</strong> ${sysType}</p>
+                        <p><strong>שם הקבוצה/עסק:</strong> ${req.body.groupName}</p>
+                        <p><strong>אימייל מנהל הסביבה:</strong> ${req.body.adminEmail}</p>
+                        <p><strong>קוד סביבה שנוצר:</strong> <span style="color: #2563eb; font-weight: bold;">${code}</span></p>
+                        <p><strong>שם משתמש מנהל:</strong> ${req.body.adminNickname}</p>
+                        <p><strong>סיסמה:</strong> ${req.body.password}</p>
+                    </div>
+                </div>`;
             sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
 
+            // 2. שליחת מייל ברוכים הבאים ליוצר הסביבה
             if (req.body.adminEmail) {
-                const userThanksHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה מוגדרת ומוכנה.</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;"><h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות:</h3><p><strong>קוד הסביבה:</strong> ${code}</p><p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p><p><strong>סיסמה:</strong> ${req.body.password}</p></div><p>בהצלחה!<br>צוות Oneflow</p></div>`;
-                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+                const userThanksHtml = `
+                    <div style="direction: rtl; font-family: Arial, sans-serif;">
+                        <h2>ברוכים הבאים ל-${sysType}! 🚀</h2>
+                        <p>שלום ${req.body.adminNickname},</p>
+                        <p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p>
+                        <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                            <h3 style="margin-top: 0; color: #3b82f6;">אלו פרטי ההתחברות שלכם למערכת:</h3>
+                            <p style="font-size: 16px;"><strong>קוד הסביבה:</strong> <span style="font-size: 18px; color: #1d4ed8; font-weight: bold;">${code}</span></p>
+                            <p style="font-size: 16px;"><strong>שם משתמש:</strong> ${req.body.adminNickname}</p>
+                            <p style="font-size: 16px;"><strong>סיסמה:</strong> ${req.body.password}</p>
+                        </div>
+                        <p>אנא שמרו את פרטי הגישה במקום בטוח, והעבירו את קוד הסביבה לשאר חברי הצוות/המשפחה כדי שיוכלו להצטרף.</p>
+                        <p>בהצלחה!<br>צוות Oneflow</p>
+                    </div>`;
+                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה! מצרפים פרטי גישה`, userThanksHtml);
             }
         } catch (mailErr) { console.error('Mail error:', mailErr); }
         
@@ -458,16 +487,39 @@ app.post('/api/forgot-code', async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
 
-        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE LOWER(admin_email) = LOWER($1)', [email]);
-        if (gRes.rows.length === 0) return res.json({ success: true });
+        // שליפת הקוד והסיסמה של מנהל הסביבה בלבד
+        const gRes = await pool.query(`
+            SELECT f.name, f.group_code, f.type, u.password_hash, u.nickname 
+            FROM family_groups f 
+            JOIN users u ON f.id = u.group_id 
+            WHERE LOWER(f.admin_email) = LOWER($1) AND u.role = 'ADMIN'
+        `, [email]);
+        
+        if (gRes.rows.length === 0) return res.json({ success: true }); // שתיקה אבטחתית אם המייל לא קיים
 
         const group = gRes.rows[0];
         const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
 
-        const recoveryHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>שחזור קוד כניסה - ${sysType}</h2><p>שלום רב,</p><p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;"><p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p></div><p>אם לא ביקשת שחזור קוד, ניתן להתעלם מהודעה זו.</p><p>בברכה,<br>צוות Oneflow</p></div>`;
-        sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        const recoveryHtml = `
+            <div style="direction: rtl; font-family: Arial, sans-serif;">
+                <h2>שחזור פרטי גישה - ${sysType}</h2>
+                <p>שלום ${group.nickname},</p>
+                <p>התקבלה בקשה לשחזור פרטי הגישה עבור הסביבה שלכם: "<strong>${group.name}</strong>".</p>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>קוד הסביבה שלכם הוא:</strong> <span style="font-size: 20px; color: #3b82f6; font-weight: bold;">${group.group_code}</span></p>
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>שם משתמש מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.nickname}</span></p>
+                    <p style="font-size: 16px; margin: 8px 0;"><strong>סיסמת מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.password_hash}</span></p>
+                </div>
+                <p>אם לא ביקשתם שחזור פרטים, ניתן להתעלם מהודעה זו בביטחה.</p>
+                <p>בברכה,<br>צוות Oneflow</p>
+            </div>`;
+            
+        sendSystemEmail(email, 'Oneflow | שחזור קוד וסיסמה לסביבה שלך', recoveryHtml);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); 
+    }
 });
 
 app.post('/api/admin/send-credentials', async (req, res) => {
