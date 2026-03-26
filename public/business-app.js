@@ -388,13 +388,19 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast'].forEach(x => { const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
-    getEl(`content-${t}`).classList.remove('hidden'); getEl(`tab-${t}`).classList.add('tab-active'); 
+    ['feed','timeclock','shifts','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast', 'sales'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetEl = getEl(`content-${t}`); if(targetEl) targetEl.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
+    
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); getEl('fab-container').classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     if (t === 'pantry') renderPantry(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
     if (t === 'timeclock') { if (currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); }
     if (t === 'shifts') renderShifts();
+    if (t === 'sales') { switchSalesTab('orders'); fetchStoreOrders(); }
 }
 
 function updateBatteryUI() {
@@ -2164,5 +2170,232 @@ async function submitForgotCode() {
         btn.disabled = false;
         btn.innerText = 'שלח קוד';
     }
+}
+// ============================================================
+// --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
+// ============================================================
+
+let storeCatalogCache = [];
+let storeOrdersCache = [];
+let currentStoreOrderId = null;
+
+function switchSalesTab(subTab) {
+    ['orders', 'catalog', 'settings'].forEach(t => {
+        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'orders') fetchStoreOrders();
+    if(subTab === 'catalog') fetchStoreCatalog();
+    if(subTab === 'settings') fetchStoreSettings();
+}
+
+async function fetchStoreSettings() {
+    try {
+        const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.settings) {
+            getEl('store-is-active').checked = data.settings.is_active;
+            getEl('store-welcome-msg').value = data.settings.welcome_message || '';
+            getEl('store-phone').value = data.settings.phone || '';
+            getEl('store-min-order').value = data.settings.min_order || '';
+            getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function saveStoreSettings() {
+    const btn = getEl('btn-save-store-settings');
+    btn.disabled = true; btn.innerText = 'שומר...';
+    try {
+        await fetch(`${API}/store/settings`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                isActive: getEl('store-is-active').checked,
+                welcomeMessage: val('store-welcome-msg'),
+                phone: val('store-phone'),
+                minOrder: val('store-min-order')
+            })
+        });
+        showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+    } catch(e) { showToast('error', 'שגיאה בשמירת הגדרות'); }
+    finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
+}
+
+function copyStoreLink() {
+    const link = val('store-public-link');
+    if(!link) return;
+    navigator.clipboard.writeText(link).then(() => showToast('info', 'לינק החנות הועתק! שלחו ללקוחות.'));
+}
+
+async function fetchStoreCatalog() {
+    try {
+        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+        storeCatalogCache = await res.json();
+        renderStoreCatalog();
+    } catch(e) {}
+}
+
+function renderStoreCatalog() {
+    const list = getEl('store-catalog-list');
+    if(!storeCatalogCache || storeCatalogCache.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים בקטלוג. לחצו על "מוצר חדש" כדי להתחיל.</p>';
+        return;
+    }
+    let html = '';
+    storeCatalogCache.forEach(p => {
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div>`;
+        const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        const activeText = p.is_available ? 'זמין למכירה' : 'מוסתר מהחנות';
+        html += `
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+                ${imgHtml}
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.name)}</h4>
+                    <p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1">(${safeStr(p.category || 'כללי')})</span></p>
+                </div>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-2 py-1 rounded-lg border transition ${activeColor}">${activeText}</button>
+                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-300 hover:text-red-500 text-xs px-2 transition"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openStoreProductModal() {
+    getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image').value = '';
+    getEl('store-product-modal').classList.remove('hidden');
+}
+
+async function submitStoreProduct() {
+    const name = val('sp-name'); const price = val('sp-price');
+    if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
+    const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
+    try {
+        await fetch(`${API}/store/catalog`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image') })
+        });
+        showToast('success', 'המוצר נוסף לקטלוג שלכם!');
+        getEl('store-product-modal').classList.add('hidden');
+        fetchStoreCatalog();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+    finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
+}
+
+async function toggleStoreProduct(id, isAvailable) {
+    await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) });
+    fetchStoreCatalog();
+}
+
+async function deleteStoreProduct(id) {
+    if(!confirm('האם למחוק את המוצר מהקטלוג לחלוטין?')) return;
+    await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' });
+    showToast('info', 'המוצר נמחק מהחנות');
+    fetchStoreCatalog();
+}
+
+async function fetchStoreOrders() {
+    try {
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        storeOrdersCache = await res.json();
+        renderStoreOrders();
+    } catch(e) {}
+}
+
+function renderStoreOrders() {
+    const list = getEl('store-orders-list');
+    if(!storeOrdersCache || storeOrdersCache.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות חדשות מהלקוחות כרגע.</p>';
+        return;
+    }
+    let html = '';
+    const statusMap = {
+        'new': { text: 'הזמנה חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200 shadow-sm' },
+        'processing': { text: 'באריזה/הכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' },
+        'ready': { text: 'מוכן לאיסוף 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200 shadow-sm' },
+        'completed': { text: 'סופק / הושלם ✅', color: 'bg-green-100 text-green-700 border-green-200 shadow-sm opacity-60' }
+    };
+
+    storeOrdersCache.forEach(o => {
+        const st = statusMap[o.status] || statusMap['new'];
+        html += `
+        <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition hover:border-slate-300">
+            <div>
+                <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
+                <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
+            </div>
+            <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap">${st.text}</span>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openStoreOrderModal(orderId) {
+    currentStoreOrderId = orderId;
+    const order = storeOrdersCache.find(o => o.id === orderId);
+    if(!order) return;
+    getEl('so-modal-id').innerText = order.id;
+    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
+    getEl('so-modal-total').innerText = order.total_amount;
+    getEl('so-modal-customer').innerText = order.customer_name;
+    getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
+
+    let itemsHtml = '';
+    if(order.items && order.items.length > 0) {
+        order.items.forEach(i => {
+            itemsHtml += `
+            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm">
+                <span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span>
+                <span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span>
+            </div>`;
+        });
+    }
+    getEl('so-modal-items').innerHTML = itemsHtml;
+    getEl('store-order-modal').classList.remove('hidden');
+}
+
+async function updateStoreOrderStatus(status) {
+    if(!currentStoreOrderId) return;
+    try {
+        await fetch(`${API}/store/orders/status`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ orderId: currentStoreOrderId, status })
+        });
+        showToast('success', 'סטטוס ההזמנה עודכן!');
+        getEl('store-order-modal').classList.add('hidden');
+        fetchStoreOrders();
+    } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+}
+
+// ניצול חכם של ה-API הקיים כדי לאפשר ל-AI לכתוב תיאור שיווקי למוצר
+async function generateStoreProductAI() {
+    const name = val('sp-name');
+    if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
+    
+    executeWithAIWarning(async () => {
+        const btn = getEl('btn-sp-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
+        try {
+            const res = await fetch(`${API}/guide/chat`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ question: `כתוב לי פסקה קצרה ושיווקית מאוד (2-3 משפטים) בעברית שתתאר את המוצר הבא למכירה בחנות שלי: ${name}. השתמש באימוג'ים ואל תשתמש במרכאות או כוכביות.` }) 
+            });
+            const data = await res.json();
+            if(data.success && data.answer) {
+                getEl('sp-desc').value = data.answer;
+                showToast('success', 'ה-AI ניסח תיאור בהצלחה!');
+            } else {
+                showToast('error', 'שגיאה בניסוח');
+            }
+        } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); }
+        finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
+    });
 }
 // === סוף הקובץ ===
