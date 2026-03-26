@@ -29,12 +29,10 @@ pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
       
-      // שדרוגים שקטים קודמים למקרה שזה לא DB חדש לחלוטין
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
       try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
-      
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
@@ -53,7 +51,7 @@ pool.connect()
               punch_out TIMESTAMP,
               total_minutes INT DEFAULT 0
           )`);
-      } catch(e) { console.log('Time clock table error:', e.message); }
+      } catch(e) {}
       
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
@@ -72,17 +70,13 @@ const generateGroupCode = () => {
     return code;
 };
 
-// פונקציה לחישוב מרחק במטרים בין שתי קואורדינטות
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
     const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
 }
@@ -100,7 +94,6 @@ async function handleAITokens(groupId) {
         }
         return false;
     } catch (e) {
-        console.error('Error handling AI tokens:', e);
         return false;
     }
 }
@@ -110,6 +103,72 @@ const handleAIError = (e, res, defaultMsg) => {
     if (e.message && e.message.includes('429')) return res.status(429).json({ error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
     res.status(500).json({ error: defaultMsg || 'שגיאה בתקשורת עם ה-AI' });
 };
+
+// =========================================================
+// פונקציית מערכת המיילים - מאובטחת מפני קריסות שרת
+// =========================================================
+async function sendSystemEmail(to, subject, htmlContent) {
+    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+    const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+
+    if (!user || !pass) {
+        console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
+        return false;
+    }
+    
+    console.log(`📧 מנסה לשלוח מייל אל: ${to} ...`);
+    try {
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: user, pass: pass },
+            tls: { rejectUnauthorized: false }
+        });
+        
+        await transporter.sendMail({
+            from: `"Oneflow System" <${user}>`,
+            to: to,
+            subject: subject,
+            html: htmlContent
+        });
+        
+        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
+        return true;
+    } catch (e) {
+        console.error('❌ שגיאה בשליחת המייל:', e.message);
+        return false; // לא קורס - פשוט מדלג וממשיך
+    }
+}
+
+// נתיב בדיקה - Test Route למיילים
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
+        const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+
+        if (!user || !pass) {
+            return res.send('<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה: משתני הסביבה (SMTP_USER או SMTP_PASS) לא מוגדרים ב-Render!</h1>');
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com', port: 465, secure: true,
+            auth: { user, pass }, tls: { rejectUnauthorized: false }
+        });
+
+        await transporter.sendMail({
+            from: `"Oneflow System Test" <${user}>`,
+            to: user,
+            subject: '✅ בדיקת מערכת המיילים - Oneflow',
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת מוגדרת נכון ויכולה לשלוח מיילים.</p></div>'
+        });
+
+        res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה לתיבה שלך!</h1>');
+    } catch (error) {
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל חסמה את השליחה. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto;">${error.message}</div>`);
+    }
+});
+
 
 // --- FORCE DATABASE UPGRADE ---
 app.get('/api/force-upgrade', async (req, res) => {
@@ -130,84 +189,44 @@ app.get('/api/force-upgrade', async (req, res) => {
         ];
 
         for (let q of queries) {
-            try {
-                await client.query(q);
-                results.push({ query: q, status: 'success' });
-            } catch (err) {
-                results.push({ query: q, status: 'error', error: err.message });
-            }
+            try { await client.query(q); results.push({ query: q, status: 'success' }); } catch (err) { results.push({ query: q, status: 'error', error: err.message }); }
         }
         
         try {
             await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
-                id SERIAL PRIMARY KEY,
-                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
-                user_id INT REFERENCES users(id) ON DELETE CASCADE,
-                punch_in TIMESTAMP NOT NULL,
-                punch_out TIMESTAMP,
-                total_minutes INT DEFAULT 0
+                id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                punch_in TIMESTAMP NOT NULL, punch_out TIMESTAMP, total_minutes INT DEFAULT 0
             )`);
             results.push({ query: 'time_clock table', status: 'success' });
-        } catch(err) {
-            results.push({ query: 'time_clock table', status: 'error', error: err.message });
-        }
+        } catch(err) { results.push({ query: 'time_clock table', status: 'error', error: err.message }); }
 
-        res.json({ success: true, message: 'Database upgrade process finished. Check details.', details: results });
+        res.json({ success: true, message: 'Database upgrade process finished.', details: results });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
-    } finally {
-        if(client) client.release();
-    }
+    } finally { if(client) client.release(); }
 });
 
 // --- SYSTEM SETUP ---
 app.get('/setup-db', async (req, res) => {
     try {
         await pool.query(`
-            DROP TABLE IF EXISTS user_assignments CASCADE;
-            DROP TABLE IF EXISTS quiz_questions CASCADE;
-            DROP TABLE IF EXISTS quiz_bundles CASCADE;
-            DROP TABLE IF EXISTS budget_allocations CASCADE;
-            DROP TABLE IF EXISTS goals CASCADE;
-            DROP TABLE IF EXISTS loans CASCADE;
-            DROP TABLE IF EXISTS tasks CASCADE;
-            DROP TABLE IF EXISTS transactions CASCADE;
-            DROP TABLE IF EXISTS shopping_list CASCADE;
-            DROP TABLE IF EXISTS shopping_trips CASCADE;
-            DROP TABLE IF EXISTS shopping_trip_items CASCADE;
-            DROP TABLE IF EXISTS pantry CASCADE;
-            DROP TABLE IF EXISTS time_clock CASCADE;
-            DROP TABLE IF EXISTS users CASCADE;
-            DROP TABLE IF EXISTS family_groups CASCADE;
-            DROP TABLE IF EXISTS system_settings CASCADE;
-            DROP TABLE IF EXISTS global_products CASCADE;
+            DROP TABLE IF EXISTS user_assignments CASCADE; DROP TABLE IF EXISTS quiz_questions CASCADE; DROP TABLE IF EXISTS quiz_bundles CASCADE;
+            DROP TABLE IF EXISTS budget_allocations CASCADE; DROP TABLE IF EXISTS goals CASCADE; DROP TABLE IF EXISTS loans CASCADE;
+            DROP TABLE IF EXISTS tasks CASCADE; DROP TABLE IF EXISTS transactions CASCADE; DROP TABLE IF EXISTS shopping_list CASCADE;
+            DROP TABLE IF EXISTS shopping_trips CASCADE; DROP TABLE IF EXISTS shopping_trip_items CASCADE; DROP TABLE IF EXISTS pantry CASCADE;
+            DROP TABLE IF EXISTS time_clock CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE;
+            DROP TABLE IF EXISTS system_settings CASCADE; DROP TABLE IF EXISTS global_products CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (
-                id SERIAL PRIMARY KEY, 
-                name VARCHAR(100), 
-                type VARCHAR(20) DEFAULT 'FAMILY', 
-                admin_email VARCHAR(100), 
-                group_code VARCHAR(10) UNIQUE, 
-                ai_tokens INT DEFAULT 10, 
-                last_token_reset DATE DEFAULT CURRENT_DATE, 
-                is_premium BOOLEAN DEFAULT FALSE, 
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-                location_lat DOUBLE PRECISION, 
-                location_lng DOUBLE PRECISION, 
-                UNIQUE(admin_email, type)
+                id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, 
+                ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, UNIQUE(admin_email, type)
             );
             CREATE TABLE users (
-                id SERIAL PRIMARY KEY, 
-                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
-                nickname VARCHAR(50), 
-                birth_year INT, 
-                password_hash VARCHAR(100), 
-                role VARCHAR(20) DEFAULT 'MEMBER', 
-                status VARCHAR(20) DEFAULT 'pending', 
-                balance DECIMAL(10,2) DEFAULT 0.00, 
-                allowance_amount DECIMAL(10,2) DEFAULT 0.00, 
-                interest_rate DECIMAL(5,2) DEFAULT 0.00
+                id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, 
+                password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, 
+                allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00
             );
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -222,10 +241,9 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE quiz_bundles (id SERIAL PRIMARY KEY, type VARCHAR(20), age_group VARCHAR(10), title VARCHAR(255), text_content TEXT, threshold INT DEFAULT 85, reward DECIMAL(10,2) DEFAULT 10.00, created_by VARCHAR(50) DEFAULT 'SYSTEM', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE quiz_questions (id SERIAL PRIMARY KEY, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, q TEXT, options JSONB, correct INT);
             CREATE TABLE user_assignments (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, bundle_id INT REFERENCES quiz_bundles(id) ON DELETE CASCADE, status VARCHAR(20) DEFAULT 'assigned', score INT, custom_reward DECIMAL(10,2), deadline TIMESTAMP, assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-            
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated! (Includes time_clock table)</p><a href="/">Go to App</a>');
+        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -241,15 +259,11 @@ app.post('/api/superadmin/login', async (req, res) => {
         const { code, password } = req.body;
         const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
         const saPassRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_password'");
-        
         const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
         const currentPass = saPassRes.rows.length > 0 ? saPassRes.rows[0].value : '123456';
         
-        if (code === currentCode && password === currentPass) {
-            res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' });
-        } else {
-            res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' });
-        }
+        if (code === currentCode && password === currentPass) { res.json({ success: true, token: 'SA_SECRET_TOKEN_2026' }); } 
+        else { res.status(401).json({ error: 'פרטי גישה שגויים לניהול מערכת' }); }
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
@@ -257,10 +271,8 @@ app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
     try {
         const { newUsername, newPassword } = req.body;
         if (!newUsername || !newPassword) return res.status(400).json({error: 'חסרים נתונים'});
-        
         await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]);
         await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]);
-        
         res.json({success: true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -269,23 +281,12 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
     try {
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
-        // נשלוף רק תנועות אמיתיות כדי לא לשכפל את תנועת הפתיחה שיצרנו אוטומטית בהרשמה
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
         const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom')");
         
         let unifiedActivity = [];
-        activity.rows.forEach(a => { 
-            unifiedActivity.push({ 
-                date: a.date, 
-                group_name: a.group_name, 
-                user_name: a.user_name, 
-                description: a.description, 
-                amount: a.amount, 
-                is_financial: true 
-            }); 
-        });
+        activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
         
-        // הוספת קבוצות שאין להן תנועות בכלל (במקרה ש"תנועת הפתיחה" נמחקה)
         groups.rows.forEach(g => {
             const hasActivity = unifiedActivity.some(act => act.group_name === g.name);
             if (!hasActivity) {
@@ -295,7 +296,6 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         });
         
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
         const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
 
         const stats = {
@@ -307,27 +307,15 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         
         res.json({
             groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
-            welcomeMsg: getSet('welcome_msg'),
-            businessWelcomeMsg: getSet('business_welcome_msg'),
-            
-            adBannerTextTop: getSet('ad_banner_text_top'),
-            adBannerLinkTop: getSet('ad_banner_link_top'),
-            adBannerImgTop: getSet('ad_banner_img_top'),
-            adBannerTextBottom: getSet('ad_banner_text_bottom'),
-            adBannerLinkBottom: getSet('ad_banner_link_bottom'),
-            adBannerImgBottom: getSet('ad_banner_img_bottom'),
-            
-            bizBannerTextTop: getSet('business_ad_banner_text_top'),
-            bizBannerLinkTop: getSet('business_ad_banner_link_top'),
-            bizBannerImgTop: getSet('business_ad_banner_img_top'),
-            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'),
-            bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'),
-            bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
+            welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
+            adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
+            adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
+            bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
+            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// שליפת דוח 360 למנהל המערכת הראשי (SA)
 app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
     try {
         const groupId = req.params.id;
@@ -384,20 +372,10 @@ app.get('/api/banners', async (req, res) => {
             
         const result = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ${keys}`);
         const banners = {};
-        
-        // תיקון: הבטחת בניית המפתחות כך שצד הלקוח ימצא אותם בלי קשר למשפחה או עסק
-        result.rows.forEach(r => { 
-            let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_');
-            banners[k] = r.value; 
-        });
-        
+        result.rows.forEach(r => { let k = r.key.replace('business_ad_banner_', 'banner_').replace('ad_banner_', 'banner_'); banners[k] = r.value; });
         res.json({ success: true, banners: { 
-            banner_top_text: banners['banner_text_top'] || '', 
-            banner_top_link: banners['banner_link_top'] || '', 
-            banner_top_img: banners['banner_img_top'] || '', 
-            banner_bottom_text: banners['banner_text_bottom'] || '', 
-            banner_bottom_link: banners['banner_link_bottom'] || '',
-            banner_bottom_img: banners['banner_img_bottom'] || ''
+            banner_top_text: banners['banner_text_top'] || '', banner_top_link: banners['banner_link_top'] || '', banner_top_img: banners['banner_img_top'] || '', 
+            banner_bottom_text: banners['banner_text_bottom'] || '', banner_bottom_link: banners['banner_link_bottom'] || '', banner_bottom_img: banners['banner_img_bottom'] || ''
         } });
     } catch(e) { res.json({ success: false, error: e.message, banners: {} }); }
 });
@@ -405,27 +383,88 @@ app.get('/api/banners', async (req, res) => {
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg } = req.body;
     const items = [ 
-        { k: 'ad_banner_text_top', v: topText || '' }, 
-        { k: 'ad_banner_link_top', v: topLink || '' }, 
-        { k: 'ad_banner_img_top', v: topImg || '' },
-        { k: 'ad_banner_text_bottom', v: bottomText || '' }, 
-        { k: 'ad_banner_link_bottom', v: bottomLink || '' },
-        { k: 'ad_banner_img_bottom', v: bottomImg || '' },
-        { k: 'business_ad_banner_text_top', v: bizTopText || '' }, 
-        { k: 'business_ad_banner_link_top', v: bizTopLink || '' }, 
-        { k: 'business_ad_banner_img_top', v: bizTopImg || '' },
-        { k: 'business_ad_banner_text_bottom', v: bizBottomText || '' }, 
-        { k: 'business_ad_banner_link_bottom', v: bizBottomLink || '' },
-        { k: 'business_ad_banner_img_bottom', v: bizBottomImg || '' }
+        { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_img_top', v: topImg || '' },
+        { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' }, { k: 'ad_banner_img_bottom', v: bottomImg || '' },
+        { k: 'business_ad_banner_text_top', v: bizTopText || '' }, { k: 'business_ad_banner_link_top', v: bizTopLink || '' }, { k: 'business_ad_banner_img_top', v: bizTopImg || '' },
+        { k: 'business_ad_banner_text_bottom', v: bizBottomText || '' }, { k: 'business_ad_banner_link_bottom', v: bizBottomLink || '' }, { k: 'business_ad_banner_img_bottom', v: bizBottomImg || '' }
     ];
     try {
         await pool.query('BEGIN');
         for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [item.k, item.v]);
         await pool.query('COMMIT');
         res.json({ success: true });
-    } catch (e) {
-        await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת באנרים במסד הנתונים' });
-    }
+    } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת באנרים' }); }
+});
+
+// =========================================================
+// פונקציות ניהול יצירת סביבות חדשות ומיילים
+// =========================================================
+
+app.post('/api/groups', async (req, res) => {
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        let code = generateGroupCode();
+        
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, LOWER($3), $4) RETURNING *`, 
+            [req.body.type, req.body.groupName, req.body.adminEmail, code]
+        );
+        const group = gRes.rows[0];
+        const birthYear = parseInt(req.body.birthYear) || null;
+        
+        const uRes = await dbClient.query(
+            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
+            [group.id, req.body.adminNickname, birthYear, req.body.password]
+        );
+
+        const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
+        await dbClient.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, 
+            [uRes.rows[0].id, group.id, welcomeText]
+        );
+        
+        await dbClient.query('COMMIT');
+        
+        // שליחת מיילים ברקע (בלי await שמחכה)
+        try {
+            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
+            
+            const adminAlertHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h3>🎉 סביבה חדשה!</h3><p><strong>סוג:</strong> ${sysType}</p><p><strong>קבוצה:</strong> ${req.body.groupName}</p><p><strong>אימייל:</strong> ${req.body.adminEmail}</p><p><strong>קוד:</strong> ${code}</p></div>`;
+            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+
+            if (req.body.adminEmail) {
+                const userThanksHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה מוגדרת ומוכנה.</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;"><h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות:</h3><p><strong>קוד הסביבה:</strong> ${code}</p><p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p><p><strong>סיסמה:</strong> ${req.body.password}</p></div><p>בהצלחה!<br>צוות Oneflow</p></div>`;
+                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+            }
+        } catch (mailErr) { console.error('Mail error:', mailErr); }
+        
+        res.json({ success: true, user: uRes.rows[0], group: group });
+    } catch (e) { 
+        if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
+        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); } 
+        else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
+    } finally { if (dbClient) dbClient.release(); }
+});
+
+app.post('/api/forgot-code', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
+
+        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE LOWER(admin_email) = LOWER($1)', [email]);
+        if (gRes.rows.length === 0) return res.json({ success: true });
+
+        const group = gRes.rows[0];
+        const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
+
+        const recoveryHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>שחזור קוד כניסה - ${sysType}</h2><p>שלום רב,</p><p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;"><p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p></div><p>בברכה,<br>צוות Oneflow</p></div>`;
+        sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); }
 });
 
 app.post('/api/admin/send-credentials', async (req, res) => {
@@ -435,70 +474,25 @@ app.post('/api/admin/send-credentials', async (req, res) => {
         if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
 
         const groupRes = await pool.query("SELECT admin_email, name, type FROM family_groups WHERE id = $1", [groupId]);
-        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת. אנא ודאו שהזנתם מייל בעת ההרשמה."});
-        const adminEmail = groupRes.rows[0].admin_email;
-        const groupName = groupRes.rows[0].name;
-        const groupType = groupRes.rows[0].type;
-
+        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת בהרשמה."});
+        
+        const adminEmail = groupRes.rows[0].admin_email; const groupName = groupRes.rows[0].name; const groupType = groupRes.rows[0].type;
         const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
         
-        let emailContent = `שלום מנהל/ת ${groupType === 'BUSINESS' ? 'ארגון' : 'משפחת'} ${groupName},\n\nלהלן פרטי הגישה של המשתמשים למערכת Oneflow:\n\n`;
+        let emailContent = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>פרטי הגישה של משתמשי הסביבה: ${groupName}</h2><ul>`;
         usersRes.rows.forEach(u => {
-            let roleStr = '';
-            if (groupType === 'BUSINESS') {
-                roleStr = u.role === 'ADMIN' ? 'מנהל צוות' : 'עובד';
-            } else {
-                roleStr = u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה';
-            }
-            emailContent += `שם משתמש: ${u.nickname}\nסיסמה: ${u.password_hash}\nתפקיד: ${roleStr}\n---\n`;
+            let roleStr = groupType === 'BUSINESS' ? (u.role === 'ADMIN' ? 'מנהל' : 'עובד') : (u.role === 'ADMIN' ? 'הורה' : 'ילד');
+            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
         });
-        emailContent += `\nבברכה,\nצוות Oneflow`;
+        emailContent += `</ul><p>בברכה,<br>צוות Oneflow</p></div>`;
 
-        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-            });
-            await transporter.sendMail({
-                from: `"Oneflow" <${process.env.SMTP_USER}>`,
-                to: adminEmail,
-                subject: 'Oneflow - פרטי גישה של משתמשי הסביבה',
-                text: emailContent
-            });
-        }
-
+        sendSystemEmail(adminEmail, 'Oneflow - פרטי גישה של משתמשי הסביבה', emailContent);
         res.json({ success: true });
-    } catch(e) { 
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
-// שליפת דוח 360 להורה/מנהל הקבוצה
-app.get('/api/group/:groupId/report-360', async (req, res) => {
-    try {
-        const { groupId } = req.params;
-        const { adminId } = req.query;
-
-        // וידוא שהמבקש הוא מנהל הסביבה
-        const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
-        if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
-            return res.status(403).json({error: "רק מנהל הסביבה מורשה להפיק דוח זה"});
-        }
-
-        const gRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [groupId]);
-        const group = gRes.rows[0];
-
-        const uRes = await pool.query('SELECT nickname, role, balance, allowance_amount FROM users WHERE group_id = $1 ORDER BY role, nickname', [groupId]);
-        const tRes = await pool.query(`SELECT t.amount, t.type, t.category, t.description, t.date, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND t.date >= CURRENT_DATE - INTERVAL '30 days' ORDER BY t.date DESC`, [groupId]);
-        const tasksRes = await pool.query('SELECT status, count(*) FROM tasks WHERE group_id = $1 GROUP BY status', [groupId]);
-
-        res.json({ success: true, group, users: uRes.rows, transactions: tRes.rows, tasksSummary: tasksRes.rows });
-    } catch(e) { res.status(500).json({error: e.message}); }
-});
-
 
 // ============================================================
-// --- CORE DATA ENDPOINTS (RESTORED FOR APP FUNCTIONALITY) ---
+// --- CORE DATA ENDPOINTS ---
 // ============================================================
 
 app.get('/api/data/:userId', async (req, res) => {
@@ -510,54 +504,23 @@ app.get('/api/data/:userId', async (req, res) => {
         const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
         const group = groupRes.rows[0];
 
-        // חישוב מאזן כללי לכל הארגון/משפחה
         const adminBalRes = await pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]);
         group.admin_total_balance = adminBalRes.rows[0].total;
 
         const tasks = await pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC', [group.id]);
         const pantry = await pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]);
-        
-        // שליפת רשימת קניות + הצלבה לחוכמת ההמונים
         const shoppingList = await pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]);
         
         for (let item of shoppingList.rows) {
-            const bestPriceRes = await pool.query(`
-                SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id 
-                FROM shopping_trip_items sti 
-                JOIN shopping_trips st ON sti.trip_id = st.id 
-                WHERE (sti.item_name = $1 OR sti.normalized_name = $2) 
-                  AND sti.price_per_unit > 0
-                ORDER BY sti.price_per_unit ASC 
-                LIMIT 1
-            `, [item.item_name, item.normalized_name || item.item_name]);
-
-            if (bestPriceRes.rows.length > 0) {
-                const bp = bestPriceRes.rows[0];
-                item.best_price = {
-                    price_per_unit: bp.price_per_unit,
-                    store_name: bp.store_name || 'ספק לא ידוע',
-                    branch_name: bp.branch_name || '',
-                    trip_date: bp.trip_date,
-                    is_local: bp.group_id === group.id
-                };
-            }
+            const bestPriceRes = await pool.query(`SELECT sti.price_per_unit, st.store_name, st.branch_name, st.trip_date, st.group_id FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id = st.id WHERE (sti.item_name = $1 OR sti.normalized_name = $2) AND sti.price_per_unit > 0 ORDER BY sti.price_per_unit ASC LIMIT 1`, [item.item_name, item.normalized_name || item.item_name]);
+            if (bestPriceRes.rows.length > 0) { const bp = bestPriceRes.rows[0]; item.best_price = { price_per_unit: bp.price_per_unit, store_name: bp.store_name || 'ספק לא ידוע', branch_name: bp.branch_name || '', trip_date: bp.trip_date, is_local: bp.group_id === group.id }; }
         }
 
         const goals = await pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]);
         const allBundles = await pool.query('SELECT * FROM quiz_bundles ORDER BY created_at DESC');
-        
-        const userBundles = await pool.query(`
-            SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name 
-            FROM user_assignments ua 
-            JOIN quiz_bundles qb ON ua.bundle_id = qb.id 
-            LEFT JOIN users u ON ua.user_id = u.id
-            WHERE ua.user_id = $1 OR $2 = 'ADMIN'
-        `, [user.id, user.role]);
+        const userBundles = await pool.query(`SELECT ua.*, qb.title, qb.type, qb.age_group, qb.threshold, qb.text_content, qb.reward as default_reward, u.nickname as assignee_name FROM user_assignments ua JOIN quiz_bundles qb ON ua.bundle_id = qb.id LEFT JOIN users u ON ua.user_id = u.id WHERE ua.user_id = $1 OR $2 = 'ADMIN'`, [user.id, user.role]);
 
-        for (let b of userBundles.rows) {
-            const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]);
-            b.questions = qRes.rows;
-        }
+        for (let b of userBundles.rows) { const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1', [b.bundle_id]); b.questions = qRes.rows; }
 
         let weeklyStats = null;
         if (user.role !== 'ADMIN') {
@@ -566,16 +529,7 @@ app.get('/api/data/:userId', async (req, res) => {
             weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
         }
 
-        res.json({
-            user, group, 
-            tasks: tasks.rows, 
-            pantry: pantry.rows, 
-            shopping_list: shoppingList.rows,
-            goals: goals.rows,
-            quiz_bundles: userBundles.rows,
-            all_bundles: allBundles.rows,
-            weekly_stats: weeklyStats
-        });
+        res.json({ user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, weekly_stats: weeklyStats });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -587,19 +541,10 @@ app.post('/api/shopping/add', async (req, res) => {
     try {
         const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
         let actualGroupId = parseInt(groupId);
-        
-        // הגנה מקריסה כשהלקוח לא מעביר groupId (למשל, בעת רענון)
-        if (isNaN(actualGroupId) && userId) {
-            const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-            if (uRes.rows.length > 0) actualGroupId = uRes.rows[0].group_id;
-        }
-        
+        if (isNaN(actualGroupId) && userId) { const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]); if (uRes.rows.length > 0) actualGroupId = uRes.rows[0].group_id; }
         if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
         
-        await pool.query(
-            `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]
-        );
+        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package) VALUES ($1, $2, $3, $4, $5, $6, $7)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -621,7 +566,6 @@ app.delete('/api/shopping/clear/:groupId', async (req, res) => {
     try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- התיקון הקריטי להעברת יחידות למזווה ---
 app.post('/api/shopping/checkout', async (req, res) => {
     try {
         const { totalAmount, userId, storeName, branchName, boughtItems, missingItems } = req.body;
@@ -629,70 +573,37 @@ app.post('/api/shopping/checkout', async (req, res) => {
         const groupId = uRes.rows[0].group_id;
         
         await pool.query('BEGIN');
-        
-        // Record trip
         const tripRes = await pool.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [groupId, userId, storeName, branchName, totalAmount]);
         const tripId = tripRes.rows[0].id;
         
-        // Record transaction
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'groceries', 'expense')`, [userId, groupId, totalAmount, `רכש מלאי/סופר: ${storeName}`]);
         
-        // Process bought items - עכשיו מעביר גם את היחידות ואת כמות המארז למזווה!
         for (let item of boughtItems) {
-            // שולפים את נתוני הפריט המקוריים מהעגלה כדי לדעת מה היתה היחידה וכמות האריזה
             const originalItemRes = await pool.query('SELECT unit, units_per_package FROM shopping_list WHERE id=$1', [item.id]);
-            let itemUnit = "יח'";
-            let itemUpp = 1;
-            
-            if (originalItemRes.rows.length > 0) {
-                itemUnit = originalItemRes.rows[0].unit || "יח'";
-                itemUpp = originalItemRes.rows[0].units_per_package || 1;
-            }
+            let itemUnit = "יח'"; let itemUpp = 1;
+            if (originalItemRes.rows.length > 0) { itemUnit = originalItemRes.rows[0].unit || "יח'"; itemUpp = originalItemRes.rows[0].units_per_package || 1; }
 
-            // מכניסים לפריטי הקבלה
-            await pool.query(
-                `INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit, units_per_package, unit) VALUES ($1, $2, $3, $4, $5, $6)`, 
-                [tripId, item.name, item.quantity, item.price / (item.quantity||1), itemUpp, itemUnit]
-            );
+            await pool.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit, units_per_package, unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, item.quantity, item.price / (item.quantity||1), itemUpp, itemUnit]);
             
-            // Move to pantry - עם כל הנתונים החשובים
             const pRes = await pool.query(`SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
             if (pRes.rows.length > 0) {
-                await pool.query(
-                    `UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP, units_per_package = $2, unit = $3 WHERE id=$4`, 
-                    [item.quantity, itemUpp, itemUnit, pRes.rows[0].id]
-                );
+                await pool.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP, units_per_package = $2, unit = $3 WHERE id=$4`, [item.quantity, itemUpp, itemUnit, pRes.rows[0].id]);
             } else {
-                await pool.query(
-                    `INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`, 
-                    [groupId, item.name, item.quantity, itemUnit, itemUpp]
-                );
+                await pool.query(`INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`, [groupId, item.name, item.quantity, itemUnit, itemUpp]);
             }
-            
             await pool.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
         }
         
-        // Missing items remain pending
-        for (let item of missingItems) {
-            await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]);
-        }
-        
-        await pool.query('COMMIT');
-        res.json({ success: true });
-    } catch(e) { 
-        await pool.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
-    }
+        for (let item of missingItems) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
+        await pool.query('COMMIT'); res.json({ success: true });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/shopping/history', async (req, res) => {
     try {
         const { groupId } = req.query;
         const trips = await pool.query('SELECT st.*, u.nickname FROM shopping_trips st LEFT JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC', [groupId]);
-        for (let t of trips.rows) {
-            const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]);
-            t.items = items.rows;
-        }
+        for (let t of trips.rows) { const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]); t.items = items.rows; }
         res.json(trips.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -702,13 +613,9 @@ app.post('/api/shopping/copy', async (req, res) => {
         const { tripId, userId } = req.body;
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
         const groupId = uRes.rows[0].group_id;
-        
         const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
         for(let i of items.rows) {
-            await pool.query(
-                `INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status, unit, units_per_package) VALUES ($1, $2, $3, $4, 'pending', $5, $6)`, 
-                [groupId, userId, i.item_name, i.quantity, i.unit, i.units_per_package]
-            );
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status, unit, units_per_package) VALUES ($1, $2, $3, $4, 'pending', $5, $6)`, [groupId, userId, i.item_name, i.quantity, i.unit, i.units_per_package]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -722,15 +629,12 @@ app.post('/api/pantry/add', async (req, res) => {
     try {
         const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
         const actualGroupId = parseInt(groupId);
-        
-        // הגנה מפני מזהה קבוצה חסר
         if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
 
         const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [actualGroupId, itemName]);
         if (existing.rows.length > 0) {
             await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
         } else {
-            // הוספת המוצר למזווה בבטחה
             await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
         }
         res.json({ success: true });
@@ -752,16 +656,11 @@ app.post('/api/pantry/use', async (req, res) => {
         if(pRes.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
         
         const item = pRes.rows[0];
-        let deductAmount = 0;
-        if (usedUnits > 0 && item.units_per_package > 0) deductAmount = usedUnits / item.units_per_package;
-        else deductAmount = usedQuantity;
-        
+        let deductAmount = (usedUnits > 0 && item.units_per_package > 0) ? (usedUnits / item.units_per_package) : usedQuantity;
         const newQty = Math.max(0, item.quantity - deductAmount);
-        if (newQty <= 0) {
-            await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]);
-        } else {
-            await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]);
-        }
+        
+        if (newQty <= 0) { await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]); } 
+        else { await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]); }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -770,7 +669,6 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
     try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-
 // ============================================================
 // --- BUDGET ENDPOINTS ---
 // ============================================================
@@ -778,44 +676,16 @@ app.delete('/api/pantry/delete/:id', async (req, res) => {
 app.get('/api/budget/filter', async (req, res) => {
     try {
         const { groupId, targetUserId } = req.query;
-        let params = [groupId];
-        let targetFilterA = '';
-        let targetFilterE = '';
-        
-        // הגנה מפני undefined strings
-        if (targetUserId && targetUserId !== 'all' && targetUserId !== 'undefined') {
-            params.push(targetUserId);
-            targetFilterA = `AND (target_user_id = $2 OR target_user_id IS NULL)`;
-            targetFilterE = `AND user_id = $2`;
-        }
+        let params = [groupId]; let targetFilterA = ''; let targetFilterE = '';
+        if (targetUserId && targetUserId !== 'all' && targetUserId !== 'undefined') { params.push(targetUserId); targetFilterA = `AND (target_user_id = $2 OR target_user_id IS NULL)`; targetFilterE = `AND user_id = $2`; }
 
-        // שימוש ב-CTE לשאילתה חסינת תקלות המשלבת הקצאות אל מול הוצאות
         const query = `
-            WITH Allocations AS (
-                SELECT category, amount_limit 
-                FROM budget_allocations 
-                WHERE group_id = $1 ${targetFilterA}
-            ),
-            Expenses AS (
-                SELECT category, SUM(amount) as spent 
-                FROM transactions 
-                WHERE group_id = $1 
-                AND type = 'expense' 
-                AND date >= date_trunc('month', CURRENT_DATE)
-                ${targetFilterE}
-                GROUP BY category
-            )
-            SELECT 
-                COALESCE(a.category, e.category) as category, 
-                COALESCE(MAX(a.amount_limit), 0) as limit, 
-                COALESCE(MAX(e.spent), 0) as spent
-            FROM Allocations a
-            FULL OUTER JOIN Expenses e ON a.category = e.category
-            GROUP BY COALESCE(a.category, e.category)
+            WITH Allocations AS ( SELECT category, amount_limit FROM budget_allocations WHERE group_id = $1 ${targetFilterA} ),
+            Expenses AS ( SELECT category, SUM(amount) as spent FROM transactions WHERE group_id = $1 AND type = 'expense' AND date >= date_trunc('month', CURRENT_DATE) ${targetFilterE} GROUP BY category )
+            SELECT COALESCE(a.category, e.category) as category, COALESCE(MAX(a.amount_limit), 0) as limit, COALESCE(MAX(e.spent), 0) as spent
+            FROM Allocations a FULL OUTER JOIN Expenses e ON a.category = e.category GROUP BY COALESCE(a.category, e.category)
         `;
-        
-        const result = await pool.query(query, params);
-        res.json(result.rows || []);
+        const result = await pool.query(query, params); res.json(result.rows || []);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -823,12 +693,7 @@ app.post('/api/budget/update', async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
         const finalUserId = targetUserId === 'all' ? null : targetUserId;
-        await pool.query(`
-            INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) 
-            VALUES ($1, $2, $3, $4) 
-            ON CONFLICT (group_id, category, target_user_id) 
-            DO UPDATE SET amount_limit = $4
-        `, [groupId, category, finalUserId, parseFloat(limit) || 0]);
+        await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, category, finalUserId, parseFloat(limit) || 0]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -851,12 +716,9 @@ app.get('/api/transactions', async (req, res) => {
 app.post('/api/transaction', async (req, res) => {
     try {
         const { userId, amount, description, category, type, date, isRecurring, endMonth, groupId } = req.body;
-        // הכנסה מאובטחת של הפעולה, תוך סימון "ידני" כברירת מחדל לפעולות המתווספות מהממשק
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
-        
         if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
         else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
-        
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -866,8 +728,7 @@ app.put('/api/transaction/:id', async (req, res) => {
         const { amount, description, category, requesterId, groupId } = req.body;
         const oldTx = await pool.query('SELECT amount, type, user_id FROM transactions WHERE id=$1', [req.params.id]);
         if(oldTx.rows.length===0) return res.status(404).json({error:'Not found'});
-        const tx = oldTx.rows[0];
-        const diff = parseFloat(amount) - parseFloat(tx.amount);
+        const tx = oldTx.rows[0]; const diff = parseFloat(amount) - parseFloat(tx.amount);
         await pool.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [parseFloat(amount)||0, description, category, req.params.id]);
         if (diff !== 0) {
             if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [diff, tx.user_id]);
@@ -920,10 +781,7 @@ app.post('/api/loans/approve', async (req, res) => {
 });
 
 app.post('/api/loans/reject', async (req, res) => {
-    try {
-        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try { await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 // ============================================================
@@ -945,8 +803,7 @@ app.post('/api/goals/deposit', async (req, res) => {
         await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
         const g = await pool.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id=$2 RETURNING title', [parseFloat(amount)||0, goalId]);
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'savings', 'expense')`, [userId, groupId, parseFloat(amount)||0, 'הפקדה ליעד: ' + g.rows[0].title]);
-        await pool.query('COMMIT');
-        res.json({success:true});
+        await pool.query('COMMIT'); res.json({success:true});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -971,10 +828,7 @@ app.get('/api/admin/pending-users', async (req, res) => {
 });
 
 app.post('/api/admin/approve-user', async (req, res) => {
-    try {
-        await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try { await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.delete('/api/users/:id', async (req, res) => {
@@ -1013,19 +867,15 @@ app.post('/api/admin/payday', async (req, res) => {
         let totalDistributed = 0;
         await pool.query('BEGIN');
         for(let u of users.rows) {
-            let toAdd = parseFloat(u.allowance_amount) || 0;
-            let bal = parseFloat(u.balance) || 0;
-            if(bal > 0 && parseFloat(u.interest_rate) > 0) {
-                toAdd += bal * (parseFloat(u.interest_rate) / 100);
-            }
+            let toAdd = parseFloat(u.allowance_amount) || 0; let bal = parseFloat(u.balance) || 0;
+            if(bal > 0 && parseFloat(u.interest_rate) > 0) { toAdd += bal * (parseFloat(u.interest_rate) / 100); }
             if(toAdd > 0) {
                 await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [toAdd, u.id]);
                 await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'שכר / חלוקת קצבה ותמריצים', 'allowance', 'income')`, [u.id, groupId, toAdd]);
                 totalDistributed += toAdd;
             }
         }
-        await pool.query('COMMIT');
-        res.json({success:true, totalDistributed});
+        await pool.query('COMMIT'); res.json({success:true, totalDistributed});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -1046,16 +896,14 @@ app.post('/api/tasks/update', async (req, res) => {
     try {
         const { taskId, status, finalReward } = req.body;
         const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId]);
-        const t = tRes.rows[0];
-        const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        const t = tRes.rows[0]; const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
         await pool.query('BEGIN');
         await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
         if (status === 'approved') {
             await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
         }
-        await pool.query('COMMIT');
-        res.json({success:true});
+        await pool.query('COMMIT'); res.json({success:true});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -1077,8 +925,7 @@ app.post('/api/academy/submit', async (req, res) => {
         const { userId, bundleId, score, groupId } = req.body;
         const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
         const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
-        const passed = score >= b.rows[0].threshold;
-        const status = passed ? 'completed' : 'failed';
+        const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
         await pool.query('BEGIN');
         if (ua.rows.length > 0) {
             await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
@@ -1088,8 +935,7 @@ app.post('/api/academy/submit', async (req, res) => {
                 await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'בונוס למידה מ-AI', 'academy', 'income')`, [userId, groupId, rew]);
             }
         }
-        await pool.query('COMMIT');
-        res.json({success:true});
+        await pool.query('COMMIT'); res.json({success:true});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
 });
 
@@ -1319,9 +1165,7 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
             const t = (await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId])).rows[0];
             const baseReward = parseFloat(t.reward) || 0;
             let bonus = 0;
-            if(baseReward > 0) {
-                bonus = Math.max(1, Math.round(baseReward * 0.1)); 
-            }
+            if(baseReward > 0) { bonus = Math.max(1, Math.round(baseReward * 0.1)); }
             const total = baseReward + bonus;
 
             await pool.query(`UPDATE users SET balance = balance + $1 WHERE id = $2`, [total, t.assigned_to]);
@@ -1358,8 +1202,7 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         } catch(e) { console.error(e); }
         
         for (let i = 0; i < items.length; i++) {
-             const item = items[i];
-             const normName = normalizedArray[i] || item.name;
+             const item = items[i]; const normName = normalizedArray[i] || item.name;
              await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, 'pending')`, [groupId, userId, item.name, normName, parseFloat(item.qty) || 1, parseFloat(item.price) || 0]);
         }
         res.json({ success: true, count: items.length });
@@ -1377,13 +1220,7 @@ app.post('/api/academy/tutor', async (req, res) => {
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        let prompt = "";
-        if (gType === 'BUSINESS') {
-            prompt = `You are a professional corporate trainer. An employee answered a training question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly and professionally in Hebrew (2-3 sentences max) why the correct answer is right. Be constructive.`;
-        } else {
-            prompt = `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
-        }
+        let prompt = gType === 'BUSINESS' ? `You are a professional corporate trainer. An employee answered a training question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly and professionally in Hebrew (2-3 sentences max) why the correct answer is right. Be constructive.` : `You are 'familAI', a friendly tutor. A child answered a question incorrectly. Question: "${question}" They answered: "${wrongAnswer}" The correct answer is: "${correctAnswer}". Explain briefly in Hebrew (2-3 sentences max) why the correct answer is right and why their answer was a mistake. Be super encouraging! Start with "היי! כאן familAI...".`;
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, explanation: result.response.text().trim() });
@@ -1396,11 +1233,7 @@ app.post('/api/guide/chat', async (req, res) => {
         if (!genAI) return res.status(500).json({ success: false, error: 'מפתח API חסר בשרת' });
 
         let guideText = "";
-        try {
-            guideText = fs.readFileSync(path.join(__dirname, 'public', 'guide.html'), 'utf-8');
-        } catch(e) {
-            guideText = "Oneflow Life is a family financial and task management app.";
-        }
+        try { guideText = fs.readFileSync(path.join(__dirname, 'public', 'guide.html'), 'utf-8'); } catch(e) { guideText = "Oneflow Life is a family financial and task management app."; }
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' app. 
@@ -1415,20 +1248,14 @@ app.post('/api/guide/chat', async (req, res) => {
 
         const result = await model.generateContent(prompt);
         res.json({ success: true, answer: result.response.text().trim() });
-    } catch (e) {
-        console.error('Guide Chat Error:', e);
-        res.status(500).json({ success: false, error: 'מצטערת, לא הצלחתי לייצר תשובה כרגע.' });
-    }
+    } catch (e) { res.status(500).json({ success: false, error: 'מצטערת, לא הצלחתי לייצר תשובה כרגע.' }); }
 });
-
 
 // --- TIME CLOCK ENDPOINTS WITH GPS ---
 
-// שמירת קואורדינטות העסק על ידי המנהל
 app.post('/api/timeclock/set-location', async (req, res) => {
     try {
         const { groupId, adminId, lat, lng } = req.body;
-        // בדיקה שהמבקש הוא אכן מנהל הארגון
         const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
         if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
         
@@ -1437,7 +1264,6 @@ app.post('/api/timeclock/set-location', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// בדיקת סטטוס השעון
 app.get('/api/timeclock/status', async (req, res) => {
     try {
         const { userId } = req.query;
@@ -1446,46 +1272,29 @@ app.get('/api/timeclock/status', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// דקירת כניסה/יציאה - עם ולידציה של GPS
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
         const { userId, groupId, lat, lng } = req.body;
-        
-        if (!lat || !lng) {
-            return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
-        }
+        if (!lat || !lng) return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
 
-        // שליפת מיקום העסק
         const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         
-        const bizLat = gRes.rows[0].location_lat;
-        const bizLng = gRes.rows[0].location_lng;
+        const bizLat = gRes.rows[0].location_lat; const bizLng = gRes.rows[0].location_lng;
+        if (!bizLat || !bizLng) return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
         
-        // אם המנהל לא הגדיר מיקום
-        if (!bizLat || !bizLng) {
-            return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
-        }
-        
-        // חישוב המרחק במטרים
         const distance = calculateDistance(lat, lng, bizLat, bizLng);
-        const MAX_ALLOWED_DISTANCE = 150; // 150 מטר רדיוס (ניתן לשינוי בעתיד)
+        const MAX_ALLOWED_DISTANCE = 150; 
         
-        if (distance > MAX_ALLOWED_DISTANCE) {
-            return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
-        }
+        if (distance > MAX_ALLOWED_DISTANCE) return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
 
         const openPunch = await pool.query('SELECT id, punch_in FROM time_clock WHERE user_id=$1 AND punch_out IS NULL', [userId]);
         if (openPunch.rows.length > 0) {
-            // מבצע דיווח יציאה
-            const punchId = openPunch.rows[0].id;
-            const punchIn = new Date(openPunch.rows[0].punch_in);
-            const punchOut = new Date();
+            const punchId = openPunch.rows[0].id; const punchIn = new Date(openPunch.rows[0].punch_in); const punchOut = new Date();
             const diffMins = Math.max(0, Math.round((punchOut - punchIn) / 60000));
             await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
             res.json({ success: true, status: 'out' });
         } else {
-            // מבצע דיווח כניסה
             await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
             res.json({ success: true, status: 'in' });
         }
@@ -1496,20 +1305,23 @@ app.get('/api/timeclock/report', async (req, res) => {
     try {
         const { groupId, userId } = req.query;
         let query, params;
-        if (userId === 'all') {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [groupId];
-        } else {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`;
-            params = [userId];
-        }
+        if (userId === 'all') { query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`; params = [groupId]; } 
+        else { query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`; params = [userId]; }
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/timeclock/manual', async (req, res) => {
+    try {
+        const { groupId, userId, punchIn, punchOut, totalMins } = req.body;
+        await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_out, total_minutes) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, punchIn, punchOut, totalMins]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ---------------------------------------------------------
-// פונקציות ניהול יצירת סביבות חדשות בצורה בטוחה
+// פונקציות יצירת סביבות ושליחת מיילים
 // ---------------------------------------------------------
 
 app.post('/api/groups', async (req, res) => {
@@ -1520,47 +1332,75 @@ app.post('/api/groups', async (req, res) => {
         
         let code = generateGroupCode();
         
-        // יצירת הקבוצה (משפחה/עסק)
-        const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, $3, $4) RETURNING *`, 
-            [req.body.type, req.body.groupName, req.body.adminEmail, code]
-        );
+        const gRes = await dbClient.query(`INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, LOWER($3), $4) RETURNING *`, [req.body.type, req.body.groupName, req.body.adminEmail, code]);
         const group = gRes.rows[0];
         
-        // המרת שנת הלידה כדי למנוע קריסה
         const birthYear = parseInt(req.body.birthYear) || null;
-        
-        // יצירת משתמש המנהל
-        const uRes = await dbClient.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, 
-            [group.id, req.body.adminNickname, birthYear, req.body.password]
-        );
+        const uRes = await dbClient.query(`INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status) VALUES ($1, $2, $3, $4, 'ADMIN', 'active') RETURNING *`, [group.id, req.body.adminNickname, birthYear, req.body.password]);
 
-        // --- הוספת תנועת פתיחה כדי שהקבוצה תופיע מיד למנהל הראשי ---
         const welcomeText = req.body.type === 'BUSINESS' ? 'סביבת עבודה נפתחה בהצלחה! 🎉' : 'הבנק המשפחתי נפתח בהצלחה! 🎉';
-        await dbClient.query(
-            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) 
-             VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, 
-            [uRes.rows[0].id, group.id, welcomeText]
-        );
+        await dbClient.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1, $2, 0, $3, 'system', 'income', FALSE)`, [uRes.rows[0].id, group.id, welcomeText]);
         
         await dbClient.query('COMMIT');
+        
+        try {
+            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow 360 Pro (לעסקים)' : 'Oneflow Life (למשפחות)';
+            const adminAlertHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h3>🎉 משתמש חדש הצטרף למערכת!</h3><p><strong>סוג סביבה:</strong> ${sysType}</p><p><strong>שם הקבוצה:</strong> ${req.body.groupName}</p><p><strong>אימייל מנהל הקבוצה:</strong> ${req.body.adminEmail}</p><p><strong>קוד זיהוי במערכת:</strong> ${code}</p></div>`;
+            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+
+            if (req.body.adminEmail) {
+                const userThanksHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>תודה שבחרתם לפתוח סביבה חדשה ב-Oneflow. הסביבה הוגדרה ומוכנה לעבודה.</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;"><h3 style="margin-top: 0; color: #3b82f6;">פרטי ההתחברות שלך כמנהל/ת:</h3><p><strong>קוד הסביבה:</strong> <span style="font-family: monospace; font-size: 16px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${code}</span></p><p><strong>שם משתמש:</strong> ${req.body.adminNickname}</p><p><strong>סיסמה:</strong> ${req.body.password}</p></div><p>כדי לצרף משתמשים נוספים (ילדים/עובדים), יש למסור להם את <strong>קוד הסביבה</strong> ואת הקישור למערכת.</p><p>בהצלחה!<br>צוות Oneflow</p></div>`;
+                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+            }
+        } catch (mailErr) { console.error('Error during post-registration emails:', mailErr); }
+        
         res.json({ success: true, user: uRes.rows[0], group: group });
-        
     } catch (e) { 
-        if (dbClient) {
-            try { await dbClient.query('ROLLBACK'); } catch(rbErr) { console.error('Rollback failed', rbErr); }
-        }
-        console.error("Create Group Error:", e);
+        if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
+        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); } 
+        else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
+    } finally { if (dbClient) dbClient.release(); }
+});
+
+app.post('/api/forgot-code', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
+
+        const gRes = await pool.query('SELECT name, group_code, type FROM family_groups WHERE LOWER(admin_email) = LOWER($1)', [email]);
+        if (gRes.rows.length === 0) return res.json({ success: true });
+
+        const group = gRes.rows[0];
+        const sysType = group.type === 'BUSINESS' ? 'Oneflow 360 Pro' : 'Oneflow Life';
+
+        const recoveryHtml = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>שחזור קוד כניסה - ${sysType}</h2><p>שלום רב,</p><p>התקבלה בקשה לשחזור קוד הסביבה עבור "${group.name}".</p><div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;"><p style="font-size: 16px; margin: 0;">קוד הסביבה שלך הוא: <strong style="font-family: monospace; font-size: 20px; color: #3b82f6;">${group.group_code}</strong></p></div><p>אם לא ביקשת שחזור קוד, ניתן להתעלם מהודעה זו.</p><p>בברכה,<br>צוות Oneflow</p></div>`;
+        sendSystemEmail(email, 'Oneflow | שחזור קוד סביבה', recoveryHtml);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); }
+});
+
+app.post('/api/admin/send-credentials', async (req, res) => {
+    try {
+        const { groupId, adminId } = req.body;
+        const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
+        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
+
+        const groupRes = await pool.query("SELECT admin_email, name, type FROM family_groups WHERE id = $1", [groupId]);
+        if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת. אנא ודאו שהזנתם מייל בעת ההרשמה."});
+        const adminEmail = groupRes.rows[0].admin_email; const groupName = groupRes.rows[0].name; const groupType = groupRes.rows[0].type;
+
+        const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
         
-        if (e.message && e.message.includes('unique constraint')) {
-            res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' });
-        } else {
-            res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
-        }
-    } finally { 
-        if (dbClient) dbClient.release(); 
-    }
+        let emailContent = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>פרטי הגישה של משתמשי הסביבה: ${groupName}</h2><p>להלן רשימת המשתמשים וסיסמאות הגישה שלהם:</p><ul>`;
+        usersRes.rows.forEach(u => {
+            let roleStr = groupType === 'BUSINESS' ? (u.role === 'ADMIN' ? 'מנהל צוות' : 'עובד') : (u.role === 'ADMIN' ? 'מנהל/הורה' : 'ילד/בן משפחה');
+            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
+        });
+        emailContent += `</ul><br><p>בברכה,<br>צוות Oneflow</p></div>`;
+
+        sendSystemEmail(adminEmail, 'Oneflow - פרטי גישה של משתמשי הסביבה', emailContent);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/join', async (req, res) => {
