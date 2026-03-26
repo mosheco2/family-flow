@@ -106,7 +106,7 @@ const handleAIError = (e, res, defaultMsg) => {
 
 // =========================================================
 // פונקציית מערכת המיילים מול ג'ימייל
-// כולל הגדרות אגרסיביות לעקיפת חסימות והארכת זמני המתנה
+// שונה לפורט 587 (STARTTLS) בניסיון לעקוף את חסימת ה-Firewall של Render
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
     const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
@@ -117,16 +117,16 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
     
-    console.log(`📧 מנסה לשלוח מייל אל: ${to} ...`);
+    console.log(`📧 מנסה לשלוח מייל אל: ${to} (דרך פורט 587)...`);
     try {
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
+            port: 587,
+            secure: false, // true for 465, false for other ports
             auth: { user: user, pass: pass },
             tls: { rejectUnauthorized: false },
-            pool: true, // שימוש חוזר בחיבורים כדי למנוע חסימות timeout
-            connectionTimeout: 60000, // הוארך ל-60 שניות (פתרון ל-Render)
+            pool: true,
+            connectionTimeout: 60000,
             greetingTimeout: 60000,
             socketTimeout: 60000
         });
@@ -157,22 +157,27 @@ app.get('/api/test-email', async (req, res) => {
         }
 
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com', port: 465, secure: true,
-            auth: { user, pass }, tls: { rejectUnauthorized: false },
+            host: 'smtp.gmail.com', 
+            port: 587, 
+            secure: false,
+            auth: { user, pass }, 
+            tls: { rejectUnauthorized: false },
             pool: true,
-            connectionTimeout: 60000, greetingTimeout: 60000, socketTimeout: 60000
+            connectionTimeout: 60000, 
+            greetingTimeout: 60000, 
+            socketTimeout: 60000
         });
 
         await transporter.sendMail({
             from: `"Oneflow System Test" <${user}>`,
             to: user,
             subject: '✅ בדיקת מערכת המיילים - Oneflow',
-            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל ולשלוח מייל בהצלחה.</p></div>'
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 587 ולשלוח מייל בהצלחה.</p></div>'
         });
 
         res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה לתיבה שלך!</h1>');
     } catch (error) {
-        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ גוגל/Render חסמו את השליחה. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl;">יש לפתוח קריאת שירות ב-Render ולבקש: Please unblock SMTP ports 465 and 587.</p>`);
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ Render חוסמת גם את פורט 587. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl; font-weight:bold;">הגענו לשלב שחייבים לפנות לתמיכה של Render ולבקש לפתוח את הפורטים לשליחת מייל.</p>`);
     }
 });
 
