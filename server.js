@@ -1528,6 +1528,50 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/store/catalog/:id', async (req, res) => {
+    try {
+        const { name, description, price, category, imageUrl } = req.body;
+        // מעדכנים מוצר קיים. שימוש ב-COALESCE שומר את התמונה הקיימת אם לא הועלתה חדשה
+        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url) WHERE id=$6', [name, description, parseFloat(price)||0, category, imageUrl, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/ai-desc', async (req, res) => {
+    try {
+        const { productName, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, description: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/biz/chat-assistant', async (req, res) => {
+    try {
+        const { query, context, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are a helpful AI assistant for a business manager using 'Oneflowlife Pro'.
+        Answer the manager's question in Hebrew based ONLY on this system data (Orders, Employees, Inventory):
+        ${context}
+        
+        Manager's Question: "${query}"
+        
+        Be very concise, professional, and helpful. Use emojis. Do not invent data that is not in the context.`;
+        
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
+});
+
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
         const orders = await pool.query('SELECT * FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
