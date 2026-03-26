@@ -225,60 +225,63 @@ function executeWithAIWarning(actionCallback) {
 }
 
 function injectBusinessUI() {
-    // עדכון סעיף 7: הכנסת כפתור המשמרות בתוך container הטאבים
     if(!getEl('tab-shifts')) {
-        const nav = getEl('slider-scroll');
-        if(nav) {
-            // הוספת טאב "משמרות" יחד עם כל שאר הטאבים הקיימים (כמו משימות וכו')
-            nav.insertAdjacentHTML('afterbegin', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn min-w-max px-4 py-2 rounded-2xl text-sm font-bold text-slate-500 bg-white border border-slate-200 transition-all shadow-sm"><i class="fa-solid fa-calendar-days"></i> משמרות</button>`);
+        const feedTab = getEl('tab-feed');
+        if(feedTab) {
+            feedTab.insertAdjacentHTML('afterend', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn">משמרות 🗓️</button>`);
         }
         
-        const mainContainer = getEl('dashboard-container');
-        if(mainContainer) {
-            // יצירת אזור התוכן לטאב "משמרות" מתחת לבאנר בדומה לשאר האזורים
-            mainContainer.insertAdjacentHTML('beforeend', `
-            <div id="content-shifts" class="hidden pb-24 pt-4 px-4 w-full max-w-lg mx-auto">
-                <div class="flex justify-between items-center mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-sm">
-                    <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-clipboard-user text-indigo-500 mr-1"></i> סידור עבודה</h2>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> בקשת שיבוץ</button>
+        const contentFeed = getEl('content-feed');
+        if(contentFeed) {
+            contentFeed.insertAdjacentHTML('afterend', `
+            <div id="content-shifts" class="hidden">
+                <div class="flex justify-between items-center mb-4 px-2 mt-2">
+                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
                 </div>
-                <div id="shifts-list" class="space-y-3 mt-2"></div>
+                <div id="shifts-list" class="space-y-3 pb-20"></div>
             </div>
             `);
         }
 
         document.body.insertAdjacentHTML('beforeend', `
         <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
-                <div class="bg-indigo-50 p-6 text-center relative">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
+                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
                     <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
                     <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
                 </div>
                 <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="modern-input py-3 text-sm bg-white"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="modern-input py-3 text-sm"></div>
                     <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="modern-input py-3 text-sm"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="modern-input py-3 text-sm"></div>
                     </div>
-                    <button id="btn-submit-shift" onclick="submitShift()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="getEl('shift-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
+                    </div>
                 </div>
             </div>
         </div>
         <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl">
-                <div class="bg-indigo-50 p-6 text-center relative">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
+                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
                     <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
                     <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
                 </div>
                 <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="modern-input py-3 text-sm bg-white"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="modern-input py-3 text-sm"></div>
                     <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-700"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="modern-input py-3 text-sm"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="modern-input py-3 text-sm"></div>
                     </div>
-                    <button id="btn-submit-mp" onclick="submitManualPunch()" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-submit-mp" onclick="submitManualPunch()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -286,31 +289,26 @@ function injectBusinessUI() {
     }
 }
 
-function startManagerTour() {
+function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow 360 Pro! 💼", intro: "מערכת ניהול הארגון, המלאי והצוות שלך עברה לשלב הבא. בואו נצא לסיור קצר שיעשה לכם סדר." },
-            { element: '#tour-header', title: "ניהול פרופיל", intro: "כאן תמצאו את קוד הארגון שאיתו תזמינו את העובדים, וגישה להגדרות הפרופיל והמנוי.", position: 'bottom' },
-            { element: '#ai-battery-indicator', title: "כוח עיבוד AI ⚡", intro: "המערכת מונעת ע\"י בינה מלאכותית מתקדמת. כאן תוכלו לראות את כמות הפעולות היומיות שנותרו בחבילה שלכם.", position: 'bottom' },
-            { element: '#user-balance', title: "קופת הארגון 💳", intro: "כאן תוכלו לראות בזמן אמת את יתרת התקציב או המאזן המרכזי של החברה.", position: 'bottom' },
-            { element: '#tour-fab-btn', title: "פעולות מהירות ⚡", intro: "לחיצה על כפתור הפלוס מאפשרת לכם לרשום הוצאה, הכנסה או לאשר בקשת רכש מכל מקום במערכת.", position: 'top' },
-            { element: '#tab-timeclock', title: "נוכחות ⏱️", intro: "כאן תוכלו לעקוב אחר דוחות הנוכחות של הצוות ולהפיק דוח עלויות.", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "בנו סידור עבודה, שחקו בקשות וקבעו משמרות לצוות.", position: 'bottom' },
-            { element: '#tab-shop', title: "ניהול רכש 🛒", intro: "הסוף לבלאגן בהזמנות ציוד! עובדים פותחים דרישות רכש, והמנהל מאשר, מפיק הזמנה ומעדכן את התקציב.", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "עקבו אחר ציוד משרדי וחומרי גלם. עובד יכול לדווח ניצול מלאי, וכשפריט אוזל הוא מועבר אוטומטית לרכש.", position: 'bottom' },
-            { element: '#tab-bank', title: "תקציבים ובונוסים 🏦", intro: "נהלו תעריפי שעתיים, קופות קטנות ובונוסים לעובדים, ואשרו בקשות להחזרי הוצאות.", position: 'bottom' },
-            { element: '#tab-tasks', title: "ניהול משימות ופרויקטים ✅", intro: "הקצו טיקטים ומשימות לעובדים. העובד יכול לדווח ביצוע בצירוף תמונה, וה-AI יאשר את הביצוע והבונוס אוטומטית.", position: 'bottom' },
-            { element: '#tab-academy', title: "הכשרות ונהלים 🎓", intro: "בנו חפיפות ומבחני בטיחות לעובדים בלחיצת כפתור באמצעות ה-AI, ותגמלו עובדים על הצטיינות.", position: 'bottom' },
-            { element: '#tab-budget', title: "תקציב תפעולי 📊", intro: "הגדירו יעדי הוצאות חודשיים לפי סעיף (למשל מחשוב, שיווק, שכירות). ה-AI ינתח ויספק דוח מנהלים.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף תזרים 📅", intro: "תכנון פיננסי קדימה! מעקב על הוצאות תפעול קבועות (כמו שכר ומיסים) מול הכנסות צפויות.", position: 'bottom' },
-            { element: '#tab-members', title: "ניהול הרשאות צוות 👥", intro: "הזמינו עובדים חדשים דרך וואטסאפ, אשרו כניסה למערכת, ונהלו את פרטי הגישה של כולם.", position: 'bottom' }
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -519,7 +517,14 @@ async function checkTimeclockStatus() {
 async function handlePunch() {
     const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
     if (!navigator.geolocation) return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום, חובה שירותי מיקום לדיווח נוכחות.');
-    btn.disabled = true; const origHtml = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-location-crosshairs fa-spin text-4xl"></i>';
+    btn.disabled = true; 
+    
+    const icon = getEl('tc-icon'); const text = getEl('tc-btn-text');
+    if (icon && text) {
+        icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
+        text.innerText = 'מדווח...';
+    }
+    
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude; const lng = position.coords.longitude;
         try {
@@ -528,15 +533,23 @@ async function handlePunch() {
             if(data.success) { 
                 triggerConfetti(); 
                 showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-                // רענון כפול: גם הסטטוס וגם כל הדף כדי למשוך את השורה החדשה מיד
                 await checkTimeclockStatus(); 
                 fetchData(); 
             } 
-            else { showToast('error', data.error || 'שגיאה בדיווח'); btn.innerHTML = origHtml; btn.disabled = false; }
-        } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); btn.innerHTML = origHtml; btn.disabled = false; }
+            else { 
+                showToast('error', data.error || 'שגיאה בדיווח'); 
+                checkTimeclockStatus(); 
+            }
+        } catch(e) { 
+            showToast('error', 'שגיאת תקשורת עם השרת'); 
+            checkTimeclockStatus(); 
+        } finally {
+            btn.disabled = false;
+        }
     }, (error) => {
         if (error.code === 1) showToast('error', 'חובה לאשר גישה למיקום (GPS) כדי לדווח נוכחות!'); else showToast('error', 'שגיאה באיתור המיקום הנוכחי, נסה שוב');
-        btn.innerHTML = origHtml; btn.disabled = false;
+        checkTimeclockStatus();
+        btn.disabled = false;
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
@@ -1618,7 +1631,7 @@ async function copyList(tripId) { if(!confirm('האם לייבא את דרישת
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
 function sendWhatsAppInvite(role) { 
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד ארגון לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
-    let text = role === 'ADMIN' ? `היי! פתחנו פורטל ארגוני ב-Oneflow 360 Pro 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד הכניסה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflow 360 Pro 🚀\n\nקוד הארגון לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
+    let text = role === 'ADMIN' ? `היי! פתחנו פורטל ארגוני ב-Oneflowlife Pro 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד הכניסה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflowlife Pro 🚀\n\nקוד הארגון לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); getEl('invite-modal').classList.add('hidden'); 
 }
 
