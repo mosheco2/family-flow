@@ -2266,7 +2266,7 @@ function renderStoreCatalog() {
     storeCatalogCache.forEach(p => {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-        const activeText = p.is_available ? 'זמין למכירה' : 'מוסתר מהחנות';
+        const activeText = p.is_available ? 'זמין' : 'מוסתר';
         html += `
         <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-2">
             <div class="flex items-center gap-3">
@@ -2276,41 +2276,65 @@ function renderStoreCatalog() {
                     <p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1">(${safeStr(p.category || 'כללי')})</span></p>
                 </div>
             </div>
-            <div class="flex flex-col items-end gap-2">
-                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-2 py-1 rounded-lg border transition ${activeColor}">${activeText}</button>
-                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-300 hover:text-red-500 text-xs px-2 transition"><i class="fa-solid fa-trash"></i></button>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border transition ${activeColor}">${activeText}</button>
+                <button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         </div>`;
     });
     list.innerHTML = html;
 }
-function openStoreProductModal() {
-    getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
-    getEl('sp-image-base64').value = '';
-    getEl('sp-image-preview').src = '';
-    getEl('sp-image-preview').classList.add('hidden');
-    getEl('sp-image-placeholder').classList.remove('hidden');
+function openStoreProductModal(id = null) {
+    if (id) {
+        const p = storeCatalogCache.find(item => item.id === id);
+        if(!p) return;
+        getEl('sp-id').value = p.id;
+        getEl('sp-name').value = p.name;
+        getEl('sp-price').value = p.price;
+        getEl('sp-category').value = p.category || '';
+        getEl('sp-desc').value = p.description || '';
+        getEl('sp-image-base64').value = p.image_url || '';
+        if (p.image_url) {
+            getEl('sp-image-preview').src = p.image_url;
+            getEl('sp-image-preview').classList.remove('hidden');
+            getEl('sp-image-placeholder').classList.add('hidden');
+        } else {
+            getEl('sp-image-preview').classList.add('hidden');
+            getEl('sp-image-placeholder').classList.remove('hidden');
+        }
+    } else {
+        getEl('sp-id').value = '';
+        getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
+        getEl('sp-image-base64').value = '';
+        getEl('sp-image-preview').src = '';
+        getEl('sp-image-preview').classList.add('hidden');
+        getEl('sp-image-placeholder').classList.remove('hidden');
+    }
     getEl('store-product-modal').classList.remove('hidden');
 }
 
 async function submitStoreProduct() {
+    const id = val('sp-id');
     const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const res = await fetch(`${API}/store/catalog`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image-base64') })
-        });
+        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image-base64') || null };
+        const endpoint = id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`;
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(endpoint, { method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
+        
         if (data.success) {
-            showToast('success', 'המוצר נוסף לקטלוג שלכם!');
+            showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!');
             getEl('store-product-modal').classList.add('hidden');
             fetchStoreCatalog();
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
-    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
     finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
 }
 
@@ -2336,8 +2360,15 @@ async function fetchStoreOrders() {
 
 function renderStoreOrders() {
     const list = getEl('store-orders-list');
-    if(!storeOrdersCache || storeOrdersCache.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות חדשות מהלקוחות כרגע.</p>';
+    const filter = val('store-orders-filter') || 'all';
+    
+    let filteredOrders = storeOrdersCache;
+    if (filter !== 'all') {
+        filteredOrders = filteredOrders.filter(o => o.status === filter);
+    }
+
+    if(!filteredOrders || filteredOrders.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>';
         return;
     }
     let html = '';
@@ -2348,7 +2379,7 @@ function renderStoreOrders() {
         'completed': { text: 'סופק / הושלם ✅', color: 'bg-green-100 text-green-700 border-green-200 shadow-sm opacity-60' }
     };
 
-    storeOrdersCache.forEach(o => {
+    filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
         html += `
         <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition hover:border-slate-300">
@@ -2399,7 +2430,6 @@ async function updateStoreOrderStatus(status) {
     } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 }
 
-// ניצול חכם של ה-API הקיים כדי לאפשר ל-AI לכתוב תיאור שיווקי למוצר
 async function generateStoreProductAI() {
     const name = val('sp-name');
     if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
@@ -2407,18 +2437,16 @@ async function generateStoreProductAI() {
     executeWithAIWarning(async () => {
         const btn = getEl('btn-sp-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
         try {
-            const res = await fetch(`${API}/guide/chat`, { 
+            const res = await fetch(`${API}/store/ai-desc`, { 
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ question: `כתוב לי פסקה קצרה ושיווקית מאוד (2-3 משפטים) בעברית שתתאר את המוצר הבא למכירה בחנות שלי: ${name}. השתמש באימוג'ים ואל תשתמש במרכאות או כוכביות.` }) 
+                body: JSON.stringify({ productName: name, groupId: currentGroup.id }) 
             });
             const data = await res.json();
-            if(data.success && data.answer) {
-                getEl('sp-desc').value = data.answer;
+            if(data.success && data.description) {
+                getEl('sp-desc').value = data.description;
                 showToast('success', 'ה-AI ניסח תיאור בהצלחה!');
-            } else {
-                showToast('error', 'שגיאה בניסוח');
-            }
+            } else { showToast('error', data.error || 'שגיאה בניסוח'); }
         } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); }
         finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
     });
@@ -2449,5 +2477,62 @@ function handleProductImageBase64(event) {
         getEl('sp-image-base64').value = compressedDataUrl;
         showToast('success', 'התמונה הועלתה ומוכנה לשמירה!');
     });
+}
+// ==========================================
+// --- עוזרת עסקית AI גלובלית ---
+// ==========================================
+
+function openGlobalAIAssistant() {
+    getEl('global-ai-input').value = '';
+    getEl('global-ai-modal').classList.remove('hidden');
+}
+
+async function submitGlobalAI() {
+    const inputEl = getEl('global-ai-input');
+    const query = inputEl.value.trim();
+    if (!query) return;
+
+    const chatBox = getEl('global-ai-chat');
+    // הוספת הודעת המשתמש
+    chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`;
+    inputEl.value = '';
+    
+    const btn = getEl('btn-global-ai-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+
+    // איסוף קונטקסט מהמערכת
+    const systemContext = {
+        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'),
+        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})),
+        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})),
+        recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount}))
+    };
+
+    try {
+        const res = await fetch(`${API}/biz/chat-assistant`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        
+        if (!handleAIResponseCheck(data)) {
+            getEl('global-ai-modal').classList.add('hidden');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+            return;
+        }
+
+        if (data.success && data.answer) {
+            chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+            showToast('error', 'שגיאה בתשובת ה-AI');
+        }
+    } catch(e) {
+        showToast('error', 'תקלת רשת מול מנוע ה-AI');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+    }
 }
 // === סוף הקובץ ===
