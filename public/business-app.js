@@ -2191,7 +2191,6 @@ function switchSalesTab(subTab) {
     if(subTab === 'catalog') fetchStoreCatalog();
     if(subTab === 'settings') fetchStoreSettings();
 }
-
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -2201,7 +2200,16 @@ async function fetchStoreSettings() {
             getEl('store-welcome-msg').value = data.settings.welcome_message || '';
             getEl('store-phone').value = data.settings.phone || '';
             getEl('store-min-order').value = data.settings.min_order || '';
+            getEl('store-slogan').value = data.settings.slogan || '';
+            getEl('store-type').value = data.settings.store_type || 'retail';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
+            
+            if (data.settings.logo_url) {
+                getEl('store-logo-preview').src = data.settings.logo_url;
+                getEl('store-logo-preview').classList.remove('hidden');
+                getEl('store-logo-placeholder').classList.add('hidden');
+                getEl('store-logo-base64').value = data.settings.logo_url;
+            }
         }
     } catch(e) { console.error(e); }
 }
@@ -2217,7 +2225,10 @@ async function saveStoreSettings() {
                 isActive: getEl('store-is-active').checked,
                 welcomeMessage: val('store-welcome-msg'),
                 phone: val('store-phone'),
-                minOrder: val('store-min-order')
+                minOrder: val('store-min-order'),
+                slogan: val('store-slogan'),
+                storeType: val('store-type'),
+                logoUrl: val('store-logo-base64') || null
             })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
@@ -2267,9 +2278,12 @@ function renderStoreCatalog() {
     });
     list.innerHTML = html;
 }
-
 function openStoreProductModal() {
-    getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image').value = '';
+    getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
+    getEl('sp-image-base64').value = '';
+    getEl('sp-image-preview').src = '';
+    getEl('sp-image-preview').classList.add('hidden');
+    getEl('sp-image-placeholder').classList.remove('hidden');
     getEl('store-product-modal').classList.remove('hidden');
 }
 
@@ -2278,15 +2292,20 @@ async function submitStoreProduct() {
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        await fetch(`${API}/store/catalog`, {
+        const res = await fetch(`${API}/store/catalog`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image') })
+            body: JSON.stringify({ groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image-base64') })
         });
-        showToast('success', 'המוצר נוסף לקטלוג שלכם!');
-        getEl('store-product-modal').classList.add('hidden');
-        fetchStoreCatalog();
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המוצר נוסף לקטלוג שלכם!');
+            getEl('store-product-modal').classList.add('hidden');
+            fetchStoreCatalog();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירה');
+        }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
+    finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
 }
 
 async function toggleStoreProduct(id, isAvailable) {
@@ -2396,6 +2415,33 @@ async function generateStoreProductAI() {
             }
         } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); }
         finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
+    });
+}
+// ==========================================
+// --- העלאת ודחיסת תמונות לחנות ---
+// ==========================================
+
+function handleStoreLogoUpload(event) {
+    const file = event.target.files[0]; if(!file) return;
+    showToast('info', 'מכווץ תמונה...');
+    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
+        getEl('store-logo-preview').src = compressedDataUrl;
+        getEl('store-logo-preview').classList.remove('hidden');
+        getEl('store-logo-placeholder').classList.add('hidden');
+        getEl('store-logo-base64').value = compressedDataUrl;
+        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
+    });
+}
+
+function handleProductImageBase64(event) {
+    const file = event.target.files[0]; if(!file) return;
+    showToast('info', 'מכווץ תמונת מוצר...');
+    compressImage(file, 600, 600, 0.8, (compressedDataUrl) => {
+        getEl('sp-image-preview').src = compressedDataUrl;
+        getEl('sp-image-preview').classList.remove('hidden');
+        getEl('sp-image-placeholder').classList.add('hidden');
+        getEl('sp-image-base64').value = compressedDataUrl;
+        showToast('success', 'התמונה הועלתה ומוכנה לשמירה!');
     });
 }
 // === סוף הקובץ ===
