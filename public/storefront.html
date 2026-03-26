@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>חנות | מתחברים להזמנה</title>
+    
+    <link rel="icon" href="/logo.png" type="image/png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body { font-family: 'Rubik', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .modern-input { width: 100%; padding: 1rem; background: #f8fafc; border-radius: 1rem; border: 1px solid #e2e8f0; transition: all 0.2s; outline: none; font-size: 1rem; color: #1e293b; }
+        .modern-input:focus { background: white; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+        .modal-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+        
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-800 pb-28">
+
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+        <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
+    </div>
+
+    <div id="loading-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+        <div class="loader w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+        <p class="text-slate-500 font-bold animate-pulse">טוען את החנות...</p>
+    </div>
+
+    <div id="error-screen" class="fixed inset-0 bg-white z-[90] flex flex-col items-center justify-center p-6 text-center hidden">
+        <div class="w-24 h-24 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center text-4xl mb-4"><i class="fa-solid fa-store-slash"></i></div>
+        <h2 id="error-title" class="text-2xl font-black text-slate-800 mb-2">אופס!</h2>
+        <p id="error-message" class="text-slate-500 font-medium leading-relaxed"></p>
+    </div>
+
+    <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-slate-50 shadow-2xl relative sm:rounded-3xl sm:mt-4 overflow-hidden border border-slate-200">
+        
+        <header class="glass-header sticky top-0 z-40 p-4 pb-3">
+            <h1 id="store-name" class="text-2xl font-black text-slate-800 text-center tracking-tight mb-1">...</h1>
+            <p id="store-welcome" class="text-xs text-slate-500 text-center font-medium"></p>
+        </header>
+
+        <div class="p-4 space-y-4" id="catalog-container">
+            </div>
+
+    </div>
+
+    <div id="cart-footer" class="fixed bottom-0 sm:bottom-4 left-0 right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-xl bg-white border-t sm:border border-slate-200 p-4 sm:rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex justify-between items-center hidden slide-up">
+        <div>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">סה"כ לתשלום</p>
+            <div class="flex items-end gap-2">
+                <span id="cart-total" class="font-black text-2xl text-slate-800 leading-none">₪0</span>
+                <span id="cart-count" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mb-1">0 פריטים</span>
+            </div>
+        </div>
+        <button onclick="openCheckoutModal()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition hover:scale-105 active:scale-95">סיום הזמנה</button>
+    </div>
+
+    <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] slide-up">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-black text-slate-800">סיכום הזמנה 🛒</h3>
+                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto modal-scroll mb-6 pr-2" id="checkout-items">
+                </div>
+
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 shrink-0">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-bold text-slate-500">סה"כ לתשלום:</span>
+                    <span id="checkout-total" class="text-xl font-black text-indigo-600">₪0</span>
+                </div>
+                <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden"><i class="fa-solid fa-circle-exclamation"></i> המינימום להזמנה הוא ₪<span id="min-order-val"></span></p>
+            </div>
+
+            <form onsubmit="submitOrder(event)" class="space-y-3 shrink-0" id="checkout-form">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם מלא:</label>
+                    <input type="text" id="cust-name" required class="modern-input py-3 text-sm" placeholder="איך קוראים לכם?">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">מספר טלפון:</label>
+                    <input type="tel" id="cust-phone" required class="modern-input py-3 text-sm text-left dir-ltr" placeholder="050-0000000">
+                </div>
+                <button type="submit" id="btn-submit-order" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-xl mt-4 text-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> שלח הזמנה לעסק
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="success-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center hidden slide-up">
+        <div class="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner"><i class="fa-solid fa-check"></i></div>
+        <h2 class="text-3xl font-black text-slate-800 mb-2">הזמנתך התקבלה! 🎉</h2>
+        <p class="text-slate-500 font-medium mb-8">בעל העסק קיבל את ההזמנה וייצור איתך קשר בהקדם להמשך טיפול ותשלום.</p>
+        <div class="bg-slate-50 p-4 rounded-2xl w-full max-w-xs border border-slate-100">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">מספר הזמנה</p>
+            <p id="success-order-id" class="text-xl font-black text-indigo-600 font-mono">#0000</p>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+        let storeData = null;
+        let cart = {}; // { catalogId: { item, qty } }
+
+        const getEl = id => document.getElementById(id);
+        const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
+        function showToast(t, m) { 
+            const el = getEl('toast'); const icon = getEl('toast-icon'); 
+            el.classList.remove('hidden'); 
+            getEl('toast-message').innerText = m; 
+            icon.className = t === 'success' ? 'fa-solid fa-check text-green-400' : 'fa-solid fa-xmark text-red-400'; 
+            setTimeout(() => el.classList.add('hidden'), 3000); 
+        }
+
+        function showError(title, msg) {
+            getEl('loading-screen').classList.add('hidden');
+            getEl('error-title').innerText = title;
+            getEl('error-message').innerText = msg;
+            getEl('error-screen').classList.remove('hidden');
+        }
+
+        async function initStore() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const storeCode = urlParams.get('store');
+            
+            if (!storeCode) {
+                showError('קישור שגוי', 'לא נמצא קוד חנות בקישור. ודאו שהעתקתם את הקישור המלא.');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/storefront/${storeCode}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    showError('החנות לא קיימת', 'בדקו שוב את הקישור שנשלח אליכם.');
+                    return;
+                }
+
+                if (!data.settings.is_active) {
+                    showError('החנות סגורה כרגע', 'בעל העסק השהה זמנית את הפעילות בחנות. נסו שוב מאוחר יותר.');
+                    return;
+                }
+
+                storeData = data;
+                renderStorefront();
+                getEl('loading-screen').classList.add('hidden');
+                getEl('store-app').classList.remove('hidden');
+
+            } catch (err) {
+                showError('תקלת תקשורת', 'לא הצלחנו להתחבר לשרת. נסו לרענן את העמוד.');
+            }
+        }
+
+        function renderStorefront() {
+            getEl('store-name').innerText = storeData.groupName;
+            if(storeData.settings.welcome_message) {
+                getEl('store-welcome').innerText = storeData.settings.welcome_message;
+            }
+
+            const container = getEl('catalog-container');
+            if (!storeData.catalog || storeData.catalog.length === 0) {
+                container.innerHTML = '<div class="text-center py-12 bg-white rounded-2xl border border-slate-200"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 font-medium">אין מוצרים זמינים כרגע בחנות.</p></div>';
+                return;
+            }
+
+            let html = '';
+            storeData.catalog.forEach(item => {
+                const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-24 h-24 object-cover rounded-2xl shadow-sm border border-slate-100 flex-shrink-0">` : `<div class="w-24 h-24 bg-slate-100 text-slate-300 rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 flex-shrink-0"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const descHtml = item.description ? `<p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description)}</p>` : '';
+                
+                // כפתורי הכמות הדינמיים למוצר
+                const qtyHtml = `
+                    <div class="flex items-center gap-3 bg-slate-100 rounded-full p-1" id="qty-controls-${item.id}">
+                        <button onclick="updateCart(${item.id}, -1, '${safeStr(item.name)}', ${item.price})" class="w-8 h-8 rounded-full bg-white text-slate-600 shadow-sm flex items-center justify-center hover:text-indigo-600"><i class="fa-solid fa-minus text-xs"></i></button>
+                        <span class="font-bold text-slate-800 text-sm w-4 text-center" id="qty-val-${item.id}">0</span>
+                        <button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="w-8 h-8 rounded-full bg-indigo-600 text-white shadow-sm flex items-center justify-center hover:bg-indigo-700"><i class="fa-solid fa-plus text-xs"></i></button>
+                    </div>
+                `;
+
+                html += `
+                <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex gap-4 fade-in">
+                    ${imgHtml}
+                    <div class="flex-1 flex flex-col justify-between py-1">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h3>
+                            ${descHtml}
+                        </div>
+                        <div class="flex justify-between items-end mt-2">
+                            <span class="font-black text-indigo-600 text-lg">₪${item.price}</span>
+                            ${qtyHtml}
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function updateCart(catalogId, delta, name, price) {
+            if (!cart[catalogId]) cart[catalogId] = { catalogId, name, price, qty: 0 };
+            
+            cart[catalogId].qty += delta;
+            
+            if (cart[catalogId].qty <= 0) {
+                cart[catalogId].qty = 0;
+                delete cart[catalogId];
+            }
+
+            // עדכון ה-UI של המוצר
+            const qtyEl = getEl(`qty-val-${catalogId}`);
+            if(qtyEl) qtyEl.innerText = cart[catalogId] ? cart[catalogId].qty : 0;
+
+            updateCartFooter();
+        }
+
+        function updateCartFooter() {
+            let totalQty = 0;
+            let totalPrice = 0;
+
+            Object.values(cart).forEach(item => {
+                totalQty += item.qty;
+                totalPrice += (item.qty * item.price);
+            });
+
+            const footer = getEl('cart-footer');
+            if (totalQty > 0) {
+                getEl('cart-count').innerText = `${totalQty} פריטים`;
+                getEl('cart-total').innerText = `₪${totalPrice.toFixed(2)}`;
+                footer.classList.remove('hidden');
+            } else {
+                footer.classList.add('hidden');
+            }
+        }
+
+        function openCheckoutModal() {
+            let total = 0;
+            let itemsHtml = '';
+            
+            Object.values(cart).forEach(item => {
+                const itemTotal = item.qty * item.price;
+                total += itemTotal;
+                itemsHtml += `
+                <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-md text-xs">x${item.qty}</span>
+                        <span class="font-medium text-slate-700 text-sm">${safeStr(item.name)}</span>
+                    </div>
+                    <span class="font-bold text-slate-800 text-sm">₪${itemTotal.toFixed(2)}</span>
+                </div>`;
+            });
+
+            getEl('checkout-items').innerHTML = itemsHtml;
+            getEl('checkout-total').innerText = `₪${total.toFixed(2)}`;
+
+            const minOrder = parseFloat(storeData.settings.min_order) || 0;
+            const btnSubmit = getEl('btn-submit-order');
+            const warning = getEl('checkout-min-warning');
+            
+            if (minOrder > 0 && total < minOrder) {
+                getEl('min-order-val').innerText = minOrder;
+                warning.classList.remove('hidden');
+                btnSubmit.disabled = true;
+                btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                warning.classList.add('hidden');
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            getEl('checkout-modal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() {
+            getEl('checkout-modal').classList.add('hidden');
+        }
+
+        async function submitOrder(e) {
+            e.preventDefault();
+            
+            const custName = val('cust-name');
+            const custPhone = val('cust-phone');
+            if(!custName || !custPhone) return showToast('error', 'יש להזין שם וטלפון ליצירת קשר');
+
+            const btn = getEl('btn-submit-order');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שולח הזמנה לעסק...';
+
+            // הכנת נתוני ההזמנה
+            let totalAmount = 0;
+            const items = [];
+            Object.values(cart).forEach(i => {
+                totalAmount += (i.qty * i.price);
+                items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price });
+            });
+
+            try {
+                const res = await fetch(`${API}/store/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        groupId: storeData.groupId,
+                        customerName: custName,
+                        customerPhone: custPhone,
+                        items: items,
+                        totalAmount: totalAmount
+                    })
+                });
+
+                const data = await res.json();
+                
+                if (data.success) {
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+                    getEl('checkout-modal').classList.add('hidden');
+                    getEl('cart-footer').classList.add('hidden');
+                    getEl('success-order-id').innerText = `#${data.orderId}`;
+                    getEl('success-screen').classList.remove('hidden');
+                } else {
+                    showToast('error', data.error || 'אירעה שגיאה בשליחת ההזמנה');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח הזמנה לעסק';
+                }
+
+            } catch(err) {
+                showToast('error', 'שגיאת תקשורת מול השרת');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח הזמנה לעסק';
+            }
+        }
+
+        // Start App
+        initStore();
+    </script>
+</body>
+</html>
