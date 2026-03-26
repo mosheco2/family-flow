@@ -140,7 +140,7 @@
         <button onclick="window.location.reload()" class="text-slate-400 text-sm font-bold underline hover:text-slate-600">חזור לחנות</button>
     </div>
 
-    <script>
+  <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; // { catalogId: { item, qty } }
@@ -148,6 +148,7 @@
         let searchQuery = '';
 
         const getEl = id => document.getElementById(id);
+        const val = id => getEl(id) ? getEl(id).value : '';
         const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
         function showToast(t, m) { 
