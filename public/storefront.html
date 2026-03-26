@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>חנות | מתחברים להזמנה</title>
+    <title>חנות העסק | הזמנה אונליין</title>
     
     <link rel="icon" href="/logo.png" type="image/png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
@@ -20,23 +20,29 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .slide-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+        .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
         .modal-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
         
+        /* Category Slider */
+        .cat-slider { display: flex; overflow-x: auto; gap: 0.5rem; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none; padding-bottom: 5px; }
+        .cat-slider::-webkit-scrollbar { display: none; }
+        .cat-btn { flex: 0 0 auto; padding: 0.4rem 1rem; border-radius: 99px; font-size: 0.85rem; font-weight: bold; background: #f1f5f9; color: #64748b; transition: all 0.2s; border: 1px solid transparent; }
+        .cat-active { background: #4f46e5; color: white; border-color: #4f46e5; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
+
         /* Loader */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="text-slate-800 pb-28">
+<body class="text-slate-800 pb-32">
 
     <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
     <div id="loading-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
-        <div class="loader w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
-        <p class="text-slate-500 font-bold animate-pulse">טוען את החנות...</p>
+        <div class="loader mb-4"></div>
+        <p class="text-slate-500 font-bold animate-pulse">מכינים את החנות...</p>
     </div>
 
     <div id="error-screen" class="fixed inset-0 bg-white z-[90] flex flex-col items-center justify-center p-6 text-center hidden">
@@ -45,14 +51,33 @@
         <p id="error-message" class="text-slate-500 font-medium leading-relaxed"></p>
     </div>
 
-    <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-slate-50 shadow-2xl relative sm:rounded-3xl sm:mt-4 overflow-hidden border border-slate-200">
+    <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-slate-50 shadow-2xl relative sm:rounded-3xl sm:mt-4 sm:border border-slate-200">
         
-        <header class="glass-header sticky top-0 z-40 p-4 pb-3">
-            <h1 id="store-name" class="text-2xl font-black text-slate-800 text-center tracking-tight mb-1">...</h1>
-            <p id="store-welcome" class="text-xs text-slate-500 text-center font-medium"></p>
+        <header class="bg-white p-6 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-indigo-50 to-purple-50"></div>
+            
+            <div class="relative z-10 flex flex-col items-center">
+                <img id="store-logo" src="" class="w-20 h-20 object-cover rounded-full border-4 border-white shadow-md mb-3 hidden bg-white">
+                <div id="store-logo-placeholder" class="w-20 h-20 rounded-full border-4 border-white shadow-md mb-3 bg-indigo-100 text-indigo-400 flex items-center justify-center text-3xl"><i class="fa-solid fa-store"></i></div>
+                
+                <h1 id="store-name" class="text-2xl font-black text-slate-800 tracking-tight">...</h1>
+                <p id="store-slogan" class="text-sm text-indigo-600 font-bold mt-1 hidden"></p>
+                <p id="store-welcome" class="text-xs text-slate-500 mt-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 hidden"></p>
+            </div>
         </header>
 
-        <div class="p-4 space-y-4" id="catalog-container">
+        <div class="glass-header sticky top-0 z-40 p-4 shadow-sm border-b border-slate-200">
+            <div class="relative mb-3">
+                <i class="fa-solid fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש מוצר..." class="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl py-2.5 pr-10 pl-4 outline-none focus:border-indigo-500 transition">
+            </div>
+            
+            <div class="cat-slider" id="categories-container">
+                <button onclick="filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>
+                </div>
+        </div>
+
+        <div class="p-4" id="catalog-container">
             </div>
 
     </div>
@@ -65,34 +90,36 @@
                 <span id="cart-count" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md mb-1">0 פריטים</span>
             </div>
         </div>
-        <button onclick="openCheckoutModal()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition hover:scale-105 active:scale-95">סיום הזמנה</button>
+        <button onclick="openCheckoutModal()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition hover:scale-105 active:scale-95 flex items-center gap-2">
+            המשך להזמנה <i class="fa-solid fa-arrow-left text-sm"></i>
+        </button>
     </div>
 
     <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] slide-up">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                 <h3 class="text-2xl font-black text-slate-800">סיכום הזמנה 🛒</h3>
-                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="flex-1 overflow-y-auto modal-scroll mb-6 pr-2" id="checkout-items">
+            <div class="flex-1 overflow-y-auto modal-scroll mb-4 pr-2" id="checkout-items">
                 </div>
 
             <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 shrink-0">
-                <div class="flex justify-between items-center mb-2">
+                <div class="flex justify-between items-center mb-1">
                     <span class="text-sm font-bold text-slate-500">סה"כ לתשלום:</span>
-                    <span id="checkout-total" class="text-xl font-black text-indigo-600">₪0</span>
+                    <span id="checkout-total" class="text-2xl font-black text-indigo-600">₪0</span>
                 </div>
-                <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden"><i class="fa-solid fa-circle-exclamation"></i> המינימום להזמנה הוא ₪<span id="min-order-val"></span></p>
+                <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden mt-2 bg-red-50 p-1.5 rounded-lg"><i class="fa-solid fa-circle-exclamation"></i> המינימום להזמנה בחנות זו הוא ₪<span id="min-order-val"></span></p>
             </div>
 
             <form onsubmit="submitOrder(event)" class="space-y-3 shrink-0" id="checkout-form">
                 <div>
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם מלא:</label>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1 ml-1">שם מלא:</label>
                     <input type="text" id="cust-name" required class="modern-input py-3 text-sm" placeholder="איך קוראים לכם?">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">מספר טלפון:</label>
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1 ml-1">מספר טלפון:</label>
                     <input type="tel" id="cust-phone" required class="modern-input py-3 text-sm text-left dir-ltr" placeholder="050-0000000">
                 </div>
                 <button type="submit" id="btn-submit-order" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-xl mt-4 text-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">
@@ -103,19 +130,22 @@
     </div>
 
     <div id="success-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center hidden slide-up">
-        <div class="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner"><i class="fa-solid fa-check"></i></div>
+        <div class="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner border border-green-100"><i class="fa-solid fa-check"></i></div>
         <h2 class="text-3xl font-black text-slate-800 mb-2">הזמנתך התקבלה! 🎉</h2>
         <p class="text-slate-500 font-medium mb-8">בעל העסק קיבל את ההזמנה וייצור איתך קשר בהקדם להמשך טיפול ותשלום.</p>
-        <div class="bg-slate-50 p-4 rounded-2xl w-full max-w-xs border border-slate-100">
+        <div class="bg-slate-50 p-6 rounded-2xl w-full max-w-xs border border-slate-100 shadow-sm mb-8">
             <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">מספר הזמנה</p>
-            <p id="success-order-id" class="text-xl font-black text-indigo-600 font-mono">#0000</p>
+            <p id="success-order-id" class="text-3xl font-black text-indigo-600 font-mono tracking-wider">#0000</p>
         </div>
+        <button onclick="window.location.reload()" class="text-slate-400 text-sm font-bold underline hover:text-slate-600">חזור לחנות</button>
     </div>
 
     <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; // { catalogId: { item, qty } }
+        let currentCategory = 'all';
+        let searchQuery = '';
 
         const getEl = id => document.getElementById(id);
         const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -159,7 +189,9 @@
                 }
 
                 storeData = data;
-                renderStorefront();
+                renderHeader();
+                extractCategories();
+                renderCatalog();
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
 
@@ -168,47 +200,149 @@
             }
         }
 
-        function renderStorefront() {
+        function renderHeader() {
             getEl('store-name').innerText = storeData.groupName;
-            if(storeData.settings.welcome_message) {
-                getEl('store-welcome').innerText = storeData.settings.welcome_message;
+            document.title = `${storeData.groupName} | חנות`;
+            
+            // לוגו
+            if(storeData.settings.logo_url) {
+                getEl('store-logo').src = storeData.settings.logo_url;
+                getEl('store-logo').classList.remove('hidden');
+                getEl('store-logo-placeholder').classList.add('hidden');
             }
 
+            // סלוגן
+            if(storeData.settings.slogan) {
+                getEl('store-slogan').innerText = storeData.settings.slogan;
+                getEl('store-slogan').classList.remove('hidden');
+            }
+
+            // הודעת פתיחה
+            if(storeData.settings.welcome_message) {
+                getEl('store-welcome').innerText = storeData.settings.welcome_message;
+                getEl('store-welcome').classList.remove('hidden');
+            }
+        }
+
+        function extractCategories() {
+            const container = getEl('categories-container');
+            if (!storeData.catalog || storeData.catalog.length === 0) return;
+
+            const categories = new Set();
+            storeData.catalog.forEach(item => {
+                if(item.category) categories.add(item.category.trim());
+            });
+
+            let html = `<button onclick="filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
+            categories.forEach(cat => {
+                html += `<button onclick="filterCategory('${safeStr(cat)}')" id="cat-btn-${safeStr(cat)}" class="cat-btn">${safeStr(cat)}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function filterCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('cat-active'));
+            const activeBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
+            if(activeBtn) activeBtn.classList.add('cat-active');
+            renderCatalog();
+        }
+
+        function handleSearch() {
+            searchQuery = getEl('search-input').value.toLowerCase();
+            renderCatalog();
+        }
+
+        function renderCatalog() {
             const container = getEl('catalog-container');
             if (!storeData.catalog || storeData.catalog.length === 0) {
-                container.innerHTML = '<div class="text-center py-12 bg-white rounded-2xl border border-slate-200"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 font-medium">אין מוצרים זמינים כרגע בחנות.</p></div>';
+                container.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 font-medium">אין מוצרים זמינים כרגע בחנות.</p></div>';
                 return;
             }
 
-            let html = '';
-            storeData.catalog.forEach(item => {
-                const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-24 h-24 object-cover rounded-2xl shadow-sm border border-slate-100 flex-shrink-0">` : `<div class="w-24 h-24 bg-slate-100 text-slate-300 rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 flex-shrink-0"><i class="fa-solid fa-image text-3xl"></i></div>`;
-                const descHtml = item.description ? `<p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description)}</p>` : '';
-                
-                // כפתורי הכמות הדינמיים למוצר
-                const qtyHtml = `
-                    <div class="flex items-center gap-3 bg-slate-100 rounded-full p-1" id="qty-controls-${item.id}">
-                        <button onclick="updateCart(${item.id}, -1, '${safeStr(item.name)}', ${item.price})" class="w-8 h-8 rounded-full bg-white text-slate-600 shadow-sm flex items-center justify-center hover:text-indigo-600"><i class="fa-solid fa-minus text-xs"></i></button>
-                        <span class="font-bold text-slate-800 text-sm w-4 text-center" id="qty-val-${item.id}">0</span>
-                        <button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="w-8 h-8 rounded-full bg-indigo-600 text-white shadow-sm flex items-center justify-center hover:bg-indigo-700"><i class="fa-solid fa-plus text-xs"></i></button>
-                    </div>
-                `;
+            // סינון לפי קטגוריה וחיפוש
+            let filtered = storeData.catalog;
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(item => item.category === currentCategory);
+            }
+            if (searchQuery.trim() !== '') {
+                filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery) || (item.description && item.description.toLowerCase().includes(searchQuery)));
+            }
 
-                html += `
-                <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex gap-4 fade-in">
-                    ${imgHtml}
-                    <div class="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h3>
-                            ${descHtml}
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-8">לא נמצאו מוצרים תואמים.</p>';
+                return;
+            }
+
+            const storeType = storeData.settings.store_type || 'retail';
+            let html = '';
+
+            if (storeType === 'retail') {
+                // תצוגת חנות קמעונאית (Grid)
+                html = '<div class="grid grid-cols-2 gap-3">';
+                filtered.forEach(item => {
+                    const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-full h-32 object-cover rounded-xl mb-2 shadow-sm border border-slate-100">` : `<div class="w-full h-32 bg-slate-100 text-slate-300 rounded-xl mb-2 flex items-center justify-center shadow-sm border border-slate-200"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                    const descHtml = item.description ? `<p class="text-[10px] text-slate-500 line-clamp-2 mb-2 flex-1">${safeStr(item.description)}</p>` : '<div class="flex-1"></div>';
+                    const currentQty = cart[item.id] ? cart[item.id].qty : 0;
+                    
+                    let actionHtml = `<button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0 shadow-sm"><i class="fa-solid fa-plus"></i> הוסף</button>`;
+                    if (currentQty > 0) {
+                        actionHtml = `
+                        <div class="flex items-center gap-2 bg-indigo-50 rounded-lg p-1 border border-indigo-100 shrink-0">
+                            <button onclick="updateCart(${item.id}, -1, '${safeStr(item.name)}', ${item.price})" class="w-6 h-6 rounded bg-white text-slate-600 shadow-sm flex items-center justify-center"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                            <span class="font-black text-indigo-600 text-xs w-3 text-center" id="qty-val-${item.id}">${currentQty}</span>
+                            <button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="w-6 h-6 rounded bg-indigo-600 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                        </div>`;
+                    }
+
+                    html += `
+                    <div class="bg-white rounded-2xl p-2.5 border border-slate-200 shadow-sm flex flex-col fade-in">
+                        ${imgHtml}
+                        <h3 class="font-bold text-sm text-slate-800 leading-tight mb-1">${safeStr(item.name)}</h3>
+                        ${descHtml}
+                        <div class="flex justify-between items-end mt-2 pt-2 border-t border-slate-50" id="action-container-${item.id}">
+                            <span class="font-black text-slate-800 text-sm">₪${item.price}</span>
+                            ${actionHtml}
                         </div>
-                        <div class="flex justify-between items-end mt-2">
-                            <span class="font-black text-indigo-600 text-lg">₪${item.price}</span>
-                            ${qtyHtml}
+                    </div>`;
+                });
+                html += '</div>';
+            } else {
+                // תצוגת מסעדה / מזון (List)
+                html = '<div class="flex flex-col gap-3">';
+                filtered.forEach(item => {
+                    const imgHtml = item.image_url ? `<img src="${item.image_url}" class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl shadow-sm border border-slate-100 flex-shrink-0">` : `<div class="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm border border-slate-200 flex-shrink-0"><i class="fa-solid fa-utensils text-2xl"></i></div>`;
+                    const descHtml = item.description ? `<p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description)}</p>` : '';
+                    const currentQty = cart[item.id] ? cart[item.id].qty : 0;
+
+                    let actionHtml = `<button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="bg-slate-100 text-slate-700 hover:bg-slate-200 w-8 h-8 rounded-full text-xs font-bold transition flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus"></i></button>`;
+                    if (currentQty > 0) {
+                        actionHtml = `
+                        <div class="flex items-center gap-3 bg-slate-100 rounded-full p-1 border border-slate-200">
+                            <button onclick="updateCart(${item.id}, -1, '${safeStr(item.name)}', ${item.price})" class="w-7 h-7 rounded-full bg-white text-slate-600 shadow-sm flex items-center justify-center"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                            <span class="font-black text-indigo-600 text-sm w-3 text-center" id="qty-val-${item.id}">${currentQty}</span>
+                            <button onclick="updateCart(${item.id}, 1, '${safeStr(item.name)}', ${item.price})" class="w-7 h-7 rounded-full bg-indigo-600 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                        </div>`;
+                    }
+
+                    html += `
+                    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex gap-3 fade-in">
+                        ${imgHtml}
+                        <div class="flex-1 flex flex-col justify-between py-0.5">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h3>
+                                ${descHtml}
+                            </div>
+                            <div class="flex justify-between items-end mt-2" id="action-container-${item.id}">
+                                <span class="font-black text-slate-800 text-base">₪${item.price}</span>
+                                ${actionHtml}
+                            </div>
                         </div>
-                    </div>
-                </div>`;
-            });
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
             container.innerHTML = html;
         }
 
@@ -222,10 +356,8 @@
                 delete cart[catalogId];
             }
 
-            // עדכון ה-UI של המוצר
-            const qtyEl = getEl(`qty-val-${catalogId}`);
-            if(qtyEl) qtyEl.innerText = cart[catalogId] ? cart[catalogId].qty : 0;
-
+            // עדכון ה-UI ללא צורך לרנדר מחדש את כל הקטלוג (לשמירה על אנימציה חלקה)
+            renderCatalog(); // הפתרון הנקי ביותר במקרה הזה כדי לעדכן כפתורים בין פלוס למונה
             updateCartFooter();
         }
 
@@ -258,7 +390,7 @@
                 itemsHtml += `
                 <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0">
                     <div class="flex items-center gap-3">
-                        <span class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-md text-xs">x${item.qty}</span>
+                        <span class="bg-indigo-50 text-indigo-600 font-bold px-2 py-1 rounded-md text-xs border border-indigo-100">x${item.qty}</span>
                         <span class="font-medium text-slate-700 text-sm">${safeStr(item.name)}</span>
                     </div>
                     <span class="font-bold text-slate-800 text-sm">₪${itemTotal.toFixed(2)}</span>
@@ -330,6 +462,7 @@
                     getEl('cart-footer').classList.add('hidden');
                     getEl('success-order-id').innerText = `#${data.orderId}`;
                     getEl('success-screen').classList.remove('hidden');
+                    cart = {}; // איפוס העגלה
                 } else {
                     showToast('error', data.error || 'אירעה שגיאה בשליחת ההזמנה');
                     btn.disabled = false;
