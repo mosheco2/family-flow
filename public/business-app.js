@@ -2176,11 +2176,9 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-
 let storeCatalogCache = [];
 let storeOrdersCache = [];
-let currentModifiersUI = []; // מערך האובייקטים המובנה החדש
+let currentModifiersUI = []; 
 let storeModifierPresets = [];
 let currentStoreOrderId = null;
 
@@ -2288,7 +2286,6 @@ async function saveModifierAsPreset(index) {
     } catch(e) { showToast('error', 'שגיאה בשמירה'); } finally { btn.innerHTML = '<i class="fa-solid fa-save text-xs"></i>'; }
 }
 
-// --- Builder הויזואלי החדש והמסודר ---
 function renderModifiersUI() {
     const container = getEl('modifiers-builder-container');
     if (currentModifiersUI.length === 0) {
@@ -2350,7 +2347,6 @@ function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({na
 function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
 function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
-
 
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
