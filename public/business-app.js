@@ -2183,15 +2183,16 @@ let storeModifierPresets = [];
 let currentStoreOrderId = null;
 
 function switchSalesTab(subTab) {
-    ['orders', 'catalog', 'settings'].forEach(t => {
+    ['orders', 'catalog', 'marketing', 'settings'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     });
     const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
 
     if(subTab === 'orders') fetchStoreOrders();
     if(subTab === 'catalog') fetchStoreCatalog();
+    if(subTab === 'marketing') fetchStoreCoupons();
     if(subTab === 'settings') fetchStoreSettings();
 }
 
@@ -2456,7 +2457,77 @@ function renderStoreOrders() {
         html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
     }); list.innerHTML = html;
 }
+// --- מערכת קופונים ---
+let storeCouponsCache = [];
 
+async function fetchStoreCoupons() {
+    try {
+        const res = await fetch(`${API}/store/coupons/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCouponsCache = data.coupons || [];
+            renderStoreCoupons();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderStoreCoupons() {
+    const list = getEl('store-coupons-list');
+    if (storeCouponsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">לא הוגדרו קופונים בחנות.</p>';
+        return;
+    }
+    
+    let html = '';
+    storeCouponsCache.forEach(c => {
+        const isExpired = c.valid_until && new Date(c.valid_until) < new Date();
+        const dateStr = c.valid_until ? new Date(c.valid_until).toLocaleDateString('he-IL') : 'ללא תפוגה';
+        const expiredTag = isExpired ? '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded ml-2">פג תוקף</span>' : '';
+        
+        html += `
+        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm ${isExpired ? 'opacity-60' : ''}">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-50 text-indigo-700 font-mono font-bold px-3 py-1.5 rounded-lg text-sm border border-indigo-100">${safeStr(c.code)}</div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold text-slate-800">${c.discount_pct}% הנחה ${expiredTag}</span>
+                    <span class="text-[10px] text-slate-500">תוקף: ${dateStr}</span>
+                </div>
+            </div>
+            <button onclick="deleteStoreCoupon(${c.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+async function createStoreCoupon() {
+    const code = val('coupon-code');
+    const discountPct = val('coupon-discount');
+    const validUntil = val('coupon-date');
+    
+    if (!code || !discountPct) return showToast('error', 'חובה להזין קוד ואחוז הנחה');
+    
+    try {
+        const res = await fetch(`${API}/store/coupons`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code, discountPct, validUntil })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'קופון נוצר בהצלחה!');
+            getEl('coupon-code').value = ''; getEl('coupon-discount').value = ''; getEl('coupon-date').value = '';
+            fetchStoreCoupons();
+        } else { showToast('error', data.error || 'שגיאה ביצירת קופון'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteStoreCoupon(id) {
+    if(!confirm('האם אתה בטוח שברצונך למחוק את הקופון?')) return;
+    try {
+        await fetch(`${API}/store/coupons/${id}`, { method: 'DELETE' });
+        showToast('success', 'קופון נמחק');
+        fetchStoreCoupons();
+    } catch(e) { showToast('error', 'שגיאה במחיקה'); }
+}
 function openStoreOrderModal(orderId) {
     currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
     getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
