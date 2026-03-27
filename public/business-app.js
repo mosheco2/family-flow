@@ -2176,7 +2176,7 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-// משתני החנות (בלי הפונקציה הכפולה שהרסה את הטעינה!)
+// משתני החנות
 let storeCatalogCache = [];
 let storeOrdersCache = [];
 let currentModifiersUI = [];
@@ -2316,6 +2316,7 @@ function renderModifiersUI() {
     });
     container.innerHTML = html;
 }
+
 function addModifierGroup() { currentModifiersUI.push({ name: '', values: '' }); renderModifiersUI(); }
 function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
 function updateModName(index, v) { currentModifiersUI[index].name = v; }
@@ -2583,3 +2584,4 @@ async function submitGlobalAI() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
     }
+}
