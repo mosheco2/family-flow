@@ -1697,6 +1697,45 @@ app.delete('/api/store/coupons/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// --- FAMILY COMMUNITY ENDPOINTS ---
+app.post('/api/community/join', async (req, res) => {
+    try {
+        const { groupId, code } = req.body;
+        // חיפוש הקהילה לפי הקוד
+        const commRes = await pool.query('SELECT * FROM communities WHERE code=$1', [code.toUpperCase().trim()]);
+        if(commRes.rows.length === 0) return res.json({success:false, error:'קוד קהילה אינו תקין או לא קיים'});
+        const comm = commRes.rows[0];
+        
+        // הוספת עמודת שיוך קהילה לקבוצה אם לא קיימת, ועדכון
+        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(e){}
+        await pool.query('UPDATE family_groups SET community_id=$1 WHERE id=$2', [comm.id, groupId]);
+        
+        res.json({success: true, community: comm});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+app.get('/api/community/businesses/:groupId', async (req, res) => {
+    try {
+        // משיכת הקהילה של הקבוצה
+        const gRes = await pool.query('SELECT community_id FROM family_groups WHERE id=$1', [req.params.groupId]);
+        if(gRes.rows.length===0 || !gRes.rows[0].community_id) return res.json({success:true, community: null, businesses: []});
+        
+        const commId = gRes.rows[0].community_id;
+        const commNameRes = await pool.query('SELECT name FROM communities WHERE id=$1', [commId]);
+        const communityName = commNameRes.rows.length > 0 ? commNameRes.rows[0].name : '';
+
+        // משיכת העסקים המקושרים לקהילה זו שהחנות שלהם פעילה
+        const result = await pool.query(`
+            SELECT b.id as business_id, b.name as business_name, b.group_code, s.logo_url, s.slogan, cb.discount_pct 
+            FROM community_businesses cb
+            JOIN family_groups b ON cb.business_id = b.id
+            LEFT JOIN store_settings s ON b.id = s.group_id
+            WHERE cb.community_id = $1 AND s.is_active = TRUE
+        `, [commId]);
+        
+        res.json({success: true, community: { id: commId, name: communityName }, businesses: result.rows});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
