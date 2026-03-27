@@ -2176,10 +2176,9 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-// פונקציית עזר למשיכת נתונים מהמסך - היא זו שתפתור את קריסת מסך הטעינה!
-function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
-
-// משתני עזר לחנות
+// משתני החנות (בלי הפונקציה הכפולה שהרסה את הטעינה!)
+let storeCatalogCache = [];
+let storeOrdersCache = [];
 let currentModifiersUI = [];
 let currentStoreOrderId = null;
 
