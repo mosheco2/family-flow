@@ -1471,6 +1471,7 @@ app.post('/api/timeclock/manual', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // ============================================================
 // --- STORE / E-COMMERCE ENDPOINTS (B2B/B2C) ---
 // ============================================================
@@ -1486,7 +1487,6 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 app.post('/api/store/settings', async (req, res) => {
     try {
         const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl } = req.body;
-        // שימוש ב-COALESCE אומר שאם נשלח logoUrl ריק (null), השרת לא ימחק את הלוגו הקיים
         await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, logo_url=COALESCE($8, store_settings.logo_url)`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, logoUrl]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -1496,19 +1496,6 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 ORDER BY category, name', [req.params.groupId]);
         res.json(result.rows);
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/catalog', async (req, res) => {
-    try {
-       app.put('/api/store/catalog/:id', async (req, res) => {
-    try {
-        const { name, description, price, category, imageUrl, optionsText } = req.body;
-        // הכרחת מסד הנתונים ליצור את העמודה אם היא חסרה
-        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
-        
-        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6 WHERE id=$7', [name, description, parseFloat(price)||0, category, imageUrl, optionsText, req.params.id]);
-        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1526,6 +1513,17 @@ app.post('/api/store/catalog', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+app.put('/api/store/catalog/:id', async (req, res) => {
+    try {
+        const { name, description, price, category, imageUrl, optionsText } = req.body;
+        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+        
+        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6 WHERE id=$7', [name, description, parseFloat(price)||0, category, imageUrl, optionsText, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/store/catalog/toggle', async (req, res) => {
     try {
         const { itemId, isAvailable } = req.body;
@@ -1536,50 +1534,6 @@ app.post('/api/store/catalog/toggle', async (req, res) => {
 
 app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/catalog/:id', async (req, res) => {
-    try {
-        const { name, description, price, category, imageUrl } = req.body;
-        // מעדכנים מוצר קיים. שימוש ב-COALESCE שומר את התמונה הקיימת אם לא הועלתה חדשה
-        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url) WHERE id=$6', [name, description, parseFloat(price)||0, category, imageUrl, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/ai-desc', async (req, res) => {
-    try {
-        const { productName, groupId } = req.body;
-        const hasTokens = await handleAITokens(groupId);
-        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
-        const result = await model.generateContent(prompt);
-        res.json({ success: true, description: result.response.text().trim() });
-    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
-});
-
-app.post('/api/biz/chat-assistant', async (req, res) => {
-    try {
-        const { query, context, groupId } = req.body;
-        const hasTokens = await handleAITokens(groupId);
-        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are a helpful AI assistant for a business manager using 'Oneflowlife Pro'.
-        Answer the manager's question in Hebrew based ONLY on this system data (Orders, Employees, Inventory):
-        ${context}
-        
-        Manager's Question: "${query}"
-        
-        Be very concise, professional, and helpful. Use emojis. Do not invent data that is not in the context.`;
-        
-        const result = await model.generateContent(prompt);
-        res.json({ success: true, answer: result.response.text().trim() });
-    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
 });
 
 app.get('/api/store/orders/:groupId', async (req, res) => {
@@ -1641,7 +1595,6 @@ app.post('/api/store/orders/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- משיכת נתוני חנות ציבורית (ללקוחות) לפי קוד קישור ---
 app.get('/api/storefront/:code', async (req, res) => {
     try {
         const gRes = await pool.query("SELECT id, name FROM family_groups WHERE group_code = $1", [req.params.code.toUpperCase()]);
@@ -1658,6 +1611,42 @@ app.get('/api/storefront/:code', async (req, res) => {
         res.json({ success: true, groupId, groupName, settings, catalog: cRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+app.post('/api/store/ai-desc', async (req, res) => {
+    try {
+        const { productName, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, description: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/biz/chat-assistant', async (req, res) => {
+    try {
+        const { query, context, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `You are a helpful AI assistant for a business manager using 'Oneflowlife Pro'.
+        Answer the manager's question in Hebrew based ONLY on this system data (Orders, Employees, Inventory):
+        ${context}
+        
+        Manager's Question: "${query}"
+        
+        Be very concise, professional, and helpful. Use emojis. Do not invent data that is not in the context.`;
+        
+        const result = await model.generateContent(prompt);
+        res.json({ success: true, answer: result.response.text().trim() });
+    } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
+});
+
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
