@@ -682,7 +682,7 @@
                                         </label>
                                     </div>
                                     
-                                    <div class="flex items-center gap-4 mb-4">
+                                    <div class="flex items-center gap-4 mb-4 border-b border-slate-200 pb-4">
                                         <div class="w-16 h-16 rounded-full bg-white border-2 border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0" id="store-logo-preview-container">
                                             <i class="fa-solid fa-store text-2xl text-slate-300" id="store-logo-placeholder"></i>
                                             <img id="store-logo-preview" class="hidden w-full h-full object-cover">
@@ -690,18 +690,32 @@
                                         <div class="flex-1">
                                             <label class="text-[10px] font-bold text-slate-500 block mb-1">לוגו החנות:</label>
                                             <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
-                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו (יכווץ אוטומטית)</button>
+                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו חדש</button>
                                             <input type="hidden" id="store-logo-base64">
                                         </div>
                                     </div>
 
-                                    <div class="space-y-3">
+                                    <div class="space-y-4">
+                                        <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                            <h4 class="text-xs font-bold text-slate-700 mb-2 border-b pb-1"><i class="fa-regular fa-clock mr-1"></i> שעות פעילות וקבלת הזמנות</h4>
+                                            <div class="flex gap-2">
+                                                <div class="flex-1">
+                                                    <label class="text-[10px] font-bold text-slate-500">שעת פתיחה (אופציונלי):</label>
+                                                    <input type="time" id="store-open-time" class="modern-input py-2 text-sm bg-slate-50">
+                                                </div>
+                                                <div class="flex-1">
+                                                    <label class="text-[10px] font-bold text-slate-500">שעת סגירה (אופציונלי):</label>
+                                                    <input type="time" id="store-close-time" class="modern-input py-2 text-sm bg-slate-50">
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="flex gap-2">
                                             <div class="flex-1">
-                                                <label class="text-[10px] font-bold text-slate-500">סוג חנות (עיצוב תצוגה):</label>
+                                                <label class="text-[10px] font-bold text-slate-500">סוג החנות (עיצוב התצוגה):</label>
                                                 <select id="store-type" class="modern-input py-2 text-sm bg-white">
-                                                    <option value="retail">קמעונאות 🛍️ (גריד)</option>
-                                                    <option value="food">מזון 🍔 (תפריט)</option>
+                                                    <option value="retail">מוצרים / קמעונאות 🛍️ (גריד)</option>
+                                                    <option value="food">מסעדה / מזון 🍔 (תפריט)</option>
                                                 </select>
                                             </div>
                                             <div class="w-1/3">
@@ -709,9 +723,20 @@
                                                 <input type="number" id="store-min-order" class="modern-input py-2 text-sm" placeholder="0">
                                             </div>
                                         </div>
+                                        
+                                        <div class="flex gap-2">
+                                            <div class="flex-1">
+                                                <label class="text-[10px] font-bold text-slate-500">טלפון בעסק:</label>
+                                                <input type="text" id="store-phone" class="modern-input py-2 text-sm" placeholder="050-0000000">
+                                            </div>
+                                            <div class="flex-1">
+                                                <label class="text-[10px] font-bold text-green-600">מס' וואטסאפ (לכפתור צף):</label>
+                                                <input type="text" id="store-whatsapp" class="modern-input py-2 text-sm border-green-200" placeholder="050-0000000">
+                                            </div>
+                                        </div>
+
                                         <div><label class="text-[10px] font-bold text-slate-500">סלוגן החנות (יופיע מתחת לשם העסק):</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="למשל: הטעמים הכי טובים בעיר!"></div>
                                         <div><label class="text-[10px] font-bold text-slate-500">הודעת פתיחה / מבצע קופץ (אופציונלי):</label><input type="text" id="store-welcome-msg" class="modern-input py-2 text-sm" placeholder="למשל: 10% הנחה על כל התפריט היום!"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">טלפון לבירורים והזמנות:</label><input type="text" id="store-phone" class="modern-input py-2 text-sm" placeholder="050-0000000"></div>
                                     </div>
                                     <button onclick="saveStoreSettings()" id="btn-save-store-settings" class="w-full mt-5 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הגדרות חנות</button>
                                 </div>
