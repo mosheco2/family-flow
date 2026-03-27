@@ -1480,7 +1480,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0, slogan: '', store_type: 'retail', logo_url: null } });
+        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0, slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]' } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1488,6 +1488,15 @@ app.post('/api/store/settings', async (req, res) => {
     try {
         const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl } = req.body;
         await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, logo_url=COALESCE($8, store_settings.logo_url)`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, logoUrl]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/settings/presets', async (req, res) => {
+    try {
+        const { groupId, presets } = req.body;
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
+        await pool.query(`UPDATE store_settings SET modifier_presets=$1 WHERE group_id=$2`, [presets, groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1564,7 +1573,6 @@ app.post('/api/store/orders', async (req, res) => {
         }
         await dbClient.query('COMMIT');
         
-        // שליחת מייל לבעל העסק על הזמנה חדשה
         const gRes = await pool.query('SELECT admin_email, name FROM family_groups WHERE id=$1', [groupId]);
         if(gRes.rows.length > 0 && gRes.rows[0].admin_email) {
             const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
@@ -1604,7 +1612,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const groupName = gRes.rows[0].name;
 
         const sRes = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]);
-        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null };
+        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]' };
 
         const cRes = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category, name', [groupId]);
 
