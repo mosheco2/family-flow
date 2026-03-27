@@ -1501,21 +1501,31 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 
 app.post('/api/store/catalog', async (req, res) => {
     try {
-        const { groupId, name, description, price, category, imageUrl } = req.body;
+       app.put('/api/store/catalog/:id', async (req, res) => {
+    try {
+        const { name, description, price, category, imageUrl, optionsText } = req.body;
+        // הכרחת מסד הנתונים ליצור את העמודה אם היא חסרה
+        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
         
-        // --- חומת המגן: חסימת משתמשים חינמיים מעל 50 מוצרים ---
-        const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
-        const currentCount = parseInt(countRes.rows[0].count);
-        
-        if (currentCount >= 50) {
-            return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO כדי להוסיף מוצרים נוספים לחנות.' });
-        }
-
-        await pool.query('INSERT INTO store_catalog (group_id, name, description, price, category, image_url) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, name, description, parseFloat(price)||0, category, imageUrl]);
+        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6 WHERE id=$7', [name, description, parseFloat(price)||0, category, imageUrl, optionsText, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/store/catalog', async (req, res) => {
+    try {
+        const { groupId, name, description, price, category, imageUrl, optionsText } = req.body;
+        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+        
+        const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
+        if (parseInt(countRes.rows[0].count) >= 50) {
+            return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
+        }
+
+        await pool.query('INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.post('/api/store/catalog/toggle', async (req, res) => {
     try {
         const { itemId, isAvailable } = req.body;
