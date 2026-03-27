@@ -2294,13 +2294,6 @@ function renderStoreCatalog() {
 function renderModifiersUI() {
     const container = getEl('modifiers-builder-container');
     if (currentModifiersUI.length === 0) {
-        container.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">לא הוגדרו תוספות.<br>לחצו על "הוסף קבוצה" למעלה.</p>';
-        return;
-    }
-    
-  function renderModifiersUI() {
-    const container = getEl('modifiers-builder-container');
-    if (currentModifiersUI.length === 0) {
         container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו אפשרויות בחירה למוצר זה.<br>לחצו על "הוסף קבוצה" כדי ליצור תוספות (למשל: מידה, רטבים וכד\').</p>';
         return;
     }
@@ -2323,7 +2316,6 @@ function renderModifiersUI() {
     });
     container.innerHTML = html;
 }
-
 function addModifierGroup() { currentModifiersUI.push({ name: '', values: '' }); renderModifiersUI(); }
 function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
 function updateModName(index, v) { currentModifiersUI[index].name = v; }
@@ -2591,4 +2583,3 @@ async function submitGlobalAI() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
     }
-}
