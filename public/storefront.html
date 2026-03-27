@@ -21,7 +21,6 @@
         .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         
-        /* Shopify-style aesthetics */
         .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
         .product-card { transition: all 0.3s ease; border: 1px solid transparent; }
         .product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-color: #e5e7eb; }
@@ -53,7 +52,6 @@
                     <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
                     <i id="store-logo-placeholder" class="fa-solid fa-store text-4xl text-slate-300"></i>
                 </div>
-                
                 <h1 id="store-name" class="text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
                 <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
                 <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hidden shadow-sm"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
@@ -95,11 +93,10 @@
                 <button onclick="closeModifiersModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div id="mod-options-container" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-6">
-                </div>
+            <div id="mod-options-container" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-6 pr-1"></div>
             
             <button id="btn-add-with-mod" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center items-center gap-2 text-lg">
-                הוסף לסל
+                הוסף לסל <span id="mod-total-display" class="font-normal text-sm bg-white/20 px-2 py-0.5 rounded ml-2"></span>
             </button>
         </div>
     </div>
@@ -149,6 +146,7 @@
         let currentCategory = 'all';
         let searchQuery = '';
         let currentModifierProduct = null;
+        let currentModifierBasePrice = 0;
 
         const getEl = id => document.getElementById(id);
         const val = id => getEl(id) ? getEl(id).value : '';
@@ -184,31 +182,22 @@
         }
 
         function renderHeader() {
-            getEl('store-name').innerText = storeData.groupName;
-            document.title = `${storeData.groupName} | חנות`;
-            if(storeData.settings.logo_url) {
-                getEl('store-logo').src = storeData.settings.logo_url;
-                getEl('store-logo').classList.remove('hidden');
-                getEl('store-logo-placeholder').classList.add('hidden');
-            }
+            getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
+            if(storeData.settings.logo_url) { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
             if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
         }
 
         function extractCategories() {
-            const container = getEl('categories-container');
-            if (!storeData.catalog) return;
-            const categories = new Set();
-            storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
-
+            const container = getEl('categories-container'); if (!storeData.catalog) return;
+            const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
             let html = `<button onclick="filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
             categories.forEach(cat => { html += `<button onclick="filterCategory('${safeStr(cat)}')" id="cat-btn-${safeStr(cat)}" class="cat-btn shadow-sm">${safeStr(cat)}</button>`; });
             container.innerHTML = html;
         }
 
         function filterCategory(cat) {
-            currentCategory = cat;
-            document.querySelectorAll('.cat-btn').forEach(btn => { btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); });
+            currentCategory = cat; document.querySelectorAll('.cat-btn').forEach(btn => { btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); });
             const activeBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
             if(activeBtn) { activeBtn.classList.add('cat-active'); activeBtn.classList.remove('shadow-sm'); }
             renderCatalog();
@@ -216,17 +205,9 @@
 
         function handleSearch() { searchQuery = val('search-input').toLowerCase(); renderCatalog(); }
 
-        // מערכת לפענוח אפשרויות מקו טקסט חופשי (למשל: מידה:S,M,L | תוספות: זיתים,פטריות)
-        function parseOptions(optionsText) {
-            if(!optionsText || !optionsText.includes(':')) return [];
-            try {
-                const groups = optionsText.split('|');
-                return groups.map(g => {
-                    const parts = g.split(':');
-                    if(parts.length < 2) return null;
-                    return { name: parts[0].trim(), values: parts[1].split(',').map(v => v.trim()).filter(v => v) };
-                }).filter(g => g !== null);
-            } catch(e) { return []; }
+        function hasValidModifiers(optionsText) {
+            if(!optionsText) return false;
+            try { const parsed = JSON.parse(optionsText); return Array.isArray(parsed) && parsed.length > 0; } catch(e) { return false; }
         }
 
         function renderCatalog() {
@@ -241,10 +222,9 @@
             let html = storeType === 'retail' ? '<div class="grid grid-cols-2 gap-4">' : '<div class="flex flex-col gap-4">';
 
             filtered.forEach(item => {
-                const hasOptions = item.options_text && item.options_text.includes(':');
+                const hasOptions = hasValidModifiers(item.options_text);
                 const imgHtml = item.image_url ? `<img src="${item.image_url}" class="${storeType === 'retail' ? 'w-full h-40 object-cover rounded-xl mb-3' : 'w-24 h-24 object-cover rounded-xl flex-shrink-0'} shadow-sm">` : `<div class="${storeType === 'retail' ? 'w-full h-40 mb-3' : 'w-24 h-24 flex-shrink-0'} bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
                 
-                // כפתור הוספה חכם - אם יש אפשרויות נפתח מודל, אם לא - מוסיף רגיל
                 let actionHtml = '';
                 if (hasOptions) {
                     actionHtml = `<button onclick="openModifiersModal(${item.id})" class="bg-slate-900 text-white hover:bg-black px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-md w-full sm:w-auto"><i class="fa-solid fa-plus mr-1"></i> בחר אפשרויות</button>`;
@@ -263,80 +243,82 @@
                 }
 
                 if (storeType === 'retail') {
-                    html += `
-                    <div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">
-                        ${imgHtml}
-                        <h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3>
-                        <p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p>
-                        <span class="font-black text-slate-900 text-sm mb-2">₪${item.price}</span>
-                        ${actionHtml}
-                    </div>`;
+                    html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><span class="font-black text-slate-900 text-sm mb-2">₪${item.price}</span>${actionHtml}</div>`;
                 } else {
-                    html += `
-                    <div class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in">
-                        ${imgHtml}
-                        <div class="flex-1 flex flex-col justify-between">
-                            <div>
-                                <h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3>
-                                <p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p>
-                            </div>
-                            <div class="flex justify-between items-end mt-2">
-                                <span class="font-black text-slate-900 text-base">₪${item.price}</span>
-                                <div class="w-24">${actionHtml}</div>
-                            </div>
-                        </div>
-                    </div>`;
+                    html += `<div class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><span class="font-black text-slate-900 text-base">₪${item.price}</span><div class="w-24">${actionHtml}</div></div></div></div>`;
                 }
             });
             container.innerHTML = html + '</div>';
         }
 
-        // --- מודל אפשרויות/תוספות ---
+        // --- Modifiers Logic ---
+        function calculateModTotal() {
+            let total = currentModifierBasePrice;
+            document.querySelectorAll('.mod-checkbox, .mod-radio').forEach(input => {
+                if (input.checked) total += parseFloat(input.dataset.price) || 0;
+            });
+            getEl('mod-total-display').innerText = `(₪${total.toFixed(2)})`;
+        }
+
         function openModifiersModal(itemId) {
-            const item = storeData.catalog.find(i => i.id === itemId);
-            if(!item) return;
-            currentModifierProduct = item;
+            const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
+            currentModifierProduct = item; currentModifierBasePrice = parseFloat(item.price) || 0;
             
-            getEl('mod-product-name').innerText = item.name;
-            getEl('mod-product-price').innerText = `₪${item.price}`;
+            getEl('mod-product-name').innerText = item.name; getEl('mod-product-price').innerText = `מחיר בסיס: ₪${item.price}`;
             
-            const options = parseOptions(item.options_text);
+            let options = [];
+            try { options = JSON.parse(item.options_text); } catch(e) { return; }
+            
             let html = '';
-            
-            options.forEach((opt, idx) => {
-                html += `
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-slate-700 mb-2">${opt.name}:</label>
-                    <div class="flex flex-wrap gap-2">`;
+            options.forEach((optGroup, idx) => {
+                const isSingle = optGroup.type === 'single';
+                const inputType = isSingle ? 'radio' : 'checkbox';
+                const requiredAsterisk = isSingle ? '<span class="text-red-500">*</span>' : '';
                 
-                opt.values.forEach(val => {
+                html += `<div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-100"><h4 class="font-bold text-slate-800 text-sm mb-3">${safeStr(optGroup.name)} ${requiredAsterisk} <span class="text-[10px] font-normal text-slate-500 ml-1">(${isSingle ? 'בחר 1' : 'אפשר לבחור כמה'})</span></h4><div class="space-y-2">`;
+                
+                optGroup.options.forEach((valOpt, vIdx) => {
+                    const priceBadge = valOpt.price > 0 ? `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">+₪${valOpt.price}</span>` : '';
                     html += `
-                    <label class="cursor-pointer relative">
-                        <input type="radio" name="mod_group_${idx}" value="${safeStr(val)}" class="peer sr-only" required>
-                        <div class="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-slate-900 peer-checked:text-white peer-checked:border-slate-900 transition shadow-sm hover:bg-slate-100">${safeStr(val)}</div>
+                    <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 transition group">
+                        <div class="flex items-center gap-3">
+                            <input type="${inputType}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="calculateModTotal()" ${isSingle ? 'required' : ''}>
+                            <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900">${safeStr(valOpt.name)}</span>
+                        </div>
+                        ${priceBadge}
                     </label>`;
                 });
-                
                 html += `</div></div>`;
             });
 
             getEl('mod-options-container').innerHTML = html;
+            calculateModTotal();
             
-            // הגדרת פעולת הוספה לסל
             getEl('btn-add-with-mod').onclick = () => {
-                let selectedModifiers = [];
+                let selectedModifiers = []; let totalModPrice = 0;
+                
+                // בדיקת חובת בחירה (Single)
                 for(let i=0; i<options.length; i++) {
-                    const checked = document.querySelector(`input[name="mod_group_${i}"]:checked`);
-                    if(!checked) return showToast('error', `חובה לבחור ${options[i].name}`);
-                    selectedModifiers.push(checked.value);
+                    if(options[i].type === 'single') {
+                        const checked = document.querySelector(`input[name="mod_group_${i}"]:checked`);
+                        if(!checked) return showToast('error', `חובה לבחור אפשרות מתוך: ${options[i].name}`);
+                        selectedModifiers.push(checked.value);
+                        totalModPrice += parseFloat(checked.dataset.price) || 0;
+                    } else {
+                        // בחירה מרובה (Multiple)
+                        document.querySelectorAll(`input[name="mod_group_${i}"]:checked`).forEach(checked => {
+                            selectedModifiers.push(checked.value);
+                            totalModPrice += parseFloat(checked.dataset.price) || 0;
+                        });
+                    }
                 }
                 
-                const finalName = `${item.name} (${selectedModifiers.join(', ')})`;
-                const cartKey = `${item.id}_${selectedModifiers.join('-')}`; // מפתח ייחודי לסל
+                const finalName = selectedModifiers.length > 0 ? `${item.name} (${selectedModifiers.join(', ')})` : item.name;
+                const finalPrice = currentModifierBasePrice + totalModPrice;
+                const cartKey = `${item.id}_${selectedModifiers.join('-')}`; 
                 
-                updateCart(cartKey, 1, finalName, item.price, item.id);
-                closeModifiersModal();
-                showToast('success', 'נוסף לסל בהצלחה!');
+                updateCart(cartKey, 1, finalName, finalPrice, item.id);
+                closeModifiersModal(); showToast('success', 'נוסף לסל בהצלחה!');
             };
             
             getEl('modifiers-modal').classList.remove('hidden');
@@ -344,16 +326,15 @@
 
         function closeModifiersModal() { getEl('modifiers-modal').classList.add('hidden'); }
 
-        // --- ניהול סל קניות ---
+        // --- ניהול עגלה ---
         function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
-            const catId = originalCatalogId || cartKey; // אם לא נשלח ID מקורי, המפתח הוא ה-ID (למוצרים בלי תוספות)
+            const catId = originalCatalogId || cartKey; 
             if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
             
             cart[cartKey].qty += delta;
             if (cart[cartKey].qty <= 0) delete cart[cartKey];
 
-            renderCatalog();
-            updateCartFooter();
+            renderCatalog(); updateCartFooter();
         }
 
         function updateCartFooter() {
@@ -361,77 +342,39 @@
             Object.values(cart).forEach(item => { totalQty += item.qty; totalPrice += (item.qty * item.price); });
 
             const footer = getEl('cart-footer');
-            if (totalQty > 0) {
-                getEl('cart-count').innerText = totalQty;
-                getEl('cart-total').innerText = `₪${totalPrice.toFixed(2)}`;
-                footer.classList.remove('hidden');
-            } else footer.classList.add('hidden');
+            if (totalQty > 0) { getEl('cart-count').innerText = totalQty; getEl('cart-total').innerText = `₪${totalPrice.toFixed(2)}`; footer.classList.remove('hidden'); } 
+            else footer.classList.add('hidden');
         }
 
         function openCheckoutModal() {
             let total = 0; let itemsHtml = '';
             Object.values(cart).forEach((item, index) => {
-                const itemTotal = item.qty * item.price;
-                total += itemTotal;
-                itemsHtml += `
-                <div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2">
-                    <div class="flex items-center gap-3">
-                        <span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span>
-                        <div class="flex flex-col">
-                            <span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>
-                            ${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span>
-                        <button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                    </div>
-                </div>`;
+                const itemTotal = item.qty * item.price; total += itemTotal;
+                itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
+            getEl('checkout-items').innerHTML = itemsHtml; getEl('checkout-total').innerText = `₪${total.toFixed(2)}`;
 
-            getEl('checkout-items').innerHTML = itemsHtml;
-            getEl('checkout-total').innerText = `₪${total.toFixed(2)}`;
-
-            const minOrder = parseFloat(storeData.settings.min_order) || 0;
-            const btnSubmit = getEl('btn-submit-order');
-            const warning = getEl('checkout-min-warning');
-            
-            if (minOrder > 0 && total < minOrder) {
-                getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden');
-                btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                warning.classList.add('hidden'); btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
+            const minOrder = parseFloat(storeData.settings.min_order) || 0; const btnSubmit = getEl('btn-submit-order'); const warning = getEl('checkout-min-warning');
+            if (minOrder > 0 && total < minOrder) { getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden'); btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); } 
+            else { warning.classList.add('hidden'); btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); }
             getEl('checkout-modal').classList.remove('hidden');
         }
 
         function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
 
         async function submitOrder(e) {
-            e.preventDefault();
-            const btn = getEl('btn-submit-order'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
+            e.preventDefault(); const btn = getEl('btn-submit-order'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
 
             let totalAmount = 0; const items = [];
-            Object.values(cart).forEach(i => {
-                totalAmount += (i.qty * i.price);
-                items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price });
-            });
+            Object.values(cart).forEach(i => { totalAmount += (i.qty * i.price); items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
 
             try {
-                const res = await fetch(`${API}/store/orders`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: totalAmount })
-                });
+                const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: totalAmount }) });
                 const data = await res.json();
                 
-                if (data.success) {
-                    confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] });
-                    getEl('checkout-modal').classList.add('hidden'); getEl('cart-footer').classList.add('hidden');
-                    getEl('success-order-id').innerText = `#${data.orderId}`; getEl('success-screen').classList.remove('hidden');
-                    cart = {};
-                } else showToast('error', data.error || 'אירעה שגיאה');
-            } catch(err) { showToast('error', 'שגיאת תקשורת'); }
-            finally { btn.disabled = false; btn.innerHTML = 'שליחת הזמנה <i class="fa-solid fa-check ml-1"></i>'; }
+                if (data.success) { confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); getEl('checkout-modal').classList.add('hidden'); getEl('cart-footer').classList.add('hidden'); getEl('success-order-id').innerText = `#${data.orderId}`; getEl('success-screen').classList.remove('hidden'); cart = {}; } 
+                else showToast('error', data.error || 'אירעה שגיאה');
+            } catch(err) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = 'שליחת הזמנה <i class="fa-solid fa-check ml-1"></i>'; }
         }
 
         initStore();
