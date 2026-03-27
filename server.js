@@ -1480,14 +1480,19 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0, slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]' } });
+        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0, slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl } = req.body;
-        await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, logo_url=COALESCE($8, store_settings.logo_url)`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, logoUrl]);
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, openTime, closeTime, whatsappNumber } = req.body;
+        
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+
+        await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, open_time, close_time, whatsapp_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, logo_url=COALESCE($8, store_settings.logo_url), open_time=$9, close_time=$10, whatsapp_number=$11`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, logoUrl, openTime || '', closeTime || '', whatsappNumber || '']);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
