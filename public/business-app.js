@@ -2293,6 +2293,7 @@ function openStoreProductModal(id = null) {
         getEl('sp-price').value = p.price;
         getEl('sp-category').value = p.category || '';
         getEl('sp-desc').value = p.description || '';
+        getEl('sp-options').value = p.options_text || '';
         getEl('sp-image-base64').value = p.image_url || '';
         if (p.image_url) {
             getEl('sp-image-preview').src = p.image_url;
@@ -2305,6 +2306,7 @@ function openStoreProductModal(id = null) {
     } else {
         getEl('sp-id').value = '';
         getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
+        getEl('sp-options').value = '';
         getEl('sp-image-base64').value = '';
         getEl('sp-image-preview').src = '';
         getEl('sp-image-preview').classList.add('hidden');
@@ -2319,7 +2321,7 @@ async function submitStoreProduct() {
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), imageUrl: val('sp-image-base64') || null };
+        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: val('sp-options'), imageUrl: val('sp-image-base64') || null };
         const endpoint = id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`;
         const method = id ? 'PUT' : 'POST';
 
@@ -2336,7 +2338,6 @@ async function submitStoreProduct() {
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
     finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
 }
-
 async function toggleStoreProduct(id, isAvailable) {
     await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) });
     fetchStoreCatalog();
