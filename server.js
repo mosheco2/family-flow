@@ -1660,6 +1660,43 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
 });
 
+// ============================================================
+// --- COMMUNITIES & COUPONS ENDPOINTS ---
+// ============================================================
+
+// פונקציית אתחול לטבלאות הקהילה והשיווק (תרוץ אוטומטית)
+async function initCommunityTables() {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    } catch(e) { console.error("Error creating community tables", e); }
+}
+initCommunityTables();
+
+app.get('/api/store/coupons/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_coupons WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, coupons: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/coupons', async (req, res) => {
+    try {
+        const { groupId, code, discountPct, validUntil } = req.body;
+        if (!code || !discountPct) return res.status(400).json({ error: 'חסרים נתונים חובה' });
+        
+        await pool.query('INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1, $2, $3, $4)', [groupId, code.toUpperCase().trim(), parseFloat(discountPct), validUntil || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/coupons/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_coupons WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
