@@ -1759,4 +1759,83 @@ async function submitForgotCode() {
         btn.innerText = 'שלח קוד';
     }
 }
+// ============================================================
+// --- מודול הקהילה והעסקים המקומיים ---
+// ============================================================
+
+async function fetchCommunityData() {
+    if(!currentGroup || currentGroup.type !== 'FAMILY') return;
+    try {
+        const res = await fetch(`${API}/community/businesses/${currentGroup.id}`);
+        const data = await res.json();
+        
+        if (data.success && data.community) {
+            // מחוברים לקהילה
+            getEl('community-join-section').classList.add('hidden');
+            getEl('community-businesses-section').classList.remove('hidden');
+            getEl('community-name-display').innerText = data.community.name;
+            renderCommunityBusinesses(data.businesses);
+        } else {
+            // לא מחוברים
+            getEl('community-join-section').classList.remove('hidden');
+            getEl('community-businesses-section').classList.add('hidden');
+        }
+    } catch(e) { console.error('Error fetching community data', e); }
+}
+
+function renderCommunityBusinesses(businesses) {
+    const list = getEl('community-businesses-list');
+    if (!businesses || businesses.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200">טרם צורפו עסקים לקהילה זו.</p>';
+        return;
+    }
+    
+    let html = '';
+    businesses.forEach(b => {
+        const imgHtml = b.logo_url ? `<img src="${b.logo_url}" class="w-14 h-14 rounded-xl object-cover shadow-sm shrink-0 border border-slate-100">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shadow-sm shrink-0 border border-slate-100"><i class="fa-solid fa-store text-xl"></i></div>`;
+        const discountBadge = b.discount_pct > 0 ? `<div class="bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block border border-green-200">הנחת קהילה: ${b.discount_pct}%</div>` : '';
+        const storeLink = `${window.location.origin}/storefront.html?store=${b.group_code}&communityAuth=${currentGroup.id}`;
+
+        html += `
+        <a href="${storeLink}" target="_blank" class="block bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex items-center gap-3 fade-in group">
+            ${imgHtml}
+            <div class="flex-1 min-w-0">
+                <h4 class="font-bold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition">${safeStr(b.business_name)}</h4>
+                <p class="text-[10px] text-slate-500 truncate">${safeStr(b.slogan || 'היכנסו לחנות המקומית')}</p>
+                ${discountBadge}
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300 group-hover:text-indigo-400 transition text-sm ml-2"></i>
+        </a>`;
+    });
+    list.innerHTML = html;
+}
+
+async function joinCommunity() {
+    const code = getEl('community-code-input').value;
+    if(!code) return showToast('error', 'יש להזין קוד קהילה');
+    
+    const btn = getEl('btn-join-community'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const res = await fetch(`${API}/community/join`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', `התחברתם בהצלחה לקהילת: ${data.community.name}`);
+            fetchCommunityData();
+        } else { showToast('error', data.error || 'שגיאה בחיבור'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerHTML = 'התחבר'; }
+}
+
+// עדכון פונקציית מעבר הטאבים באפליקציית המשפחה כדי שתטען את הקהילה
+const familyOriginalSwitchTab = window.switchTab;
+if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
+    window.switchTab = function(tabId) {
+        familyOriginalSwitchTab(tabId);
+        if (tabId === 'community') fetchCommunityData();
+    };
+    window.familySwitchTabOverridden = true;
+}
 // === סוף הקובץ ===
