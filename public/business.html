@@ -650,11 +650,12 @@
                                 <div class="flex justify-between items-center mb-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
                                     <h4 class="font-bold text-slate-700 text-sm ml-2">הזמנות פתוחות</h4>
                                     <div class="flex gap-2 items-center flex-1">
-                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1.5 px-2 text-xs bg-white h-auto rounded-lg shadow-sm border-slate-200 outline-none flex-1">
+                                       <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1.5 px-2 text-xs bg-white h-auto rounded-lg shadow-sm border-slate-200 outline-none flex-1">
                                             <option value="all">הכל</option>
                                             <option value="new">חדשות 🚨</option>
                                             <option value="processing">בהכנה 📦</option>
-                                            <option value="ready">לאיסוף 🛍️</option>
+                                            <option value="ready">מוכן לאיסוף 🛍️</option>
+                                            <option value="shipped">יצא במשלוח 🚚</option>
                                             <option value="completed">הושלמו ✅</option>
                                         </select>
                                         <button onclick="fetchStoreOrders()" class="text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-200 transition shrink-0"><i class="fa-solid fa-rotate-right"></i></button>
@@ -1348,12 +1349,14 @@
                     <span class="text-xl font-black text-indigo-700">₪<span id="so-modal-total"></span></span>
                 </div>
 
-                <h4 class="font-bold text-slate-700 text-sm mb-2">עדכון סטטוס ופעולה:</h4>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="updateStoreOrderStatus('processing')" class="py-3 rounded-xl font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition shadow-sm text-sm">באריזה / הכנה 📦</button>
-                    <button onclick="updateStoreOrderStatus('ready')" class="py-3 rounded-xl font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition shadow-sm text-sm">מוכן לאיסוף 🛍️</button>
-                    <button onclick="updateStoreOrderStatus('completed')" class="col-span-2 py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 transition shadow-md text-base mt-1">סופק ללקוח / הושלם ✅</button>
+ <h4 class="font-bold text-slate-700 text-sm mb-2">עדכון סטטוס ההזמנה:</h4>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button onclick="updateStoreOrderStatus('new')" class="py-2.5 rounded-xl font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition shadow-sm text-sm">התקבל (חדש) 🚨</button>
+                    <button onclick="updateStoreOrderStatus('processing')" class="py-2.5 rounded-xl font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition shadow-sm text-sm">באריזה / הכנה 📦</button>
+                    <button onclick="updateStoreOrderStatus('ready')" class="py-2.5 rounded-xl font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition shadow-sm text-sm">מוכן לאיסוף 🛍️</button>
+                    <button onclick="updateStoreOrderStatus('shipped')" class="py-2.5 rounded-xl font-bold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition shadow-sm text-sm">יצא במשלוח 🚚</button>
                 </div>
+                <button onclick="updateStoreOrderStatus('completed')" class="w-full py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 transition shadow-md text-base">נמסר ללקוח / הושלם ✅</button>
             </div>
         </div>
         <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
