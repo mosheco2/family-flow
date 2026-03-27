@@ -2206,6 +2206,9 @@ async function fetchStoreSettings() {
             getEl('store-min-order').value = data.settings.min_order || '';
             getEl('store-slogan').value = data.settings.slogan || '';
             getEl('store-type').value = data.settings.store_type || 'retail';
+            getEl('store-open-time').value = data.settings.open_time || '';
+            getEl('store-close-time').value = data.settings.close_time || '';
+            getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
             if (data.settings.logo_url) {
@@ -2229,13 +2232,57 @@ async function saveStoreSettings() {
     try {
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), logoUrl: val('store-logo-base64') || null })
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
+                phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
+                logoUrl: val('store-logo-base64') || null,
+                openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
+            })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
+// פונקציית מערכת: אכיפת הרשאות תצוגה מבוססות תפקיד בעסק
+function enforcePermissions() {
+    if (!currentGroup) return;
+    const isAdmin = currentGroup.role === 'ADMIN';
+    
+    // רשימת אלמנטים ניהוליים שאנו רוצים להסתיר מעובד סטנדרטי
+    if (!isAdmin) {
+        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
+        if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
+        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.add('hidden');
+        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.add('hidden');
+        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
+        if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
+        if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
+        
+        // בחנות - עובד רואה רק הזמנות נכנסות (לא הגדרות וקטלוג)
+        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
+        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
+    } else {
+        // אם מדובר באדמין, נחזיר את האלמנטים לתצוגה (חשוב למקרים של החלפת סביבה)
+        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
+        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
+        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
+        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.remove('hidden');
+        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
+        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
+    }
+}
 
+// "התלבשות" על פונקציית החלפת הטאבים הגלובלית כדי לאכוף הרשאות בכל מעבר מסך
+const originalSwitchTab = window.switchTab;
+if (originalSwitchTab && !window.switchTabOverridden) {
+    window.switchTab = function(tabId) {
+        originalSwitchTab(tabId);
+        setTimeout(enforcePermissions, 50);
+    };
+    window.switchTabOverridden = true;
+}
+// הפעלה ראשונית מיד לאחר טעינת הדף
+setTimeout(enforcePermissions, 1500);
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
