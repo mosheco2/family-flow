@@ -1282,17 +1282,22 @@
                     <div class="flex gap-2">
                         <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר (₪):</label><input type="number" id="sp-price" class="modern-input py-2.5 text-sm" placeholder="0.00"></div>
                         <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">קטגוריה:</label><input type="text" id="sp-category" class="modern-input py-2.5 text-sm" placeholder="למשל: עיקריות / מבצעים"></div>
-                    <div>
+                   <div>
                         <div class="flex justify-between items-end mb-1">
-                            <label class="text-[10px] font-bold text-slate-500">תיאור המוצר (אופציונלי):</label>
+                            <label class="text-[10px] font-bold text-slate-500">תיאור (אופציונלי):</label>
                             <button onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI</button>
                         </div>
-                        <textarea id="sp-desc" class="modern-input py-2.5 text-sm h-16" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
+                        <textarea id="sp-desc" class="modern-input py-2.5 text-sm h-14" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
                     </div>
-                    <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                        <label class="text-[10px] font-bold text-indigo-800 block mb-1">בחירות ותוספות למנה/מוצר (אופציונלי):</label>
-                        <input type="text" id="sp-options" class="modern-input py-2.5 text-sm bg-white" placeholder="למשל: מידה: S,M,L | רטבים: קטשופ,מיונז">
-                        <p class="text-[9px] text-indigo-600 mt-1 leading-tight">השתמשו בנקודתיים (:) בין שם לסוגים, ובקו ניצב (|) לעוד קבוצה.</p>
+                    
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-2 border-b border-slate-200 pb-2">
+                            <label class="text-[10px] font-bold text-slate-700 block">אפשרויות (מידות, צבעים, תוספות):</label>
+                            <button onclick="addModifierGroup()" class="text-[9px] font-bold text-indigo-600 bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-plus"></i> הוסף קבוצה</button>
+                        </div>
+                        <div id="modifiers-builder-container" class="space-y-2 max-h-32 overflow-y-auto modal-scroll pr-1">
+                            </div>
+                        <input type="hidden" id="sp-options">
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6">
