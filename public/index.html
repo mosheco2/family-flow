@@ -498,8 +498,9 @@
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">אקדמיה 🎓</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
-                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                          <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
                             <button onclick="switchTab('recipes')" id="tab-recipes" class="tab-btn">שף AI 👨‍🍳</button>
+                            <button onclick="switchTab('community')" id="tab-community" class="tab-btn bg-gradient-to-r from-orange-400 to-pink-500 text-white border-transparent shadow-md">הקהילה שלי 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">ניהול 👥</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
@@ -788,12 +789,33 @@
                         <div id="tasks-list" class="space-y-3 pb-20"></div>
                     </div>
 
-                    <div id="content-members" class="hidden space-y-6">
-                        <div class="card-modern overflow-hidden">
-                            <div class="p-4 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-                                <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-users-gear text-slate-600"></i> ניהול משפחה</h3>
-                                <button onclick="openInviteModal()" id="tour-invite-btn" class="text-green-600 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full text-xs font-bold transition shadow-sm flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-sm"></i> הוסף בן/בת משפחה</button>
+                   <div id="content-community" class="hidden">
+                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                            <h3 class="text-xl font-bold mb-1">הקהילה שלנו 🏘️</h3>
+                            <p class="text-orange-50 text-xs opacity-90">כל העסקים וההטבות המיוחדות לחברי הקהילה שלכם במקום אחד.</p>
+                            <i class="fa-solid fa-store absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                        </div>
+                        
+                        <div id="community-join-section" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 text-center">
+                            <i class="fa-solid fa-house-flag text-4xl text-slate-300 mb-3"></i>
+                            <h4 class="font-bold text-slate-700 mb-2">חיבור לקהילה המקומית</h4>
+                            <p class="text-xs text-slate-500 mb-4">הזינו את קוד הקהילה שלכם (יישוב, ועד עובדים, שכונה) כדי לראות עסקים מקומיים ולהנות מהנחות.</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="community-code-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד קהילה">
+                                <button onclick="joinCommunity()" id="btn-join-community" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-slate-700 transition whitespace-nowrap">התחבר</button>
                             </div>
+                        </div>
+
+                        <div id="community-businesses-section" class="hidden">
+                            <div class="flex justify-between items-center mb-4 px-2">
+                                <h3 class="font-bold text-slate-700 text-lg">עסקים בקהילה</h3>
+                                <span id="community-name-display" class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100"></span>
+                            </div>
+                            <div id="community-businesses-list" class="space-y-3 pb-20"></div>
+                        </div>
+                    </div>
+
+                    <div id="content-members" class="hidden space-y-6">
                             <div id="members-list" class="divide-y divide-slate-50 p-2"></div>
                             
                             <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
