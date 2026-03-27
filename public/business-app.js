@@ -2298,16 +2298,26 @@ function renderModifiersUI() {
         return;
     }
     
+  function renderModifiersUI() {
+    const container = getEl('modifiers-builder-container');
+    if (currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו אפשרויות בחירה למוצר זה.<br>לחצו על "הוסף קבוצה" כדי ליצור תוספות (למשל: מידה, רטבים וכד\').</p>';
+        return;
+    }
+    
     let html = '';
     currentModifiersUI.forEach((mod, index) => {
         html += `
-        <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-2 fade-in">
-            <button onclick="removeModifierGroup(${index})" class="absolute top-1 left-1 text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-xmark text-xs"></i></button>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in">
+            <button onclick="removeModifierGroup(${index})" class="absolute top-2 left-2 text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            
             <div>
-                <input type="text" placeholder="שם הקבוצה (למשל: סוג בצק)" class="w-[85%] bg-slate-50 border border-slate-100 rounded text-xs font-bold px-2 py-1.5 outline-none focus:border-indigo-300 text-slate-700" value="${safeStr(mod.name)}" onchange="updateModName(${index}, this.value)">
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה (למשל: מידת עשייה):</label>
+                <input type="text" class="w-[85%] bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-indigo-400 text-slate-800 transition" value="${safeStr(mod.name)}" onchange="updateModName(${index}, this.value)" placeholder="שם הקבוצה...">
             </div>
             <div>
-                <input type="text" placeholder="האפשרויות (הפרידו בפסיקים: עבה,דק,ללא גלוטן)" class="w-full bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400" value="${safeStr(mod.values)}" onchange="updateModValues(${index}, this.value)">
+                <label class="text-[10px] font-bold text-slate-500 block mb-1">אפשרויות (הפרידו בפסיק: R,M,WD):</label>
+                <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm px-3 py-2 outline-none focus:border-indigo-400 transition text-slate-700" value="${safeStr(mod.values)}" onchange="updateModValues(${index}, this.value)" placeholder="אפשרות א, אפשרות ב...">
             </div>
         </div>`;
     });
