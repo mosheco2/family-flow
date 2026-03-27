@@ -2254,6 +2254,9 @@ async function fetchStoreCatalog() {
     } catch(e) {}
 }
 
+// משתנה עזר לבניית ממשק האפשרויות
+let currentModifiersUI = [];
+
 function renderStoreCatalog() {
     const list = getEl('store-catalog-list');
     if(!storeCatalogCache || storeCatalogCache.length === 0) {
@@ -2262,66 +2265,102 @@ function renderStoreCatalog() {
     }
     let html = '';
     storeCatalogCache.forEach(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div>`;
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm shrink-0">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-box text-xl"></i></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
         const activeText = p.is_available ? 'זמין' : 'מוסתר';
+        
+        // העיצוב החדש והמרווח
         html += `
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-2">
-            <div class="flex items-center gap-3">
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
                 ${imgHtml}
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.name)}</h4>
-                    <p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1">(${safeStr(p.category || 'כללי')})</span></p>
+                <div class="min-w-0 flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4>
+                    <p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border transition ${activeColor}">${activeText}</button>
-                <button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>
+            <div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${activeText}</button>
+                <button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         </div>`;
     });
     list.innerHTML = html;
 }
 
+function renderModifiersUI() {
+    const container = getEl('modifiers-builder-container');
+    if (currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed border-slate-200">לא הוגדרו תוספות.<br>לחצו על "הוסף קבוצה" למעלה.</p>';
+        return;
+    }
+    
+    let html = '';
+    currentModifiersUI.forEach((mod, index) => {
+        html += `
+        <div class="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-2 fade-in">
+            <button onclick="removeModifierGroup(${index})" class="absolute top-1 left-1 text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-xmark text-xs"></i></button>
+            <div>
+                <input type="text" placeholder="שם הקבוצה (למשל: סוג בצק)" class="w-[85%] bg-slate-50 border border-slate-100 rounded text-xs font-bold px-2 py-1.5 outline-none focus:border-indigo-300 text-slate-700" value="${safeStr(mod.name)}" onchange="updateModName(${index}, this.value)">
+            </div>
+            <div>
+                <input type="text" placeholder="האפשרויות (הפרידו בפסיקים: עבה,דק,ללא גלוטן)" class="w-full bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400" value="${safeStr(mod.values)}" onchange="updateModValues(${index}, this.value)">
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function addModifierGroup() { currentModifiersUI.push({ name: '', values: '' }); renderModifiersUI(); }
+function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
+function updateModName(index, val) { currentModifiersUI[index].name = val; }
+function updateModValues(index, val) { currentModifiersUI[index].values = val; }
+
 function openStoreProductModal(id = null) {
+    currentModifiersUI = []; // איפוס מאפיינים
+    
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id);
         if(!p) return;
-        getEl('sp-id').value = p.id;
-        getEl('sp-name').value = p.name;
-        getEl('sp-price').value = p.price;
-        getEl('sp-category').value = p.category || '';
-        getEl('sp-desc').value = p.description || '';
-        getEl('sp-options').value = p.options_text || '';
+        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; 
         getEl('sp-image-base64').value = p.image_url || '';
-        if (p.image_url) {
-            getEl('sp-image-preview').src = p.image_url;
-            getEl('sp-image-preview').classList.remove('hidden');
-            getEl('sp-image-placeholder').classList.add('hidden');
-        } else {
-            getEl('sp-image-preview').classList.add('hidden');
-            getEl('sp-image-placeholder').classList.remove('hidden');
+        
+        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } 
+        else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
+        
+        // פענוח המחרוזת בחזרה לממשק הויזואלי
+        if (p.options_text) {
+            const groups = p.options_text.split('|');
+            groups.forEach(g => {
+                const parts = g.split(':');
+                if (parts.length >= 2) currentModifiersUI.push({ name: parts[0].trim(), values: parts[1].trim() });
+            });
         }
     } else {
-        getEl('sp-id').value = '';
-        getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
-        getEl('sp-options').value = '';
+        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
         getEl('sp-image-base64').value = '';
-        getEl('sp-image-preview').src = '';
-        getEl('sp-image-preview').classList.add('hidden');
-        getEl('sp-image-placeholder').classList.remove('hidden');
+        getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
     }
+    
+    renderModifiersUI();
     getEl('store-product-modal').classList.remove('hidden');
 }
 
 async function submitStoreProduct() {
-    const id = val('sp-id');
-    const name = val('sp-name'); const price = val('sp-price');
+    const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
+    
+    // קומפילציה של המאפיינים למחרוזת שתישמר במסד הנתונים
+    let optionsArray = [];
+    currentModifiersUI.forEach(mod => {
+        if (mod.name.trim() && mod.values.trim()) optionsArray.push(`${mod.name.trim()}:${mod.values.trim()}`);
+    });
+    const finalOptionsText = optionsArray.join('|');
+    
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: val('sp-options'), imageUrl: val('sp-image-base64') || null };
+        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null };
         const endpoint = id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`;
         const method = id ? 'PUT' : 'POST';
 
@@ -2335,8 +2374,9 @@ async function submitStoreProduct() {
         } else {
             showToast('error', data.error || 'שגיאה בשמירה');
         }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); }
     finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
+}
 }
 async function toggleStoreProduct(id, isAvailable) {
     await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) });
