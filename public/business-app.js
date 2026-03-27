@@ -2176,6 +2176,13 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
+// פונקציית עזר למשיכת נתונים מהמסך - היא זו שתפתור את קריסת מסך הטעינה!
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+// משתני עזר לחנות
+let currentModifiersUI = [];
+let currentStoreOrderId = null;
+
 function switchSalesTab(subTab) {
     ['orders', 'catalog', 'settings'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
@@ -2243,7 +2250,7 @@ async function saveStoreSettings() {
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
-    navigator.clipboard.writeText(link).then(() => showToast('info', 'לינק החנות הועתק! שלחו ללקוחות.'));
+    navigator.clipboard.writeText(link).then(() => showToast('info', 'לינק החנות הועתק!'));
 }
 
 async function fetchStoreCatalog() {
@@ -2253,9 +2260,6 @@ async function fetchStoreCatalog() {
         renderStoreCatalog();
     } catch(e) {}
 }
-
-// משתנה עזר לבניית ממשק האפשרויות
-let currentModifiersUI = [];
 
 function renderStoreCatalog() {
     const list = getEl('store-catalog-list');
@@ -2269,7 +2273,6 @@ function renderStoreCatalog() {
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
         const activeText = p.is_available ? 'זמין' : 'מוסתר';
         
-        // העיצוב החדש והמרווח
         html += `
         <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
             <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -2314,11 +2317,11 @@ function renderModifiersUI() {
 
 function addModifierGroup() { currentModifiersUI.push({ name: '', values: '' }); renderModifiersUI(); }
 function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
-function updateModName(index, val) { currentModifiersUI[index].name = val; }
-function updateModValues(index, val) { currentModifiersUI[index].values = val; }
+function updateModName(index, v) { currentModifiersUI[index].name = v; }
+function updateModValues(index, v) { currentModifiersUI[index].values = v; }
 
 function openStoreProductModal(id = null) {
-    currentModifiersUI = []; // איפוס מאפיינים
+    currentModifiersUI = []; 
     
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id);
@@ -2329,7 +2332,6 @@ function openStoreProductModal(id = null) {
         if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } 
         else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
-        // פענוח המחרוזת בחזרה לממשק הויזואלי
         if (p.options_text) {
             const groups = p.options_text.split('|');
             groups.forEach(g => {
@@ -2351,7 +2353,6 @@ async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    // קומפילציה של המאפיינים למחרוזת שתישמר במסד הנתונים
     let optionsArray = [];
     currentModifiersUI.forEach(mod => {
         if (mod.name.trim() && mod.values.trim()) optionsArray.push(`${mod.name.trim()}:${mod.values.trim()}`);
@@ -2377,7 +2378,7 @@ async function submitStoreProduct() {
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); }
     finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
 }
-}
+
 async function toggleStoreProduct(id, isAvailable) {
     await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) });
     fetchStoreCatalog();
@@ -2582,4 +2583,3 @@ async function submitGlobalAI() {
         btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
     }
 }
-// === סוף הקובץ ===
