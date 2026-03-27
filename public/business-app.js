@@ -2176,10 +2176,12 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-// משתני החנות
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
 let storeCatalogCache = [];
 let storeOrdersCache = [];
-let currentModifiersUI = [];
+let currentModifiersUI = []; // מערך האובייקטים המובנה החדש
+let storeModifierPresets = [];
 let currentStoreOrderId = null;
 
 function switchSalesTab(subTab) {
@@ -2214,6 +2216,11 @@ async function fetchStoreSettings() {
                 getEl('store-logo-placeholder').classList.add('hidden');
                 getEl('store-logo-base64').value = data.settings.logo_url;
             }
+
+            if (data.settings.modifier_presets) {
+                try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
+                renderPresetSelector();
+            }
         }
     } catch(e) { console.error(e); }
 }
@@ -2222,26 +2229,11 @@ async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
     btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const res = await fetch(`${API}/store/settings`, {
+        await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({
-                groupId: currentGroup.id,
-                isActive: getEl('store-is-active').checked,
-                welcomeMessage: val('store-welcome-msg'),
-                phone: val('store-phone'),
-                minOrder: val('store-min-order'),
-                slogan: val('store-slogan'),
-                storeType: val('store-type'),
-                logoUrl: val('store-logo-base64') || null
-            })
+            body: JSON.stringify({ groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), logoUrl: val('store-logo-base64') || null })
         });
-        
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
-        } else {
-            showToast('error', 'שגיאת שרת: ' + (data.error || 'לא ידוע'));
-        }
+        showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
@@ -2253,335 +2245,212 @@ function copyStoreLink() {
 }
 
 async function fetchStoreCatalog() {
-    try {
-        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
-        storeCatalogCache = await res.json();
-        renderStoreCatalog();
-    } catch(e) {}
+    try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); renderStoreCatalog(); } catch(e) {}
 }
 
 function renderStoreCatalog() {
     const list = getEl('store-catalog-list');
     if(!storeCatalogCache || storeCatalogCache.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים בקטלוג. לחצו על "מוצר חדש" כדי להתחיל.</p>';
-        return;
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים בקטלוג. לחצו על "מוצר חדש" כדי להתחיל.</p>'; return;
     }
     let html = '';
     storeCatalogCache.forEach(p => {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm shrink-0">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-box text-xl"></i></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-        const activeText = p.is_available ? 'זמין' : 'מוסתר';
-        
-        html += `
-        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-                ${imgHtml}
-                <div class="min-w-0 flex-1">
-                    <h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4>
-                    <p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                <button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${activeText}</button>
-                <button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button>
-                <button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
+        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
+    }); list.innerHTML = html;
 }
 
+function renderPresetSelector() {
+    const sel = getEl('preset-selector'); if (!sel) return;
+    if (storeModifierPresets.length > 0) {
+        sel.innerHTML = '<option value="">טען תבנית שמורה...</option>';
+        storeModifierPresets.forEach((p, idx) => { sel.innerHTML += `<option value="${idx}">${safeStr(p.name)}</option>`; });
+        sel.classList.remove('hidden');
+    } else { sel.classList.add('hidden'); }
+}
+
+function loadPreset(idx) {
+    if (idx === '') return; const preset = storeModifierPresets[idx];
+    if (preset) { currentModifiersUI.push(JSON.parse(JSON.stringify(preset))); renderModifiersUI(); } // Deep copy
+    getEl('preset-selector').value = '';
+}
+
+async function saveModifierAsPreset(index) {
+    const mod = currentModifiersUI[index];
+    if (!mod.name || mod.options.length === 0) return showToast('error', 'יש למלא שם לפחות אפשרות אחת לשמירה');
+    storeModifierPresets.push(JSON.parse(JSON.stringify(mod)));
+    
+    const btn = getEl(`btn-save-preset-${index}`); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        await fetch(`${API}/store/settings/presets`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) }) });
+        renderPresetSelector(); showToast('success', 'התבנית נשמרה לשימוש עתידי!');
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); } finally { btn.innerHTML = '<i class="fa-solid fa-save text-xs"></i>'; }
+}
+
+// --- Builder הויזואלי החדש והמסודר ---
 function renderModifiersUI() {
     const container = getEl('modifiers-builder-container');
     if (currentModifiersUI.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו אפשרויות בחירה למוצר זה.<br>לחצו על "הוסף קבוצה" כדי ליצור תוספות (למשל: מידה, רטבים וכד\').</p>';
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
         return;
     }
     
     let html = '';
-    currentModifiersUI.forEach((mod, index) => {
+    currentModifiersUI.forEach((mod, groupIndex) => {
+        const typeSingle = mod.type === 'single' ? 'selected' : ''; const typeMulti = mod.type === 'multiple' ? 'selected' : '';
+        
+        let optionsHtml = '';
+        mod.options.forEach((opt, optIndex) => {
+            optionsHtml += `
+            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
+                <div class="w-20 relative">
+                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
+                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                </div>
+                <button onclick="removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            </div>`;
+        });
+
         html += `
-        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in">
-            <button onclick="removeModifierGroup(${index})" class="absolute top-2 left-2 text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
-            
-            <div>
-                <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה (למשל: מידת עשייה):</label>
-                <input type="text" class="w-[85%] bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-indigo-400 text-slate-800 transition" value="${safeStr(mod.name)}" onchange="updateModName(${index}, this.value)" placeholder="שם הקבוצה...">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in">
+            <div class="absolute top-2 left-2 flex gap-2">
+                <button id="btn-save-preset-${groupIndex}" onclick="saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button onclick="removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
             </div>
-            <div>
-                <label class="text-[10px] font-bold text-slate-500 block mb-1">אפשרויות (הפרידו בפסיק: R,M,WD):</label>
-                <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm px-3 py-2 outline-none focus:border-indigo-400 transition text-slate-700" value="${safeStr(mod.values)}" onchange="updateModValues(${index}, this.value)" placeholder="אפשרות א, אפשרות ב...">
+            
+            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
+                    <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-indigo-400 text-slate-800 transition" value="${safeStr(mod.name)}" onchange="updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
+                </div>
+                <div class="w-[45%]">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
+                    <select onchange="updateModType(${groupIndex}, this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs px-2 py-2.5 outline-none focus:border-indigo-400 text-slate-700">
+                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
+                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="space-y-1">
+                ${optionsHtml}
+                <button onclick="addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
             </div>
         </div>`;
-    });
-    container.innerHTML = html;
+    }); container.innerHTML = html;
 }
 
-function addModifierGroup() { currentModifiersUI.push({ name: '', values: '' }); renderModifiersUI(); }
+function addModifierGroup() { currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); renderModifiersUI(); }
 function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
 function updateModName(index, v) { currentModifiersUI[index].name = v; }
-function updateModValues(index, v) { currentModifiersUI[index].values = v; }
+function updateModType(index, v) { currentModifiersUI[index].type = v; }
+function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); renderModifiersUI(); }
+function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
+function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
+function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
+
 
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
-    
     if (id) {
-        const p = storeCatalogCache.find(item => item.id === id);
-        if(!p) return;
-        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; 
-        getEl('sp-image-base64').value = p.image_url || '';
-        
-        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } 
-        else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
+        const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
+        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
+        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
         if (p.options_text) {
-            const groups = p.options_text.split('|');
-            groups.forEach(g => {
-                const parts = g.split(':');
-                if (parts.length >= 2) currentModifiersUI.push({ name: parts[0].trim(), values: parts[1].trim() });
-            });
+            try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
         }
     } else {
-        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
-        getEl('sp-image-base64').value = '';
-        getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
+        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
     }
-    
-    renderModifiersUI();
-    getEl('store-product-modal').classList.remove('hidden');
+    renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
 }
 
 async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    let optionsArray = [];
-    currentModifiersUI.forEach(mod => {
-        if (mod.name.trim() && mod.values.trim()) optionsArray.push(`${mod.name.trim()}:${mod.values.trim()}`);
+    // ניקוי של שדות ריקים לפני השמירה למסד הנתונים
+    let validOptions = [];
+    currentModifiersUI.forEach(mod => { 
+        if (mod.name.trim()) {
+            const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
+            if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
+        }
     });
-    const finalOptionsText = optionsArray.join('|');
+    const finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
         const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null };
-        const endpoint = id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`;
-        const method = id ? 'PUT' : 'POST';
-
-        const res = await fetch(endpoint, { method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!');
-            getEl('store-product-modal').classList.add('hidden');
-            fetchStoreCatalog();
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירה');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור מוצר לקטלוג'; }
+        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
 
-async function toggleStoreProduct(id, isAvailable) {
-    await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) });
-    fetchStoreCatalog();
-}
+async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
+async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
-async function deleteStoreProduct(id) {
-    if(!confirm('האם למחוק את המוצר מהקטלוג לחלוטין?')) return;
-    await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' });
-    showToast('info', 'המוצר נמחק מהחנות');
-    fetchStoreCatalog();
-}
-
-async function fetchStoreOrders() {
-    try {
-        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.error) {
-            console.error("Store Orders Error:", data.error);
-            return;
-        }
-        storeOrdersCache = Array.isArray(data) ? data : [];
-        renderStoreOrders();
-    } catch(e) { console.error("Network error fetching orders", e); }
-}
+async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/orders/${currentGroup.id}`); const data = await res.json(); storeOrdersCache = Array.isArray(data) ? data : []; renderStoreOrders(); } catch(e) {} }
 
 function renderStoreOrders() {
-    const list = getEl('store-orders-list');
-    const filter = val('store-orders-filter') || 'all';
-    
-    let filteredOrders = storeOrdersCache;
-    if (filter !== 'all') {
-        filteredOrders = filteredOrders.filter(o => o.status === filter);
-    }
-
-    if(!filteredOrders || filteredOrders.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>';
-        return;
-    }
+    const list = getEl('store-orders-list'); const filter = val('store-orders-filter') || 'all'; let filteredOrders = storeOrdersCache;
+    if (filter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === filter);
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
-    const statusMap = {
-        'new': { text: 'הזמנה חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200 shadow-sm' },
-        'processing': { text: 'באריזה/הכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' },
-        'ready': { text: 'מוכן לאיסוף 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200 shadow-sm' },
-        'completed': { text: 'סופק / הושלם ✅', color: 'bg-green-100 text-green-700 border-green-200 shadow-sm opacity-60' }
-    };
-
+    const statusMap = { 'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 'processing': { text: 'בהכנה 📦', color: 'bg-blue-100 text-blue-700 border-blue-200' }, 'ready': { text: 'מוכן 🛍️', color: 'bg-orange-100 text-orange-700 border-orange-200' }, 'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } };
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
-        html += `
-        <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition hover:border-slate-300">
-            <div>
-                <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
-                <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
-            </div>
-            <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap">${st.text}</span>
-        </div>`;
-    });
-    list.innerHTML = html;
+        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap">${st.text}</span></div>`;
+    }); list.innerHTML = html;
 }
 
 function openStoreOrderModal(orderId) {
-    currentStoreOrderId = orderId;
-    const order = storeOrdersCache.find(o => o.id === orderId);
-    if(!order) return;
-    getEl('so-modal-id').innerText = order.id;
-    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
-    getEl('so-modal-total').innerText = order.total_amount;
-    getEl('so-modal-customer').innerText = order.customer_name;
-    getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
-
+    currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
+    getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     let itemsHtml = '';
-    if(order.items && order.items.length > 0) {
-        order.items.forEach(i => {
-            itemsHtml += `
-            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm">
-                <span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span>
-                <span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span>
-            </div>`;
-        });
-    }
-    getEl('so-modal-items').innerHTML = itemsHtml;
-    getEl('store-order-modal').classList.remove('hidden');
+    if(order.items) order.items.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
+    getEl('so-modal-items').innerHTML = itemsHtml; getEl('store-order-modal').classList.remove('hidden');
 }
 
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
-    try {
-        await fetch(`${API}/store/orders/status`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ orderId: currentStoreOrderId, status })
-        });
-        showToast('success', 'סטטוס ההזמנה עודכן!');
-        getEl('store-order-modal').classList.add('hidden');
-        fetchStoreOrders();
-    } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+    try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 }
 
 async function generateStoreProductAI() {
-    const name = val('sp-name');
-    if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
-    
+    const name = val('sp-name'); if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
     executeWithAIWarning(async () => {
         const btn = getEl('btn-sp-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
         try {
-            const res = await fetch(`${API}/store/ai-desc`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ productName: name, groupId: currentGroup.id }) 
-            });
-            const data = await res.json();
-            if(data.success && data.description) {
-                getEl('sp-desc').value = data.description;
-                showToast('success', 'ה-AI ניסח תיאור בהצלחה!');
-            } else { showToast('error', data.error || 'שגיאה בניסוח'); }
-        } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); }
-        finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
+            const res = await fetch(`${API}/store/ai-desc`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ productName: name, groupId: currentGroup.id }) }); const data = await res.json();
+            if(data.success && data.description) { getEl('sp-desc').value = data.description; showToast('success', 'ה-AI ניסח תיאור בהצלחה!'); } else { showToast('error', data.error || 'שגיאה בניסוח'); }
+        } catch(e) { showToast('error', 'שגיאת תקשורת מול שרת ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI'; }
     });
 }
 
-// ==========================================
-// --- העלאת ודחיסת תמונות לחנות ---
-// ==========================================
-
 function handleStoreLogoUpload(event) {
-    const file = event.target.files[0]; if(!file) return;
-    showToast('info', 'מכווץ תמונה...');
-    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
-        getEl('store-logo-preview').src = compressedDataUrl;
-        getEl('store-logo-preview').classList.remove('hidden');
-        getEl('store-logo-placeholder').classList.add('hidden');
-        getEl('store-logo-base64').value = compressedDataUrl;
-        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
-    });
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
+    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => { getEl('store-logo-preview').src = compressedDataUrl; getEl('store-logo-preview').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); getEl('store-logo-base64').value = compressedDataUrl; showToast('success', 'הלוגו הועלה ומוכן לשמירה!'); });
 }
 
 function handleProductImageBase64(event) {
-    const file = event.target.files[0]; if(!file) return;
-    showToast('info', 'מכווץ תמונת מוצר...');
-    compressImage(file, 600, 600, 0.8, (compressedDataUrl) => {
-        getEl('sp-image-preview').src = compressedDataUrl;
-        getEl('sp-image-preview').classList.remove('hidden');
-        getEl('sp-image-placeholder').classList.add('hidden');
-        getEl('sp-image-base64').value = compressedDataUrl;
-        showToast('success', 'התמונה הועלתה ומוכנה לשמירה!');
-    });
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת מוצר...');
+    compressImage(file, 600, 600, 0.8, (compressedDataUrl) => { getEl('sp-image-preview').src = compressedDataUrl; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); getEl('sp-image-base64').value = compressedDataUrl; showToast('success', 'התמונה הועלתה ומוכנה לשמירה!'); });
 }
 
-// ==========================================
-// --- עוזרת עסקית AI גלובלית ---
-// ==========================================
-
-function openGlobalAIAssistant() {
-    getEl('global-ai-input').value = '';
-    getEl('global-ai-modal').classList.remove('hidden');
-}
-
+function openGlobalAIAssistant() { getEl('global-ai-input').value = ''; getEl('global-ai-modal').classList.remove('hidden'); }
 async function submitGlobalAI() {
-    const inputEl = getEl('global-ai-input');
-    const query = inputEl.value.trim();
-    if (!query) return;
-
-    const chatBox = getEl('global-ai-chat');
-    // הוספת הודעת המשתמש
-    chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`;
-    inputEl.value = '';
-    
-    const btn = getEl('btn-global-ai-submit');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
-
-    // איסוף קונטקסט מהמערכת
-    const systemContext = {
-        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'),
-        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})),
-        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})),
-        recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount}))
-    };
-
+    const inputEl = getEl('global-ai-input'); const query = inputEl.value.trim(); if (!query) return;
+    const chatBox = getEl('global-ai-chat'); chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`; inputEl.value = '';
+    const btn = getEl('btn-global-ai-submit'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+    const systemContext = { active_orders: storeOrdersCache.filter(o => o.status !== 'completed'), employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})), pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})), recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount})) };
     try {
-        const res = await fetch(`${API}/biz/chat-assistant`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id })
-        });
-        const data = await res.json();
-        
-        if (!handleAIResponseCheck(data)) {
-            getEl('global-ai-modal').classList.add('hidden');
-            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-            return;
-        }
-
-        if (data.success && data.answer) {
-            chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-        } else {
-            showToast('error', 'שגיאה בתשובת ה-AI');
-        }
-    } catch(e) {
-        showToast('error', 'תקלת רשת מול מנוע ה-AI');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-    }
+        const res = await fetch(`${API}/biz/chat-assistant`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id }) }); const data = await res.json();
+        if (!handleAIResponseCheck(data)) { getEl('global-ai-modal').classList.add('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; return; }
+        if (data.success && data.answer) { chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
+    } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
