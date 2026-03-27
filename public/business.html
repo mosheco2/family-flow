@@ -1261,81 +1261,99 @@
                 </div>
             </div>
         </div>
-       <div id="store-product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-lg font-bold mb-4 text-center text-slate-800">מוצר בחנות 🛒</h3>
+<div id="store-product-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll relative">
+                <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
+                    <h3 class="text-xl font-black text-slate-800">ניהול פריט בקטלוג 🛒</h3>
+                    <button onclick="getEl('store-product-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
                 <input type="hidden" id="sp-id" value="">
-                <div class="space-y-3">
-                    
-                    <div class="flex flex-col items-center justify-center bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 mb-2 cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('sp-image-upload').click()">
-                        <div id="sp-image-placeholder" class="text-center">
-                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-400 mb-2"></i>
-                            <p class="text-xs font-bold text-slate-600">לחץ להעלאת תמונת מוצר</p>
-                            <p class="text-[9px] text-slate-400 mt-1">יוקטן אוטומטית לשמירה על מהירות</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
+                        <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                            <div id="sp-image-placeholder" class="text-center py-2">
+                                <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                                <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                                <p class="text-[10px] text-slate-400 mt-1">מומלץ תמונה מרובעת</p>
+                            </div>
+                            <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                            <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
+                            <input type="hidden" id="sp-image-base64">
                         </div>
-                        <img id="sp-image-preview" class="hidden h-24 object-contain rounded-lg shadow-sm">
-                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="handleProductImageBase64(event)">
-                        <input type="hidden" id="sp-image-base64">
                     </div>
 
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם המוצר/מנה:</label><input type="text" id="sp-name" class="modern-input py-2.5 text-sm" placeholder="למשל: המבורגר הבית"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר (₪):</label><input type="number" id="sp-price" class="modern-input py-2.5 text-sm" placeholder="0.00"></div>
-                        <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">קטגוריה:</label><input type="text" id="sp-category" class="modern-input py-2.5 text-sm" placeholder="למשל: עיקריות / מבצעים"></div>
-                   <div>
-                        <div class="flex justify-between items-end mb-1">
-                            <label class="text-[10px] font-bold text-slate-500">תיאור (אופציונלי):</label>
-                            <button onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> נסח לי ע"י AI</button>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+                        <input type="text" id="sp-name" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: המבורגר הבית">
+                    </div>
+
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="sp-price" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="0.00">
                         </div>
-                        <textarea id="sp-desc" class="modern-input py-2.5 text-sm h-14" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="sp-category" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: עיקריות">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור (אופציונלי):</label>
+                            <button onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-lg hover:bg-indigo-200 transition shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> נסח ע"י AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-3 text-sm h-20 bg-white" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
                     </div>
                     
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div class="flex justify-between items-center mb-2 border-b border-slate-200 pb-2">
-                            <label class="text-[10px] font-bold text-slate-700 block">אפשרויות (מידות, צבעים, תוספות):</label>
-                            <button onclick="addModifierGroup()" class="text-[9px] font-bold text-indigo-600 bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-plus"></i> הוסף קבוצה</button>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                            <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות למנה:</label>
+                            <button onclick="addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> הוסף קבוצה</button>
                         </div>
-                        <div id="modifiers-builder-container" class="space-y-2 max-h-32 overflow-y-auto modal-scroll pr-1">
+                        <div id="modifiers-builder-container" class="space-y-3 max-h-48 overflow-y-auto modal-scroll pr-1">
                             </div>
                         <input type="hidden" id="sp-options">
                     </div>
                 </div>
-                <div class="flex gap-3 mt-6">
-                    <button onclick="getEl('store-product-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                    <button id="btn-submit-sp" onclick="submitStoreProduct()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור מוצר</button>
+
+                <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100 sticky bottom-0 bg-white z-10 pb-2">
+                    <button onclick="getEl('store-product-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-sp" onclick="submitStoreProduct()" class="w-2/3 bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-xl hover:bg-indigo-700 transition text-lg">שמור מוצר</button>
                 </div>
             </div>
         </div>
-        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+
+        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                    <div>
-                        <h3 class="text-xl font-bold text-slate-800">הזמנה #<span id="so-modal-id"></span></h3>
-                        <p class="text-xs text-slate-500" id="so-modal-date"></p>
-                    </div>
-                    <div class="text-left">
-                        <p class="text-[10px] text-slate-400 font-bold">סכום לתשלום:</p>
-                        <p class="text-lg font-black text-green-600">₪<span id="so-modal-total"></span></p>
-                    </div>
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                    <h3 class="text-xl font-black text-slate-800">הזמנה #<span id="so-modal-id"></span></h3>
+                    <button onclick="getEl('store-order-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 
-                <div class="bg-slate-50 p-3 rounded-xl mb-4 border border-slate-200">
-                    <p class="text-sm font-bold text-slate-700"><i class="fa-solid fa-user text-slate-400 mr-1"></i> <span id="so-modal-customer"></span></p>
-                    <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-phone text-slate-400 mr-1"></i> <span id="so-modal-phone"></span></p>
+                <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200 shadow-sm">
+                    <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-regular fa-user mr-1 text-slate-400"></i> לקוח: <span id="so-modal-customer" class="text-slate-900"></span></p>
+                    <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-solid fa-phone mr-1 text-slate-400"></i> טלפון: <span id="so-modal-phone" class="text-slate-900 dir-ltr inline-block"></span></p>
+                    <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200"><i class="fa-regular fa-clock mr-1"></i> התקבל ב: <span id="so-modal-date"></span></p>
                 </div>
 
-                <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-200 pb-1">פירוט פריטים להכנה:</h4>
-                <div id="so-modal-items" class="space-y-2 mb-6 min-h-[100px]"></div>
-
-                <h4 class="font-bold text-slate-700 text-sm mb-2">שינוי סטטוס הזמנה:</h4>
-                <div class="grid grid-cols-2 gap-2 mb-6">
-                    <button onclick="updateStoreOrderStatus('new')" class="py-2 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">התקבל (חדש)</button>
-                    <button onclick="updateStoreOrderStatus('processing')" class="py-2 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100">באריזה / הכנה</button>
-                    <button onclick="updateStoreOrderStatus('ready')" class="py-2 text-xs font-bold rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100">מוכן לאיסוף</button>
-                    <button onclick="updateStoreOrderStatus('completed')" class="py-2 text-xs font-bold rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100">נמסר / הושלם</button>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">פירוט הפריטים:</h4>
+                <div id="so-modal-items" class="space-y-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
+                
+                <div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                    <span class="font-bold text-indigo-900">סה"כ לתשלום:</span>
+                    <span class="text-xl font-black text-indigo-700">₪<span id="so-modal-total"></span></span>
                 </div>
 
-                <button onclick="getEl('store-order-modal').classList.add('hidden')" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md hover:bg-slate-700 transition">סגור חלון</button>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">עדכון סטטוס ופעולה:</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="updateStoreOrderStatus('processing')" class="py-3 rounded-xl font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition shadow-sm text-sm">באריזה / הכנה 📦</button>
+                    <button onclick="updateStoreOrderStatus('ready')" class="py-3 rounded-xl font-bold text-orange-700 bg-orange-50 border border-orange-200 hover:bg-orange-100 transition shadow-sm text-sm">מוכן לאיסוף 🛍️</button>
+                    <button onclick="updateStoreOrderStatus('completed')" class="col-span-2 py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 transition shadow-md text-base mt-1">סופק ללקוח / הושלם ✅</button>
+                </div>
             </div>
         </div>
         <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
