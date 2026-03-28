@@ -1870,6 +1870,13 @@ async function loadSACommunityData() {
         
         if(commData.success) {
             saCommunitiesCache = commData.communities;
+            
+            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי
+            const totalCommunities = saCommunitiesCache.length;
+            const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
+            if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
+            if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
+
             const commSelect = getEl('sa-link-comm');
             if(commSelect) {
                 commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
@@ -1884,6 +1891,44 @@ async function loadSACommunityData() {
             }
         }
     } catch(e) { console.error(e); }
+}
+
+function renderSACommunitiesTable(query = '') {
+    const tbody = getEl('sa-communities-table-body');
+    if (!tbody) return;
+    
+    let filtered = saCommunitiesCache;
+    if (query) {
+        const q = query.toLowerCase();
+        filtered = saCommunitiesCache.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+    }
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לחיפוש.</td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = filtered.map(c => `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-4 font-bold text-slate-800">${safeStr(c.name)}</td>
+            <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest">${safeStr(c.code)}</td>
+            <td class="px-4 py-4">
+                <div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email)}</div>
+                <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password)}</div>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs">${c.family_count || 0}</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs">${c.business_count || 0}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterSACommunities() {
+    const query = getEl('sa-search-comm').value;
+    renderSACommunitiesTable(query);
 }
 
 function renderSACommunitiesTable(query = '') {
