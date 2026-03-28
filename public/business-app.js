@@ -2574,3 +2574,21 @@ async function submitGlobalAI() {
         if (data.success && data.answer) { chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
     } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
+// "התלבשות" חכמה על פונקציית טעינת מסך הניהול כדי לאתחל את נתוני הקהילות כשהמנהל נכנס
+const originalLoadSADashboard = window.loadSADashboard;
+if(originalLoadSADashboard && !window.saCommLoaded) {
+    window.loadSADashboard = async function() {
+        // 1. חסימה והעלמה כפויה של מסך המשתמש הרגיל כדי שלא ידחס את מסך הניהול
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        loadSACommunityData();
+        
+        // 2. וידוא חסימה סופי למקרה של טעינת נתונים מקבילה שמתעכבת
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
+    window.saCommLoaded = true;
+}
