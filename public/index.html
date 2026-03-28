@@ -274,34 +274,45 @@
                         <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">משתמשים והגדרות</button>
                     </div>
 
-                    <div id="sa-view-stats" class="space-y-8 fade-in">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                                <i class="fa-solid fa-house-user text-2xl text-indigo-500 mb-2"></i>
-                                <span class="text-3xl font-bold text-indigo-700" id="sa-stat-families">0</span>
-                                <span class="text-xs text-indigo-600 font-medium">משפחות פעילות</span>
-                            </div>
-                            <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                                <i class="fa-solid fa-users text-2xl text-emerald-500 mb-2"></i>
-                                <span class="text-3xl font-bold text-emerald-700" id="sa-stat-family-users">0</span>
-                                <span class="text-xs text-emerald-600 font-medium">משתמשים (משפחות)</span>
-                            </div>
-                            <div class="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                                <i class="fa-solid fa-building text-2xl text-blue-500 mb-2"></i>
-                                <span class="text-3xl font-bold text-blue-700" id="sa-stat-businesses">0</span>
-                                <span class="text-xs text-blue-600 font-medium">עסקים פעילים</span>
-                            </div>
-                            <div class="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                                <i class="fa-solid fa-user-tie text-2xl text-sky-500 mb-2"></i>
-                                <span class="text-3xl font-bold text-sky-700" id="sa-stat-biz-users">0</span>
-                                <span class="text-xs text-sky-600 font-medium">משתמשים (עסקים)</span>
-                            </div>
+<div id="sa-view-stats" class="space-y-8 fade-in">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-house-user text-2xl text-indigo-500 mb-2"></i>
+                            <span class="text-2xl font-black text-indigo-700" id="sa-stat-families">0</span>
+                            <span class="text-[10px] text-indigo-600 font-bold mt-1">משפחות פעילות</span>
                         </div>
-                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                            <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
-                            <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2 modal-scroll"></div>
+                        <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-users text-2xl text-emerald-500 mb-2"></i>
+                            <span class="text-2xl font-black text-emerald-700" id="sa-stat-family-users">0</span>
+                            <span class="text-[10px] text-emerald-600 font-bold mt-1">משתמשים (משפחות)</span>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-building text-2xl text-blue-500 mb-2"></i>
+                            <span class="text-2xl font-black text-blue-700" id="sa-stat-businesses">0</span>
+                            <span class="text-[10px] text-blue-600 font-bold mt-1">עסקים פעילים</span>
+                        </div>
+                        <div class="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-user-tie text-2xl text-sky-500 mb-2"></i>
+                            <span class="text-2xl font-black text-sky-700" id="sa-stat-biz-users">0</span>
+                            <span class="text-[10px] text-sky-600 font-bold mt-1">משתמשים (עסקים)</span>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-city text-2xl text-orange-500 mb-2"></i>
+                            <span class="text-2xl font-black text-orange-700" id="sa-stat-communities">0</span>
+                            <span class="text-[10px] text-orange-600 font-bold mt-1">קהילות רשומות</span>
+                        </div>
+                        <div class="bg-pink-50 border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-users-viewfinder text-2xl text-pink-500 mb-2"></i>
+                            <span class="text-2xl font-black text-pink-700" id="sa-stat-community-members">0</span>
+                            <span class="text-[10px] text-pink-600 font-bold mt-1">חברי קהילות</span>
                         </div>
                     </div>
+                    
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
+                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2 modal-scroll"></div>
+                    </div>
+                </div>
 
                     <div id="sa-view-comm" class="hidden space-y-8 fade-in">
                         <div class="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
@@ -330,7 +341,7 @@
                                             <button onclick="linkBizToCommunity()" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-base">חבר עסק</button>
                                         </div>
                                     </div>
-                              <div class="mt-6 flex-1 flex flex-col min-h-[150px]">
+                            <div class="mt-6 flex-1 flex flex-col min-h-[150px]">
                                     <h4 class="text-xs font-bold text-slate-500 mb-2">עסקים שמחוברים כעת לקהילה:</h4>
                                     <div id="sa-comm-biz-list" class="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 overflow-y-auto modal-scroll max-h-48">
                                         <p class="text-xs text-slate-400 text-center py-4">אנא בחרו קהילה כדי לראות את העסקים המקושרים אליה.</p>
@@ -338,6 +349,33 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> ניהול קהילות קיימות</h3>
+                                <div class="relative w-full sm:w-64">
+                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="sa-search-comm" onkeyup="filterSACommunities()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש קהילה או קוד...">
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto pb-4">
+                                <table class="w-full text-sm text-right whitespace-nowrap">
+                                    <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                        <tr>
+                                            <th class="px-4 py-3 rounded-tr-lg">שם הקהילה</th>
+                                            <th class="px-4 py-3">קוד הצטרפות</th>
+                                            <th class="px-4 py-3">פרטי התחברות (מנהל)</th>
+                                            <th class="px-4 py-3 text-center">משפחות חברות</th>
+                                            <th class="px-4 py-3 text-center rounded-tl-lg">עסקים מקושרים</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sa-communities-table-body" class="divide-y divide-slate-100">
+                                        </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div> </div>
 
                         <div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
