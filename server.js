@@ -1736,6 +1736,50 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
         res.json({success: true, community: { id: commId, name: communityName }, businesses: result.rows});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
+// --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
+app.get('/api/sa/communities', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM communities ORDER BY created_at DESC');
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/communities', async (req, res) => {
+    try {
+        const { name, code, managerEmail, managerPassword } = req.body;
+        await pool.query('INSERT INTO communities (name, code, manager_email, manager_password) VALUES ($1, $2, $3, $4)', [name, code.toUpperCase().trim(), managerEmail, managerPassword]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/businesses', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
+        res.json({ success: true, businesses: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/community-business', async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query('INSERT INTO community_businesses (community_id, business_id, discount_pct) VALUES ($1, $2, $3) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3', [communityId, businessId, parseFloat(discountPct)||0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/community-business/:communityId', async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT cb.*, b.name as business_name, b.group_code FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1`, [req.params.communityId]);
+        res.json({ success: true, connections: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/community-business/:communityId/:businessId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
