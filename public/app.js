@@ -1838,4 +1838,102 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
     };
     window.familySwitchTabOverridden = true;
 }
+// ============================================================
+// --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
+// ============================================================
+
+let saCommunitiesCache = [];
+let saBusinessesCache = [];
+
+async function loadSACommunityData() {
+    try {
+        const [commRes, bizRes] = await Promise.all([
+            fetch(`${API}/sa/communities`),
+            fetch(`${API}/sa/businesses`)
+        ]);
+        const commData = await commRes.json();
+        const bizData = await bizRes.json();
+        
+        if(commData.success) {
+            saCommunitiesCache = commData.communities;
+            const commSelect = getEl('sa-link-comm');
+            if(commSelect) {
+                commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
+            }
+        }
+        if(bizData.success) {
+            saBusinessesCache = bizData.businesses;
+            const bizSelect = getEl('sa-link-biz');
+            if(bizSelect) {
+                bizSelect.innerHTML = '<option value="">בחר עסק לחיבור...</option>' + saBusinessesCache.map(b => `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+            }
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function createSACommunity() {
+    const name = val('sa-comm-name'); const code = val('sa-comm-code'); const managerEmail = val('sa-comm-email'); const managerPassword = val('sa-comm-pass');
+    if(!name || !code) return showToast('error', 'שם וקוד קהילה הם חובה');
+    
+    try {
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, code, managerEmail, managerPassword})});
+        const data = await res.json();
+        if(data.success) { 
+            showToast('success', 'קהילה הוקמה בהצלחה!'); 
+            getEl('sa-comm-name').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
+            loadSACommunityData(); 
+        } else { showToast('error', 'שגיאה: ייתכן שהקוד כבר קיים'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function linkBizToCommunity() {
+    const communityId = val('sa-link-comm'); const businessId = val('sa-link-biz'); const discountPct = val('sa-link-discount');
+    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
+    
+    try {
+        const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({communityId, businessId, discountPct})});
+        const data = await res.json();
+        if(data.success) { showToast('success', 'העסק חובר לקהילה!'); loadCommunityBusinesses(); }
+        else showToast('error', 'שגיאה בחיבור העסק');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function loadCommunityBusinesses() {
+    const communityId = val('sa-link-comm');
+    const list = getEl('sa-comm-biz-list');
+    if(!communityId) { list.innerHTML = ''; return; }
+    
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</p>';
+    try {
+        const res = await fetch(`${API}/sa/community-business/${communityId}`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים מקושרים לקהילה זו</p>'; return; }
+            list.innerHTML = data.connections.map(c => `
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}%</span></span>
+                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
+}
+
+async function removeBizFromCommunity(commId, bizId) {
+    if(!confirm('להסיר את העסק מהקהילה? ההנחות שלו יבוטלו במיידי.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה'); loadCommunityBusinesses(); }
+    } catch(e) {}
+}
+
+// "התלבשות" חכמה על פונקציית טעינת מסך הניהול כדי לאתחל את נתוני הקהילות כשהמנהל נכנס
+const originalLoadSADashboard = window.loadSADashboard;
+if(originalLoadSADashboard && !window.saCommLoaded) {
+    window.loadSADashboard = async function() {
+        await originalLoadSADashboard();
+        loadSACommunityData();
+    };
+    window.saCommLoaded = true;
+}
 // === סוף הקובץ ===
