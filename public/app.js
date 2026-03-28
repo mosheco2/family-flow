@@ -1947,6 +1947,8 @@ function filterSACommunities() {
     renderSACommunitiesTable();
 }
 
+let currentCommFamiliesCache = [];
+
 async function openSACommunityModal(id) {
     const comm = saCommunitiesCache.find(c => c.id == id);
     if(!comm) return;
@@ -1961,6 +1963,10 @@ async function openSACommunityModal(id) {
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
     getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
     
+    // איפוס שדה החיפוש בחלון
+    const searchInput = getEl('sa-search-comm-fam');
+    if (searchInput) searchInput.value = '';
+    
     const famList = getEl('sa-edit-comm-families');
     const bizList = getEl('sa-edit-comm-businesses');
     famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
@@ -1972,34 +1978,12 @@ async function openSACommunityModal(id) {
         const res = await fetch(`${API}/sa/communities/${id}/details`);
         const data = await res.json();
         if(data.success) {
-            if(data.families.length === 0) {
-                famList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center">אין משפחות מחוברות לקהילה זו.</p>';
-            } else {
-                famList.innerHTML = data.families.map(f => {
-                    const usersHtml = f.users && f.users.length > 0
-                        ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50 hover:bg-slate-100 transition"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('')
-                        : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים פנימיים.</div>';
-
-                    return `
-                    <div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm">
-                        <div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')">
-                            <div class="font-bold text-slate-700 flex items-center gap-2">
-                                <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="font-mono text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">${f.group_code || '---'}</span>
-                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
-                            </div>
-                        </div>
-                        <div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">
-                            ${usersHtml}
-                        </div>
-                    </div>`;
-                }).join('');
-            }
+            // שומרים את המשפחות במטמון כדי שנוכל לסנן אותן מיד ללא קריאה לשרת
+            currentCommFamiliesCache = data.families || [];
+            renderSACommFamilies();
             
             if(data.businesses.length === 0) {
-                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center">אין עסקים נותני הנחה.</p>';
+                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>';
             } else {
                 bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join('');
             }
@@ -2010,6 +1994,51 @@ async function openSACommunityModal(id) {
     }
 }
 
+function renderSACommFamilies(query = '') {
+    const famList = getEl('sa-edit-comm-families');
+    if (!famList) return;
+    
+    let filtered = currentCommFamiliesCache;
+    if (query) {
+        const q = query.toLowerCase();
+        filtered = currentCommFamiliesCache.filter(f => 
+            (f.name && f.name.toLowerCase().includes(q)) || 
+            (f.group_code && f.group_code.toLowerCase().includes(q))
+        );
+    }
+    
+    if (filtered.length === 0) {
+        famList.innerHTML = `<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">${query ? 'לא נמצאו משפחות תואמות לחיפוש' : 'אין משפחות מחוברות לקהילה זו.'}</p>`;
+        return;
+    }
+    
+    famList.innerHTML = filtered.map(f => {
+        const usersHtml = f.users && f.users.length > 0
+            ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50 hover:bg-slate-100 transition"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('')
+            : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים פנימיים.</div>';
+
+        return `
+        <div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm">
+            <div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')">
+                <div class="font-bold text-slate-700 flex items-center gap-2">
+                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">${f.group_code || '---'}</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
+                </div>
+            </div>
+            <div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">
+                ${usersHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterSACommFamilies() {
+    const query = getEl('sa-search-comm-fam') ? getEl('sa-search-comm-fam').value : '';
+    renderSACommFamilies(query);
+}
 async function saveSACommunityEdit() {
     const id = val('sa-edit-comm-id');
     const name = val('sa-edit-comm-name');
