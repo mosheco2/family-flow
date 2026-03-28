@@ -1871,7 +1871,7 @@ async function loadSACommunityData() {
         if(commData.success) {
             saCommunitiesCache = commData.communities;
             
-            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי
+            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי של המנהל
             const totalCommunities = saCommunitiesCache.length;
             const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
             if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
