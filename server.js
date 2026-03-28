@@ -1739,11 +1739,17 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
 // --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
 app.get('/api/sa/communities', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM communities ORDER BY created_at DESC');
+        // משיכת קהילות יחד עם כמות המשפחות והעסקים המשויכים אליהן
+        const result = await pool.query(`
+            SELECT c.*, 
+                (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id) as family_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id) as business_count
+            FROM communities c
+            ORDER BY c.created_at DESC
+        `);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 app.post('/api/sa/communities', async (req, res) => {
     try {
         const { name, code, managerEmail, managerPassword } = req.body;
