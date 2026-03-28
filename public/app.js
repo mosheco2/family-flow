@@ -1917,10 +1917,11 @@ function renderSACommunitiesTable(query = '') {
                 <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password)}</div>
             </td>
             <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs">${c.family_count || 0}</span>
+                <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-bold text-xs ml-1" title="משפחות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0}</span>
+                <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md font-bold text-xs" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
             </td>
             <td class="px-4 py-4 text-center">
-                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs">${c.business_count || 0}</span>
+                <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
             </td>
         </tr>
     `).join('');
@@ -1931,42 +1932,72 @@ function filterSACommunities() {
     renderSACommunitiesTable(query);
 }
 
-function renderSACommunitiesTable(query = '') {
-    const tbody = getEl('sa-communities-table-body');
-    if (!tbody) return;
+async function openSACommunityModal(id) {
+    const comm = saCommunitiesCache.find(c => c.id == id);
+    if(!comm) return;
     
-    let filtered = saCommunitiesCache;
-    if (query) {
-        const q = query.toLowerCase();
-        filtered = saCommunitiesCache.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+    getEl('sa-edit-comm-id').value = comm.id;
+    getEl('sa-edit-comm-title').innerText = comm.name;
+    getEl('sa-edit-comm-name').value = comm.name;
+    getEl('sa-edit-comm-code').value = comm.code;
+    getEl('sa-edit-comm-email').value = comm.manager_email;
+    getEl('sa-edit-comm-pass').value = comm.manager_password;
+    
+    getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
+    getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
+    
+    const famList = getEl('sa-edit-comm-families');
+    const bizList = getEl('sa-edit-comm-businesses');
+    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
+    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
+    
+    getEl('sa-community-modal').classList.remove('hidden');
+    
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}/details`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.families.length === 0) famList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין משפחות מחוברות.</p>';
+            else famList.innerHTML = data.families.map(f => `<div class="bg-white p-1.5 rounded border border-slate-100 mb-1 text-xs flex justify-between"><span>${safeStr(f.name)}</span></div>`).join('');
+            
+            if(data.businesses.length === 0) bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין עסקים מקושרים.</p>';
+            else bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-1.5 rounded border border-slate-100 mb-1 text-xs flex justify-between"><span>${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-1 rounded">${b.discount_pct}% הנחה</span></div>`).join('');
+        }
+    } catch(e) {
+        famList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
+        bizList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
     }
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות במערכת.</td></tr>`;
-        return;
-    }
-    
-    tbody.innerHTML = filtered.map(c => `
-        <tr class="hover:bg-slate-50 transition">
-            <td class="px-4 py-3 font-bold text-slate-800">${safeStr(c.name)}</td>
-            <td class="px-4 py-3 font-mono text-orange-600 font-bold tracking-widest">${safeStr(c.code)}</td>
-            <td class="px-4 py-3">
-                <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold">מייל:</span> ${safeStr(c.manager_email)}</div>
-                <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold">סיסמה:</span> ${safeStr(c.manager_password)}</div>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full font-bold text-xs">${c.family_count || 0}</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-                <span class="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-bold text-xs">${c.business_count || 0}</span>
-            </td>
-        </tr>
-    `).join('');
 }
 
-function filterSACommunities() {
-    const query = getEl('sa-search-comm').value;
-    renderSACommunitiesTable(query);
+async function saveSACommunityEdit() {
+    const id = val('sa-edit-comm-id');
+    const name = val('sa-edit-comm-name');
+    const code = val('sa-edit-comm-code');
+    const email = val('sa-edit-comm-email');
+    const pass = val('sa-edit-comm-pass');
+    
+    if(!name || !code) return showToast('error', 'שם וקוד חובה');
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, code, managerEmail: email, managerPassword: pass}) });
+        if((await res.json()).success) {
+            showToast('success', 'הקהילה עודכנה בהצלחה!');
+            getEl('sa-community-modal').classList.add('hidden');
+            loadSACommunityData();
+        } else showToast('error', 'שגיאה בעדכון הקהילה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteSACommunity() {
+    const id = val('sa-edit-comm-id');
+    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+        if((await res.json()).success) {
+            showToast('success', 'הקהילה נמחקה לחלוטין!');
+            getEl('sa-community-modal').classList.add('hidden');
+            loadSACommunityData();
+        } else showToast('error', 'שגיאה במחיקת הקהילה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function createSACommunity() {
