@@ -1758,6 +1758,32 @@ app.post('/api/sa/communities', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.put('/api/sa/communities/:id', async (req, res) => {
+    try {
+        const { name, code, managerEmail, managerPassword } = req.body;
+        await pool.query('UPDATE communities SET name=$1, code=$2, manager_email=$3, manager_password=$4 WHERE id=$5', [name, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/communities/:id', async (req, res) => {
+    try {
+        // מנתק משפחות, מוחק קשרי עסקים, ואז מוחק קהילה
+        await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM communities WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/communities/:id/details', async (req, res) => {
+    try {
+        const families = await pool.query('SELECT id, name, admin_email FROM family_groups WHERE community_id = $1 AND type = $2', [req.params.id, 'FAMILY']);
+        const businesses = await pool.query('SELECT b.id, b.name, cb.discount_pct FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
+        res.json({ success: true, families: families.rows, businesses: businesses.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
