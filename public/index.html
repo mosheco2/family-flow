@@ -1532,6 +1532,26 @@
                 navigator.serviceWorker.register('/sw.js');
             });
         }
+
+        // מנגנון שומר סף: מניעת התנגשות בין מסך המנהל למסך המשפחה/עסק
+        document.addEventListener('DOMContentLoaded', () => {
+            const saDash = document.getElementById('sa-dashboard-container');
+            const userDash = document.getElementById('dashboard-container');
+            
+            if (saDash && userDash) {
+                const enforceExclusive = () => {
+                    // אם מסך הניהול מנסה להופיע במקביל למסך הרגיל - נעלים את המסך הרגיל בכוח
+                    if (!saDash.classList.contains('hidden') && !userDash.classList.contains('hidden')) {
+                        userDash.classList.add('hidden');
+                    }
+                };
+                
+                // נאזין לשינויים בשני המסכים כדי לוודא שהם לא חופפים לעולם
+                const observer = new MutationObserver(enforceExclusive);
+                observer.observe(saDash, { attributes: true, attributeFilter: ['class'] });
+                observer.observe(userDash, { attributes: true, attributeFilter: ['class'] });
+            }
+        });
     </script>
 </body>
 </html>
