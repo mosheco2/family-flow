@@ -170,6 +170,10 @@ async function loadSAData() {
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
+        
+        // כאן קוראים לטעינת הקהילות מיד כשהמנהל נכנס!
+        loadSACommunityData();
+        
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
@@ -1859,6 +1863,7 @@ function switchSATab(tabId) {
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
 }
+
 async function loadSACommunityData() {
     try {
         const [commRes, bizRes] = await Promise.all([
@@ -1871,7 +1876,7 @@ async function loadSACommunityData() {
         if(commData.success) {
             saCommunitiesCache = commData.communities;
             
-            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי של המנהל
+            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי
             const totalCommunities = saCommunitiesCache.length;
             const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
             if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
@@ -1930,6 +1935,74 @@ function renderSACommunitiesTable(query = '') {
 function filterSACommunities() {
     const query = getEl('sa-search-comm').value;
     renderSACommunitiesTable(query);
+}
+
+async function openSACommunityModal(id) {
+    const comm = saCommunitiesCache.find(c => c.id == id);
+    if(!comm) return;
+    
+    getEl('sa-edit-comm-id').value = comm.id;
+    getEl('sa-edit-comm-title').innerText = comm.name;
+    getEl('sa-edit-comm-name').value = comm.name;
+    getEl('sa-edit-comm-code').value = comm.code;
+    getEl('sa-edit-comm-email').value = comm.manager_email;
+    getEl('sa-edit-comm-pass').value = comm.manager_password;
+    
+    getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
+    getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
+    
+    const famList = getEl('sa-edit-comm-families');
+    const bizList = getEl('sa-edit-comm-businesses');
+    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
+    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
+    
+    getEl('sa-community-modal').classList.remove('hidden');
+    
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}/details`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.families.length === 0) famList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין משפחות מחוברות.</p>';
+            else famList.innerHTML = data.families.map(f => `<div class="bg-white p-1.5 rounded border border-slate-100 mb-1 text-xs flex justify-between"><span>${safeStr(f.name)}</span></div>`).join('');
+            
+            if(data.businesses.length === 0) bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין עסקים מקושרים.</p>';
+            else bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-1.5 rounded border border-slate-100 mb-1 text-xs flex justify-between"><span>${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-1 rounded">${b.discount_pct}% הנחה</span></div>`).join('');
+        }
+    } catch(e) {
+        famList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
+        bizList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
+    }
+}
+
+async function saveSACommunityEdit() {
+    const id = val('sa-edit-comm-id');
+    const name = val('sa-edit-comm-name');
+    const code = val('sa-edit-comm-code');
+    const email = val('sa-edit-comm-email');
+    const pass = val('sa-edit-comm-pass');
+    
+    if(!name || !code) return showToast('error', 'שם וקוד חובה');
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, code, managerEmail: email, managerPassword: pass}) });
+        if((await res.json()).success) {
+            showToast('success', 'הקהילה עודכנה בהצלחה!');
+            getEl('sa-community-modal').classList.add('hidden');
+            loadSACommunityData();
+        } else showToast('error', 'שגיאה בעדכון הקהילה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteSACommunity() {
+    const id = val('sa-edit-comm-id');
+    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+        if((await res.json()).success) {
+            showToast('success', 'הקהילה נמחקה לחלוטין!');
+            getEl('sa-community-modal').classList.add('hidden');
+            loadSACommunityData();
+        } else showToast('error', 'שגיאה במחיקת הקהילה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function openSACommunityModal(id) {
