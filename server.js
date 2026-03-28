@@ -1778,12 +1778,25 @@ app.delete('/api/sa/communities/:id', async (req, res) => {
 
 app.get('/api/sa/communities/:id/details', async (req, res) => {
     try {
-        const families = await pool.query('SELECT id, name, admin_email FROM family_groups WHERE community_id = $1 AND type = $2', [req.params.id, 'FAMILY']);
-        const businesses = await pool.query('SELECT b.id, b.name, cb.discount_pct FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
-        res.json({ success: true, families: families.rows, businesses: businesses.rows });
+        // שולפים את המשפחות כולל קוד הקבוצה
+        const familiesRes = await pool.query('SELECT id, name, admin_email, group_code FROM family_groups WHERE community_id = $1 AND type = $2', [req.params.id, 'FAMILY']);
+        const families = familiesRes.rows;
+
+        // אם יש משפחות, שולפים גם את כל המשתמשים שלהן ומשייכים לכל משפחה
+        if (families.length > 0) {
+            const familyIds = families.map(f => f.id);
+            const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
+            
+            families.forEach(f => {
+                f.users = usersRes.rows.filter(u => u.group_id === f.id);
+            });
+        }
+
+        const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
+        
+        res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
