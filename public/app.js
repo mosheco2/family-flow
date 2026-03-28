@@ -1898,18 +1898,29 @@ async function loadSACommunityData() {
     } catch(e) { console.error(e); }
 }
 
-function renderSACommunitiesTable(query = '') {
+function renderSACommunitiesTable() {
     const tbody = getEl('sa-communities-table-body');
     if (!tbody) return;
     
-    let filtered = saCommunitiesCache;
+    const query = getEl('sa-search-comm') ? getEl('sa-search-comm').value.toLowerCase() : '';
+    const countFilter = getEl('sa-filter-comm-count') ? getEl('sa-filter-comm-count').value : 'all';
+    
+    let filtered = [...saCommunitiesCache];
+    
     if (query) {
-        const q = query.toLowerCase();
-        filtered = saCommunitiesCache.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+        filtered = filtered.filter(c => c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query));
+    }
+    
+    if (countFilter === 'with_families') {
+        filtered = filtered.filter(c => parseInt(c.family_count || 0) > 0);
+    } else if (countFilter === 'empty') {
+        filtered = filtered.filter(c => parseInt(c.family_count || 0) === 0);
+    } else if (countFilter === 'sort_desc') {
+        filtered.sort((a, b) => parseInt(b.family_count || 0) - parseInt(a.family_count || 0));
     }
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לחיפוש.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
         return;
     }
     
@@ -1922,8 +1933,8 @@ function renderSACommunitiesTable(query = '') {
                 <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password)}</div>
             </td>
             <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-bold text-xs ml-1" title="משפחות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0}</span>
-                <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-md font-bold text-xs" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="משפחות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0}</span>
+                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
             </td>
             <td class="px-4 py-4 text-center">
                 <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
@@ -1933,8 +1944,7 @@ function renderSACommunitiesTable(query = '') {
 }
 
 function filterSACommunities() {
-    const query = getEl('sa-search-comm').value;
-    renderSACommunitiesTable(query);
+    renderSACommunitiesTable();
 }
 
 async function openSACommunityModal(id) {
@@ -1953,8 +1963,8 @@ async function openSACommunityModal(id) {
     
     const famList = getEl('sa-edit-comm-families');
     const bizList = getEl('sa-edit-comm-businesses');
-    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
-    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען...</p>';
+    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
+    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
     
     getEl('sa-community-modal').classList.remove('hidden');
     
@@ -1963,7 +1973,7 @@ async function openSACommunityModal(id) {
         const data = await res.json();
         if(data.success) {
             if(data.families.length === 0) {
-                famList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין משפחות מחוברות.</p>';
+                famList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center">אין משפחות מחוברות לקהילה זו.</p>';
             } else {
                 famList.innerHTML = data.families.map(f => {
                     const usersHtml = f.users && f.users.length > 0
@@ -1977,7 +1987,7 @@ async function openSACommunityModal(id) {
                                 <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="font-mono text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded tracking-widest">${f.group_code || '---'}</span>
+                                <span class="font-mono text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">${f.group_code || '---'}</span>
                                 <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
                             </div>
                         </div>
@@ -1989,9 +1999,9 @@ async function openSACommunityModal(id) {
             }
             
             if(data.businesses.length === 0) {
-                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">אין עסקים מקושרים.</p>';
+                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center">אין עסקים נותני הנחה.</p>';
             } else {
-                bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700"><i class="fa-solid fa-store text-slate-300 ml-1"></i> ${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join('');
+                bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join('');
             }
         }
     } catch(e) {
@@ -1999,6 +2009,7 @@ async function openSACommunityModal(id) {
         bizList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
     }
 }
+
 async function saveSACommunityEdit() {
     const id = val('sa-edit-comm-id');
     const name = val('sa-edit-comm-name');
@@ -2029,7 +2040,6 @@ async function deleteSACommunity() {
         } else showToast('error', 'שגיאה במחיקת הקהילה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
-
 async function openSACommunityModal(id) {
     const comm = saCommunitiesCache.find(c => c.id == id);
     if(!comm) return;
