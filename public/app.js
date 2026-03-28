@@ -1845,6 +1845,20 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
 let saCommunitiesCache = [];
 let saBusinessesCache = [];
 
+// פונקציית החלפת הטאבים במסך ה-Super Admin
+function switchSATab(tabId) {
+    ['stats', 'comm', 'content', 'users'].forEach(t => {
+        const view = document.getElementById(`sa-view-${t}`);
+        const btn = document.getElementById(`btn-sa-tab-${t}`);
+        if (view) view.classList.add('hidden');
+        if (btn) btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
+    });
+    
+    const activeView = document.getElementById(`sa-view-${tabId}`);
+    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
+    if (activeView) activeView.classList.remove('hidden');
+    if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+}
 async function loadSACommunityData() {
     try {
         const [commRes, bizRes] = await Promise.all([
