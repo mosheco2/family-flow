@@ -649,30 +649,53 @@ app.get('/api/data/:userId', async (req, res) => {
             weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
         }
         
-        // שליפת עדכוני קהילה לפיד המשפחתי (הודעה על עסקים חדשים שהצטרפו לקהילה)
+        // --- שינוי קהילות ---
+        // נשלוף גם את עדכוני הקהילה וגם את העסקים המאושרים עצמם
         let community_updates = [];
-        if (group.type === 'FAMILY' && group.community_id) {
-            const newBiz = await pool.query(`
-                SELECT b.name as business_name, c.name as comm_name, cb.discount_pct, cb.created_at
+        let community_businesses = [];
+        
+        if (group.community_id) {
+            const commBizRes = await pool.query(`
+                SELECT cb.discount_pct, cb.created_at, b.name as business_name, b.id as business_id, b.group_code, c.name as comm_name
                 FROM community_businesses cb
                 JOIN family_groups b ON cb.business_id = b.id
                 JOIN communities c ON cb.community_id = c.id
                 WHERE cb.community_id = $1 AND cb.status = 'approved'
             `, [group.community_id]);
-            newBiz.rows.forEach(biz => {
-                community_updates.push({
-                    type: 'system',
-                    id: `biz_${biz.business_name}`,
-                    user_id: 0,
-                    user_name: 'קהילה',
-                    title: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
-                    date: biz.created_at ? new Date(biz.created_at) : new Date()
+            
+            community_businesses = commBizRes.rows; // שומרים את העסקים לטובת הרינדור בחזית
+            
+            if (group.type === 'FAMILY') {
+                commBizRes.rows.forEach(biz => {
+                    community_updates.push({
+                        type: 'system',
+                        id: `biz_${biz.business_name}`,
+                        user_id: 0,
+                        user_name: 'קהילה',
+                        title: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                        date: biz.created_at ? new Date(biz.created_at) : new Date()
+                    });
                 });
-            });
+            }
         }
 
-        res.json({ user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, weekly_stats: weeklyStats, community_updates });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        res.json({ 
+            user, 
+            group, 
+            tasks: tasks.rows, 
+            pantry: pantry.rows, 
+            shopping_list: shoppingList.rows, 
+            goals: goals.rows, 
+            quiz_bundles: userBundles.rows, 
+            all_bundles: allBundles.rows, 
+            weekly_stats: weeklyStats, 
+            community_updates: community_updates,
+            community_businesses: community_businesses // <-- שדה חדש שהוספנו
+        });
+    } catch (e) { 
+        console.error('Error in /api/data/:userId:', e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 // ============================================================
 // --- SHOPPING LIST ENDPOINTS ---
@@ -1843,10 +1866,29 @@ app.get('/api/sa/communities', async (req, res) => {
 });
 app.post('/api/sa/communities', async (req, res) => {
     try {
-        const { name, code, managerEmail, managerPassword } = req.body;
-        await pool.query('INSERT INTO communities (name, code, manager_email, manager_password) VALUES ($1, $2, $3, $4)', [name, code.toUpperCase().trim(), managerEmail, managerPassword]);
+        const { name, city } = req.body;
+        if (!name || !city) {
+            return res.status(400).json({ success: false, error: 'שם ועיר הם שדות חובה' });
+        }
+        
+        // יצירת קוד ייחודי ואקראי באורך 6 תווים לקהילה החדשה
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+
+        // הוספת העיר לשם הקהילה לתצוגה ברורה יותר
+        const finalName = `${name} (${city})`;
+        
+        // שמירה במסד הנתונים
+        await pool.query(
+            'INSERT INTO communities (name, code, manager_email) VALUES ($1, $2, $3)', 
+            [finalName, code, 'system@oneflowlife.com']
+        );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error('Error creating community:', e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.put('/api/sa/communities/:id', async (req, res) => {
