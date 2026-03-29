@@ -2044,41 +2044,42 @@ function switchSATab(tabId) {
 
 async function loadSACommunityData() {
     try {
+        const tbody = getEl('sa-communities-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
+
         // חלק 1: טעינת קהילות באופן עצמאי
         try {
-            const commRes = await fetch(`${API}/sa/communities`);
-            const contentType = commRes.headers.get("content-type");
-            if (commRes.ok && contentType && contentType.includes("application/json")) {
-                const commData = await commRes.json();
-                if(commData.success) {
-                    saCommunitiesCache = commData.communities || [];
-                    
-                    const totalCommunities = saCommunitiesCache.length;
-                    const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
-                    if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
-                    if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
+            const commRes = await fetch(`${API}/sa/communities`, { headers: { 'Authorization': saToken || '' } });
+            const commData = await commRes.json();
+            
+            if(commData.success) {
+                saCommunitiesCache = commData.communities || [];
+                
+                const totalCommunities = saCommunitiesCache.length;
+                const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
+                if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
+                if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
 
-                    const commSelect = getEl('sa-link-comm');
-                    if(commSelect) {
-                        commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
-                    }
-                    renderSACommunitiesTable();
+                const commSelect = getEl('sa-link-comm');
+                if(commSelect) {
+                    commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
                 }
+                renderSACommunitiesTable();
+            } else {
+                console.error("Server returned error:", commData.error);
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
             }
-        } catch(e) { console.error('Error loading communities:', e); }
+        } catch(e) { 
+            console.error('Error loading communities:', e); 
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת בטעינת קהילות (בדוק F12)</td></tr>`;
+        }
 
-        // חלק 2: טעינת עסקים באופן עצמאי עם מנגנון גיבוי (Fallback) למטמון ישן
+        // חלק 2: טעינת עסקים
         try {
-            let bizRes = await fetch(`${API}/sa/businesses`);
-            let contentType = bizRes.headers.get("content-type");
+            let bizRes = await fetch(`${API}/sa/businesses`, { headers: { 'Authorization': saToken || '' } });
+            if (!bizRes.ok) bizRes = await fetch(`${API}/store/coupons/all`); // Fallback 
             
-            if (!bizRes.ok || !contentType || !contentType.includes("application/json")) {
-                // גיבוי למקרה שהשרת טרם התעדכן או שהדפדפן זוכר את הנתיב הישן
-                bizRes = await fetch(`${API}/store/coupons/all`); 
-                contentType = bizRes.headers.get("content-type");
-            }
-            
-            if (bizRes.ok && contentType && contentType.includes("application/json")) {
+            if (bizRes.ok) {
                 const bizData = await bizRes.json();
                 if(bizData.success) {
                     saBusinessesCache = bizData.businesses || [];
