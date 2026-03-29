@@ -167,16 +167,51 @@
             setTimeout(() => el.classList.add('hidden'), 3000); 
         }
 
-        async function initStore() {
+     async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
+            const communityId = urlParams.get('communityId'); // שליפת קהילה מהנתיב אם קיימת
+            
             if (!storeCode) return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור שגוי</h1>";
 
             try {
-                const res = await fetch(`${API}/storefront/${storeCode}`);
+                let fetchUrl = `${API}/storefront/${storeCode}`;
+                if (communityId) fetchUrl += `?communityId=${communityId}`;
+                
+                const res = await fetch(fetchUrl);
                 const data = await res.json();
                 if (!data.success || !data.settings.is_active) {
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
+                }
+
+                // החלת הנחת הקהילה ועיבוד הנתונים
+                if (data.communityData) {
+                    const discount = parseFloat(data.communityData.discount_pct) || 0;
+                    if (data.catalog && discount > 0) {
+                        data.catalog.forEach(item => {
+                            item.original_price = parseFloat(item.price);
+                            item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
+                            // הורדת אפסים מיותרים כדי שייראה טוב
+                            if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
+                        });
+                    }
+                    
+                    // הזרקת באנר קהילה בראש המסך
+                    const appContainer = getEl('store-app');
+                    appContainer.insertAdjacentHTML('afterbegin', `
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-md flex justify-between items-center relative z-50">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm"><i class="fa-solid fa-tags text-xl"></i></div>
+                                <div>
+                                    <p class="font-bold text-sm leading-tight">לקוחות קהילת ${safeStr(data.communityData.name)}</p>
+                                    <p class="text-[10px] opacity-90 font-medium">מוחל ${discount}% הנחה על כל החנות!</p>
+                                </div>
+                            </div>
+                            <button onclick="window.location.href='/'" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl text-xs font-bold backdrop-blur transition border border-white/30 whitespace-nowrap shadow-sm">
+                                <i class="fa-solid fa-arrow-right"></i> חזרה
+                            </button>
+                        </div>
+                    `);
                 }
 
                 storeData = data;
@@ -267,14 +302,19 @@
                     }
                 }
 
+                // הצגת מחיר: אם יש מחיר מקורי שונה, נציג אותו מחוק כדי שהלקוח ירגיש בהנחה!
+                const priceHtml = item.original_price && parseFloat(item.original_price) !== parseFloat(item.price) 
+                    ? `<span class="text-xs text-slate-400 line-through mr-1 font-normal">₪${item.original_price}</span> <span class="font-black text-emerald-600 text-sm">₪${item.price}</span>` 
+                    : `<span class="font-black text-slate-900 text-sm">₪${item.price}</span>`;
+
                 if (storeType === 'retail') {
-                    html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><span class="font-black text-slate-900 text-sm mb-2">₪${item.price}</span>${actionHtml}</div>`;
+                    html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
-                    html += `<div class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><span class="font-black text-slate-900 text-base">₪${item.price}</span><div class="w-24">${actionHtml}</div></div></div></div>`;
+                    html += `<div class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
                 }
             });
             container.innerHTML = html + '</div>';
-        }
+         }
 
         // --- Modifiers Logic ---
         function calculateModTotal() {
