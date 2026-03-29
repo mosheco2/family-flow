@@ -2253,6 +2253,9 @@ async function createSACommunity() {
     const name = val('sa-comm-name'); const code = val('sa-comm-code'); const managerEmail = val('sa-comm-email'); const managerPassword = val('sa-comm-pass');
     if(!name || !code) return showToast('error', 'שם וקוד קהילה הם חובה');
     
+    const btn = document.querySelector('button[onclick="createSACommunity()"]');
+    if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
+    
     try {
         const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, code, managerEmail, managerPassword})});
         const data = await res.json();
@@ -2260,8 +2263,14 @@ async function createSACommunity() {
             showToast('success', 'קהילה הוקמה בהצלחה!'); 
             getEl('sa-comm-name').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
             loadSACommunityData(); 
-        } else { showToast('error', 'שגיאה: ייתכן שהקוד כבר קיים'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        } else { 
+            showToast('error', data.error || 'שגיאה ביצירת הקהילה'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; }
+    }
 }
 
 async function linkBizToCommunity() {
