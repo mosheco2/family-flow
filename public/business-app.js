@@ -705,6 +705,41 @@ function exportTimeclockPDF() {
     });
 }
 
+function exportTimeclockPDF() {
+    const element = getEl('pdf-report-content');
+    if(!element) return showToast('error', 'אין נתונים לייצוא');
+    
+    showToast('info', 'מייצר קובץ PDF...');
+    const period = getEl('tc-month-filter') ? getEl('tc-month-filter').options[getEl('tc-month-filter').selectedIndex].text : 'כל התקופה';
+    const userName = currentUser.role === 'ADMIN' ? (getEl('tc-user-filter') ? getEl('tc-user-filter').options[getEl('tc-user-filter').selectedIndex].text : 'כל העובדים') : currentUser.nickname;
+    const filename = `Report_${userName}_${period}.pdf`.replace(/ /g, '_');
+    
+    // מעטפת נקייה ל-PDF כדי שיראה טוב
+    const pdfWrapper = document.createElement('div');
+    pdfWrapper.style.padding = '20px';
+    pdfWrapper.style.direction = 'rtl';
+    pdfWrapper.style.fontFamily = 'sans-serif';
+    pdfWrapper.innerHTML = `
+        <h2 style="font-size: 18px; margin-bottom: 5px; color: #1e293b;">דוח נוכחות - ${safeStr(currentGroup.name)}</h2>
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 20px;">עובד: ${userName} | תקופה: ${period} | הופק ב: ${new Date().toLocaleDateString('he-IL')}</p>
+        <div style="font-size: 12px;">${element.innerHTML}</div>
+    `;
+
+    const opt = { 
+        margin: 10, 
+        filename: filename, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    };
+    
+    html2pdf().set(opt).from(pdfWrapper).save().then(() => {
+        showToast('success', 'דוח נשמר בהצלחה!');
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת ה-PDF');
+    });
+}
+
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס/מענק' : 'הפחתה תפעולית');
