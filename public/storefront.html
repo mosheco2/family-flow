@@ -167,7 +167,7 @@
             setTimeout(() => el.classList.add('hidden'), 3000); 
         }
 
-     async function initStore() {
+ async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId'); // שליפת קהילה מהנתיב אם קיימת
@@ -314,7 +314,7 @@
                 }
             });
             container.innerHTML = html + '</div>';
-         }
+        }
 
         // --- Modifiers Logic ---
         function calculateModTotal() {
