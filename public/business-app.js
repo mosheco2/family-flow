@@ -389,27 +389,38 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','catalog','orders','staff','timeclock','shifts','cashflow','community','settings','sales','pantry','shop','forecast'].forEach(x => { 
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    // רשימה מלאה של כלל הטאבים הקיימים במסך העסק כדי לוודא שכולם מתאפסים (מוסתרים)
+    const allTabs = ['feed','timeclock','shifts','shop','pantry','sales','bank','cashflow','budget','forecast','tasks','academy','community','members'];
+    
+    allTabs.forEach(x => { 
+        const contentEl = getEl(`content-${x}`); 
+        if(contentEl) contentEl.classList.add('hidden'); 
+        const btnEl = getEl(`tab-${x}`); 
+        if(btnEl) btnEl.classList.remove('tab-active'); 
     }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
-    if (t === 'catalog') renderCatalog(); 
-    if (t === 'orders') fetchOrders(); 
-    if (t === 'staff') fetchStaff(); 
-    if (t === 'cashflow') renderCashflow(); 
-    if (t === 'community') loadBizCommunities();
+    // הצגת הטאב שנבחר
+    const targetContent = getEl(`content-${t}`); 
+    if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); 
+    if(targetBtn) targetBtn.classList.add('tab-active'); 
     
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
-    else { try { renderShopList(); } catch(e) {} }
+    // ניהול מצב הכפתור הצף ועגלת הקניות התחתונה
+    if (t !== 'shop') { 
+        const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
+        const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
+    } else { 
+        try { renderShopList(); } catch(e) {} 
+    }
     
+    // טעינת נתונים ספציפיים לכל טאב בעת הלחיצה עליו
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
-    if (t === 'sales') { try { switchSalesTab('orders'); fetchStoreOrders(); } catch(e) {} }
+    if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
 }
 
 function updateBatteryUI() {
