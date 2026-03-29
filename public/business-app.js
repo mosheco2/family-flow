@@ -149,28 +149,33 @@ async function fetchBanners() {
 }
 
 async function loadSAData() {
-    fetchBanners();
-    try {
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+    fetchBanners();
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+        
+        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
+        setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
+        setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
+        setVal('sa-biz-banner-top-text', data.bizBannerTextTop); setVal('sa-biz-banner-top-link', data.bizBannerLinkTop); setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
+        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom); setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom); setVal('sa-biz-banner-bottom-img', data.bizBannerImgBottom);
+
+        const setTxt = (id, v) => { const e = getEl(id); if(e) e.innerText = v || 0; };
+        if(data.stats) { setTxt('sa-stat-families', data.stats.families); setTxt('sa-stat-businesses', data.stats.businesses); setTxt('sa-stat-family-users', data.stats.familyUsers); setTxt('sa-stat-biz-users', data.stats.businessUsers); }
+
+        const actList = getEl('sa-activity-list');
+        if(actList) {
+            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
+            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        }
+        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
         
-        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
-        setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
-        setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
-        setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
-        setVal('sa-biz-banner-top-text', data.bizBannerTextTop); setVal('sa-biz-banner-top-link', data.bizBannerLinkTop); setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
-        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom); setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom); setVal('sa-biz-banner-bottom-img', data.bizBannerImgBottom);
-
-        const setTxt = (id, v) => { const e = getEl(id); if(e) e.innerText = v || 0; };
-        if(data.stats) { setTxt('sa-stat-families', data.stats.families); setTxt('sa-stat-businesses', data.stats.businesses); setTxt('sa-stat-family-users', data.stats.familyUsers); setTxt('sa-stat-biz-users', data.stats.businessUsers); }
-
-        const actList = getEl('sa-activity-list');
-        if(actList) {
-            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
-            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        // אתחול נתוני קהילות לאדמין
+        if (typeof loadSACommunityData === 'function') {
+            loadSACommunityData();
         }
-        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
-    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 function renderSAGroups() {
@@ -2598,26 +2603,125 @@ async function submitGlobalAI() {
 }
 
 // ============================================================
-// --- BIZ COMMUNITY MANAGEMENT ---
+// --- BIZ COMMUNITY & SA MANAGEMENT ---
 // ============================================================
 
-async function loadBizCommunities() {
-    if (!currentGroup || !currentGroup.id) return;
+let saCommunitiesCache = [];
+let saBusinessesCache = [];
+
+async function loadSACommunityData() {
     try {
-        const [myRes, availRes] = await Promise.all([
-            fetch(`${API}/biz/communities/my/${currentGroup.id}`),
-            fetch(`${API}/biz/communities/available/${currentGroup.id}`)
+        const [commRes, bizRes] = await Promise.all([
+            fetch(`${API}/sa/communities`),
+            fetch(`${API}/sa/businesses`)
         ]);
+        const commData = await commRes.json();
+        const bizData = await bizRes.json();
         
-        const myData = await myRes.json();
-        const availData = await availRes.json();
-        
-        if (myData.success) renderBizMyCommunities(myData.communities);
-        if (availData.success) renderBizAvailableCommunities(availData.communities);
-        
-    } catch(e) { console.error("Error loading biz communities", e); }
+        if(commData.success) {
+            saCommunitiesCache = commData.communities;
+            filterSACommSelect(); // טוען את הדרופדאון של חיבור עסק לפי סינון
+            if (typeof renderSACommunitiesTable === 'function') renderSACommunitiesTable(); // מצייר את הטבלה אם קיימת ב-HTML
+        }
+        if(bizData.success) {
+            saBusinessesCache = bizData.businesses;
+            filterSABizSelect(); // טוען את הדרופדאון של העסקים לפי סינון
+        }
+    } catch(e) { console.error("Error loading SA Communities", e); }
 }
 
+// פונקציות חיפוש מתקדמות לדרופדאונים במסך Admin
+function filterSACommSelect() {
+    const queryInput = getEl('sa-search-comm-select');
+    const query = queryInput ? queryInput.value.toLowerCase() : '';
+    const select = getEl('sa-link-comm');
+    if (!select) return;
+    select.innerHTML = '<option value="">בחר קהילה...</option>' + 
+        saCommunitiesCache
+            .filter(c => c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query))
+            .map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`)
+            .join('');
+}
+
+function filterSABizSelect() {
+    const queryInput = getEl('sa-search-biz-select');
+    const query = queryInput ? queryInput.value.toLowerCase() : '';
+    const select = getEl('sa-link-biz');
+    if (!select) return;
+    select.innerHTML = '<option value="">בחר עסק לחיבור...</option>' + 
+        saBusinessesCache
+            .filter(b => b.name.toLowerCase().includes(query))
+            .map(b => `<option value="${b.id}">${safeStr(b.name)}</option>`)
+            .join('');
+}
+
+async function createSACommunity() {
+    const name = val('sa-comm-name'); const code = val('sa-comm-code'); const email = val('sa-comm-email'); const pass = val('sa-comm-pass');
+    if(!name || !code) return showToast('error', 'שם וקוד קהילה הם חובה');
+    try {
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, code, managerEmail: email, managerPassword: pass})});
+        if((await res.json()).success) { 
+            showToast('success', 'קהילה הוקמה!'); 
+            getEl('sa-comm-name').value=''; getEl('sa-comm-code').value=''; 
+            loadSACommunityData(); 
+        } 
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function linkBizToCommunity() {
+    const communityId = val('sa-link-comm'); const businessId = val('sa-link-biz'); const discountPct = val('sa-link-discount');
+    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
+    try {
+        const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({communityId, businessId, discountPct})});
+        if((await res.json()).success) { showToast('success', 'העסק חובר בהצלחה!'); loadCommunityBusinesses(); loadSACommunityData(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function loadCommunityBusinesses() {
+    const communityId = val('sa-link-comm');
+    const list = getEl('sa-comm-biz-list');
+    if(!communityId) { list.innerHTML = 'יש לבחור קהילה מהרשימה'; return; }
+    try {
+        const res = await fetch(`${API}/sa/community-business/${communityId}`);
+        const data = await res.json();
+        if(data.success) {
+            if(data.connections.length === 0) { list.innerHTML = 'אין עסקים מקושרים'; return; }
+            list.innerHTML = data.connections.map(c => `<div class="flex justify-between items-center bg-white p-2 rounded border text-xs shadow-sm"><span>${safeStr(c.business_name)} (${c.discount_pct}%)</span><button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-red-400"><i class="fa-solid fa-times"></i></button></div>`).join('');
+        }
+    } catch(e) {}
+}
+
+async function removeBizFromCommunity(commId, bizId) {
+    if(!confirm('להסיר את העסק?')) return;
+    await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+    loadCommunityBusinesses(); loadSACommunityData();
+}
+
+async function deleteSACommunity(id) {
+    if(!confirm('למחוק את הקהילה לצמיתות?')) return;
+    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+    loadSACommunityData();
+}
+
+// ---------------------------------------------
+// פונקציות ניהול קהילות עבור העסק (ממשק עובד/מנהל עסק)
+// ---------------------------------------------
+async function loadBizCommunities() {
+    if (!currentGroup || !currentGroup.id) return;
+    try {
+        const [myRes, availRes] = await Promise.all([
+            fetch(`${API}/biz/communities/my/${currentGroup.id}`),
+            fetch(`${API}/biz/communities/available/${currentGroup.id}`)
+        ]);
+        
+        const myData = await myRes.json();
+        const availData = await availRes.json();
+        
+        if (myData.success) renderBizMyCommunities(myData.communities);
+        if (availData.success) renderBizAvailableCommunities(availData.communities);
+        
+    } catch(e) { console.error("Error loading biz communities", e); }
+}
 function renderBizMyCommunities(communities) {
     const list = getEl('biz-my-communities-list');
     if (!list) return;
