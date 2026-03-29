@@ -226,27 +226,22 @@ function executeWithAIWarning(actionCallback) {
 }
 
 function injectBusinessUI() {
-    if(!getEl('tab-shifts')) {
-        const feedTab = getEl('tab-feed');
-        if(feedTab) {
-            feedTab.insertAdjacentHTML('afterend', `<button id="tab-shifts" onclick="switchTab('shifts')" class="tab-btn">משמרות 🗓️</button>`);
-        }
-        
-        const contentFeed = getEl('content-feed');
-        if(contentFeed) {
-            contentFeed.insertAdjacentHTML('afterend', `
-            <div id="content-shifts" class="hidden">
-                <div class="flex justify-between items-center mb-4 px-2 mt-2">
-                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
-                </div>
-                <div id="shifts-list" class="space-y-3 pb-20"></div>
-            </div>
-            `);
-        }
+    if(!getEl('content-shifts')) {
+        const contentFeed = getEl('content-feed');
+        if(contentFeed) {
+            contentFeed.insertAdjacentHTML('afterend', `
+            <div id="content-shifts" class="hidden">
+                <div class="flex justify-between items-center mb-4 px-2 mt-2">
+                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
+                </div>
+                <div id="shifts-list" class="space-y-3 pb-20"></div>
+            </div>
+            `);
+        }
 
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
                 <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
                     <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
@@ -1872,36 +1867,69 @@ async function renderForecast() {
 }
 
 function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) {
-    const container = getEl('forecast-charts'); if(!container) return;
-    container.className = "mt-6 border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-center gap-6";
-    
-    let sumsHtml = `
-        <div class="flex flex-col gap-3 w-full md:w-auto text-center md:text-right">
-            <div class="bg-green-50 border border-green-100 p-3 rounded-xl">
-                <span class="text-[10px] text-green-600 font-bold block mb-1">סה"כ הכנסות צפויות:</span>
-                <span class="text-lg font-black text-green-700">₪${totalIncome.toFixed(2)}</span>
-            </div>
-            <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
-                <span class="text-[10px] text-red-600 font-bold block mb-1">סה"כ הוצאות צפויות:</span>
-                <span class="text-lg font-black text-red-700">₪${totalExpense.toFixed(2)}</span>
-            </div>
-        </div>
-    `;
+    const container = getEl('forecast-charts'); if(!container) return;
+    container.className = "mt-6 border-t border-slate-100 pt-6 flex flex-col md:flex-row items-center justify-center gap-6 w-full";
+    
+    let sumsHtml = `
+        <div class="flex flex-col gap-3 w-full md:w-auto text-center md:text-right shrink-0">
+            <div class="bg-green-50 border border-green-100 p-3 rounded-xl flex flex-col items-center sm:items-start">
+                <span class="text-[10px] text-green-600 font-bold block mb-1">סה"כ הכנסות צפויות:</span>
+                <span class="text-lg font-black text-green-700 dir-ltr">₪${totalIncome.toFixed(2)}</span>
+            </div>
+            <div class="bg-red-50 border border-red-100 p-3 rounded-xl flex flex-col items-center sm:items-start">
+                <span class="text-[10px] text-red-600 font-bold block mb-1">סה"כ הוצאות צפויות:</span>
+                <span class="text-lg font-black text-red-700 dir-ltr">₪${totalExpense.toFixed(2)}</span>
+            </div>
+        </div>
+    `;
 
-    container.innerHTML = `
-        ${sumsHtml}
-        <div class="w-full max-w-[200px]">
-            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">יחס (הכנסות/הוצאות)</h4>
-            <div class="relative h-40 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
-        </div>
-    `;
-    const ctx = getEl('ratioChart'); if(!ctx) return;
-    if(forecastRatioChart) forecastRatioChart.destroy();
-    if(totalIncome > 0 || totalExpense > 0) {
-        forecastRatioChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['הכנסות', 'הוצאות'], datasets: [{ data: [totalIncome, totalExpense], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 2, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-    } else { container.innerHTML = '<p class="text-center text-slate-400 text-xs py-4 w-full">אין פעולות עתידיות להצגת נתונים</p>'; }
+    container.innerHTML = `
+        ${sumsHtml}
+        <div class="w-full flex flex-col items-center" style="max-width: 250px;">
+            <h4 class="text-sm font-bold text-center text-slate-600 mb-2">יחס תזרים צפוי</h4>
+            <div class="relative h-48 w-full flex justify-center"><canvas id="ratioChart"></canvas></div>
+        </div>
+    `;
+    const ctx = getEl('ratioChart'); if(!ctx) return;
+    if(forecastRatioChart) forecastRatioChart.destroy();
+    
+    // מארגנים את הנתונים - גם אם אין נתונים מציגים עוגה אפורה ריקה
+    const hasData = totalIncome > 0 || totalExpense > 0;
+    const chartData = hasData ? [totalIncome, totalExpense] : [1];
+    const chartBg = hasData ? ['#22c55e', '#ef4444'] : ['#e2e8f0'];
+    const chartLabels = hasData ? [`הכנסות (₪${totalIncome.toFixed(0)})`, `הוצאות (₪${totalExpense.toFixed(0)})`] : ['אין נתונים לחודש זה'];
+
+    forecastRatioChart = new Chart(ctx, { 
+        type: 'doughnut', 
+        data: { 
+            labels: chartLabels, 
+            datasets: [{ 
+                data: chartData, 
+                backgroundColor: chartBg, 
+                borderWidth: 2, 
+                hoverOffset: 4 
+            }] 
+        }, 
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { 
+                legend: { 
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        font: { family: 'Rubik', size: 11 },
+                        usePointStyle: true,
+                        boxWidth: 8
+                    }
+                },
+                tooltip: {
+                    enabled: hasData // מכבה טולטיפ כשאין נתונים
+                }
+            } 
+        } 
+    });
 }
-
 function getForecastInsight() {
     executeWithAIWarning(async () => {
         showAIModal('רואת העתידות', null); getEl('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי...';
