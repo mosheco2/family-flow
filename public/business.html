@@ -477,7 +477,7 @@
                 <div class="relative px-2 mb-6 group shrink-0">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
-                       <div class="slider-scroll" id="slider-scroll">
+<div class="slider-scroll" id="slider-scroll">
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
@@ -485,11 +485,11 @@
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
                             <button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">כספים וקופה 💳</button>
-                            <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים מזומנים 💸</button>
+                            <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים 💸</button>
                             <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
-                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ופרויקטים ✅</button>
-                            <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות עובדים 🎓</button>
+                            <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                            <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn bg-gradient-to-r from-orange-400 to-pink-500 text-white border-transparent shadow-md">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
                         </div>
@@ -609,7 +609,7 @@
                         </div>
                     </div>
 
-                    <div id="content-community" class="hidden space-y-6">
+<div id="content-community" class="hidden space-y-6">
                         <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1">חיבור לקהילות 🏘️</h3>
                             <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות, הציעו הנחות והגדילו את מעגל הלקוחות שלכם.</p>
@@ -618,40 +618,16 @@
 
                         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-house-flag text-blue-500"></i> הקהילות שלי</h3>
-                            <div id="biz-my-communities-list" class="space-y-3">
-                                </div>
-                        </div>
-
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
-                            <p class="text-xs text-slate-500 mb-4">בקשו להצטרף לקהילות אלו והציעו הנחה לחבריהן.</p>
-                            <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                </div>
-                        </div>
-                    </div>
-
-                    <div id="content-settings" class="hidden space-y-6">
-                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">חיבור לקהילות 🏘️</h3>
-                            <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות, הציעו הנחות והגדילו את מעגל הלקוחות שלכם.</p>
-                            <i class="fa-solid fa-city absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
-
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-house-flag text-blue-500"></i> הקהילות שלי</h3>
-                            <div id="biz-my-communities-list" class="space-y-3">
-                                </div>
+                            <div id="biz-my-communities-list" class="space-y-3"></div>
                         </div>
 
                         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
                             <p class="text-xs text-slate-500 mb-4">בקשו להצטרף לקהילות אלו והציעו הנחה קבועה לחבריהן.</p>
-                            <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                </div>
+                            <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                         </div>
                     </div>
 
-                    <div id="content-settings" class="hidden space-y-6">
                     <div id="content-shop" class="hidden">
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">רכש והזמנות 🛒</h3>
