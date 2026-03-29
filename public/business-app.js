@@ -2757,29 +2757,46 @@ function renderSACommunitiesTable() {
     const tbody = getEl('sa-communities-table-body');
     if (!tbody) return;
     
-    const queryInput = getEl('sa-search-comm');
-    const query = queryInput ? queryInput.value.toLowerCase() : '';
-    const filtered = saCommunitiesCache.filter(c => c.name.toLowerCase().includes(query) || (c.code && c.code.toLowerCase().includes(query)));
+    const query = getEl('sa-search-comm') ? getEl('sa-search-comm').value.toLowerCase() : '';
+    const countFilter = getEl('sa-filter-comm-count') ? getEl('sa-filter-comm-count').value : 'all';
+    
+    let filtered = [...saCommunitiesCache];
+    
+    if (query) {
+        // מנגנון הגנה: מוודאים שקוד ושם קיימים לפני שמחפשים בתוכם כדי למנוע קריסה
+        filtered = filtered.filter(c => 
+            (c.name && c.name.toLowerCase().includes(query)) || 
+            (c.code && c.code.toLowerCase().includes(query))
+        );
+    }
+    
+    if (countFilter === 'with_families') {
+        filtered = filtered.filter(c => parseInt(c.family_count || 0) > 0);
+    } else if (countFilter === 'empty') {
+        filtered = filtered.filter(c => parseInt(c.family_count || 0) === 0);
+    } else if (countFilter === 'sort_desc') {
+        filtered.sort((a, b) => parseInt(b.family_count || 0) - parseInt(a.family_count || 0));
+    }
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות פעילות</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
         return;
     }
     
     tbody.innerHTML = filtered.map(c => `
         <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">${safeStr(c.name)}</td>
-            <td class="px-4 py-4 font-mono text-indigo-600 font-bold tracking-widest text-right">${safeStr(c.code)}</td>
-            <td class="px-4 py-4 text-right">
-                <div class="text-[10px] text-slate-500">${safeStr(c.manager_email)}</div>
-                <div class="text-[10px] text-slate-400">${safeStr(c.manager_password)}</div>
+            <td class="px-4 py-4 font-bold text-slate-800">${safeStr(c.name || 'ללא שם (תקלה קודמת)')}</td>
+            <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest">${safeStr(c.code || '---')}</td>
+            <td class="px-4 py-4">
+                <div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div>
+                <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password || '---')}</div>
             </td>
             <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-xs font-bold" title="משפחות"><i class="fa-solid fa-house"></i> ${c.family_count || 0}</span>
-                <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-xs font-bold ml-1" title="עסקים"><i class="fa-solid fa-briefcase"></i> ${c.business_count || 0}</span>
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="משפחות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0}</span>
+                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
             </td>
             <td class="px-4 py-4 text-center">
-                <button onclick="deleteSACommunity(${c.id})" class="text-red-400 hover:text-red-600 p-2 transition"><i class="fa-solid fa-trash-can"></i></button>
+                <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול / מחיקה</button>
             </td>
         </tr>
     `).join('');
