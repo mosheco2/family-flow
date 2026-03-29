@@ -427,7 +427,7 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    // מנגנון הגנה: אם אין משתמש מחובר, נקה את מסך הטעינה והצג התחברות
+    // חומת מגן: אם אין משתמש מחובר, נקה את מסך הטעינה והצג מסך התחברות
     if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
         console.warn("No active user or group found, redirecting to login...");
         const preloader = getEl('app-preloader');
@@ -480,7 +480,7 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
         
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
+        
         try { await fetchMembers(); } catch(e){}
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
@@ -490,9 +490,12 @@ async function loadDashboard() {
         console.error("Dashboard error:", e);
         showToast('error', 'שגיאה בטעינת הנתונים');
     } finally {
+        // הורדת מסך הטעינה (בלי קריאות לפונקציות הדרכה של המשפחה)
         const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
+        if (preloader && !preloader.classList.contains('hidden')) { 
+            preloader.classList.add('opacity-0', 'pointer-events-none'); 
+            setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
+        }
     }
 }
 // -------------------- שעון נוכחות --------------------
