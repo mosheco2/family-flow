@@ -437,6 +437,7 @@ function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl(
 
 async function loadDashboard() {
     try {
+        // חומת המגן שלנו - אם אין משתמש, מפנים מיד להתחברות
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
             console.warn("No active user or group found, redirecting to login...");
             const authContainer = document.getElementById('auth-container');
@@ -502,7 +503,7 @@ async function loadDashboard() {
     } catch (e) {
         console.error("Dashboard error:", e);
     } finally {
-        // רשת ביטחון מוחלטת להסרת מסך הטעינה
+        // הסרת מסך הטעינה מתבצעת תמיד
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
@@ -797,21 +798,10 @@ async function fetchData() {
 
         const res = await fetch(`${API}/data/${currentUser.id}`);
         
-        // מנגנון חדש: הגנה מקריסת שרת
         let data;
-        try { 
-            data = await res.json(); 
-        } catch(err) { 
-            console.error("Failed to parse JSON response from server");
-            return; 
-        }
+        try { data = await res.json(); } catch(err) { console.error("Failed to parse JSON", err); return; }
         
-        if (!res.ok) {
-            console.error("Backend Error:", data.error || "Unknown server error");
-            showToast('error', 'שגיאת שרת בטעינת נתונים: ' + (data.error || 'פנה לתמיכה טכנית'));
-            return; // עוצרים כאן כדי שהמערכת לא תיתקע
-        }
-        
+        if (!res.ok) { console.error("Backend Error:", data.error); return; }
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
@@ -876,10 +866,11 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        try { if(typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if(typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const tabCash = document.getElementById('tab-cashflow'); if (tabCash && tabCash.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e) {}
-        try { if(typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const cashTab = document.getElementById('tab-cashflow'); if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e){}
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+
     } catch(e) {
-        console.error('Error in fetchData execution:', e);
+        console.error("Fetch data error:", e);
     }
 }
 function showAIModal(title, text) {
