@@ -2196,19 +2196,17 @@ async function rejectSABusiness(communityId, businessId) {
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
-        // 1. חסימה והעלמה כפויה של מסך המשתמש הרגיל כדי שלא ידחס את מסך הניהול
         const userDash = document.getElementById('dashboard-container');
         if (userDash) userDash.classList.add('hidden');
         
         await originalLoadSADashboard();
-        loadSACommunityData();
+        try { loadSAPendingBusinesses(); } catch(e) {}
+        try { loadSACommunityData(); } catch(e) {}
         
-        // 2. וידוא חסימה סופי למקרה של טעינת נתונים מקבילה שמתעכבת
         setTimeout(() => {
             if (userDash) userDash.classList.add('hidden');
         }, 100);
     };
     window.saCommLoaded = true;
 }
-// === סוף הקובץ ===
 // === סוף הקובץ ===
