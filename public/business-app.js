@@ -405,7 +405,7 @@ function switchTab(t) {
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
-    if (t === 'sales') { try { switchSalesTab('orders'); fetchStoreOrders(); } catch(e) {} }
+    if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
     if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
     if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
@@ -2240,8 +2240,8 @@ async function saveStoreSettings() {
 }
 // פונקציית מערכת: אכיפת הרשאות תצוגה מבוססות תפקיד בעסק
 function enforcePermissions() {
-    if (!currentUser || !currentGroup) return;
-    const isAdmin = currentUser.role === 'ADMIN';
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
     
     // רשימת אלמנטים ניהוליים שאנו רוצים להסתיר מעובד סטנדרטי
     if (!isAdmin) {
