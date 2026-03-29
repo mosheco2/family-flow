@@ -628,7 +628,7 @@
                         </div>
                     </div>
 
-                    <div id="content-shop" class="hidden">
+          <div id="content-shop" class="hidden">
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">רכש והזמנות 🛒</h3>
                             <div class="flex gap-2">
@@ -654,6 +654,7 @@
                         </div>
                         <div id="shop-list" class="space-y-3 mb-32 min-h-[200px]"></div>
                     </div>
+
                     <div id="content-sales" class="hidden pb-24">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <div class="flex justify-between items-center mb-4">
@@ -661,10 +662,10 @@
                             </div>
                             <p class="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 mb-4"><i class="fa-solid fa-circle-info text-slate-500"></i> נהלו את קטלוג המוצרים שלכם, צפו בהזמנות נכנסות מהלקוחות ושתפו את לינק החנות.</p>
                             
-                           <div class="flex bg-slate-100 p-1 rounded-xl mb-4 w-full overflow-x-auto modal-scroll whitespace-nowrap">
+                            <div class="flex bg-slate-100 p-1 rounded-xl mb-4 w-full overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות נכנסות</button>
                                 <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
-                                <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק וקהילות</button>
+                                <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קופונים ומבצעים</button>
                                 <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition"><i class="fa-solid fa-gear"></i> הגדרות חנות</button>
                             </div>
 
@@ -693,6 +694,7 @@
                                 </div>
                                 <div id="store-catalog-list" class="space-y-3 min-h-[150px]"></div>
                             </div>
+
                             <div id="sales-view-marketing" class="hidden space-y-4">
                                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                     <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
@@ -717,15 +719,6 @@
                                     <h4 class="font-bold text-slate-600 text-sm mb-2">קופונים פעילים בעסק:</h4>
                                     <div id="store-coupons-list" class="space-y-2 min-h-[100px]"></div>
                                 </div>
-                                
-                                <div class="bg-orange-50 p-4 rounded-xl border border-orange-200 shadow-sm text-center">
-                                    <i class="fa-solid fa-users text-3xl text-orange-400 mb-2"></i>
-                                    <h4 class="font-bold text-orange-800 mb-1">חיבור לקהילות וארגונים</h4>
-                                    <p class="text-xs text-orange-700 mb-4">חיבור לארגונים יאפשר ללקוחות מאותה קהילה לרכוש אצלכם בהנחה מובנית דרך אפליקציית המשפחות.</p>
-                                    <div id="community-connections-list" class="bg-white rounded-lg p-3 text-sm text-slate-500 border border-orange-100">
-                                        יפתח בקרוב...
-                                    </div>
-                                </div>
                             </div>
 
                             <div id="sales-view-settings" class="hidden space-y-4">
@@ -746,7 +739,7 @@
                                         <div class="flex-1">
                                             <label class="text-[10px] font-bold text-slate-500 block mb-1">לוגו החנות:</label>
                                             <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
-                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו חדש</button>
+                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו חדש (יכווץ אוטומטית)</button>
                                             <input type="hidden" id="store-logo-base64">
                                         </div>
                                     </div>
@@ -768,10 +761,10 @@
 
                                         <div class="flex gap-2">
                                             <div class="flex-1">
-                                                <label class="text-[10px] font-bold text-slate-500">סוג החנות (עיצוב התצוגה):</label>
+                                                <label class="text-[10px] font-bold text-slate-500">סוג החנות (עיצוב תצוגה):</label>
                                                 <select id="store-type" class="modern-input py-2 text-sm bg-white">
-                                                    <option value="retail">מוצרים / קמעונאות 🛍️ (גריד)</option>
-                                                    <option value="food">מסעדה / מזון 🍔 (תפריט)</option>
+                                                    <option value="retail">מוצרים / קמעונאות 🛍️ (גריד תמונות)</option>
+                                                    <option value="food">מסעדה / מזון 🍔 (תפריט רשימה)</option>
                                                 </select>
                                             </div>
                                             <div class="w-1/3">
@@ -805,80 +798,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                            <div id="sales-view-orders" class="space-y-3">
-                              <div class="flex justify-between items-center mb-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                                    <h4 class="font-bold text-slate-700 text-sm ml-2">הזמנות פתוחות</h4>
-                                    <div class="flex gap-2 items-center flex-1">
-                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1.5 px-2 text-xs bg-white h-auto rounded-lg shadow-sm border-slate-200 outline-none flex-1">
-                                            <option value="all">הכל</option>
-                                            <option value="new">חדשות 🚨</option>
-                                            <option value="processing">בהכנה 📦</option>
-                                            <option value="ready">לאיסוף 🛍️</option>
-                                            <option value="completed">הושלמו ✅</option>
-                                        </select>
-                                        <button onclick="fetchStoreOrders()" class="text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-200 transition shrink-0"><i class="fa-solid fa-rotate-right"></i></button>
-                                    </div>
-                                </div>
-
-                            <div id="sales-view-catalog" class="hidden space-y-3">
-                                <div class="flex justify-between items-center mb-2">
-                                    <h4 class="font-bold text-slate-700 text-sm">מוצרים למכירה</h4>
-                                    <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
-                                </div>
-                                <div id="store-catalog-list" class="space-y-3 min-h-[150px]"></div>
-                            </div>
-<div id="sales-view-settings" class="hidden space-y-4">
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
-                                        <span class="font-bold text-slate-700 text-sm">סטטוס החנות (פעילה/סגורה):</span>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="store-is-active" class="sr-only peer">
-                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 mb-4">
-                                        <div class="w-16 h-16 rounded-full bg-white border-2 border-slate-200 shadow-sm flex items-center justify-center overflow-hidden shrink-0" id="store-logo-preview-container">
-                                            <i class="fa-solid fa-store text-2xl text-slate-300" id="store-logo-placeholder"></i>
-                                            <img id="store-logo-preview" class="hidden w-full h-full object-cover">
-                                        </div>
-                                        <div class="flex-1">
-                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">לוגו החנות:</label>
-                                            <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
-                                            <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition w-full text-right"><i class="fa-solid fa-upload mr-1"></i> העלה לוגו חדש (יכווץ אוטומטית)</button>
-                                            <input type="hidden" id="store-logo-base64">
-                                        </div>
-                                    </div>
-
-                                    <div class="space-y-3">
-                                        <div class="flex gap-2">
-                                            <div class="flex-1">
-                                                <label class="text-[10px] font-bold text-slate-500">סוג החנות (עיצוב התצוגה):</label>
-                                                <select id="store-type" class="modern-input py-2 text-sm bg-white">
-                                                    <option value="retail">מוצרים / קמעונאות 🛍️ (גריד תמונות)</option>
-                                                    <option value="food">מסעדה / מזון 🍔 (תפריט רשימה)</option>
-                                                </select>
-                                            </div>
-                                            <div class="w-1/3">
-                                                <label class="text-[10px] font-bold text-slate-500">מינימום הזמנה (₪):</label>
-                                                <input type="number" id="store-min-order" class="modern-input py-2 text-sm" placeholder="0">
-                                            </div>
-                                        </div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">סלוגן החנות (יופיע מתחת לשם העסק):</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="למשל: הטעמים הכי טובים בעיר!"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">הודעת פתיחה / מבצע קופץ (אופציונלי):</label><input type="text" id="store-welcome-msg" class="modern-input py-2 text-sm" placeholder="למשל: 10% הנחה על כל התפריט היום!"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500">טלפון לבירורים והזמנות:</label><input type="text" id="store-phone" class="modern-input py-2 text-sm" placeholder="050-0000000"></div>
-                                    </div>
-                                    <button onclick="saveStoreSettings()" id="btn-save-store-settings" class="w-full mt-5 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הגדרות חנות</button>
-                                </div>
-                                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                                    <p class="text-xs font-bold text-blue-800 mb-2">הקישור המיוחד לחנות שלכם (לחצו להעתקה):</p>
-                                    <div class="flex gap-2">
-                                        <input type="text" id="store-public-link" readonly class="modern-input py-2 text-[10px] text-left dir-ltr bg-white text-slate-500 border border-blue-200">
-                                        <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition shrink-0"><i class="fa-solid fa-copy"></i> העתק</button>
-                                    </div>
-                                </div>
-                            </div>
                     </div>
                     <div id="content-pantry" class="hidden">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
