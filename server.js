@@ -1950,6 +1950,90 @@ app.delete('/api/sa/community-business/:communityId/:businessId', async (req, re
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ============================================================
+// --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק וניהול) ---
+// ============================================================
+
+// שליפת הקהילות שהעסק מחובר אליהן (או ממתין לאישור)
+app.get('/api/biz/communities/my/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, cb.discount_pct, cb.status,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            WHERE cb.business_id = $1
+        `, [req.params.bizId]);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת כל הקהילות שהעסק עדיין לא מחובר אליהן
+app.get('/api/biz/communities/available/:bizId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
+            FROM communities c
+            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
+        `, [req.params.bizId]);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// בקשת חיבור לקהילה מצד העסק
+app.post('/api/biz/communities/join', async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query(
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            [communityId, businessId, parseFloat(discountPct)||0, 'pending']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ניתוק של העסק מהקהילה
+app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת בקשות המתנה לעסקים ע"י ה-Admin הראשי
+app.get('/api/sa/communities/pending-businesses', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, c.name as comm_name, b.name as biz_name 
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.status = 'pending'
+        `);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מסלול לאישור עסק ע"י ה-Admin הראשי
+app.post('/api/sa/community-business/approve', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query('UPDATE community_businesses SET status=$1, created_at=CURRENT_TIMESTAMP WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מסלול לסירוב בקשת חיבור
+app.post('/api/sa/community-business/reject', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // האזנה לשרת
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
