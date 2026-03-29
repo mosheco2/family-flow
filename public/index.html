@@ -318,11 +318,6 @@
                     <div class="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
                         <h2 class="text-2xl font-black mb-6 text-slate-800"><i class="fa-solid fa-city text-orange-500 mr-2"></i> הקמת קהילות וחיבור עסקים</h2>
                         
-                        <div id="sa-pending-biz-container" class="hidden mb-8 bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
-                            <h3 class="font-bold text-orange-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-bell text-orange-500"></i> בקשות עסקים ממתינות לאישור</h3>
-                            <div id="sa-pending-biz-list" class="space-y-3"></div>
-                        </div>
-
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                                 <h3 class="font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 flex items-center gap-2"><span class="bg-orange-100 text-orange-600 w-6 h-6 flex items-center justify-center rounded-lg text-sm">1</span> הקמת קהילה חדשה</h3>
@@ -359,20 +354,13 @@
                             </div>
                         </div>
                     </div>
-<div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
+
+                    <div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> ניהול קהילות קיימות</h3>
-                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <select id="sa-filter-comm-count" onchange="filterSACommunities()" class="modern-input py-2 text-sm bg-slate-50 border-slate-200 shadow-sm w-full sm:w-auto outline-none focus:border-blue-500">
-                                    <option value="all">כל הקהילות</option>
-                                    <option value="with_families">עם משפחות מחוברות</option>
-                                    <option value="empty">ללא משפחות בכלל</option>
-                                    <option value="sort_desc">לפי כמות (מהגבוה לנמוך)</option>
-                                </select>
-                                <div class="relative w-full sm:w-64">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="sa-search-comm" onkeyup="filterSACommunities()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש קהילה או קוד...">
-                                </div>
+                            <div class="relative w-full sm:w-64">
+                                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="sa-search-comm" onkeyup="filterSACommunities()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש קהילה או קוד...">
                             </div>
                         </div>
                         <div class="overflow-x-auto pb-4">
@@ -391,7 +379,6 @@
                             </table>
                         </div>
                     </div>
-                   
                 </div>
                     <div id="sa-view-content" class="hidden space-y-8 fade-in">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -484,6 +471,37 @@
             </div>
         </div>
 <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative">
+            <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-orange-500"></i> ניהול קהילה: <span id="sa-edit-comm-title"></span></h3>
+            <input type="hidden" id="sa-edit-comm-id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">שם קהילה:</label><input type="text" id="sa-edit-comm-name" class="modern-input py-2 text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">קוד הצטרפות:</label><input type="text" id="sa-edit-comm-code" class="modern-input py-2 text-sm font-mono text-left dir-ltr uppercase"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">אימייל (מנהל):</label><input type="email" id="sa-edit-comm-email" class="modern-input py-2 text-sm text-left dir-ltr"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">סיסמה (מנהל):</label><input type="text" id="sa-edit-comm-pass" class="modern-input py-2 text-sm text-left dir-ltr"></div>
+                <div class="md:col-span-2 flex justify-end mt-2"><button onclick="saveSACommunityEdit()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים</button></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-bold text-slate-700 mb-2 text-sm border-b pb-1">משפחות מחוברות (<span id="sa-edit-comm-fam-count">0</span>)</h4>
+                    <div id="sa-edit-comm-families" class="bg-slate-50 border border-slate-100 rounded-lg p-2 h-40 overflow-y-auto text-sm space-y-1 modal-scroll"></div>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-700 mb-2 text-sm border-b pb-1">עסקים נותני הנחה (<span id="sa-edit-comm-biz-count">0</span>)</h4>
+                    <div id="sa-edit-comm-businesses" class="bg-slate-50 border border-slate-100 rounded-lg p-2 h-40 overflow-y-auto text-sm space-y-1 modal-scroll"></div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-between items-center border-t border-slate-100 pt-4">
+                <button onclick="deleteSACommunity()" class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg font-bold text-sm transition"><i class="fa-solid fa-trash"></i> מחק קהילה לגמרי</button>
+                <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition">סגור</button>
+            </div>
+        </div>
+    </div>
+    <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative">
                 <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
                 <h3 class="text-xl font-bold mb-4 text-slate-800 flex items-center gap-2"><i class="fa-solid fa-users-viewfinder text-orange-500"></i> ניהול קהילה: <span id="sa-edit-comm-title"></span></h3>
@@ -498,21 +516,13 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="flex flex-col h-full">
-                        <div class="flex justify-between items-center border-b pb-1 mb-2">
-                            <h4 class="font-bold text-slate-700 text-sm">משפחות מחוברות (<span id="sa-edit-comm-fam-count">0</span>)</h4>
-                        </div>
-                        <div class="relative w-full mb-2 shrink-0">
-                            <i class="fa-solid fa-search absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="sa-search-comm-fam" onkeyup="filterSACommFamilies()" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-7 pl-2 text-xs outline-none focus:border-blue-500 transition shadow-sm" placeholder="חיפוש משפחה או קוד...">
-                        </div>
-                        <div id="sa-edit-comm-families" class="bg-slate-50 border border-slate-100 rounded-lg p-2 flex-1 min-h-[160px] max-h-[200px] overflow-y-auto text-sm space-y-1 modal-scroll"></div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm border-b pb-1">משפחות מחוברות (<span id="sa-edit-comm-fam-count">0</span>)</h4>
+                        <div id="sa-edit-comm-families" class="bg-slate-50 border border-slate-100 rounded-lg p-2 h-40 overflow-y-auto text-sm space-y-1 modal-scroll"></div>
                     </div>
-                    <div class="flex flex-col h-full">
-                        <div class="border-b pb-1 mb-2 mt-7">
-                            <h4 class="font-bold text-slate-700 text-sm">עסקים נותני הנחה (<span id="sa-edit-comm-biz-count">0</span>)</h4>
-                        </div>
-                        <div id="sa-edit-comm-businesses" class="bg-slate-50 border border-slate-100 rounded-lg p-2 flex-1 min-h-[160px] max-h-[200px] overflow-y-auto text-sm space-y-1 modal-scroll"></div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm border-b pb-1">עסקים נותני הנחה (<span id="sa-edit-comm-biz-count">0</span>)</h4>
+                        <div id="sa-edit-comm-businesses" class="bg-slate-50 border border-slate-100 rounded-lg p-2 h-40 overflow-y-auto text-sm space-y-1 modal-scroll"></div>
                     </div>
                 </div>
                 
@@ -522,7 +532,6 @@
                 </div>
             </div>
         </div>
-    
         <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
             
             <a id="app-banner-top" class="hidden bg-gradient-to-r from-pink-500 to-rose-500 text-white text-center text-xs font-bold w-full shadow-md hover:opacity-90 transition flex-col items-center justify-center relative z-40 shrink-0 overflow-hidden"></a>
