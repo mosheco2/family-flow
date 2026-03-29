@@ -437,7 +437,6 @@ function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl(
 
 async function loadDashboard() {
     try {
-        // חומת המגן שלנו - אם אין משתמש, מפנים מיד להתחברות
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
             console.warn("No active user or group found, redirecting to login...");
             const authContainer = document.getElementById('auth-container');
@@ -503,7 +502,6 @@ async function loadDashboard() {
     } catch (e) {
         console.error("Dashboard error:", e);
     } finally {
-        // הסרת מסך הטעינה מתבצעת תמיד
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
