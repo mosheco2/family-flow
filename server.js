@@ -1724,19 +1724,22 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 
 // פונקציית אתחול לטבלאות הקהילה והשיווק (תרוץ אוטומטית)
 async function initCommunityTables() {
-    try {
-        await pool.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-        await pool.query(`CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`);
-        
-        // שדרוג: הוספת סטטוס ותאריך אישור לטבלת החיבורים
-        await pool.query(`ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`);
-        await pool.query(`ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-        
-        await pool.query(`CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-        
-        // התיקון הקריטי: הוספת עמודת השיוך לטבלת המשפחות כדי למנוע קריסת שאילתות באדמין
-        await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`);
-    } catch(e) { console.error("Error creating community tables", e); }
+    const queries = [
+        `CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        `CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+        `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+        `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`
+    ];
+    
+    for (let q of queries) {
+        try { 
+            await pool.query(q); 
+        } catch(e) { 
+            console.error("DB Init Warning on query:", q, e.message); 
+        }
+    }
 }
 initCommunityTables();
 
