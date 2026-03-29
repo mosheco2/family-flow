@@ -2147,3 +2147,4 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     window.saCommLoaded = true;
 }
 // === סוף הקובץ ===
+// === סוף הקובץ ===
