@@ -1866,47 +1866,38 @@ app.get('/api/sa/communities', async (req, res) => {
 });
 app.post('/api/sa/communities', async (req, res) => {
     try {
-        const { name, city } = req.body;
-        if (!name || !city) {
-            return res.status(400).json({ success: false, error: 'שם ועיר הם שדות חובה' });
-        }
+        const { name, city, code, managerEmail, managerPassword } = req.body;
         
-        // יצירת קוד ייחודי ואקראי באורך 6 תווים לקהילה החדשה
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+        let finalName = name;
+        let finalCode = code;
+        let finalEmail = managerEmail || 'system@oneflowlife.com';
+        let finalPass = managerPassword || '';
 
-        // הוספת העיר לשם הקהילה לתצוגה ברורה יותר
-        const finalName = `${name} (${city})`;
-        
-        // שמירה במסד הנתונים
+        // תמיכה בבקשה שמגיעה מהאדמין המשפחתי (ללא קוד, עם עיר)
+        if (city) {
+            finalName = `${name} (${city})`;
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            finalCode = '';
+            for (let i = 0; i < 6; i++) finalCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        } else {
+            // בדיקת תקינות לבקשה מהאדמין הראשי
+            if (!name || !code) {
+                return res.status(400).json({ success: false, error: 'שם וקוד קהילה הם שדות חובה' });
+            }
+        }
+
         await pool.query(
-            'INSERT INTO communities (name, code, manager_email) VALUES ($1, $2, $3)', 
-            [finalName, code, 'system@oneflowlife.com']
+            'INSERT INTO communities (name, code, manager_email, manager_password) VALUES ($1, $2, $3, $4)', 
+            [finalName, finalCode.toUpperCase().trim(), finalEmail, finalPass]
         );
         res.json({ success: true });
     } catch(e) { 
         console.error('Error creating community:', e);
+        if (e.code === '23505') { // קוד שגיאה של כפילות ב-PostgreSQL
+            return res.status(400).json({ success: false, error: 'קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר.' });
+        }
         res.status(500).json({ error: e.message }); 
     }
-});
-
-app.put('/api/sa/communities/:id', async (req, res) => {
-    try {
-        const { name, code, managerEmail, managerPassword } = req.body;
-        await pool.query('UPDATE communities SET name=$1, code=$2, manager_email=$3, manager_password=$4 WHERE id=$5', [name, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/sa/communities/:id', async (req, res) => {
-    try {
-        // מנתק משפחות, מוחק קשרי עסקים, ואז מוחק קהילה
-        await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
-        await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
-        await pool.query('DELETE FROM communities WHERE id = $1', [req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/sa/communities/:id/details', async (req, res) => {
@@ -1964,7 +1955,7 @@ app.post('/api/sa/community-business/reject', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/store/coupons/:groupId', async (req, res) => {
+app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
