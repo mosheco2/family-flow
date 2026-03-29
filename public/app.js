@@ -333,11 +333,21 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
-    getEl(`content-${t}`).classList.remove('hidden'); getEl(`tab-${t}`).classList.add('tab-active'); 
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); getEl('fab-container').classList.remove('fab-lifted'); } 
+    ['feed','tasks','shop','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
+    
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
-    if (t === 'pantry') renderPantry(); if (t === 'recipes') renderRecipePantrySelection(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
+    
+    if (t === 'pantry') try { renderPantry(); } catch(e) {}
+    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
+    if (t === 'forecast') try { renderForecast(); } catch(e) {}
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
 }
 
 function updateBatteryUI() {
