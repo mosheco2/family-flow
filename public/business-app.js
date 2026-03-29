@@ -436,24 +436,23 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    // חומת מגן: אם אין משתמש מחובר, נקה את מסך הטעינה והצג מסך התחברות
-    if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
-        console.warn("No active user or group found, redirecting to login...");
-        const preloader = getEl('app-preloader');
-        if (preloader) preloader.classList.add('hidden');
-        const authContainer = getEl('auth-container');
-        if (authContainer) authContainer.classList.remove('hidden');
-        return;
-    }
-
     try {
+        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
+            console.warn("No active user or group found, redirecting to login...");
+            const authContainer = document.getElementById('auth-container');
+            if (authContainer) authContainer.classList.remove('hidden');
+            return;
+        }
+
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-        injectBusinessUI();
-        getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
+        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
+        
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
+        const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
         
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
-        getEl('dash-nickname').innerText = currentUser.nickname; 
+        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
+        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
         const isAdmin = currentUser.role === 'ADMIN';
         if(isAdmin) { 
@@ -465,9 +464,9 @@ async function loadDashboard() {
             const tcHeader = getEl('timeclock-admin-view');
             if(tcHeader && !getEl('tc-month-filter')) {
                 tcHeader.insertAdjacentHTML('afterbegin', `
-                    <select id="tc-month-filter" onchange="fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select>
-                    <button onclick="exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-red-100 hover:bg-red-100 transition ml-2"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
-                    <button onclick="openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> דיווח נוכחות ידני</button>
+                    <select id="tc-month-filter" onchange="if(typeof fetchTimeclockReport === 'function') fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select>
+                    <button onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-red-100 hover:bg-red-100 transition ml-2"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
+                    <button onclick="if(typeof openManualPunchModal === 'function') openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> דיווח נוכחות ידני</button>
                 `);
                 for(let i=0; i<12; i++) {
                     let d = new Date(); d.setMonth(d.getMonth()-i);
@@ -477,31 +476,35 @@ async function loadDashboard() {
         } else { 
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            getEl('card-name').innerText = currentUser.nickname.toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}`; 
+            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
+            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`; 
+            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`; 
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
             
             const tcUserHeader = getEl('timeclock-user-view');
             if(tcUserHeader && !getEl('btn-export-pdf-user')) {
-                 tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
+                 tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
             }
         }
-        getEl('timeclock-user-view').classList.remove('hidden');
-        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
         
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
+        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
+        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
+        try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
+        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+        
+        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
+        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-        try { checkTimeclockStatus(); } catch(e){}
+        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+
     } catch (e) {
         console.error("Dashboard error:", e);
-        showToast('error', 'שגיאה בטעינת הנתונים');
     } finally {
-        // הורדת מסך הטעינה (בלי קריאות לפונקציות הדרכה של המשפחה)
-        const preloader = getEl('app-preloader'); 
-        if (preloader && !preloader.classList.contains('hidden')) { 
+        // רשת ביטחון מוחלטת להסרת מסך הטעינה
+        const preloader = document.getElementById('app-preloader'); 
+        if (preloader) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
             setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
         }
@@ -789,18 +792,22 @@ async function sendCredentialsEmail() {
 
 async function fetchData() {
     try {
-        // מניעת קריסה אם המשתמש לא מוגדר
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
-        if (document.activeElement.classList.contains('price-input')) return;
+        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
         const res = await fetch(`${API}/data/${currentUser.id}`);
         if (!res.ok) throw new Error("Server returned error");
+        
         const data = await res.json();
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
         if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            currentGroup.ai_tokens = data.group.ai_tokens; 
+            currentGroup.is_premium = data.group.is_premium;
+            currentGroup.community_id = data.group.community_id;
+            try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
+            
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
         }
@@ -816,35 +823,29 @@ async function fetchData() {
             const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
         
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
+        allTasks = Array.isArray(data.tasks) ? data.tasks : []; 
+        bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; 
+        pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-        try { renderTasks(allTasks); renderPantry(); renderShifts(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-        try { fetchBudget(); } catch(e) {}
-        try { renderForecast(); } catch(e) {}
+        try { if(typeof renderTasks === 'function') renderTasks(allTasks); } catch(e) {}
+        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; if(typeof renderShopList === 'function') renderShopList(); } catch(e) {}
+        try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) {}
         
         try {
-            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
+            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
+            const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
             if (goalsList) { 
                 goalsList.innerHTML = ''; 
                 if(data.goals && data.goals.length > 0) { 
                     if(goalsContainer) goalsContainer.classList.remove('hidden'); 
                     data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> העברה ליעד</button>${adviseBtn}</div></div></div>`; 
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); 
+                        const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; 
+                        const adviseBtn = `<button onclick="if(typeof getBusinessAIAdvice === 'function') getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="if(typeof openDepositModal === 'function') openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> העברה ליעד</button>${adviseBtn}</div></div></div>`; 
                     }); 
                 } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים מוגדרים</p>'; } 
-            }
-        } catch(e) {}
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהתקציב שאושר!' : 'עמידה ביעדי התקציב מזכה בבונוס!'; 
             }
         } catch(e) {}
 
@@ -854,8 +855,15 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        try { renderEmployeeTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-        try { loadBizCommunities(); } catch(e) {} 
+        // קריאות בטוחות לפונקציות של מסך העסק
+        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); } catch(e){}
+        try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e){}
+        try { 
+            const cashTab = getEl('tab-cashflow');
+            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); 
+        } catch(e){}
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+
     } catch(e) {
         console.error("Fetch data error:", e);
     }
