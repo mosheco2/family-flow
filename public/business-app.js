@@ -389,38 +389,28 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    // רשימה מלאה של כלל הטאבים הקיימים במסך העסק כדי לוודא שכולם מתאפסים (מוסתרים)
-    const allTabs = ['feed','timeclock','shifts','shop','pantry','sales','bank','cashflow','budget','forecast','tasks','academy','community','members'];
-    
-    allTabs.forEach(x => { 
-        const contentEl = getEl(`content-${x}`); 
-        if(contentEl) contentEl.classList.add('hidden'); 
-        const btnEl = getEl(`tab-${x}`); 
-        if(btnEl) btnEl.classList.remove('tab-active'); 
+    ['feed','timeclock','shifts','shop','sales','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
-    // הצגת הטאב שנבחר
-    const targetContent = getEl(`content-${t}`); 
-    if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); 
-    if(targetBtn) targetBtn.classList.add('tab-active'); 
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    else { try { renderShopList(); } catch(e) {} }
     
-    // ניהול מצב הכפתור הצף ועגלת הקניות התחתונה
-    if (t !== 'shop') { 
-        const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
-        const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
-    } else { 
-        try { renderShopList(); } catch(e) {} 
-    }
-    
-    // טעינת נתונים ספציפיים לכל טאב בעת הלחיצה עליו
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
+    if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
-    if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
-    if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
+    if (t === 'sales') { try { switchSalesTab('orders'); fetchStoreOrders(); } catch(e) {} }
+    if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
+    if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
+    if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
+    if (t === 'tasks') { try { renderTasks(allTasks); } catch(e) {} }
+    if (t === 'members') { try { fetchMembers(); } catch(e) {} }
 }
 
 function updateBatteryUI() {
@@ -2250,8 +2240,8 @@ async function saveStoreSettings() {
 }
 // פונקציית מערכת: אכיפת הרשאות תצוגה מבוססות תפקיד בעסק
 function enforcePermissions() {
-    if (!currentGroup) return;
-    const isAdmin = currentGroup.role === 'ADMIN';
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
     
     // רשימת אלמנטים ניהוליים שאנו רוצים להסתיר מעובד סטנדרטי
     if (!isAdmin) {
