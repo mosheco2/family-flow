@@ -389,12 +389,12 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','catalog','orders','staff','clock','cashflow','community','settings'].forEach(x => { 
+    ['feed','timeclock','shifts','tasks','shop','bank','cashflow','academy','members','budget','pantry','forecast', 'sales'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
-    getEl(`content-${t}`).classList.remove('hidden'); getEl(`tab-${t}`).classList.add('tab-active'); 
-    if (t === 'catalog') renderCatalog(); if (t === 'orders') fetchOrders(); if(t === 'staff') fetchStaff(); if(t === 'cashflow') renderCashflow(); if(t === 'community') loadBizCommunities();
+    const targetEl = getEl(`content-${t}`); if(targetEl) targetEl.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); getEl('fab-container').classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
@@ -862,10 +862,10 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
- try { renderEmployeeTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-        try { loadBizCommunities(); } catch(e) {} // טעינת קהילות העסק
+        try { renderEmployeeTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
     } catch(e) {}
 }
+
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
     if (text) { getEl('familai-advisor-loading').classList.add('hidden'); getEl('familai-advice-text').innerText = text; getEl('familai-advisor-content').classList.remove('hidden'); } 
@@ -2574,137 +2574,21 @@ async function submitGlobalAI() {
         if (data.success && data.answer) { chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
     } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
-
-// ============================================================
-// --- BIZ COMMUNITY MANAGEMENT ---
-// ============================================================
-
-async function loadBizCommunities() {
-    if (!currentGroup || !currentGroup.id) return;
-    try {
-        const [myRes, availRes] = await Promise.all([
-            fetch(`${API}/biz/communities/my/${currentGroup.id}`),
-            fetch(`${API}/biz/communities/available/${currentGroup.id}`)
-        ]);
-        
-        const myData = await myRes.json();
-        const availData = await availRes.json();
-        
-        if (myData.success) renderBizMyCommunities(myData.communities);
-        if (availData.success) renderBizAvailableCommunities(availData.communities);
-        
-    } catch(e) { console.error("Error loading biz communities", e); }
-}
-
-function renderBizMyCommunities(communities) {
-    const list = getEl('biz-my-communities-list');
-    if (!list) return;
-    
-    if (communities.length === 0) {
-        list.innerHTML = '<p class="text-sm text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">אינכם מחוברים לאף קהילה כרגע.</p>';
-        return;
-    }
-    
-    list.innerHTML = communities.map(c => {
-        const isPending = c.status === 'pending';
-        const statusBadge = isPending 
-            ? `<span class="bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-1 rounded-lg border border-orange-200"><i class="fa-solid fa-hourglass-half"></i> ממתין למנהל הקהילה</span>`
-            : `<span class="bg-green-100 text-green-600 text-[10px] font-bold px-2 py-1 rounded-lg border border-green-200"><i class="fa-solid fa-check"></i> מאושר ופעיל</span>`;
-            
-        return `
-        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-indigo-200 transition mb-3">
-            <div>
-                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-city text-slate-300"></i> ${safeStr(c.name)}</h4>
-                <div class="flex items-center gap-3 mt-2">
-                    ${statusBadge}
-                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">${c.discount_pct}% הנחה</span>
-                    <span class="text-[10px] font-bold text-slate-500 bg-white px-2 py-1 rounded-lg border border-slate-200"><i class="fa-solid fa-users"></i> ${c.families_count || 0} משפחות רשומות</span>
-                </div>
-            </div>
-            <button onclick="leaveBizCommunity(${c.id})" class="text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title="התנתק מקהילה"><i class="fa-solid fa-plug-circle-xmark text-lg"></i></button>
-        </div>`;
-    }).join('');
-}
-
-function renderBizAvailableCommunities(communities) {
-    const list = getEl('biz-available-communities-list');
-    if (!list) return;
-    
-    if (communities.length === 0) {
-        list.innerHTML = '<p class="text-sm text-slate-400 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 col-span-full">אין קהילות פתוחות נוספות להצטרפות כרגע.</p>';
-        return;
-    }
-    
-    list.innerHTML = communities.map(c => `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between items-start hover:shadow-md transition">
-            <div class="w-full mb-3">
-                <h4 class="font-bold text-slate-800 text-sm truncate"><i class="fa-solid fa-city text-slate-300 ml-1"></i> ${safeStr(c.name)}</h4>
-                <p class="text-[10px] font-bold text-slate-500 mt-2 bg-slate-50 inline-block px-2 py-1 rounded-lg border border-slate-100"><i class="fa-solid fa-users"></i> ${c.families_count || 0} משפחות חברות</p>
-            </div>
-            <button onclick="openBizJoinCommunityModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition">בקש להצטרף</button>
-        </div>
-    `).join('');
-}
-
-function openBizJoinCommunityModal(id, name) {
-    getEl('biz-join-comm-id').value = id;
-    getEl('biz-join-comm-name').innerText = `קהילת ${name}`;
-    getEl('biz-join-discount').value = '';
-    getEl('biz-join-community-modal').classList.remove('hidden');
-}
-
-async function submitBizCommunityJoin() {
-    const commId = getEl('biz-join-comm-id').value;
-    const discount = parseFloat(getEl('biz-join-discount').value);
-    
-    if (isNaN(discount) || discount < 0) return showToast('error', 'יש להזין אחוז הנחה תקין (אפשרי 0)');
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            showToast('success', 'בקשת ההצטרפות נשלחה לניהול הקהילה!');
-            getEl('biz-join-community-modal').classList.add('hidden');
-            loadBizCommunities();
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
-}
-
-async function leaveBizCommunity(commId) {
-    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'התנתקת מהקהילה בהצלחה.');
-            loadBizCommunities();
-        } else {
-            showToast('error', 'שגיאה בהתנתקות מהקהילה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
-}
-
 // "התלבשות" חכמה על פונקציית טעינת מסך הניהול כדי לאתחל את נתוני הקהילות כשהמנהל נכנס
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
+        // 1. חסימה והעלמה כפויה של מסך המשתמש הרגיל כדי שלא ידחס את מסך הניהול
         const userDash = document.getElementById('dashboard-container');
         if (userDash) userDash.classList.add('hidden');
         
         await originalLoadSADashboard();
-        try { loadSACommunityData(); } catch(e) {}
+        loadSACommunityData();
         
+        // 2. וידוא חסימה סופי למקרה של טעינת נתונים מקבילה שמתעכבת
         setTimeout(() => {
             if (userDash) userDash.classList.add('hidden');
         }, 100);
     };
     window.saCommLoaded = true;
 }
-// === סוף הקובץ ===
