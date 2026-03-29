@@ -796,9 +796,22 @@ async function fetchData() {
         if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
         const res = await fetch(`${API}/data/${currentUser.id}`);
-        if (!res.ok) throw new Error("Server returned error");
         
-        const data = await res.json();
+        // מנגנון חדש: הגנה מקריסת שרת
+        let data;
+        try { 
+            data = await res.json(); 
+        } catch(err) { 
+            console.error("Failed to parse JSON response from server");
+            return; 
+        }
+        
+        if (!res.ok) {
+            console.error("Backend Error:", data.error || "Unknown server error");
+            showToast('error', 'שגיאת שרת בטעינת נתונים: ' + (data.error || 'פנה לתמיכה טכנית'));
+            return; // עוצרים כאן כדי שהמערכת לא תיתקע
+        }
+        
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
@@ -808,19 +821,19 @@ async function fetchData() {
             currentGroup.community_id = data.group.community_id;
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
-            const profileUp = getEl('profile-upgrade-section');
+            const profileUp = document.getElementById('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
         }
 
         if (currentUser.role === 'ADMIN') {
-            const balEl = getEl('user-balance'); 
+            const balEl = document.getElementById('user-balance'); 
             if(balEl) {
                 const realBalance = data.group.admin_total_balance || 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
         } else {
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
+            const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; 
@@ -828,24 +841,32 @@ async function fetchData() {
         pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-        try { if(typeof renderTasks === 'function') renderTasks(allTasks); } catch(e) {}
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { if(typeof renderTasks === 'function') renderTasks(allTasks); if(typeof renderPantry === 'function') renderPantry(); if(typeof renderShifts === 'function') renderShifts(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; if(typeof renderShopList === 'function') renderShopList(); } catch(e) {}
         try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) {}
+        try { if(typeof renderForecast === 'function') renderForecast(); } catch(e) {}
         
         try {
-            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); 
-            const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
+            const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
             if (goalsList) { 
                 goalsList.innerHTML = ''; 
                 if(data.goals && data.goals.length > 0) { 
                     if(goalsContainer) goalsContainer.classList.remove('hidden'); 
                     data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); 
-                        const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; 
-                        const adviseBtn = `<button onclick="if(typeof getBusinessAIAdvice === 'function') getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="if(typeof getBusinessAIAdvice === 'function') getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
                         goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="if(typeof openDepositModal === 'function') openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> העברה ליעד</button>${adviseBtn}</div></div></div>`; 
                     }); 
                 } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים מוגדרים</p>'; } 
+            }
+        } catch(e) {}
+        
+        try {
+            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
+                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
+                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהתקציב שאושר!' : 'עמידה ביעדי התקציב מזכה בבונוס!'; 
             }
         } catch(e) {}
 
@@ -855,17 +876,10 @@ async function fetchData() {
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
-        // קריאות בטוחות לפונקציות של מסך העסק
-        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); } catch(e){}
-        try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e){}
-        try { 
-            const cashTab = getEl('tab-cashflow');
-            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); 
-        } catch(e){}
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
-
+        try { if(typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if(typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const tabCash = document.getElementById('tab-cashflow'); if (tabCash && tabCash.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e) {}
+        try { if(typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
     } catch(e) {
-        console.error("Fetch data error:", e);
+        console.error('Error in fetchData execution:', e);
     }
 }
 function showAIModal(title, text) {
@@ -2865,21 +2879,34 @@ async function deleteSACommunity(id) {
 // ============================================================
 
 async function loadBizCommunities() {
-
-    if (!currentGroup || !currentGroup.id) return;
-    try {
-        const [myRes, availRes] = await Promise.all([
-            fetch(`${API}/biz/communities/my/${currentGroup.id}`),
-            fetch(`${API}/biz/communities/available/${currentGroup.id}`)
-        ]);
-        
-        const myData = await myRes.json();
-        const availData = await availRes.json();
-        
-        if (myData.success) renderBizMyCommunities(myData.communities);
-        if (availData.success) renderBizAvailableCommunities(availData.communities);
-        
-    } catch(e) { console.error("Error loading biz communities", e); }
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        
+        let data;
+        try { data = await res.json(); } catch(err) { return; }
+        
+        if (!res.ok) {
+            console.error("Backend Error in communities:", data.error);
+            return;
+        }
+        
+        if (data.success && data.communities) {
+            const list = document.getElementById('biz-my-communities-list');
+            if (list) {
+                if (data.communities.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
+                } else {
+                    list.innerHTML = data.communities.map(c => {
+                        let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center"><i class="fa-solid fa-users-rays"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-house mr-1"></i> ${c.families_count || 0} משפחות • הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                    }).join('');
+                }
+            }
+        }
+    } catch(e) {
+        console.error("Error loading biz communities", e);
+    }
 }
 function renderBizMyCommunities(communities) {
     const list = getEl('biz-my-communities-list');
