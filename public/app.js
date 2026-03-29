@@ -2044,36 +2044,53 @@ function switchSATab(tabId) {
 
 async function loadSACommunityData() {
     try {
-        const [commRes, bizRes] = await Promise.all([
-            fetch(`${API}/sa/communities`),
-            fetch(`${API}/sa/businesses`)
-        ]);
-        const commData = await commRes.json();
-        const bizData = await bizRes.json();
-        
-        if(commData.success) {
-            saCommunitiesCache = commData.communities;
-            
-            // עדכון נתוני הסטטיסטיקה למעלה במסך הראשי
-            const totalCommunities = saCommunitiesCache.length;
-            const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
-            if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
-            if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
+        // חלק 1: טעינת קהילות באופן עצמאי
+        try {
+            const commRes = await fetch(`${API}/sa/communities`);
+            const contentType = commRes.headers.get("content-type");
+            if (commRes.ok && contentType && contentType.includes("application/json")) {
+                const commData = await commRes.json();
+                if(commData.success) {
+                    saCommunitiesCache = commData.communities || [];
+                    
+                    const totalCommunities = saCommunitiesCache.length;
+                    const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
+                    if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
+                    if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
 
-            const commSelect = getEl('sa-link-comm');
-            if(commSelect) {
-                commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
+                    const commSelect = getEl('sa-link-comm');
+                    if(commSelect) {
+                        commSelect.innerHTML = '<option value="">בחר קהילה...</option>' + saCommunitiesCache.map(c => `<option value="${c.id}">${safeStr(c.name)} (${c.code})</option>`).join('');
+                    }
+                    renderSACommunitiesTable();
+                }
             }
-            renderSACommunitiesTable();
-        }
-        if(bizData.success) {
-            saBusinessesCache = bizData.businesses;
-            const bizSelect = getEl('sa-link-biz');
-            if(bizSelect) {
-                bizSelect.innerHTML = '<option value="">בחר עסק לחיבור...</option>' + saBusinessesCache.map(b => `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+        } catch(e) { console.error('Error loading communities:', e); }
+
+        // חלק 2: טעינת עסקים באופן עצמאי עם מנגנון גיבוי (Fallback) למטמון ישן
+        try {
+            let bizRes = await fetch(`${API}/sa/businesses`);
+            let contentType = bizRes.headers.get("content-type");
+            
+            if (!bizRes.ok || !contentType || !contentType.includes("application/json")) {
+                // גיבוי למקרה שהשרת טרם התעדכן או שהדפדפן זוכר את הנתיב הישן
+                bizRes = await fetch(`${API}/store/coupons/all`); 
+                contentType = bizRes.headers.get("content-type");
             }
-        }
-    } catch(e) { console.error(e); }
+            
+            if (bizRes.ok && contentType && contentType.includes("application/json")) {
+                const bizData = await bizRes.json();
+                if(bizData.success) {
+                    saBusinessesCache = bizData.businesses || [];
+                    const bizSelect = getEl('sa-link-biz');
+                    if(bizSelect) {
+                        bizSelect.innerHTML = '<option value="">בחר עסק לחיבור...</option>' + saBusinessesCache.map(b => `<option value="${b.id}">${safeStr(b.name)}</option>`).join('');
+                    }
+                }
+            }
+        } catch(e) { console.error('Error loading businesses:', e); }
+
+    } catch(e) { console.error('General error in loadSACommunityData:', e); }
 }
 
 function renderSACommunitiesTable() {
