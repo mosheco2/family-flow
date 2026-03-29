@@ -427,20 +427,31 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
+    // מנגנון הגנה: אם אין משתמש מחובר, נקה את מסך הטעינה והצג התחברות
+    if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
+        console.warn("No active user or group found, redirecting to login...");
+        const preloader = getEl('app-preloader');
+        if (preloader) preloader.classList.add('hidden');
+        const authContainer = getEl('auth-container');
+        if (authContainer) authContainer.classList.remove('hidden');
+        return;
+    }
+
     try {
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         injectBusinessUI();
         getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-        const codeBadge = (currentGroup && currentGroup.group_code) ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        getEl('dash-group-name').innerHTML = `${currentGroup ? safeStr(currentGroup.name) : ''} ${codeBadge}`; 
-        getEl('dash-nickname').innerText = currentUser ? currentUser.nickname : ''; 
+        
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
+        getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
+        getEl('dash-nickname').innerText = currentUser.nickname; 
 
-        const isAdmin = currentUser && currentUser.role === 'ADMIN';
+        const isAdmin = currentUser.role === 'ADMIN';
         if(isAdmin) { 
             ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
             const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
+            if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
             
             const tcHeader = getEl('timeclock-admin-view');
             if(tcHeader && !getEl('tc-month-filter')) {
@@ -457,11 +468,7 @@ async function loadDashboard() {
         } else { 
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            if (currentUser) {
-                getEl('card-name').innerText = currentUser.nickname.toUpperCase(); 
-                getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; 
-                getEl('card-interest').innerText = `${currentUser.interest_rate || 0}`; 
-            }
+            getEl('card-name').innerText = currentUser.nickname.toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}`; 
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
             
             const tcUserHeader = getEl('timeclock-user-view');
@@ -478,18 +485,16 @@ async function loadDashboard() {
         if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { await fetchLoans(); } catch(e){}
-        try { await checkTimeclockStatus(); } catch(e){}
-        
+        try { checkTimeclockStatus(); } catch(e){}
     } catch (e) {
-        console.error('Dashboard init error:', e);
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים, מרענן תצוגה...');
+        console.error("Dashboard error:", e);
+        showToast('error', 'שגיאה בטעינת הנתונים');
     } finally {
         const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { try { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } } catch(err){} };
+        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
 }
-
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
     if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
@@ -772,16 +777,12 @@ async function sendCredentialsEmail() {
 
 async function fetchData() {
     try {
-        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
-        
-        const res = await fetch(`${API}/data/${currentUser.id}`); 
-        const contentType = res.headers.get("content-type");
-        // בדיקת בטיחות: אם התשובה היא לא JSON, אנחנו עוצרים פה כדי לא לקרוס
-        if (!res.ok || (contentType && contentType.indexOf("application/json") === -1)) {
-            console.warn("Server did not return valid JSON for fetchData"); 
-            return;
-        }
-        
+        // מניעת קריסה אם המשתמש לא מוגדר
+        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
+        if (document.activeElement.classList.contains('price-input')) return;
+
+        const res = await fetch(`${API}/data/${currentUser.id}`);
+        if (!res.ok) throw new Error("Server returned error");
         const data = await res.json();
         if (!data || !data.user) return;
         
@@ -838,16 +839,13 @@ async function fetchData() {
         try {
             const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
             const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            const transContentType = transRes.headers.get("content-type");
-            if(transRes.ok && transContentType && transContentType.indexOf("application/json") !== -1) { 
-                const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; 
-            }
+            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
         try { renderEmployeeTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-        try { loadBizCommunities(); } catch(e) {} // טעינת קהילות העסק
+        try { loadBizCommunities(); } catch(e) {} 
     } catch(e) {
-        console.error('Error in fetchData:', e);
+        console.error("Fetch data error:", e);
     }
 }
 function showAIModal(title, text) {
