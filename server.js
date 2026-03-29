@@ -648,11 +648,32 @@ app.get('/api/data/:userId', async (req, res) => {
             const spentRes = await pool.query("SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE user_id = $1 AND type = 'expense' AND date >= $2", [user.id, startOfWeek]);
             weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
         }
+        
+        // שליפת עדכוני קהילה לפיד המשפחתי (הודעה על עסקים חדשים שהצטרפו לקהילה)
+        let community_updates = [];
+        if (group.type === 'FAMILY' && group.community_id) {
+            const newBiz = await pool.query(`
+                SELECT b.name as business_name, c.name as comm_name, cb.discount_pct, cb.created_at
+                FROM community_businesses cb
+                JOIN family_groups b ON cb.business_id = b.id
+                JOIN communities c ON cb.community_id = c.id
+                WHERE cb.community_id = $1 AND cb.status = 'approved'
+            `, [group.community_id]);
+            newBiz.rows.forEach(biz => {
+                community_updates.push({
+                    type: 'system',
+                    id: `biz_${biz.business_name}`,
+                    user_id: 0,
+                    user_name: 'קהילה',
+                    title: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                    date: biz.created_at ? new Date(biz.created_at) : new Date()
+                });
+            });
+        }
 
-        res.json({ user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, weekly_stats: weeklyStats });
+        res.json({ user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, weekly_stats: weeklyStats, community_updates });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 // ============================================================
 // --- SHOPPING LIST ENDPOINTS ---
 // ============================================================
@@ -1684,8 +1705,9 @@ async function initCommunityTables() {
         await pool.query(`CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
         await pool.query(`CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`);
         
-        // שדרוג: הוספת סטטוס לטבלת חיבורי העסקים (עבור מנגנון אישור)
+        // שדרוג: הוספת סטטוס ותאריך אישור לטבלת החיבורים
         await pool.query(`ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`);
+        await pool.query(`ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
         
         await pool.query(`CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
     } catch(e) { console.error("Error creating community tables", e); }
@@ -1868,14 +1890,39 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שליפת בקשות המתנה לעסקים ע"י ה-Admin הראשי (או מנהל קהילה בעתיד)
+app.get('/api/sa/communities/pending-businesses', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, c.name as comm_name, b.name as biz_name 
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.status = 'pending'
+        `);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מסלול לאישור עסק ע"י ה-Admin הראשי
 app.post('/api/sa/community-business/approve', async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
-        await pool.query('UPDATE community_businesses SET status=$1 WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
+        await pool.query('UPDATE community_businesses SET status=$1, created_at=CURRENT_TIMESTAMP WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.get('/api/sa/businesses', async (req, res) => {
+
+// מסלול לסירוב בקשת חיבור
+app.post('/api/sa/community-business/reject', async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/store/coupons/:groupId', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
