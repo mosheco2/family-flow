@@ -1733,6 +1733,9 @@ async function initCommunityTables() {
         await pool.query(`ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
         
         await pool.query(`CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+        
+        // התיקון הקריטי: הוספת עמודת השיוך לטבלת המשפחות כדי למנוע קריסת שאילתות באדמין
+        await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`);
     } catch(e) { console.error("Error creating community tables", e); }
 }
 initCommunityTables();
@@ -1853,6 +1856,9 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
 // --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
 app.get('/api/sa/communities', async (req, res) => {
     try {
+        // רשת ביטחון נוספת למקרה שהפונקציה הקודמת לא הספיקה לרוץ
+        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(err) {}
+
         // משיכת קהילות יחד עם כמות המשפחות והעסקים המשויכים אליהן
         const result = await pool.query(`
             SELECT c.*, 
@@ -1862,7 +1868,10 @@ app.get('/api/sa/communities', async (req, res) => {
             ORDER BY c.created_at DESC
         `);
         res.json({ success: true, communities: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error("Error in /api/sa/communities:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 app.post('/api/sa/communities', async (req, res) => {
     try {
