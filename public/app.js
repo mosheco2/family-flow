@@ -479,12 +479,13 @@ async function fetchData() {
             currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
+            // עדכון המזהה למקרה שהקהילה השתנתה
+            currentGroup.community_id = data.group.community_id;
         }
 
         if (currentUser.role === 'ADMIN') {
             const balEl = getEl('user-balance'); 
             if(balEl) {
-                // הצגת היתרה הכללית שמחושבת על ידי השרת (הכנסות פחות הוצאות)
                 const realBalance = data.group.admin_total_balance || 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
@@ -495,12 +496,92 @@ async function fetchData() {
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        
+        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
+        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
+        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
+        
+        // קריאה לרינדור הקהילות ממש כאן!
+        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
+        
+        try {
+            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
+            if (goalsList) { 
+                goalsList.innerHTML = ''; 
+                if(data.goals && data.goals.length > 0) { 
+                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                    data.goals.forEach(g => { 
+                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
+                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
+                    }); 
+                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
+            }
+        } catch(e) {}
+        
+        try {
+            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
+                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
+                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
+                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
+                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
+            }
+        } catch(e) {}
+
+        try {
+            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
+        } catch(e) { allTransactions = []; }
+
+        try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
+    } catch(e) {}
+}async function fetchData() {
+    try {
+        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
+        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
+        if (!data || !data.user) return;
+        
+        currentUser.balance = data.user.balance; 
+        if(data.group) {
+            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            const profileUp = getEl('profile-upgrade-section');
+            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
+            // עדכון המזהה למקרה שהקהילה השתנתה
+            currentGroup.community_id = data.group.community_id;
+        }
+
+        if (currentUser.role === 'ADMIN') {
+            const balEl = getEl('user-balance'); 
+            if(balEl) {
+                const realBalance = data.group.admin_total_balance || 0;
+                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
+                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            }
+        } else {
+            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
+        }
+        
+        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
+        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        
+        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
+        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
+        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
+
+        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
+        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
+        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try { fetchBudget(); } catch(e) {}
+        try { renderForecast(); } catch(e) {}
+        
+        // קריאה לרינדור הקהילות ממש כאן!
+        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
         
         try {
             const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
@@ -978,6 +1059,28 @@ function buildAndRenderFeed() {
     if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
     if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
     if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
+    
+    // הוספת עדכוני הקהילה לתוך הפיד (מתוך משתנה גלובלי שמגיע מ-fetchData)
+    if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
+        window.communityUpdatesCache.forEach(update => { feedCache.push(update); });
+    }
+
+    feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
+    const filterEl = getEl('feed-user-filter');
+    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
+    renderUnifiedFeed();
+}function buildAndRenderFeed() {
+    feedCache = [];
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
+    if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
+    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
+    
+    // הוספת עדכוני הקהילה לתוך הפיד (מתוך משתנה גלובלי שמגיע מ-fetchData)
+    if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
+        window.communityUpdatesCache.forEach(update => { feedCache.push(update); });
+    }
+
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
@@ -1796,7 +1899,71 @@ async function fetchCommunityData() {
         }
     } catch(e) { console.error('Error fetching community data', e); }
 }
+function renderFamilyCommunities(businesses) {
+    const container = document.getElementById('community-list-container');
+    if (!container) return;
 
+    if (!currentGroup || !currentGroup.community_id) {
+        container.innerHTML = `
+            <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6">
+                <div class="relative z-10">
+                    <h3 class="font-bold text-indigo-900 mb-1">הקהילה שלי</h3>
+                    <p class="text-xs text-indigo-700 opacity-80">בקשו ממנהל הסביבה (האדמין הראשי) לחבר אתכם לקהילה מקומית כדי לקבל כאן הטבות שוות!</p>
+                </div>
+                <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-7xl text-indigo-200 opacity-30 rotate-12"></i>
+            </div>
+        `;
+        return;
+    }
+
+    if (!businesses || businesses.length === 0) {
+        container.innerHTML = `
+            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center mb-6">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
+                    <i class="fa-solid fa-shop text-2xl"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 mb-1">הקהילה שלכם מתגבשת</h3>
+                <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-4 px-1">
+            <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-users-rays text-indigo-500"></i>
+                עסקי הקהילה שלנו
+            </h2>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    businesses.forEach(biz => {
+        html += `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-indigo-100 transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-inner">
+                    <i class="fa-solid fa-shop"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(biz.business_name)}</h4>
+                    <p class="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                        ${biz.discount_pct}% הנחת קהילה
+                    </p>
+                </div>
+            </div>
+            <a href="storefront.html?code=${biz.group_code}&communityId=${currentGroup.community_id}" 
+               class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm">
+                לחנות
+            </a>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+    container.innerHTML = html;
+}
 function renderCommunityBusinesses(businesses) {
     const list = getEl('community-businesses-list');
     if (!businesses || businesses.length === 0) {
