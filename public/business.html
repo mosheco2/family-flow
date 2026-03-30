@@ -641,7 +641,7 @@
                             
                             <div class="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                                 <input type="text" id="biz-filter-city" list="israel-cities" oninput="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm" placeholder="סינון לפי עיר/יישוב..." autocomplete="off">
-                                <select id="biz-filter-size" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm bg-white">
+                             <select id="biz-filter-size" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2.5 pr-8 text-sm shadow-sm bg-white border-white">
                                     <option value="all">כל הגדלים</option>
                                     <option value="10">מעל 10 משפחות</option>
                                     <option value="50">מעל 50 משפחות</option>
@@ -649,6 +649,13 @@
                                 </select>
                             </div>
                             
+                            <div class="flex items-center mt-2 pl-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-green-600 transition">
+                                    <input type="checkbox" id="biz-filter-multi" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="w-4 h-4 accent-green-500 rounded border-slate-300">
+                                    <span class="font-bold text-xs"><i class="fa-solid fa-map-location-dot ml-1"></i> פיזור מרובה (מחוברת ליותר מ-2 ערים)</span>
+                                </label>
+                            </div>
+                        </div>
                             <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                         </div>
                     </div>
