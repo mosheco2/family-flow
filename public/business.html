@@ -163,7 +163,21 @@
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
-
+<datalist id="israel-cities">
+        <option value="תל אביב - יפו"></option><option value="ירושלים"></option><option value="חיפה"></option>
+        <option value="ראשון לציון"></option><option value="פתח תקווה"></option><option value="אשדוד"></option>
+        <option value="נתניה"></option><option value="באר שבע"></option><option value="חולון"></option>
+        <option value="בני ברק"></option><option value="רמת גן"></option><option value="רחובות"></option>
+        <option value="אשקלון"></option><option value="בת ים"></option><option value="הרצליה"></option>
+        <option value="כפר סבא"></option><option value="חדרה"></option><option value="רעננה"></option>
+        <option value="מודיעין"></option><option value="לוד"></option><option value="רמלה"></option>
+        <option value="הוד השרון"></option><option value="קריית אתא"></option><option value="קריית גת"></option>
+        <option value="אילת"></option><option value="עפולה"></option><option value="נהריה"></option>
+        <option value="נוקדים"></option><option value="אריאל"></option><option value="מעלה אדומים"></option>
+        <option value="אפרת"></option><option value="כרמיאל"></option><option value="טבריה"></option>
+        <option value="צפת"></option><option value="שדרות"></option><option value="נתיבות"></option>
+        <option value="טירת כרמל"></option><option value="עכו"></option>
+    </datalist>
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflowlife Pro" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none';">
         <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow life BIZ</h2>
@@ -621,9 +635,20 @@
                             <div id="biz-my-communities-list" class="space-y-3"></div>
                         </div>
 
-                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
+                       <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-slate-800 text-lg mb-2 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
                             <p class="text-xs text-slate-500 mb-4">בקשו להצטרף לקהילות אלו והציעו הנחה קבועה לחבריהן.</p>
+                            
+                            <div class="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <input type="text" id="biz-filter-city" list="israel-cities" oninput="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm" placeholder="סינון לפי עיר/יישוב..." autocomplete="off">
+                                <select id="biz-filter-size" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm bg-white">
+                                    <option value="all">כל הגדלים</option>
+                                    <option value="10">מעל 10 משפחות</option>
+                                    <option value="50">מעל 50 משפחות</option>
+                                    <option value="100">מעל 100 משפחות</option>
+                                </select>
+                            </div>
+                            
                             <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                         </div>
                     </div>
