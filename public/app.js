@@ -181,52 +181,95 @@ function renderSAGroups() {
     const groupsList = getEl('sa-groups-list'); let gHtml = ''; const term = val('sa-search-group').toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
     if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
+    
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `
+            <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
+                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה/עובד'})</span></span>
+                <div class="flex gap-1">
+                    <button onclick="openSAEditUserModal(${u.id}, '${safeStr(u.nickname)}')" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+        
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
+        
+        gHtml += `
+        <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
+            <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3>
+                        <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
+                    </div>
+                </div>
+                <i class="fa-solid fa-chevron-down text-slate-300"></i>
+            </div>
+            <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
+                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
+                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
+                    <div class="flex gap-2">
+                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
+                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
+                        ${proToggleBtn}
+                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
+                    </div>
+                </div>
+                ${uHtml}
+            </div>
+        </div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
 
-function filterSAGroups() { renderSAGroups(); }
-async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
-async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
-
-async function saveWelcomeMsg(type = 'FAMILY') { 
-    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
-    try { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); } catch(e) { showToast('error', 'שגיאה בשמירת ההודעה'); }
+// פונקציות העריכה
+function openSAEditGroupModal(id, name) {
+    getEl('sa-edit-group-id').value = id;
+    getEl('sa-edit-group-name').value = name;
+    getEl('sa-edit-group-modal').classList.remove('hidden');
 }
 
-async function checkGlobalWelcome() {
+async function saveSAEditGroup() {
+    const id = val('sa-edit-group-id');
+    const name = val('sa-edit-group-name');
+    if (!name) return showToast('error', 'שם לא יכול להיות ריק');
     try {
-        const res = await fetch(`${API}/settings/welcome?type=FAMILY`); const data = await res.json();
-        if (data.message && data.message.trim() !== '') {
-            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
-            if (seen !== data.message) { getEl('welcome-modal-text').innerText = data.message; setupPwaInstallSection(); getEl('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
-        }
-    } catch(e) {} return false;
+        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
+        if ((await res.json()).success) {
+            showToast('success', 'שם עודכן בהצלחה');
+            getEl('sa-edit-group-modal').classList.add('hidden');
+            loadSAData();
+        } else showToast('error', 'שגיאה בעדכון השם');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
-function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
-function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); } } catch(e) {} }, 1000); }
-function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); }
+function openSAEditUserModal(id, nickname) {
+    getEl('sa-edit-user-id').value = id;
+    getEl('sa-edit-user-name').value = nickname;
+    getEl('sa-edit-user-pass').value = '';
+    getEl('sa-edit-user-modal').classList.remove('hidden');
+}
 
-function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
-
-function executeWithAIWarning(actionCallback) {
-    if (currentGroup && currentGroup.is_premium) return actionCallback();
-    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
-    const modal = getEl('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
-    const leftEl = getEl('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
-    const btnContinue = getEl('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
-    newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
-    modal.classList.remove('hidden');
+async function saveSAEditUser() {
+    const id = val('sa-edit-user-id');
+    const nickname = val('sa-edit-user-name');
+    const password = val('sa-edit-user-pass');
+    if (!nickname) return showToast('error', 'כינוי לא יכול להיות ריק');
+    try {
+        const res = await fetch(`${API}/sa/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nickname, password }) });
+        if ((await res.json()).success) {
+            showToast('success', 'המשתמש עודכן בהצלחה!');
+            getEl('sa-edit-user-modal').classList.add('hidden');
+            loadSAData();
+        } else showToast('error', 'שגיאה בעדכון משתמש');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function startAdminTour() {
