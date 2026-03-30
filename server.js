@@ -1998,7 +1998,38 @@ app.get('/api/sa/communities/pending-businesses', async (req, res) => {
         res.json({ success: true, pending: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// שיוך ישיר של עסק לקהילה ע"י ה-Admin הראשי (מאושר אוטומטית)
+app.post('/api/sa/community-business', async (req, res) => {
+    try {
+        const { communityId, businessId, discountPct } = req.body;
+        await pool.query(
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            [communityId, businessId, parseFloat(discountPct)||0, 'approved']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
+// מסלול לשליפת העסקים המחוברים לקהילה מסוימת באדמין
+app.get('/api/sa/community-business/:commId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name 
+            FROM community_businesses cb
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.community_id = $1
+        `, [req.params.commId]);
+        res.json({ success: true, connections: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מסלול להסרת עסק מקהילה באדמין
+app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.commId, req.params.bizId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // מסלול לאישור עסק ע"י ה-Admin הראשי
 app.post('/api/sa/community-business/approve', async (req, res) => {
     try {
