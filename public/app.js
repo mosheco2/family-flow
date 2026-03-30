@@ -2169,7 +2169,9 @@ function renderCommunityBusinesses(businesses) {
     businesses.forEach(b => {
         const imgHtml = b.logo_url ? `<img src="${b.logo_url}" class="w-14 h-14 rounded-xl object-cover shadow-sm shrink-0 border border-slate-100">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shadow-sm shrink-0 border border-slate-100"><i class="fa-solid fa-store text-xl"></i></div>`;
         const discountBadge = b.discount_pct > 0 ? `<div class="bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block border border-green-200">הנחת קהילה: ${b.discount_pct}%</div>` : '';
-        const storeLink = `${window.location.origin}/storefront.html?store=${b.group_code}&communityAuth=${currentGroup.id}`;
+        
+        // התיקון כאן: שליחת הפרמטר המדויק שהחנות מחפשת (communityId)
+        const storeLink = `${window.location.origin}/storefront.html?store=${b.group_code}&communityId=${currentGroup.community_id}`;
 
         html += `
         <a href="${storeLink}" target="_blank" class="block bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex items-center gap-3 fade-in group">
