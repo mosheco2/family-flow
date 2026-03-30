@@ -2258,6 +2258,41 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
     };
     window.familySwitchTabOverridden = true;
 }
+// --- התנתקות מקהילה (משפחות) ---
+async function leaveCommunity() {
+    if(!confirm('האם אתם בטוחים שברצונכם להתנתק מהקהילה? לא תוכלו להנות יותר מההטבות המקומיות.')) return;
+    
+    try {
+        // שולחים בקשה לשרת לעדכן את קוד הקהילה לריק (ניתוק)
+        const res = await fetch(`${API}/groups/${currentGroup.id}/community`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': token 
+            },
+            body: JSON.stringify({ communityCode: null }) 
+        });
+        
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'התנתקתם מהקהילה בהצלחה');
+            currentGroup.community_id = null; // עדכון הסטייט המקומי
+            
+            // עדכון הממשק
+            getEl('community-businesses-section').classList.add('hidden');
+            getEl('community-join-section').classList.remove('hidden');
+            getEl('community-code-input').value = '';
+            getEl('community-businesses-list').innerHTML = '';
+        } else {
+            showToast('error', data.error || 'אירעה שגיאה בניתוק מהקהילה');
+        }
+    } catch (e) {
+        console.error("Error leaving community:", e);
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    }
+}
+
 // ============================================================
 // --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
 // ============================================================
