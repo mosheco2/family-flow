@@ -2797,15 +2797,36 @@ async function createSACommunity() {
 }
 
 async function linkBizToCommunity() {
-    const communityId = val('sa-link-comm'); const businessId = val('sa-link-biz'); const discountPct = val('sa-link-discount');
+    const communityId = val('sa-link-comm'); 
+    const businessId = val('sa-link-biz'); 
+    let discountPct = val('sa-link-discount');
+    discountPct = discountPct ? parseFloat(discountPct) : 0;
+    
     if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
     
     try {
-        const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({communityId, businessId, discountPct})});
+        const res = await fetch(`${API}/sa/community-business`, { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
+            }, 
+            body: JSON.stringify({ communityId, businessId, discountPct })
+        });
+        
         const data = await res.json();
-        if(data.success) { showToast('success', 'העסק שויך לקהילה!'); loadCommunityBusinesses(); loadSACommunityData(); clearSmartBizSelection(); }
-        else showToast('error', 'שגיאה בחיבור העסק');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        if(data.success) { 
+            showToast('success', 'העסק שויך לקהילה!'); 
+            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
+            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
+            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
+        }
+    } catch(e) { 
+        console.error('Network Error linking biz:', e);
+        showToast('error', 'שגיאת תקשורת מול השרת'); 
+    }
 }
 
 async function loadCommunityBusinesses() {
