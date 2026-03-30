@@ -1748,7 +1748,8 @@ async function initCommunityTables() {
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
         `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
-        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS image_url TEXT`
     ];
     
     for (let q of queries) {
@@ -1769,8 +1770,9 @@ initCommunityTables();
 app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT c.id, c.name, c.city, cb.discount_pct, cb.status,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
+            SELECT c.id, c.name, c.city, c.image_url, cb.discount_pct, cb.status,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
             WHERE cb.business_id = $1
@@ -1783,15 +1785,15 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
 app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT c.id, c.name, c.city,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
+            SELECT c.id, c.name, c.city, c.image_url,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM communities c
             WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 // בקשת חיבור לקהילה מצד העסק
 app.post('/api/biz/communities/join', async (req, res) => {
     try {
@@ -1877,14 +1879,13 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
 // --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
 app.get('/api/sa/communities', async (req, res) => {
     try {
-        // רשת ביטחון נוספת למקרה שהפונקציה הקודמת לא הספיקה לרוץ
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(err) {}
 
-        // משיכת קהילות יחד עם כמות המשפחות והעסקים המשויכים אליהן
         const result = await pool.query(`
             SELECT c.*, 
-                (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id) as family_count,
-                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id) as business_count
+                (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type='FAMILY') as users_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
             FROM communities c
             ORDER BY c.created_at DESC
         `);
@@ -1897,7 +1898,7 @@ app.get('/api/sa/communities', async (req, res) => {
 
 app.post('/api/sa/communities', async (req, res) => {
     try {
-        const { name, city, code, managerEmail, managerPassword } = req.body;
+        const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
         
         let finalEmail = managerEmail || 'system@oneflowlife.com';
         let finalPass = managerPassword || '';
@@ -1907,8 +1908,8 @@ app.post('/api/sa/communities', async (req, res) => {
         }
 
         await pool.query(
-            'INSERT INTO communities (name, city, code, manager_email, manager_password) VALUES ($1, $2, $3, $4, $5)', 
-            [name, city, code.toUpperCase().trim(), finalEmail, finalPass]
+            'INSERT INTO communities (name, city, code, manager_email, manager_password, image_url) VALUES ($1, $2, $3, $4, $5, $6)', 
+            [name, city, code.toUpperCase().trim(), finalEmail, finalPass, imageUrl || null]
         );
         res.json({ success: true });
     } catch(e) { 
@@ -1919,17 +1920,12 @@ app.post('/api/sa/communities', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
+
 app.put('/api/sa/communities/:id', async (req, res) => {
     try {
-        const { name, city, code, managerEmail, managerPassword } = req.body;
-        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5 WHERE id=$6', [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-app.put('/api/sa/communities/:id', async (req, res) => {
-    try {
-        const { name, city, code, managerEmail, managerPassword } = req.body;
-        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5 WHERE id=$6', [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
+        const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
+        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5, image_url=$6 WHERE id=$7', 
+        [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, imageUrl || null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
