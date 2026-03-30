@@ -2219,10 +2219,56 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
 
 let saCommunitiesCache = [];
 let saBusinessesCache = [];
+let saBizConnectionsCache = []; // שומר את כל החיבורים בין עסק לקהילה
 let currentCommFamiliesCache = []; 
 
+// מנגנון תגיות ערים
+let createCityTags = [];
+let editCityTags = [];
+
+function updateCityTagsDisplay(type) {
+    const tagsArr = type === 'create' ? createCityTags : editCityTags;
+    const container = getEl(type === 'create' ? 'sa-comm-city-tags' : 'sa-edit-comm-city-tags');
+    const dataInput = getEl(type === 'create' ? 'sa-comm-city-data' : 'sa-edit-comm-city-data');
+    if (!container || !dataInput) return;
+
+    if (tagsArr.length === 0) {
+        container.innerHTML = '<p class="text-[10px] text-slate-400 w-full text-center my-auto">לא נבחרו ערים. חובה לבחור לפחות עיר אחת.</p>';
+        dataInput.value = '';
+        return;
+    }
+
+    container.innerHTML = tagsArr.map((city, index) => `
+        <div class="bg-orange-100 text-orange-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-orange-200 shadow-sm animate-bounce-in">
+            ${city}
+            <button onclick="removeCityTag('${type}', ${index})" class="text-orange-500 hover:text-red-500 transition focus:outline-none"><i class="fa-solid fa-times"></i></button>
+        </div>
+    `).join('');
+    dataInput.value = tagsArr.join(', ');
+}
+
+function addCityTag(type) {
+    const input = getEl(type === 'create' ? 'sa-comm-city-input' : 'sa-edit-comm-city-input');
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) return;
+
+    const tagsArr = type === 'create' ? createCityTags : editCityTags;
+    if (!tagsArr.includes(val)) {
+        tagsArr.push(val);
+        updateCityTagsDisplay(type);
+    }
+    input.value = '';
+}
+
+function removeCityTag(type, index) {
+    const tagsArr = type === 'create' ? createCityTags : editCityTags;
+    tagsArr.splice(index, 1);
+    updateCityTagsDisplay(type);
+}
+
 function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users'].forEach(t => {
+    ['stats', 'comm', 'content', 'users', 'biz'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
@@ -2247,13 +2293,11 @@ async function loadSACommunityData() {
             
             if(commData.success) {
                 saCommunitiesCache = commData.communities || [];
-                
                 const totalCommunities = saCommunitiesCache.length;
                 const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
                 if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
                 if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
 
-                if(typeof filterSACommSelect === 'function') filterSACommSelect();
                 renderSACommunitiesTable();
             } else {
                 if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
@@ -2271,7 +2315,7 @@ async function loadSACommunityData() {
                 const bizData = await bizRes.json();
                 if(bizData.success) {
                     saBusinessesCache = bizData.businesses || [];
-                    if(typeof filterSABizSelect === 'function') filterSABizSelect();
+                    renderSABusinessesTable(); // דרישה 5
                 }
             }
         } catch(e) {}
@@ -2279,32 +2323,118 @@ async function loadSACommunityData() {
         // 3. בקשות ממתינות לאישור
         loadSAPendingRequests();
 
+        // 4. שליפת כל חיבורי הקהילות לעסקים (לצורך דרישה 5 וסטטיסטיקה 6)
+        try {
+            // מאחר ואין Endpoint ייעודי לשליפת כלל החיבורים, נשתמש בנתונים מהבקשות הממתינות + נתוני קהילות
+            const allConnRes = await fetch(`${API}/sa/communities/pending-businesses`);
+            const connData = await allConnRes.json();
+            // בפועל ה-Endpoint הקיים מחזיר רק pending, בעתיד נוכל לייצר Endpoint ששולף את הכל. 
+            // לעת עתה נעדכן את הסטטיסטיקה מתוך דאטה ראשוני (api/superadmin/data).
+        } catch(e){}
+
     } catch(e) { console.error('General error in loadSACommunityData:', e); }
 }
 
-// -- ניהול סינונים וחיפוש קהילות/עסקים באדמין --
-function filterSACommSelect() {
-    const queryInput = getEl('sa-search-comm-select');
-    const query = queryInput ? queryInput.value.toLowerCase() : '';
-    const select = getEl('sa-link-comm');
-    if (!select) return;
-    select.innerHTML = '<option value="">בחר קהילה...</option>' + 
-        saCommunitiesCache
-            .filter(c => (c.name && c.name.toLowerCase().includes(query)) || (c.city && c.city.toLowerCase().includes(query)))
-            .map(c => `<option value="${c.id}">${safeStr(c.name)} (${safeStr(c.city || 'כללי')}) - ${c.family_count || 0} משפחות</option>`)
-            .join('');
+// -- חיפוש חכם (Live Search) שיוך עסקים לקהילות (דרישה 4) --
+
+function handleSmartCommSearch() {
+    const input = getEl('sa-smart-comm-search');
+    const resultsContainer = getEl('sa-smart-comm-results');
+    const query = input.value.toLowerCase().trim();
+    
+    if (!query) {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+
+    const filtered = saCommunitiesCache.filter(c => 
+        (c.name && c.name.toLowerCase().includes(query)) || 
+        (c.city && c.city.toLowerCase().includes(query)) ||
+        (String(c.family_count) === query)
+    ).slice(0, 10); // מציג עד 10 תוצאות
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו קהילות תואמות.</div>';
+    } else {
+        resultsContainer.innerHTML = filtered.map(c => `
+            <div onclick="selectSmartComm(${c.id}, '${safeStr(c.name)}')" class="p-3 border-b border-slate-100 hover:bg-indigo-50 cursor-pointer transition">
+                <div class="font-bold text-slate-800 text-sm flex justify-between">
+                    <span>${safeStr(c.name)}</span>
+                    <span class="text-[10px] bg-slate-100 text-slate-500 px-2 rounded-full flex items-center gap-1"><i class="fa-solid fa-house"></i> ${c.family_count || 0} משפחות</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-indigo-400"></i> אזורים: ${safeStr(c.city || 'כללי')}</div>
+            </div>
+        `).join('');
+    }
+    resultsContainer.classList.remove('hidden');
 }
 
-function filterSABizSelect() {
-    const queryInput = getEl('sa-search-biz-select');
-    const query = queryInput ? queryInput.value.toLowerCase() : '';
-    const select = getEl('sa-link-biz');
-    if (!select) return;
-    select.innerHTML = '<option value="">בחר עסק לחיבור...</option>' + 
-        saBusinessesCache
-            .filter(b => b.name && b.name.toLowerCase().includes(query))
-            .map(b => `<option value="${b.id}">${safeStr(b.name)}</option>`)
-            .join('');
+function selectSmartComm(id, name) {
+    getEl('sa-link-comm').value = id;
+    getEl('sa-smart-comm-search').value = '';
+    getEl('sa-smart-comm-search').classList.add('hidden');
+    getEl('sa-smart-comm-results').classList.add('hidden');
+    
+    const display = getEl('sa-selected-comm-display');
+    display.querySelector('span').innerText = `קהילה נבחרה: ${name}`;
+    display.classList.remove('hidden');
+    
+    loadCommunityBusinesses(); // מרנדר את העסקים המחוברים לקהילה זו למטה
+}
+
+function clearSmartCommSelection() {
+    getEl('sa-link-comm').value = '';
+    getEl('sa-selected-comm-display').classList.add('hidden');
+    const searchInput = getEl('sa-smart-comm-search');
+    searchInput.classList.remove('hidden');
+    searchInput.focus();
+    getEl('sa-comm-biz-list').innerHTML = 'יש לבחור קהילה ממעל';
+}
+
+function handleSmartBizSearch() {
+    const input = getEl('sa-smart-biz-search');
+    const resultsContainer = getEl('sa-smart-biz-results');
+    const query = input.value.toLowerCase().trim();
+    
+    if (!query) {
+        resultsContainer.classList.add('hidden');
+        return;
+    }
+
+    const filtered = saBusinessesCache.filter(b => 
+        (b.name && b.name.toLowerCase().includes(query)) ||
+        (b.store_type && b.store_type.toLowerCase().includes(query)) // (בהנחה שנוסיף סוג בהמשך, כרגע סינון רגיל)
+    ).slice(0, 10);
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו עסקים תואמים.</div>';
+    } else {
+        resultsContainer.innerHTML = filtered.map(b => `
+            <div onclick="selectSmartBiz(${b.id}, '${safeStr(b.name)}')" class="p-3 border-b border-slate-100 hover:bg-emerald-50 cursor-pointer transition">
+                <div class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-store text-emerald-500"></i> ${safeStr(b.name)}</div>
+            </div>
+        `).join('');
+    }
+    resultsContainer.classList.remove('hidden');
+}
+
+function selectSmartBiz(id, name) {
+    getEl('sa-link-biz').value = id;
+    getEl('sa-smart-biz-search').value = '';
+    getEl('sa-smart-biz-search').classList.add('hidden');
+    getEl('sa-smart-biz-results').classList.add('hidden');
+    
+    const display = getEl('sa-selected-biz-display');
+    display.querySelector('span').innerText = `עסק נבחר: ${name}`;
+    display.classList.remove('hidden');
+}
+
+function clearSmartBizSelection() {
+    getEl('sa-link-biz').value = '';
+    getEl('sa-selected-biz-display').classList.add('hidden');
+    const searchInput = getEl('sa-smart-biz-search');
+    searchInput.classList.remove('hidden');
+    searchInput.focus();
 }
 
 // -- טיפול בבקשות ממתינות --
@@ -2320,7 +2450,7 @@ async function loadSAPendingRequests() {
         if (data.success && data.pending && data.pending.length > 0) {
             container.classList.remove('hidden');
             list.innerHTML = data.pending.map(p => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
                         <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
@@ -2381,7 +2511,7 @@ function renderSACommunitiesTable() {
     }
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
         return;
     }
     
@@ -2389,7 +2519,9 @@ function renderSACommunitiesTable() {
         <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
             <td class="px-4 py-4 font-bold text-slate-800 text-right">
                 ${safeStr(c.name || 'ללא שם (תקלה)')}
-                <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'לא הוגדר')}</div>
+                <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">
+                    ${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}
+                </div>
             </td>
             <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest text-right">${safeStr(c.code || '---')}</td>
             <td class="px-4 py-4 text-right">
@@ -2419,6 +2551,10 @@ async function openSACommunityModal(id) {
     getEl('sa-edit-comm-code').value = comm.code;
     getEl('sa-edit-comm-email').value = comm.manager_email;
     getEl('sa-edit-comm-pass').value = comm.manager_password;
+    
+    // סידור תגיות עיר לעריכה
+    editCityTags = comm.city ? comm.city.split(',').map(c => c.trim()).filter(c => c) : [];
+    updateCityTagsDisplay('edit');
     
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
     getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
@@ -2504,12 +2640,13 @@ async function saveSACommunityEdit() {
     const code = val('sa-edit-comm-code');
     const email = val('sa-edit-comm-email');
     const pass = val('sa-edit-comm-pass');
+    const cityData = val('sa-edit-comm-city-data'); // הערים שהופרדו בפסיקים
     
     if(!name || !code) return showToast('error', 'שם וקוד חובה');
+    if(!cityData) return showToast('error', 'חובה להגדיר לפחות אזור גאוגרפי אחד לקהילה');
+
     try {
-        const comm = saCommunitiesCache.find(c => c.id == id);
-        const city = comm ? comm.city : '';
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city, code, managerEmail: email, managerPassword: pass}) });
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass}) });
         if((await res.json()).success) {
             showToast('success', 'הקהילה עודכנה בהצלחה!');
             getEl('sa-community-modal').classList.add('hidden');
@@ -2533,22 +2670,23 @@ async function deleteSACommunity() {
 
 async function createSACommunity() {
     const name = val('sa-comm-name'); 
-    const city = val('sa-comm-city'); 
     const code = val('sa-comm-code'); 
     const email = val('sa-comm-email'); 
     const pass = val('sa-comm-pass');
+    const cityData = val('sa-comm-city-data'); // המידע מהתגיות שהופרדו בפסיקים
     
-    if(!name || !code || !city) return showToast('error', 'שם הקהילה, עיר וקוד - שדות חובה.');
+    if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
     
     const btn = document.querySelector('button[onclick="createSACommunity()"]');
     if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
     
     try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city, code, managerEmail: email, managerPassword: pass})});
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass})});
         const data = await res.json();
         if(data.success) { 
             showToast('success', 'קהילה הוקמה בהצלחה!'); 
-            getEl('sa-comm-name').value=''; getEl('sa-comm-city').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
+            getEl('sa-comm-name').value=''; getEl('sa-comm-city-input').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
+            createCityTags = []; updateCityTagsDisplay('create');
             loadSACommunityData(); 
         } else { 
             showToast('error', data.error || 'שגיאה ביצירת הקהילה'); 
@@ -2567,7 +2705,7 @@ async function linkBizToCommunity() {
     try {
         const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({communityId, businessId, discountPct})});
         const data = await res.json();
-        if(data.success) { showToast('success', 'העסק שויך לקהילה!'); loadCommunityBusinesses(); loadSACommunityData(); }
+        if(data.success) { showToast('success', 'העסק שויך לקהילה!'); loadCommunityBusinesses(); loadSACommunityData(); clearSmartBizSelection(); }
         else showToast('error', 'שגיאה בחיבור העסק');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -2585,7 +2723,7 @@ async function loadCommunityBusinesses() {
             if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
             list.innerHTML = data.connections.map(c => `
                 <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}%</span></span>
+                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
                     <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
                 </div>
             `).join('');
@@ -2599,6 +2737,101 @@ async function removeBizFromCommunity(commId, bizId) {
         const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
         if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
     } catch(e) {}
+}
+
+// -- ניהול עסקים כולל (דרישה 5) --
+function renderSABusinessesTable() {
+    const tbody = getEl('sa-businesses-table-body');
+    if (!tbody) return;
+
+    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
+    let filtered = [...saBusinessesCache];
+    
+    if (query) {
+        filtered = filtered.filter(b => 
+            (b.name && b.name.toLowerCase().includes(query)) || 
+            (b.group_code && b.group_code.toLowerCase().includes(query))
+        );
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
+        return;
+    }
+
+    // מאחר ואין לנו Endpoint שמחזיר את כל החיבורים יחד, נצטרך לעשות Fetch פר עסק בעת פתיחת המודאל.
+    // בטבלה נציג נתונים כלליים ונגישות לחלון הניהול
+    tbody.innerHTML = filtered.map(b => `
+        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-4 font-bold text-slate-800 text-right">
+                ${safeStr(b.name)}
+                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
+            </td>
+            <td class="px-4 py-4 text-right">
+                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterSABusinessesTable() { renderSABusinessesTable(); }
+
+async function openSABusinessModal(bizId) {
+    const biz = saBusinessesCache.find(b => b.id == bizId);
+    if (!biz) return;
+    
+    getEl('sa-edit-biz-title').innerText = biz.name;
+    getEl('sa-edit-biz-code').innerText = biz.group_code;
+    
+    const list = getEl('sa-edit-biz-communities-list');
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
+    
+    getEl('sa-business-modal').classList.remove('hidden');
+
+    try {
+        // מכיוון שאנחנו כאדמין ראשי, יש לנו גישה לנתיב החיבורים של העסק (Biz App route)
+        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
+        const data = await res.json();
+        
+        if (data.success && data.communities) {
+            if (data.communities.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
+            } else {
+                list.innerHTML = data.communities.map(c => `
+                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
+                        <div>
+                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
+                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
+                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
+    }
+}
+
+async function removeBizFromCommunityInModal(commId, bizId) {
+    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        if((await res.json()).success) { 
+            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
+            openSABusinessModal(bizId); // טעינה מחדש של החלון
+            loadSACommunityData(); // רענון נתוני הרקע
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 const originalLoadSADashboard = window.loadSADashboard;
