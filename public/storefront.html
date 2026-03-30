@@ -184,7 +184,7 @@
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
                 }
 
-                // החלת הנחת הקהילה ועיבוד הנתונים
+                // החלת הנחת הקהילה ועיבוד הנתונים (דרישות 1+2)
                 if (data.communityData) {
                     const discount = parseFloat(data.communityData.discount_pct) || 0;
                     if (data.catalog && discount > 0) {
@@ -193,25 +193,36 @@
                             item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
                             // הורדת אפסים מיותרים כדי שייראה טוב
                             if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
+                            
+                            // הוספת סממן ברור למוצר עצמו שמסמל מחיר קהילה
+                            item.is_community_discount = true;
                         });
                     }
                     
-                    // הזרקת באנר קהילה בראש המסך
+                    // הזרקת באנר קהילה דביק בראש המסך עם כפתור חזרה לאפליקציה
                     const appContainer = getEl('store-app');
                     appContainer.insertAdjacentHTML('afterbegin', `
-                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-md flex justify-between items-center relative z-50">
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center sticky top-0 z-[100] w-full animate-bounce-in">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm"><i class="fa-solid fa-tags text-xl"></i></div>
-                                <div>
-                                    <p class="font-bold text-sm leading-tight">לקוחות קהילת ${safeStr(data.communityData.name)}</p>
-                                    <p class="text-[10px] opacity-90 font-medium">מוחל ${discount}% הנחה על כל החנות!</p>
+                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0">
+                                    <i class="fa-solid fa-house-flag text-xl"></i>
+                                </div>
+                                <div class="flex flex-col justify-center">
+                                    <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
+                                    <p class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-block w-fit mt-0.5">מוחל ${discount}% הנחה על כל החנות!</p>
                                 </div>
                             </div>
-                            <button onclick="window.location.href='/'" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl text-xs font-bold backdrop-blur transition border border-white/30 whitespace-nowrap shadow-sm">
-                                <i class="fa-solid fa-arrow-right"></i> חזרה
+                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5">
+                                <i class="fa-solid fa-mobile-screen"></i> לאפליקציה
                             </button>
                         </div>
                     `);
+                    
+                    // שינוי ה-Sticky המקורי של שורת החיפוש כדי שלא יסתיר את סרגל הקהילה החדש
+                    setTimeout(() => {
+                        const searchHeader = document.querySelector('.glass-header.sticky');
+                        if(searchHeader) searchHeader.style.top = '64px';
+                    }, 100);
                 }
 
                 storeData = data;
@@ -302,11 +313,21 @@
                     }
                 }
 
-                // הצגת מחיר: אם יש מחיר מקורי שונה, נציג אותו מחוק כדי שהלקוח ירגיש בהנחה!
-                const priceHtml = item.original_price && parseFloat(item.original_price) !== parseFloat(item.price) 
-                    ? `<span class="text-xs text-slate-400 line-through mr-1 font-normal">₪${item.original_price}</span> <span class="font-black text-emerald-600 text-sm">₪${item.price}</span>` 
-                    : `<span class="font-black text-slate-900 text-sm">₪${item.price}</span>`;
-
+               // הצגת מחיר קהילה ברור יותר עם אייקון
+                let priceHtml = '';
+                if (item.is_community_discount && item.original_price) {
+                    priceHtml = `
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-100 flex items-center gap-1"><i class="fa-solid fa-tag text-[8px]"></i> מחיר קהילה</span>
+                        </div>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-xs text-slate-400 line-through font-medium">₪${item.original_price}</span> 
+                            <span class="font-black text-emerald-600 text-base leading-none">₪${item.price}</span>
+                        </div>
+                    `;
+                } else {
+                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${item.price}</span>`;
+                }
                 if (storeType === 'retail') {
                     html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
