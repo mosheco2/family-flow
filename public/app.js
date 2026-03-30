@@ -309,17 +309,29 @@ async function handleLogin(e) {
 }
 
 async function handleCreate(e) { 
-    e.preventDefault(); if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; toggleLoader('login', true); 
+    e.preventDefault(); 
+    if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
+    forceTourStart = true; toggleLoader('login', true); 
     try { 
         const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }) }); 
         const data = await res.json(); 
         if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            currentUser = data.user; currentGroup = data.group; 
+            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
-            await loadDashboard(); 
-        } else showToast('error', data.error); 
-    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+            try {
+                await loadDashboard(); 
+            } catch (dashErr) {
+                console.error("Dashboard Load Error:", dashErr);
+            }
+        } else {
+            showToast('error', data.error); 
+        }
+    } catch(e) { 
+        console.error("Create Fetch Error:", e);
+        showToast('error', 'שגיאה בטעינה המקומית: ' + e.message); 
+    } finally { toggleLoader('login', false); } 
 }
 
 async function handleJoin(e) { 
