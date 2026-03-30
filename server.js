@@ -1019,9 +1019,28 @@ app.post('/api/goals/deposit', async (req, res) => {
 app.get('/api/group/members', async (req, res) => {
     try {
         const { groupId } = req.query;
-        const users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        // הוספנו משיכה של שדה ה-permissions מה-DB
+        const users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// נתיב חדש: עדכון הרשאות וטאבים לעובד/משתמש
+app.put('/api/users/:id/permissions', async (req, res) => {
+    try {
+        const { tabs, role } = req.body;
+        // מוודאים שתמיד יש לפחות גישה לפיד הראשי
+        if (!tabs.includes('feed')) tabs.push('feed');
+        
+        if (role) {
+            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify({ tabs }), role, req.params.id]);
+        } else {
+            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify({ tabs }), req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.get('/api/admin/pending-users', async (req, res) => {
