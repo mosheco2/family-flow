@@ -215,7 +215,8 @@ app.get('/api/force-upgrade', async (req, res) => {
             'ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
             'ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
             'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION',
-            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'
+            'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION',
+            'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb'
         ];
 
         for (let q of queries) {
@@ -634,8 +635,9 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ error: 'חסרים פרטי התחברות' });
         }
         
-        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [req.body.groupCode.toUpperCase()]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי' });
+        const cleanCode = req.body.groupCode.toUpperCase().trim();
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [cleanCode]);
+        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי. ודאו שאין רווחים מיותרים בסוף הקוד.' });
         
         const group = gRes.rows[0];
         const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
@@ -1019,8 +1021,14 @@ app.post('/api/goals/deposit', async (req, res) => {
 app.get('/api/group/members', async (req, res) => {
     try {
         const { groupId } = req.query;
-        // הוספנו משיכה של שדה ה-permissions מה-DB
-        const users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        let users;
+        try {
+            // ניסיון משיכה כולל עמודת ההרשאות
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        } catch(err) {
+            // מנגנון הגנה: אם העמודה טרם נוצרה, נשלוף בלי ההרשאות כדי שהמשתמשים לא ייעלמו
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+        }
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
 });
