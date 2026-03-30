@@ -1342,57 +1342,153 @@ function buildAndRenderFeed() {
     renderUnifiedFeed();
 }
 function buildAndRenderFeed() {
-    feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
-    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
-    if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
-    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
-    
-    // הוספת עדכוני הקהילה לתוך הפיד (מתוך משתנה גלובלי שמגיע מ-fetchData)
-    if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-        window.communityUpdatesCache.forEach(update => { feedCache.push(update); });
-    }
+    try {
+        feedCache = [];
+        
+        // 1. הודעת מערכת (פתיחת משפחה)
+        if (currentGroup && currentGroup.created_at) { 
+            feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
+        }
+        
+        // 2. תנועות עובר ושב
+        if(Array.isArray(allTransactions)) { 
+            allTransactions.forEach(t => { 
+                feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
+            }); 
+        }
+        
+        // 3. משימות (רק מאושרות)
+        if(Array.isArray(allTasks)) { 
+            allTasks.forEach(t => { 
+                if(t.status === 'approved') { 
+                    feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); 
+                } 
+            }); 
+        }
+        
+        // 4. חידונים (אקדמיה)
+        if(Array.isArray(bundlesCache)) { 
+            bundlesCache.forEach(b => { 
+                feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
+            }); 
+        }
+        
+        // 5. עדכוני קהילה - טיפול בטוח באובייקטים המגיעים מהשרת
+        if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
+            window.communityUpdatesCache.forEach(update => { 
+                feedCache.push({
+                    type: 'system',
+                    id: update.id || ('comm_' + Math.random()),
+                    user_id: 0,
+                    user_name: 'קהילה',
+                    date: update.date ? new Date(update.date) : new Date(),
+                    title: update.description || update.title || 'עדכון מהקהילה',
+                    amount: 0
+                });
+            });
+        }
 
-    feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
-    const filterEl = getEl('feed-user-filter');
-    if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
-    renderUnifiedFeed();
+        // מיון לפי תאריך יורד בצורה בטוחה
+        feedCache.sort((a, b) => {
+            const dA = a.date instanceof Date && !isNaN(a.date) ? a.date.getTime() : 0;
+            const dB = b.date instanceof Date && !isNaN(b.date) ? b.date.getTime() : 0;
+            return dB - dA;
+        });
+        
+        // טיפול בפילטר הראשי
+        const filterEl = getEl('feed-user-filter');
+        if (filterEl && currentUser) { 
+            if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); 
+            else filterEl.classList.add('hidden'); 
+        }
+        
+        renderUnifiedFeed();
+    } catch (err) {
+        console.error("Error in buildAndRenderFeed:", err);
+    }
 }
 
 function renderUnifiedFeed() {
-    const userFilter = val('feed-user-filter') || 'all'; const dateFilter = val('feed-date-filter') || 'all'; const list = getEl('unified-feed-list'); if (!list) return;
-    let filtered = feedCache;
-    if (currentUser.role !== 'ADMIN') { filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); } 
-    else if (userFilter !== 'all' && userFilter !== '') { filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); }
-    if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(item => item.date && item.date >= cutoffDate); }
-    filtered = filtered.slice(0, 30); 
-    if(filtered.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
-    
-    let html = '';
-    filtered.forEach(item => {
-        if(!item.date || isNaN(item.date.getTime())) return;
-        const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
-        const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
-        const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-        const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
-        let contentHtml = '';
-        if (item.type === 'transaction') {
-            const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-            const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; const prefix = item.isIncome ? '+' : '-';
-            contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
-        } else if (item.type === 'task') {
-            const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
-            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-        } else if (item.type === 'quiz') {
-            const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
-            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-        } else if (item.type === 'system') {
-            const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
-            contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
+    try {
+        const list = getEl('unified-feed-list'); 
+        if (!list) return;
+        
+        if (!currentUser) return;
+
+        const userFilter = val('feed-user-filter') || 'all'; 
+        const dateFilter = val('feed-date-filter') || 'all'; 
+        
+        let filtered = feedCache;
+        
+        // סינון לפי משתמש
+        if (currentUser.role !== 'ADMIN') { 
+            filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); 
+        } else if (userFilter !== 'all' && userFilter !== '') { 
+            filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); 
         }
-        html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
-    });
-    list.innerHTML = html;
+        
+        // סינון לפי תאריך
+        if (dateFilter !== 'all') { 
+            const monthsBack = parseInt(dateFilter); 
+            const cutoffDate = new Date(); 
+            cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); 
+            filtered = filtered.filter(item => item.date && item.date >= cutoffDate); 
+        }
+        
+        // מקסימום 30 פעולות למניעת עומס
+        filtered = filtered.slice(0, 30); 
+        
+        // אם אין פעולות
+        if(filtered.length === 0) { 
+            list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; 
+            return; 
+        }
+        
+        let html = '';
+        const today = new Date();
+        
+        filtered.forEach(item => {
+            // טיפול בטוח בתאריכים
+            if(!item.date || !(item.date instanceof Date) || isNaN(item.date.getTime())) return;
+            
+            const userIdNum = parseInt(item.user_id) || 0;
+            const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[userIdNum % userColors.length] || 'bg-white border-slate-50'); 
+            
+            const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
+            
+            const d = item.date; 
+            const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+            const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
+            const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
+            
+            let contentHtml = '';
+            if (item.type === 'transaction') {
+                const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+                const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; 
+                const prefix = item.isIncome ? '+' : '-';
+                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+            } else if (item.type === 'task') {
+                const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; 
+                let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); 
+                let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
+                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+            } else if (item.type === 'quiz') {
+                const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; 
+                let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); 
+                let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
+                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+            } else if (item.type === 'system') {
+                const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
+                contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
+            }
+            
+            html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
+        });
+        
+        list.innerHTML = html;
+    } catch (err) {
+        console.error("Error in renderUnifiedFeed:", err);
+    }
 }
 
 function renderCashflow() {
