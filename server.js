@@ -705,17 +705,19 @@ app.get('/api/data/:userId', async (req, res) => {
             community_businesses = commBizRes.rows; // שומרים את העסקים לטובת הרינדור בחזית
             
             if (group.type === 'FAMILY') {
-                commBizRes.rows.forEach(biz => {
-                    community_updates.push({
-                        type: 'system',
-                        id: `biz_${biz.business_name}`,
-                        user_id: 0,
-                        user_name: 'קהילה',
-                        title: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
-                        date: biz.created_at ? new Date(biz.created_at) : new Date()
-                    });
+            commBizRes.rows.forEach(biz => {
+                community_updates.push({
+                    type: 'system',
+                    category: 'community',
+                    id: `biz_${biz.business_name}`,
+                    user_id: 0,
+                    user_name: 'קהילה',
+                    description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                    amount: 0,
+                    date: biz.created_at ? new Date(biz.created_at) : new Date()
                 });
-            }
+            });
+        }
         }
 
         res.json({ 
