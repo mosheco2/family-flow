@@ -246,12 +246,22 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS shopping_trips CASCADE; DROP TABLE IF EXISTS shopping_trip_items CASCADE; DROP TABLE IF EXISTS pantry CASCADE;
             DROP TABLE IF EXISTS time_clock CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE;
             DROP TABLE IF EXISTS system_settings CASCADE; DROP TABLE IF EXISTS global_products CASCADE;
+            DROP TABLE IF EXISTS communities CASCADE; DROP TABLE IF EXISTS community_businesses CASCADE; DROP TABLE IF EXISTS store_coupons CASCADE;
 
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (
                 id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, 
                 ai_tokens INT DEFAULT 10, last_token_reset DATE DEFAULT CURRENT_DATE, is_premium BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-                location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, UNIQUE(admin_email, type)
+                location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION, community_id INT, UNIQUE(admin_email, type)
+            );
+            CREATE TABLE communities (
+                id SERIAL PRIMARY KEY, name VARCHAR(100), city VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE community_businesses (
+                community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, status VARCHAR(20) DEFAULT 'approved', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(community_id, business_id)
+            );
+            CREATE TABLE store_coupons (
+                id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE users (
                 id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, 
@@ -1905,7 +1915,13 @@ app.post('/api/sa/communities', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
-
+app.put('/api/sa/communities/:id', async (req, res) => {
+    try {
+        const { name, city, code, managerEmail, managerPassword } = req.body;
+        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5 WHERE id=$6', [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.put('/api/sa/communities/:id', async (req, res) => {
     try {
         const { name, city, code, managerEmail, managerPassword } = req.body;
