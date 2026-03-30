@@ -338,11 +338,16 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
 
+        // ספירת חיבורים פעילים (דרישה 6)
+        const connectionsRes = await pool.query("SELECT COUNT(*) FROM community_businesses WHERE status = 'approved'");
+        const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
+
         const stats = {
             families: groups.rows.filter(g => g.type === 'FAMILY').length,
             businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
             familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
-            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length
+            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
+            activeConnections: totalConnections
         };
         
         res.json({
@@ -355,7 +360,6 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
-
 app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
     try {
         const groupId = req.params.id;
