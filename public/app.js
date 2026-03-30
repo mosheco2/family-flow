@@ -2313,7 +2313,7 @@ function switchSATab(tabId) {
 async function loadSACommunityData() {
     try {
         const tbody = getEl('sa-communities-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
 
         // 1. קהילות
         try {
@@ -2322,17 +2322,25 @@ async function loadSACommunityData() {
             
             if(commData.success) {
                 saCommunitiesCache = commData.communities || [];
+                
                 const totalCommunities = saCommunitiesCache.length;
                 const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
+                
+                // סכימה של סך כל החיבורים המאושרים מתוך הקהילות ששלפנו!
+                const totalApprovedConnections = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.business_count || 0), 0);
+
                 if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
                 if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
+                // עדכון הקובייה ה-6
+                if (getEl('sa-stat-connections')) getEl('sa-stat-connections').innerText = totalApprovedConnections;
 
+                if(typeof filterSACommSelect === 'function') filterSACommSelect();
                 renderSACommunitiesTable();
             } else {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
             }
         } catch(e) { 
-            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת בטעינת קהילות</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת בטעינת קהילות</td></tr>`;
         }
 
         // 2. עסקים
@@ -2344,22 +2352,14 @@ async function loadSACommunityData() {
                 const bizData = await bizRes.json();
                 if(bizData.success) {
                     saBusinessesCache = bizData.businesses || [];
-                    renderSABusinessesTable(); // דרישה 5
+                    if(typeof filterSABizSelect === 'function') filterSABizSelect();
+                    renderSABusinessesTable();
                 }
             }
         } catch(e) {}
 
         // 3. בקשות ממתינות לאישור
         loadSAPendingRequests();
-
-        // 4. שליפת כל חיבורי הקהילות לעסקים (לצורך דרישה 5 וסטטיסטיקה 6)
-        try {
-            // מאחר ואין Endpoint ייעודי לשליפת כלל החיבורים, נשתמש בנתונים מהבקשות הממתינות + נתוני קהילות
-            const allConnRes = await fetch(`${API}/sa/communities/pending-businesses`);
-            const connData = await allConnRes.json();
-            // בפועל ה-Endpoint הקיים מחזיר רק pending, בעתיד נוכל לייצר Endpoint ששולף את הכל. 
-            // לעת עתה נעדכן את הסטטיסטיקה מתוך דאטה ראשוני (api/superadmin/data).
-        } catch(e){}
 
     } catch(e) { console.error('General error in loadSACommunityData:', e); }
 }
