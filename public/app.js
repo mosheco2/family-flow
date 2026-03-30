@@ -2261,10 +2261,39 @@ function addCityTag(type) {
     input.value = '';
 }
 
-function removeCityTag(type, index) {
-    const tagsArr = type === 'create' ? createCityTags : editCityTags;
-    tagsArr.splice(index, 1);
-    updateCityTagsDisplay(type);
+// המרת תמונה לקהילה
+function handleCommImageUpload(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width; let height = img.height;
+            const maxSize = 600; // נקטין קצת כדי לחסוך מקום בשרת
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (type === 'create') {
+                getEl('sa-comm-image-base64').value = base64;
+                getEl('sa-comm-img-preview').src = base64;
+                getEl('sa-comm-img-preview-container').classList.remove('hidden');
+            } else {
+                getEl('sa-edit-comm-image-base64').value = base64;
+                getEl('sa-edit-comm-img-preview').src = base64;
+                getEl('sa-edit-comm-img-preview').classList.remove('hidden');
+                const placeholder = getEl('sa-edit-comm-img-placeholder');
+                if(placeholder) placeholder.classList.add('hidden');
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 function switchSATab(tabId) {
@@ -2491,6 +2520,7 @@ function renderSACommunitiesTable() {
     
     const query = getEl('sa-search-comm') ? getEl('sa-search-comm').value.toLowerCase() : '';
     const countFilter = getEl('sa-filter-comm-count') ? getEl('sa-filter-comm-count').value : 'all';
+    const multiFilter = getEl('sa-filter-comm-multi') ? getEl('sa-filter-comm-multi').checked : false; 
     
     let filtered = [...saCommunitiesCache];
     
@@ -2509,6 +2539,10 @@ function renderSACommunitiesTable() {
     } else if (countFilter === 'sort_desc') {
         filtered.sort((a, b) => parseInt(b.family_count || 0) - parseInt(a.family_count || 0));
     }
+
+    if (multiFilter) {
+        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
+    }
     
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
@@ -2517,10 +2551,13 @@ function renderSACommunitiesTable() {
     
     tbody.innerHTML = filtered.map(c => `
         <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">
-                ${safeStr(c.name || 'ללא שם (תקלה)')}
-                <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">
-                    ${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}
+            <td class="px-4 py-4 font-bold text-slate-800 text-right flex items-center gap-3">
+                ${c.image_url ? `<img src="${c.image_url}" class="w-8 h-8 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-users"></i></div>`}
+                <div>
+                    ${safeStr(c.name || 'ללא שם')}
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">
+                        ${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}
+                    </div>
                 </div>
             </td>
             <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest text-right">${safeStr(c.code || '---')}</td>
@@ -2529,7 +2566,8 @@ function renderSACommunitiesTable() {
                 <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password || '---')}</div>
             </td>
             <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="משפחות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0}</span>
+                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="משפחות מחוברות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0} משפחות</span>
+                <span class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="נפשות / משתמשים"><i class="fa-solid fa-user text-[10px]"></i> ${c.users_count || 0} משתמשים</span>
                 <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
             </td>
             <td class="px-4 py-4 text-center">
@@ -2552,9 +2590,21 @@ async function openSACommunityModal(id) {
     getEl('sa-edit-comm-email').value = comm.manager_email;
     getEl('sa-edit-comm-pass').value = comm.manager_password;
     
-    // סידור תגיות עיר לעריכה
     editCityTags = comm.city ? comm.city.split(',').map(c => c.trim()).filter(c => c) : [];
     updateCityTagsDisplay('edit');
+
+    getEl('sa-edit-comm-image-base64').value = '';
+    const imgPreview = getEl('sa-edit-comm-img-preview');
+    const placeholder = getEl('sa-edit-comm-img-placeholder');
+    if (comm.image_url) {
+        imgPreview.src = comm.image_url;
+        imgPreview.classList.remove('hidden');
+        if(placeholder) placeholder.classList.add('hidden');
+    } else {
+        imgPreview.src = '';
+        imgPreview.classList.add('hidden');
+        if(placeholder) placeholder.classList.remove('hidden');
+    }
     
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
     getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
@@ -2640,13 +2690,14 @@ async function saveSACommunityEdit() {
     const code = val('sa-edit-comm-code');
     const email = val('sa-edit-comm-email');
     const pass = val('sa-edit-comm-pass');
-    const cityData = val('sa-edit-comm-city-data'); // הערים שהופרדו בפסיקים
+    const cityData = val('sa-edit-comm-city-data'); 
+    const imageUrl = val('sa-edit-comm-image-base64'); // משיכת התמונה אם עודכנה
     
     if(!name || !code) return showToast('error', 'שם וקוד חובה');
     if(!cityData) return showToast('error', 'חובה להגדיר לפחות אזור גאוגרפי אחד לקהילה');
 
     try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass}) });
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl}) });
         if((await res.json()).success) {
             showToast('success', 'הקהילה עודכנה בהצלחה!');
             getEl('sa-community-modal').classList.add('hidden');
@@ -2673,7 +2724,8 @@ async function createSACommunity() {
     const code = val('sa-comm-code'); 
     const email = val('sa-comm-email'); 
     const pass = val('sa-comm-pass');
-    const cityData = val('sa-comm-city-data'); // המידע מהתגיות שהופרדו בפסיקים
+    const cityData = val('sa-comm-city-data'); 
+    const imageUrl = val('sa-comm-image-base64'); // משיכת התמונה
     
     if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
     
@@ -2681,11 +2733,12 @@ async function createSACommunity() {
     if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
     
     try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass})});
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl})});
         const data = await res.json();
         if(data.success) { 
             showToast('success', 'קהילה הוקמה בהצלחה!'); 
             getEl('sa-comm-name').value=''; getEl('sa-comm-city-input').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
+            getEl('sa-comm-image-base64').value=''; const prevCont = getEl('sa-comm-img-preview-container'); if(prevCont) prevCont.classList.add('hidden');
             createCityTags = []; updateCityTagsDisplay('create');
             loadSACommunityData(); 
         } else { 
