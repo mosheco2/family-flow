@@ -418,14 +418,42 @@ function updateBatteryUI() {
 function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        modal.classList.remove('hidden'); return false;
+        if (currentUser && currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
+        if (modal) modal.classList.remove('hidden'); return false;
     }
     return true;
 }
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
+
+let currentAIAction = null;
+function executeWithAIWarning(actionFn) {
+    if(currentGroup && currentGroup.is_premium) { actionFn(); return; }
+    const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 0;
+    if(tokens <= 0) {
+        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
+        if (currentUser && currentUser.role === 'ADMIN' && upgradeSec) upgradeSec.classList.remove('hidden'); 
+        else if(upgradeSec) upgradeSec.classList.add('hidden');
+        if(modal) modal.classList.remove('hidden'); return;
+    }
+    
+    if (localStorage.getItem('ofl_hide_ai_warning') === new Date().toLocaleDateString('he-IL')) { actionFn(); return; }
+    
+    currentAIAction = actionFn;
+    const leftEl = getEl('ai-warning-left'); if(leftEl) leftEl.innerText = tokens;
+    const warnModal = getEl('ai-warning-modal'); if(warnModal) warnModal.classList.remove('hidden');
+    
+    const btnContinue = getEl('btn-ai-warning-continue');
+    if (btnContinue) {
+        btnContinue.onclick = () => {
+            const dontShow = getEl('ai-warning-dont-show');
+            if (dontShow && dontShow.checked) localStorage.setItem('ofl_hide_ai_warning', new Date().toLocaleDateString('he-IL'));
+            if(warnModal) warnModal.classList.add('hidden');
+            if (currentAIAction) { currentAIAction(); currentAIAction = null; }
+        };
+    }
+}
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
@@ -1297,15 +1325,22 @@ function buildAndRenderFeed() {
     if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
     if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
     
-    // הוספת עדכוני הקהילה לתוך הפיד (מתוך משתנה גלובלי שמגיע מ-fetchData)
+    // הוספת עדכוני הקהילה לתוך הפיד 
     if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-        window.communityUpdatesCache.forEach(update => { feedCache.push(update); });
+        window.communityUpdatesCache.forEach(update => { 
+            // המרת התאריך הטקסטואלי לאובייקט כדי למנוע קריסה
+            update.date = new Date(update.date);
+            // העברת ה-description ל-title עבור תאימות לרינדור של הפיד
+            update.title = update.description || update.title;
+            feedCache.push(update); 
+        });
     }
 
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
     renderUnifiedFeed();
+}
 }function buildAndRenderFeed() {
     feedCache = [];
     if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
