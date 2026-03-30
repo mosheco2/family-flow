@@ -203,20 +203,23 @@
                         });
                     }
                     
-                    // הזרקת באנר קהילה דביק בראש המסך עם כפתור חזרה לאפליקציה
+                    // הזרקת באנר קהילה דביק בראש המסך עם כפתור חזרה לאפליקציה (כיווניות מתוקנת)
                     const appContainer = getEl('store-app');
                     appContainer.insertAdjacentHTML('afterbegin', `
-                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center sticky top-0 z-[100] w-full animate-bounce-in">
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center sticky top-0 z-[100] w-full animate-bounce-in" dir="rtl">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0">
                                     <i class="fa-solid fa-house-flag text-xl"></i>
                                 </div>
-                                <div class="flex flex-col justify-center">
+                                <div class="flex flex-col justify-center text-right">
                                     <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                    <p class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-block w-fit mt-0.5">מוחל ${discount}% הנחה על כל החנות!</p>
+                                    <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5">
+                                        <span>הנחת קהילה פעילה:</span>
+                                        <span class="font-black" dir="ltr">${discount}%</span>
+                                    </div>
                                 </div>
                             </div>
-                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5">
+                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5 shrink-0">
                                 <i class="fa-solid fa-mobile-screen"></i> לאפליקציה
                             </button>
                         </div>
