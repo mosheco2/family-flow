@@ -53,26 +53,30 @@ pool.connect()
           )`);
       } catch(e) {}
       
-try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
 
-     // טבלאות החנות הוירטואלית (E-commerce)
+      // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       
       // עדכון שדות חדשים למסד נתונים קיים
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_type VARCHAR(20) DEFAULT 'retail'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS logo_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
       
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
 
       client.release();
   })
-  
   .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
@@ -121,7 +125,6 @@ const handleAIError = (e, res, defaultMsg) => {
 
 // =========================================================
 // פונקציית מערכת המיילים מול ג'ימייל
-// שונה לפורט 587 (STARTTLS) בניסיון לעקוף את חסימת ה-Firewall של Render
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
     const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
@@ -137,7 +140,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 587,
-            secure: false, // true for 465, false for other ports
+            secure: false,
             auth: { user: user, pass: pass },
             tls: { rejectUnauthorized: false },
             pool: true,
@@ -1730,7 +1733,8 @@ async function initCommunityTables() {
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`,
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
         `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-        `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`
+        `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`
     ];
     
     for (let q of queries) {
@@ -1751,8 +1755,8 @@ initCommunityTables();
 app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT c.id, c.name, cb.discount_pct, cb.status,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id) as families_count
+            SELECT c.id, c.name, c.city, cb.discount_pct, cb.status,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
             WHERE cb.business_id = $1
@@ -1765,8 +1769,8 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
 app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT c.id, c.name,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id) as families_count
+            SELECT c.id, c.name, c.city,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
             FROM communities c
             WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
         `, [req.params.bizId]);
@@ -1779,7 +1783,7 @@ app.post('/api/biz/communities/join', async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status) VALUES ($1, $2, $3, $4) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
             [communityId, businessId, parseFloat(discountPct)||0, 'pending']
         );
         res.json({ success: true });
@@ -1876,40 +1880,48 @@ app.get('/api/sa/communities', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
+
 app.post('/api/sa/communities', async (req, res) => {
     try {
         const { name, city, code, managerEmail, managerPassword } = req.body;
         
-        let finalName = name;
-        let finalCode = code;
         let finalEmail = managerEmail || 'system@oneflowlife.com';
         let finalPass = managerPassword || '';
 
-        // תמיכה בבקשה שמגיעה מהאדמין המשפחתי (ללא קוד, עם עיר)
-        if (city) {
-            finalName = `${name} (${city})`;
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            finalCode = '';
-            for (let i = 0; i < 6; i++) finalCode += chars.charAt(Math.floor(Math.random() * chars.length));
-        } else {
-            // בדיקת תקינות לבקשה מהאדמין הראשי
-            if (!name || !code) {
-                return res.status(400).json({ success: false, error: 'שם וקוד קהילה הם שדות חובה' });
-            }
+        if (!name || !code || !city) {
+            return res.status(400).json({ success: false, error: 'שם, עיר וקוד קהילה הם שדות חובה' });
         }
 
         await pool.query(
-            'INSERT INTO communities (name, code, manager_email, manager_password) VALUES ($1, $2, $3, $4)', 
-            [finalName, finalCode.toUpperCase().trim(), finalEmail, finalPass]
+            'INSERT INTO communities (name, city, code, manager_email, manager_password) VALUES ($1, $2, $3, $4, $5)', 
+            [name, city, code.toUpperCase().trim(), finalEmail, finalPass]
         );
         res.json({ success: true });
     } catch(e) { 
         console.error('Error creating community:', e);
-        if (e.code === '23505') { // קוד שגיאה של כפילות ב-PostgreSQL
+        if (e.code === '23505') { 
             return res.status(400).json({ success: false, error: 'קוד הקהילה שבחרת כבר קיים במערכת. אנא בחר קוד אחר.' });
         }
         res.status(500).json({ error: e.message }); 
     }
+});
+
+app.put('/api/sa/communities/:id', async (req, res) => {
+    try {
+        const { name, city, code, managerEmail, managerPassword } = req.body;
+        await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5 WHERE id=$6', [name, city, code.toUpperCase().trim(), managerEmail, managerPassword, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/communities/:id', async (req, res) => {
+    try {
+        // מנתק משפחות, מוחק קשרי עסקים, ואז מוחק קהילה
+        await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
+        await pool.query('DELETE FROM communities WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/sa/communities/:id/details', async (req, res) => {
@@ -1971,111 +1983,6 @@ app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/sa/community-business', async (req, res) => {
-    try {
-        const { communityId, businessId, discountPct } = req.body;
-        await pool.query('INSERT INTO community_businesses (community_id, business_id, discount_pct) VALUES ($1, $2, $3) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3', [communityId, businessId, parseFloat(discountPct)||0]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/sa/community-business/:communityId', async (req, res) => {
-    try {
-        const result = await pool.query(`SELECT cb.*, b.name as business_name, b.group_code FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1`, [req.params.communityId]);
-        res.json({ success: true, connections: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/sa/community-business/:communityId/:businessId', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.businessId]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// ============================================================
-// --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק וניהול) ---
-// ============================================================
-
-// שליפת הקהילות שהעסק מחובר אליהן (או ממתין לאישור)
-app.get('/api/biz/communities/my/:bizId', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT c.id, c.name, cb.discount_pct, cb.status,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
-            FROM community_businesses cb
-            JOIN communities c ON cb.community_id = c.id
-            WHERE cb.business_id = $1
-        `, [req.params.bizId]);
-        res.json({ success: true, communities: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// שליפת כל הקהילות שהעסק עדיין לא מחובר אליהן
-app.get('/api/biz/communities/available/:bizId', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT c.id, c.name,
-            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count
-            FROM communities c
-            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
-        `, [req.params.bizId]);
-        res.json({ success: true, communities: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// בקשת חיבור לקהילה מצד העסק
-app.post('/api/biz/communities/join', async (req, res) => {
-    try {
-        const { communityId, businessId, discountPct } = req.body;
-        await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
-            [communityId, businessId, parseFloat(discountPct)||0, 'pending']
-        );
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// ניתוק של העסק מהקהילה
-app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// שליפת בקשות המתנה לעסקים ע"י ה-Admin הראשי
-app.get('/api/sa/communities/pending-businesses', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT cb.community_id, cb.business_id, cb.discount_pct, c.name as comm_name, b.name as biz_name 
-            FROM community_businesses cb
-            JOIN communities c ON cb.community_id = c.id
-            JOIN family_groups b ON cb.business_id = b.id
-            WHERE cb.status = 'pending'
-        `);
-        res.json({ success: true, pending: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// מסלול לאישור עסק ע"י ה-Admin הראשי
-app.post('/api/sa/community-business/approve', async (req, res) => {
-    try {
-        const { communityId, businessId } = req.body;
-        await pool.query('UPDATE community_businesses SET status=$1, created_at=CURRENT_TIMESTAMP WHERE community_id=$2 AND business_id=$3', ['approved', communityId, businessId]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// מסלול לסירוב בקשת חיבור
-app.post('/api/sa/community-business/reject', async (req, res) => {
-    try {
-        const { communityId, businessId } = req.body;
-        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
-        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
