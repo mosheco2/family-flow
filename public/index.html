@@ -126,6 +126,22 @@
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
 
+    <datalist id="israel-cities">
+        <option value="תל אביב - יפו"></option><option value="ירושלים"></option><option value="חיפה"></option>
+        <option value="ראשון לציון"></option><option value="פתח תקווה"></option><option value="אשדוד"></option>
+        <option value="נתניה"></option><option value="באר שבע"></option><option value="חולון"></option>
+        <option value="בני ברק"></option><option value="רמת גן"></option><option value="רחובות"></option>
+        <option value="אשקלון"></option><option value="בת ים"></option><option value="הרצליה"></option>
+        <option value="כפר סבא"></option><option value="חדרה"></option><option value="רעננה"></option>
+        <option value="מודיעין"></option><option value="לוד"></option><option value="רמלה"></option>
+        <option value="הוד השרון"></option><option value="קריית אתא"></option><option value="קריית גת"></option>
+        <option value="אילת"></option><option value="עפולה"></option><option value="נהריה"></option>
+        <option value="נוקדים"></option><option value="אריאל"></option><option value="מעלה אדומים"></option>
+        <option value="אפרת"></option><option value="כרמיאל"></option><option value="טבריה"></option>
+        <option value="צפת"></option><option value="שדרות"></option><option value="נתיבות"></option>
+        <option value="טירת כרמל"></option><option value="עכו"></option>
+    </datalist>
+
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflow Life" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none'; document.getElementById('preloader-fallback').classList.remove('hidden');">
         <div id="preloader-fallback" class="text-6xl mb-4 hidden">🤖</div>
@@ -314,84 +330,74 @@
                     </div>
                 </div>
 
-     <div id="sa-view-comm" class="hidden space-y-8 fade-in">
-                    <div class="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
-                        <h2 class="text-2xl font-black mb-6 text-slate-800"><i class="fa-solid fa-city text-orange-500 mr-2"></i> הקמת קהילות וחיבור עסקים</h2>
+    <div id="sa-view-comm" class="hidden space-y-8 fade-in">
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8 fade-in">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-city text-orange-500 mr-2"></i> ניהול קהילות ואישור עסקים</h2>
                         
-                        <div id="sa-pending-biz-container" class="hidden mb-8 bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
-                            <h3 class="font-bold text-orange-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-bell text-orange-500"></i> בקשות עסקים ממתינות לאישור</h3>
-                            <div id="sa-pending-biz-list" class="space-y-3"></div>
+                        <div id="sa-pending-biz-container" class="hidden mb-6 bg-orange-100/50 p-4 rounded-xl border border-orange-200 shadow-sm">
+                            <h3 class="font-bold text-orange-800 text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-bell text-orange-500"></i> בקשות הצטרפות ממתינות (עסקים לקהילות)</h3>
+                            <div id="sa-pending-biz-list" class="space-y-2"></div>
                         </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
-                                <h3 class="font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 flex items-center gap-2"><span class="bg-orange-100 text-orange-600 w-6 h-6 flex items-center justify-center rounded-lg text-sm">1</span> הקמת קהילה חדשה</h3>
-                                <div class="space-y-4">
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שם הקהילה (למשל: תושבי נוקדים):</label><input type="text" id="sa-comm-name" class="modern-input py-2.5 text-sm" placeholder="שם הקהילה"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">קוד הצטרפות (באנגלית, ללא רווחים):</label><input type="text" id="sa-comm-code" class="modern-input py-2.5 text-sm font-mono uppercase text-left dir-ltr" placeholder="NOKDIM"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">אימייל מנהל הקהילה:</label><input type="email" id="sa-comm-email" class="modern-input py-2.5 text-sm text-left dir-ltr" placeholder="admin@community.com"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">סיסמה לניהול הקהילה:</label><input type="text" id="sa-comm-pass" class="modern-input py-2.5 text-sm text-left dir-ltr" placeholder="********"></div>
-                                    <button onclick="createSACommunity()" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition mt-4 text-base">הקמת קהילה</button>
+    
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-slate-700 border-b pb-2 mb-3">הקמת קהילה חדשה</h3>
+                                <div class="space-y-3">
+                                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקהילה:</label><input type="text" id="sa-comm-name" class="modern-input py-2 text-sm" placeholder="למשל: תושבי השרון"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">עיר / אזור גאוגרפי (חובה לבחור מהרשימה):</label><input type="text" id="sa-comm-city" list="israel-cities" class="modern-input py-2 text-sm border-orange-200 bg-orange-50/30" placeholder="התחל להקליד שם עיר..." autocomplete="off"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">קוד להצטרפות משפחות:</label><input type="text" id="sa-comm-code" class="modern-input py-2 text-sm text-left dir-ltr uppercase font-mono" placeholder="CODE"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל מנהל הקהילה:</label><input type="email" id="sa-comm-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="admin@community.com"></div>
+                                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">סיסמה לניהול הקהילה:</label><input type="text" id="sa-comm-pass" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="********"></div>
+                                    <button onclick="createSACommunity()" class="w-full bg-orange-500 text-white py-2.5 rounded-xl font-bold shadow-md hover:bg-orange-600 transition mt-2 text-base">הקמת קהילה</button>
                                 </div>
                             </div>
-                            
-                            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-md flex flex-col">
-                                <h3 class="font-bold text-slate-800 mb-5 border-b border-slate-100 pb-3 flex items-center gap-2"><span class="bg-slate-100 text-slate-600 w-6 h-6 flex items-center justify-center rounded-lg text-sm">2</span> חיבור עסק לקהילה</h3>
-                                <div class="space-y-4">
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">בחרו קהילה:</label><select id="sa-link-comm" class="modern-input py-2.5 text-sm bg-slate-50" onchange="loadCommunityBusinesses()"><option value="">בחר קהילה...</option></select></div>
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">בחרו עסק רשום:</label><select id="sa-link-biz" class="modern-input py-2.5 text-sm bg-slate-50"><option value="">בחר עסק לחיבור...</option></select></div>
-                                    
-                                    <div class="flex gap-3 pt-2">
-                                        <div class="w-2/5 relative">
-                                            <input type="number" id="sa-link-discount" class="modern-input py-3.5 pl-12 pr-4 text-xl font-black text-slate-800 text-center bg-slate-50 border-slate-200 focus:border-slate-800" placeholder="0">
-                                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">% הנחה</span>
-                                        </div>
-                                        <button onclick="linkBizToCommunity()" class="flex-1 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-base">חבר עסק</button>
+    
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                <h3 class="font-bold text-slate-700 border-b pb-2 mb-3">שיוך עסק לקהילה</h3>
+                                <div class="space-y-3">
+                                    <div class="flex gap-2">
+                                        <input type="text" id="sa-search-comm-select" oninput="if(typeof filterSACommSelect === 'function') filterSACommSelect()" class="modern-input py-2 text-xs flex-1" placeholder="סנן קהילה (עיר/שם)">
+                                        <select id="sa-link-comm" class="modern-input py-2 text-xs flex-1 bg-slate-50" onchange="if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses()"><option value="">בחר קהילה...</option></select>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="sa-search-biz-select" oninput="if(typeof filterSABizSelect === 'function') filterSABizSelect()" class="modern-input py-2 text-xs flex-1" placeholder="סנן עסק">
+                                        <select id="sa-link-biz" class="modern-input py-2 text-xs flex-1 bg-slate-50"><option value="">בחר עסק...</option></select>
+                                    </div>
+                                    <div class="flex gap-2 items-end">
+                                        <div class="flex-1"><label class="text-[10px] font-bold text-slate-500 block mb-1">% הנחה לקהילה:</label><input type="number" id="sa-link-discount" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
+                                        <button onclick="linkBizToCommunity()" class="flex-1 bg-slate-800 text-white py-2 rounded-xl font-bold shadow-md hover:bg-slate-700 transition h-[42px]">שייך עסק</button>
                                     </div>
                                 </div>
-                                
-                                <div class="mt-6 flex-1 flex flex-col min-h-[150px]">
-                                    <h4 class="text-xs font-bold text-slate-500 mb-2">עסקים שמחוברים כעת לקהילה:</h4>
-                                    <div id="sa-comm-biz-list" class="flex-1 bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 overflow-y-auto modal-scroll max-h-48">
-                                        <p class="text-xs text-slate-400 text-center py-4">אנא בחרו קהילה כדי לראות את העסקים המקושרים אליה.</p>
-                                    </div>
+                                <div class="mt-4">
+                                    <h4 class="text-[10px] font-bold text-slate-500 mb-2">עסקים המקושרים לקהילה הנבחרת:</h4>
+                                    <div id="sa-comm-biz-list" class="bg-slate-50 p-2 rounded-lg border border-slate-100 min-h-[60px] max-h-[120px] overflow-y-auto text-xs space-y-1">יש לבחור קהילה ממעל</div>
                                 </div>
+                            </div>
+                        </div>
+    
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                <h3 class="font-bold text-slate-700">טבלת קהילות פעילות</h3>
+                                <div class="flex gap-2 w-full sm:w-auto">
+                                    <input type="text" id="sa-search-comm" oninput="if(typeof filterSACommunities === 'function') filterSACommunities()" class="modern-input py-1.5 px-3 text-xs flex-1 sm:w-48" placeholder="חיפוש חופשי (עיר/שם)">
+                                    <select id="sa-filter-comm-count" onchange="if(typeof filterSACommunities === 'function') filterSACommunities()" class="modern-input py-1.5 px-2 text-xs bg-slate-50 sm:w-32">
+                                        <option value="all">כל הקהילות</option>
+                                        <option value="with_families">פעילות (מעל 0)</option>
+                                        <option value="empty">ריקות ממשפחות</option>
+                                        <option value="sort_desc">לפי כמות משפחות</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-right whitespace-nowrap">
+                                    <thead class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                        <tr><th class="p-2">שם ועיר</th><th class="p-2">קוד הצטרפות</th><th class="p-2">ניהול (מנהל קהילה)</th><th class="p-2 text-center">משפחות</th><th class="p-2 text-center">עסקים</th><th class="p-2 text-center">פעולות</th></tr>
+                                    </thead>
+                                    <tbody id="sa-communities-table-body" class="divide-y divide-slate-100"></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-<div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> ניהול קהילות קיימות</h3>
-                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <select id="sa-filter-comm-count" onchange="filterSACommunities()" class="modern-input py-2 text-sm bg-slate-50 border-slate-200 shadow-sm w-full sm:w-auto outline-none focus:border-blue-500">
-                                    <option value="all">כל הקהילות</option>
-                                    <option value="with_families">עם משפחות מחוברות</option>
-                                    <option value="empty">ללא משפחות בכלל</option>
-                                    <option value="sort_desc">לפי כמות (מהגבוה לנמוך)</option>
-                                </select>
-                                <div class="relative w-full sm:w-64">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="sa-search-comm" onkeyup="filterSACommunities()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש קהילה או קוד...">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto pb-4">
-                            <table class="w-full text-sm text-right whitespace-nowrap">
-                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
-                                    <tr>
-                                        <th class="px-4 py-3 rounded-tr-lg">שם הקהילה</th>
-                                        <th class="px-4 py-3">קוד הצטרפות</th>
-                                        <th class="px-4 py-3">פרטי התחברות (מנהל)</th>
-                                        <th class="px-4 py-3 text-center">סטטיסטיקה</th>
-                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sa-communities-table-body" class="divide-y divide-slate-100">
-                                    </tbody>
-                            </table>
-                        </div>
-                    </div>
-                   
                 </div>
                     <div id="sa-view-content" class="hidden space-y-8 fade-in">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
