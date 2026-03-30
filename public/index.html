@@ -1330,6 +1330,33 @@
             }
         });
     </script>
+    <div id="sa-edit-group-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">עריכת שם סביבה/עסק</h3>
+            <input type="hidden" id="sa-edit-group-id">
+            <label class="text-xs font-bold text-slate-500 mb-1 block">שם חדש:</label>
+            <input type="text" id="sa-edit-group-name" class="modern-input mb-6" placeholder="שם המשפחה או העסק">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="saveSAEditGroup()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sa-edit-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">עריכת משתמש</h3>
+            <input type="hidden" id="sa-edit-user-id">
+            <label class="text-xs font-bold text-slate-500 mb-1 block">שם משתמש:</label>
+            <input type="text" id="sa-edit-user-name" class="modern-input mb-3" placeholder="כינוי המשתמש">
+            <label class="text-xs font-bold text-slate-500 mb-1 block">סיסמה חדשה (השאר ריק כדי לא לשנות):</label>
+            <input type="text" id="sa-edit-user-pass" class="modern-input mb-6 text-left dir-ltr" placeholder="********">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('sa-edit-user-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="saveSAEditUser()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור נתונים</button>
+            </div>
+        </div>
+    </div>
 <datalist id="israel-cities" class="hidden" style="display: none; height: 0; width: 0; position: absolute; overflow: hidden; m-0 p-0">    <option value="תל אביב - יפו"></option><option value="ירושלים"></option><option value="חיפה"></option>
         <option value="ראשון לציון"></option><option value="פתח תקווה"></option><option value="אשדוד"></option>
         <option value="נתניה"></option><option value="באר שבע"></option><option value="חולון"></option>
