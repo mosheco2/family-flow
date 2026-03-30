@@ -334,7 +334,29 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
                  unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
             }
         });
-        
+        // --- עריכת שם סביבה (משפחה/עסק) מהאדמין ---
+app.put('/api/sa/groups/:id', async (req, res) => {
+    try {
+        const { name } = req.body;
+        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עריכת שם משתמש וסיסמה מהאדמין ---
+app.put('/api/sa/users/:id', async (req, res) => {
+    try {
+        const { nickname, password } = req.body;
+        if (password && password.trim() !== '') {
+            // אם הוזנה סיסמה חדשה - נעדכן גם אותה
+            await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
+        } else {
+            // אם הושאר ריק - נעדכן רק את השם
+            await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
 
