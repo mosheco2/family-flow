@@ -584,11 +584,11 @@
                         <div id="tasks-list" class="space-y-3 pb-20"></div>
                     </div>
 
-                    <div id="content-community" class="hidden">
+<div id="content-community" class="hidden">
                         <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">הקהילה שלנו 🏘️</h3>
-                            <p class="text-orange-50 text-xs opacity-90">כל העסקים וההטבות המיוחדות לחברי הקהילה שלכם במקום אחד.</p>
-                            <i class="fa-solid fa-store absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                            <h3 class="text-xl font-bold mb-1">פעילויות בקהילה בקרוב 🏘️</h3>
+                            <p class="text-orange-50 text-xs opacity-90">הישארו מעודכנים בכל מה שקורה בקהילה שלכם.</p>
+                            <i class="fa-solid fa-calendar-days absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
                         </div>
                         
                         <div id="community-list-container"></div>
@@ -604,9 +604,15 @@
                         </div>
 
                         <div id="community-businesses-section" class="hidden">
-                            <div class="flex justify-between items-center mb-4 px-2">
-                                <h3 class="font-bold text-slate-700 text-lg">עסקים בקהילה</h3>
-                                <span id="community-name-display" class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100"></span>
+                            <div class="flex flex-col gap-2 mb-4 px-2">
+                                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                                    <h3 class="font-bold text-slate-700 text-lg">עסקים בקהילה</h3>
+                                    <div class="flex items-center gap-2">
+                                        <span id="community-name-display" class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100"></span>
+                                        <button onclick="leaveCommunity()" class="text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg transition border border-red-100 shadow-sm"><i class="fa-solid fa-right-from-bracket"></i> התנתק מקהילה</button>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-500 font-medium">הטבות מיוחדות לקהילה בעסקים המקומיים:</p>
                             </div>
                             <div id="community-businesses-list" class="space-y-3 pb-20"></div>
                         </div>
