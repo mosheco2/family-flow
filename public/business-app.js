@@ -772,8 +772,27 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
-                }); 
+                    // המרה בטוחה של שדה ההרשאות לסטרינג כדי להעביר לפונקציה של הכפתור
+                    const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    
+                    a.innerHTML += `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4>
+                                <p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p>
+                                <p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p>
+                            </div>
+                        </div>
+                        <div class="flex gap-1 sm:gap-2">
+                            <button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button>
+                            <button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>
+                            <button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
+                            <button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button>
+                        </div>
+                    </div>`; 
+                });
             } 
         } catch(err) {}
     } catch(e) {}
@@ -2282,12 +2301,63 @@ async function saveStoreSettings() {
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
-// פונקציית מערכת: אכיפת הרשאות תצוגה מבוססות תפקיד בעסק
+// --- הגדרות תבניות תפקידים וטאבים ב-Oneflowlife Pro ---
+const ALL_TABS = [
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'timeclock', name: 'נוכחות ⏱️' },
+    { id: 'shifts', name: 'משמרות 🗓️' },
+    { id: 'shop', name: 'רכש ארגוני 🛒' },
+    { id: 'pantry', name: 'ניהול מלאי 📦' },
+    { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'bank', name: 'כספים 💳' },
+    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
+    { id: 'budget', name: 'תקציבים 📊' },
+    { id: 'forecast', name: 'תשקיף 📅' },
+    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
+    { id: 'academy', name: 'מרכז הכשרות 🎓' },
+    { id: 'community', name: 'קהילות מחוברות 🏘️' },
+    { id: 'members', name: 'ניהול צוות 👥' }
+];
+
+const ROLE_DEFAULTS = {
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
+    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
+    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
+};
+
+// פונקציית אכיפת הרשאות חכמה (טאבים + אלמנטים פנימיים)
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
     const isAdmin = currentUser.role === 'ADMIN';
     
-    // רשימת אלמנטים ניהוליים שאנו רוצים להסתיר מעובד סטנדרטי
+    // קריאת הרשאות הטאבים מהמשתמש ב-DB
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+
+    // אכיפת תצוגת טאבים בתפריט הגלילה העליון
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            // האדמין רואה הכל כברירת מחדל, השאר רואים לפי הטאבים שהוגדרו להם
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
+
+    // אם הטאב שהעובד נמצא בו כרגע הוסתר - נזרוק אותו חזרה לראשי
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none') switchTab('feed');
+    });
+    
+    // אכיפת אלמנטים ניהוליים פנימיים בתוך הטאבים
     if (!isAdmin) {
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
         if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
@@ -2296,12 +2366,9 @@ function enforcePermissions() {
         if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
         if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
         if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
-        
-        // בחנות - עובד רואה רק הזמנות נכנסות (לא הגדרות וקטלוג)
         if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
     } else {
-        // אם מדובר באדמין, נחזיר את האלמנטים לתצוגה (חשוב למקרים של החלפת סביבה)
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
         if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
         if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
@@ -2309,6 +2376,88 @@ function enforcePermissions() {
         if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
     }
+}
+
+// לוגיקת מודאל הרשאות
+function openPermissionsModal(id, name, role, permissionsStr) {
+    getEl('perm-user-id').value = id;
+    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
+    
+    let perms = {};
+    try { perms = JSON.parse(permissionsStr); } catch(e) {}
+    
+    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
+    const selectEl = getEl('perm-role-select');
+    
+    // עדכון סלקט התפקיד וצביעה בהתאם אם הוא מנהל 
+    if (selectEl) {
+        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
+        selectEl.className = role === 'ADMIN' 
+            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
+            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    
+    renderTabsCheckboxes(userTabs);
+    getEl('permissions-modal').classList.remove('hidden');
+}
+
+function applyRoleDefaults(role) {
+    const selectEl = getEl('perm-role-select');
+    if (selectEl) {
+        selectEl.className = role === 'ADMIN' 
+            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
+            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
+}
+
+function renderTabsCheckboxes(activeTabs) {
+    const container = getEl('perm-tabs-container');
+    container.innerHTML = ALL_TABS.map(tab => {
+        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
+        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; // feed חובה
+        const opacity = isDisabled ? 'opacity-50' : '';
+        return `
+        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
+            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
+            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
+        </label>
+        `;
+    }).join('');
+}
+
+async function submitPermissions() {
+    const id = val('perm-user-id');
+    const role = val('perm-role-select');
+    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
+    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
+
+    const btn = getEl('btn-submit-permissions');
+    btn.disabled = true; btn.innerText = 'שומר בשרת...';
+    
+    try {
+        const res = await fetch(`${API}/users/${id}/permissions`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
+            getEl('permissions-modal').classList.add('hidden');
+            fetchMembers(); // מרענן מיד את הנתונים
+            
+            // אם העובד משנה את עצמו בטעות (למשל מנהל מוריד לעצמו הרשאה), נרענן גם את המידע המקומי
+            if (String(id) === String(currentUser.id)) {
+                currentUser.role = role;
+                currentUser.permissions = { tabs: checkedTabs };
+                enforcePermissions();
+            }
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerText = 'שמור הרשאות'; }
 }
 
 // "התלבשות" על פונקציית החלפת הטאבים הגלובלית כדי לאכוף הרשאות בכל מעבר מסך
