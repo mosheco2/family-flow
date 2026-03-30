@@ -2677,7 +2677,8 @@ function renderSACommunitiesTable() {
     if (query) {
         filtered = filtered.filter(c => 
             (c.name && c.name.toLowerCase().includes(query)) || 
-            (c.code && c.code.toLowerCase().includes(query))
+            (c.code && c.code.toLowerCase().includes(query)) ||
+            (c.city && c.city.toLowerCase().includes(query))
         );
     }
     
@@ -2696,7 +2697,10 @@ function renderSACommunitiesTable() {
     
     tbody.innerHTML = filtered.map(c => `
         <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800">${safeStr(c.name || 'ללא שם (תקלה קודמת)')}</td>
+            <td class="px-4 py-4 font-bold text-slate-800">
+                ${safeStr(c.name || 'ללא שם (תקלה קודמת)')}
+                <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'לא הוגדר')}</div>
+            </td>
             <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest">${safeStr(c.code || '---')}</td>
             <td class="px-4 py-4">
                 <div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div>
@@ -2716,16 +2720,23 @@ function renderSACommunitiesTable() {
 function filterSACommunities() { renderSACommunitiesTable(); }
 
 async function createSACommunity() {
-    const name = val('sa-comm-name'); const code = val('sa-comm-code'); const email = val('sa-comm-email'); const pass = val('sa-comm-pass');
-    if(!name || !code) return showToast('error', 'שם וקוד קהילה הם חובה');
+    const name = val('sa-comm-name'); const city = val('sa-comm-city'); const code = val('sa-comm-code'); const email = val('sa-comm-email'); const pass = val('sa-comm-pass');
+    if(!name || !code || !city) return showToast('error', 'שם, עיר וקוד קהילה הם חובה');
+    
+    const btn = document.querySelector('button[onclick="createSACommunity()"]');
+    if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
     try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, code, managerEmail: email, managerPassword: pass})});
-        if((await res.json()).success) { 
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city, code, managerEmail: email, managerPassword: pass})});
+        const data = await res.json();
+        if(data.success) { 
             showToast('success', 'קהילה הוקמה!'); 
-            getEl('sa-comm-name').value=''; getEl('sa-comm-code').value=''; 
+            getEl('sa-comm-name').value=''; getEl('sa-comm-city').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
             loadSACommunityData(); 
-        } 
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        } else {
+            showToast('error', data.error || 'שגיאה בהקמת קהילה');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת מול השרת'); }
+    finally { if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; } }
 }
 
 async function linkBizToCommunity() {
@@ -2784,13 +2795,80 @@ async function loadBizCommunities() {
                 } else {
                     list.innerHTML = data.communities.map(c => {
                         let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
-                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center"><i class="fa-solid fa-users-rays"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-house mr-1"></i> ${c.families_count || 0} משפחות • הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center"><i class="fa-solid fa-users-rays"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
                     }).join('');
                 }
             }
         }
+        
+        // טעינת הקהילות הפנויות להצטרפות
+        await loadBizAvailableCommunities();
+        
     } catch(e) {
         console.error("Error loading biz communities", e);
+    }
+}
+
+let bizAvailableCommCache = [];
+
+async function loadBizAvailableCommunities() {
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.communities) {
+            bizAvailableCommCache = data.communities;
+            filterBizAvailableCommunities();
+        }
+    } catch(e) { console.error("Error loading available communities", e); }
+}
+
+function filterBizAvailableCommunities() {
+    const list = document.getElementById('biz-available-communities-list');
+    if (!list) return;
+
+    const cityFilter = (val('biz-filter-city') || '').toLowerCase();
+    const sizeFilter = val('biz-filter-size') || 'all';
+
+    let filtered = [...bizAvailableCommCache];
+
+    if (cityFilter) {
+        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
+    }
+    
+    if (sizeFilter !== 'all') {
+        const minSize = parseInt(sizeFilter);
+        filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
+                </div>
+                <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
+            </div>
+            <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
+        </div>
+    `).join('');
+}
+
+function openBizJoinModal(id, name) {
+    const idEl = getEl('biz-join-comm-id');
+    const nameEl = getEl('biz-join-comm-name');
+    const modal = getEl('biz-join-community-modal');
+    if (idEl && nameEl && modal) {
+        idEl.value = id;
+        nameEl.innerText = `בקשת הצטרפות ל: ${name}`;
+        getEl('biz-join-discount').value = '';
+        modal.classList.remove('hidden');
     }
 }
 
