@@ -166,7 +166,7 @@
 
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflowlife Pro" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none';">
-        <h2 class="text-xl font-bold text-slate-800 mb-1"Oneflow life BIZ</h2>
+        <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow life BIZ</h2>
         <p class="text-sm text-slate-500 font-medium animate-pulse">טוען סביבת עבודה...</p>
     </div>
 
@@ -197,7 +197,7 @@
                     <div class="w-full flex justify-between items-end px-2 mt-2">
                         <div class="text-left flex flex-col items-start">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Member</p>
-                            <p class="text-blue-100 text-xs font-medium tracking-widest uppercase"Oneflow life BIZ</p>
+                            <p class="text-blue-100 text-xs font-medium tracking-widest uppercase">Oneflow life BIZ</p>
                         </div>
                         <div class="text-right flex flex-col items-end">
                             <p class="text-[8px] text-slate-400 tracking-widest uppercase mb-0.5 font-bold">Valid Thru</p>
@@ -477,7 +477,7 @@
                 <div class="relative px-2 mb-6 group shrink-0">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
-<div class="slider-scroll" id="slider-scroll">
+                        <div class="slider-scroll" id="slider-scroll">
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
@@ -1262,11 +1262,12 @@
                 </div>
             </div>
         </div>
-<div id="store-product-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        
+        <div id="store-product-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll relative">
                 <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
                     <h3 class="text-xl font-black text-slate-800">ניהול פריט בקטלוג 🛒</h3>
-                    <button onclick="getEl('store-product-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    <button onclick="document.getElementById('store-product-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 
                 <input type="hidden" id="sp-id" value="">
@@ -1322,7 +1323,7 @@
                 </div>
 
                 <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100 sticky bottom-0 bg-white z-10 pb-2">
-                    <button onclick="getEl('store-product-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="document.getElementById('store-product-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
                     <button id="btn-submit-sp" onclick="submitStoreProduct()" class="w-2/3 bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-xl hover:bg-indigo-700 transition text-lg">שמור מוצר</button>
                 </div>
             </div>
@@ -1332,7 +1333,7 @@
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                     <h3 class="text-xl font-black text-slate-800">הזמנה #<span id="so-modal-id"></span></h3>
-                    <button onclick="getEl('store-order-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    <button onclick="document.getElementById('store-order-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 
                 <div class="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-200 shadow-sm">
@@ -1349,7 +1350,7 @@
                     <span class="text-xl font-black text-indigo-700">₪<span id="so-modal-total"></span></span>
                 </div>
 
- <h4 class="font-bold text-slate-700 text-sm mb-2">עדכון סטטוס ההזמנה:</h4>
+                <h4 class="font-bold text-slate-700 text-sm mb-2">עדכון סטטוס ההזמנה:</h4>
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <button onclick="updateStoreOrderStatus('new')" class="py-2.5 rounded-xl font-bold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition shadow-sm text-sm">התקבל (חדש) 🚨</button>
                     <button onclick="updateStoreOrderStatus('processing')" class="py-2.5 rounded-xl font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition shadow-sm text-sm">באריזה / הכנה 📦</button>
@@ -1359,6 +1360,7 @@
                 <button onclick="updateStoreOrderStatus('completed')" class="w-full py-3.5 rounded-xl font-bold text-white bg-green-500 hover:bg-green-600 transition shadow-md text-base">נמסר ללקוח / הושלם ✅</button>
             </div>
         </div>
+
         <div id="pantry-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-4 text-center">הוספה למלאי / ציוד ארגוני</h3>
@@ -1477,7 +1479,7 @@
                 
                 <div class="flex gap-3">
                     <button onclick="document.getElementById('balance-adjustment-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
-                    <button onclick="submitBalanceAdjustment()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg transition hover:bg-slate-700">עדכן מאזן</button>
+                    <button onclick="submitBalanceAdjustment()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 transition hover:bg-blue-700">עדכן מאזן</button>
                 </div>
             </div>
         </div>
@@ -1551,187 +1553,40 @@
             </div>
         </div>
 
-        <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-universal-access text-blue-600"></i> פאנל נגישות</h3>
-                    <button onclick="closeAccessibilityModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="toggleAccess('text-lg')" id="acc-text-lg" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>הגדלת טקסט</span> <i class="fa-solid fa-font text-lg"></i></button>
-                    <button onclick="toggleAccess('grayscale')" id="acc-grayscale" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>גווני אפור</span> <i class="fa-solid fa-circle-half-stroke text-lg"></i></button>
-                    <button onclick="toggleAccess('contrast')" id="acc-contrast" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>ניגודיות גבוהה</span> <i class="fa-solid fa-adjust text-lg"></i></button>
-                    <button onclick="toggleAccess('readable-font')" id="acc-readable-font" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>פונט קריא (Arial)</span> <i class="fa-solid fa-text-height text-lg"></i></button>
-                    <button onclick="toggleAccess('highlight-links')" id="acc-highlight-links" class="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex justify-between items-center font-medium text-slate-700 hover:bg-slate-100 transition shadow-sm"><span>הדגשת קישורים</span> <i class="fa-solid fa-link text-lg"></i></button>
-                </div>
-                <button onclick="resetAccessibility()" class="w-full mt-6 bg-red-50 text-red-500 py-3 rounded-xl font-bold hover:bg-red-100 transition border border-red-100">איפוס הגדרות נגישות</button>
-            </div>
-        </div>
-
-        <div id="report-360-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative">
-                <button onclick="document.getElementById('report-360-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+        <div id="biz-join-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative text-center">
+                <h3 class="text-xl font-bold mb-2 text-slate-800">הצטרפות לקהילה</h3>
+                <p id="biz-join-comm-name" class="text-sm font-bold text-indigo-600 mb-4"></p>
+                <input type="hidden" id="biz-join-comm-id">
                 
-                <div id="report-360-content" class="report-page bg-white p-4">
-                    <div class="flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
-                        <div>
-                            <h1 class="text-2xl font-bold text-slate-800 mb-1">דוח 360 - תמונת מצב לארגון</h1>
-                            <p class="text-sm text-slate-500" id="report-360-date"></p>
-                        </div>
-                        <div class="flex flex-col items-center">
-                            <img src="logo.png" alt="Oneflowlife Pro" class="w-16 h-16 object-contain grayscale">
-                            <p class="text-[10px] font-bold mt-1 text-slate-500"Oneflow life BIZ</p>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">פרטי העסק</h2>
-                        <table class="report-table">
-                            <tr><th class="w-1/3">שם הארגון:</th><td id="report-360-group-name"></td></tr>
-                            <tr><th>סוג סביבה:</th><td id="report-360-group-type"></td></tr>
-                            <tr><th>קוד ארגוני:</th><td id="report-360-group-code" class="font-mono"></td></tr>
-                            <tr><th>מייל מנהל:</th><td id="report-360-group-email"></td></tr>
-                        </table>
-                    </div>
-
-                    <div class="mb-6">
-                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">הרכב מנהלים ועובדים</h2>
-                        <table class="report-table w-full text-sm">
-                            <thead>
-                                <tr class="bg-slate-50"><th class="text-right p-2 border">שם משתמש</th><th class="text-right p-2 border">תפקיד</th><th class="text-right p-2 border">יתרת בונוס/תקציב</th></tr>
-                            </thead>
-                            <tbody id="report-360-users-list"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="mb-6">
-                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">תנועות תזרים (30 ימים אחרונים)</h2>
-                        <table class="report-table w-full text-sm">
-                            <thead>
-                                <tr class="bg-slate-50"><th class="text-right p-2 border">תאריך</th><th class="text-right p-2 border">משתמש</th><th class="text-right p-2 border">תיאור</th><th class="text-right p-2 border">סכום</th></tr>
-                            </thead>
-                            <tbody id="report-360-tx-list"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="mb-6">
-                        <h2 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-1">סיכום סטטוס משימות</h2>
-                        <ul id="report-360-tasks-list" class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-4"></ul>
-                    </div>
+                <p class="text-xs text-slate-500 mb-4">כדי להצטרף לקהילה, עליך להציע אחוז הנחה קבוע לחברי הקהילה. מנהל הקהילה יאשר את בקשתך.</p>
+                
+                <div class="relative mb-6">
+                    <input type="number" id="biz-join-discount" class="w-full p-4 pl-4 pr-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-3xl text-center font-bold outline-none focus:border-indigo-500 transition text-slate-800" placeholder="0">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">%</span>
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">הנחה</span>
                 </div>
-
-                <div class="mt-4 flex gap-3 pt-4 border-t border-slate-100">
-                    <button onclick="document.getElementById('report-360-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
-                    <button onclick="download360PDF()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-pdf"></i> הורד כ-PDF 📥
-                    </button>
+                
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('biz-join-community-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitBizCommunityJoin()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שלח בקשה</button>
                 </div>
             </div>
         </div>
 
-    </div>
-
-    <script>
-        function checkShopUnit() {
-            const unit = document.getElementById('shop-unit').value;
-            const container = document.getElementById('shop-upp-container');
-            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-                document.getElementById('shop-upp').value = 1;
-            }
-        }
-        
-        function checkPantryUnit() {
-            const unit = document.getElementById('pantry-unit').value;
-            const container = document.getElementById('pantry-upp-container');
-            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-                document.getElementById('pantry-upp').value = 1;
-            }
-        }
-
-        function toggleTransType(type) {
-            const isRecurring = type === 'recurring';
-            document.getElementById('trans-is-recurring').value = isRecurring;
-            document.getElementById('btn-trans-onetime').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-            document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-            
-            if (isRecurring) {
-                document.getElementById('trans-end-date-container').classList.remove('hidden');
-            } else {
-                document.getElementById('trans-end-date-container').classList.add('hidden');
-                document.getElementById('trans-end-month').value = '';
-            }
-        }
-        
-        function toggleAdjustmentType(type) {
-            const isAdd = type === 'add';
-            document.getElementById('adjustment-type').value = type;
-            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
-            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
-        }
-    </script>
-</div>
-
-    <<div id="biz-join-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative text-center">
-            <h3 class="text-xl font-bold mb-2 text-slate-800">הצטרפות לקהילה</h3>
-            <p id="biz-join-comm-name" class="text-sm font-bold text-indigo-600 mb-4"></p>
-            <input type="hidden" id="biz-join-comm-id">
-            
-            <p class="text-xs text-slate-500 mb-4">כדי להצטרף לקהילה, עליך להציע אחוז הנחה קבוע לחברי הקהילה. מנהל הקהילה יאשר את בקשתך.</p>
-            
-            <div class="relative mb-6">
-                <input type="number" id="biz-join-discount" class="w-full p-4 pl-4 pr-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-3xl text-center font-bold outline-none focus:border-indigo-500 transition text-slate-800" placeholder="0">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">%</span>
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">הנחה</span>
-            </div>
-            
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('biz-join-community-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button onclick="submitBizCommunityJoin()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שלח בקשה</button>
-            </div>
-        </div>
-    </div>
-    <div id="biz-join-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative text-center">
-            <h3 class="text-xl font-bold mb-2 text-slate-800">הצטרפות לקהילה</h3>
-            <p id="biz-join-comm-name" class="text-sm font-bold text-indigo-600 mb-4"></p>
-            <input type="hidden" id="biz-join-comm-id">
-            
-            <p class="text-xs text-slate-500 mb-4">כדי להצטרף לקהילה, עליך להציע אחוז הנחה קבוע לחברי הקהילה. מנהל הקהילה יאשר את בקשתך.</p>
-            
-            <div class="relative mb-6">
-                <input type="number" id="biz-join-discount" class="w-full p-4 pl-4 pr-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-3xl text-center font-bold outline-none focus:border-indigo-500 transition text-slate-800" placeholder="0">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">%</span>
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">הנחה</span>
-            </div>
-            
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('biz-join-community-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button onclick="submitBizCommunityJoin()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שלח בקשה</button>
-            </div>
-        </div>
-    </div>
-
-<script src="business-app.js?v=2" defer></script>
-        <script>
-    <div id="forgot-code-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div id="forgot-code-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-slate-800">שחזור קוד סביבה 📧</h3>
                 <p class="text-sm text-slate-500 mb-6">הזינו את כתובת המייל של מנהל/ת הסביבה, ונשלח אליכם את הקוד למייל מיד.</p>
                 <input type="email" id="forgot-code-email" required placeholder="כתובת אימייל" class="modern-input mb-6 text-left dir-ltr">
                 <div class="flex gap-3">
-                            <button type="button" onclick="document.getElementById('forgot-code-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                            <button type="button" id="btn-submit-forgot" onclick="submitForgotCode()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">שלח קוד</button>
-                        </div>
-                    </div>
+                    <button type="button" onclick="document.getElementById('forgot-code-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button type="button" id="btn-submit-forgot" onclick="submitForgotCode()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">שלח קוד</button>
                 </div>
-<div class="fixed bottom-40 right-6 z-40 flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer" onclick="openGlobalAIAssistant()">
+            </div>
+        </div>
+
+        <div class="fixed bottom-40 right-6 z-40 flex flex-col items-center gap-1.5 animate-pulse group cursor-pointer" onclick="openGlobalAIAssistant()">
             <div class="w-14 h-14 bg-white rounded-full shadow-[0_10px_25px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-110 transition-transform duration-300 border border-slate-100 p-2 overflow-hidden">
                 <img src="logo.png" alt="FamliAI" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300">
             </div>
@@ -1760,6 +1615,54 @@
                 </div>
             </div>
         </div>
+        
+    </div>
+
+    <script src="business-app.js?v=4" defer></script>
+    <script>
+        function checkShopUnit() {
+            const unit = document.getElementById('shop-unit').value;
+            const container = document.getElementById('shop-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('shop-upp').value = 1;
+            }
+        }
+        
+        function checkPantryUnit() {
+            const unit = document.getElementById('pantry-unit').value;
+            const container = document.getElementById('pantry-upp-container');
+            if (['ק"ג', 'גרם', 'מארז', 'קרטון'].includes(unit)) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('pantry-upp').value = 1;
+            }
+        }
+
+        function toggleTransType(type) {
+            const isRecurring = type === 'recurring';
+            document.getElementById('trans-is-recurring').value = isRecurring;
+            document.getElementById('btn-trans-onetime').className = !isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+            document.getElementById('btn-trans-recurring').className = isRecurring ? 'flex-1 py-1.5 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+            
+            if (isRecurring) {
+                document.getElementById('trans-end-date-container').classList.remove('hidden');
+            } else {
+                document.getElementById('trans-end-date-container').classList.add('hidden');
+                document.getElementById('trans-end-month').value = '';
+            }
+        }
+        
+        function toggleAdjustmentType(type) {
+            const isAdd = type === 'add';
+            document.getElementById('adjustment-type').value = type;
+            document.getElementById('btn-adj-deduct').className = !isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-red-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-red-600 rounded-lg transition';
+            document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
+        }
+    </script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
