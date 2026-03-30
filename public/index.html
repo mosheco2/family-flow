@@ -1891,5 +1891,22 @@
                 </div>
             </div>
         </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameDisplay = document.getElementById('community-name-display');
+            const bannerTitle = document.querySelector('#content-community h3');
+
+            if (nameDisplay && bannerTitle) {
+                const observer = new MutationObserver(() => {
+                    const name = nameDisplay.innerText.trim();
+                    if (name && name !== '') {
+                        bannerTitle.innerText = `קהילת ${name} 🏘️`;
+                    }
+                });
+                // מאזין לכל שינוי טקסטואלי בשם הקהילה
+                observer.observe(nameDisplay, { childList: true, characterData: true, subtree: true });
+            }
+        });
+    </script>
 </body>
 </html>
