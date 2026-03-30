@@ -178,9 +178,13 @@
                 let fetchUrl = `${API}/storefront/${storeCode}`;
                 if (communityId) fetchUrl += `?communityId=${communityId}`;
                 
-                const res = await fetch(fetchUrl);
+  const res = await fetch(fetchUrl);
                 const data = await res.json();
-                if (!data.success || !data.settings.is_active) {
+                
+                // תיקון: החנות תיסגר רק אם success הוא false או אם is_active הוגדר במפורש כ-false
+                const isActive = data.settings && data.settings.is_active !== false;
+                
+                if (!data.success || !isActive) {
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
                 }
 
@@ -281,7 +285,7 @@
             try { const parsed = JSON.parse(optionsText); return Array.isArray(parsed) && parsed.length > 0; } catch(e) { return false; }
         }
 
-        function renderCatalog() {
+function renderCatalog() {
             const container = getEl('catalog-container');
             if (!storeData.catalog || storeData.catalog.length === 0) return container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
 
@@ -313,21 +317,24 @@
                     }
                 }
 
-               // הצגת מחיר קהילה ברור יותר עם אייקון
+                // עיצוב מחיר קהילה משודרג (דרישה 3)
                 let priceHtml = '';
-                if (item.is_community_discount && item.original_price) {
+                const orig = parseFloat(item.original_price);
+                const curr = parseFloat(item.price);
+                
+                if (orig && orig > curr) {
                     priceHtml = `
-                        <div class="flex items-center gap-1.5 mb-0.5">
-                            <span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-100 flex items-center gap-1"><i class="fa-solid fa-tag text-[8px]"></i> מחיר קהילה</span>
-                        </div>
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-xs text-slate-400 line-through font-medium">₪${item.original_price}</span> 
-                            <span class="font-black text-emerald-600 text-base leading-none">₪${item.price}</span>
-                        </div>
-                    `;
+                        <div class="flex flex-col">
+                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 line-through">₪${orig}</span>
+                                <span class="font-black text-emerald-600 text-base">₪${curr}</span>
+                            </div>
+                        </div>`;
                 } else {
-                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${item.price}</span>`;
+                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
                 }
+
                 if (storeType === 'retail') {
                     html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
