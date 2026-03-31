@@ -653,10 +653,14 @@ async function loadDashboard() {
             }
         }
         
-        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
+       const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
+        // הנה הפקודה שקוראת ומציירת את הבאנרים ברגע שהמערכת עולה:
+        try { fetchBanners(); } catch(e){}
+        
+        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
