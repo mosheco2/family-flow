@@ -3147,6 +3147,10 @@ async function loadSystemAnnouncements() {
     try {
         const res = await fetch(`${API}/sa/settings`);
         const settings = await res.json();
+        
+        // הוספתי הדפסה לקונסול כדי שתמיד תראה בזמן אמת מה השרת שולח
+        console.log("System Settings Data Loaded:", settings);
+        
         if (!settings) return;
 
         // טיפול בבאנר עליון
@@ -3167,16 +3171,14 @@ async function loadSystemAnnouncements() {
             }
         }
 
-        // הודעת פתיחה (Popup) - מוצגת פעם אחת בכל סשן
-        if (settings.show_popup_biz && settings.popup_text && !sessionStorage.getItem('biz_popup_shown')) {
+        // הודעת פתיחה (Popup) - הסרתי זמנית את ההגבלה של ה-sessionStorage כדי שתקפוץ בכל רענון לצורך בדיקות
+        if (settings.show_popup_biz && settings.popup_text) {
             showGlobalPopup(settings.popup_title || 'הודעת מערכת', settings.popup_text);
-            sessionStorage.setItem('biz_popup_shown', 'true');
         }
     } catch (e) {
         console.error("Error loading announcements:", e);
     }
 }
-
 function showGlobalPopup(title, text) {
     const modal = document.getElementById('global-announcement-modal');
     if (!modal) return;
