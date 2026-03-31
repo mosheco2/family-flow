@@ -491,7 +491,13 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
+        // --- קריאה לטעינת הבאנרים של העסק ---
+        try { fetchBanners(); } catch(e){}
+        // ------------------------------------
+
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+        
+        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
