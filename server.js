@@ -2090,8 +2090,28 @@ app.post('/api/sa/community-business/reject', async (req, res) => {
 });
 app.get('/api/sa/settings', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM system_settings WHERE id = 1');
-        res.json(result.rows[0] || {});
+        // שולפים את כל ההגדרות מהטבלה (לפי מבנה של key ו-value)
+        const result = await pool.query("SELECT key, value FROM system_settings");
+        const dbSettings = {};
+        
+        // הופכים את מערך התוצאות לאובייקט נוח לגישה
+        result.rows.forEach(row => {
+            dbSettings[row.key] = row.value;
+        });
+        
+        // ממפים את ההגדרות מהמסד למבנה שהצד-לקוח מבקש
+        res.json({
+            show_banner_top_biz: !!dbSettings['business_ad_banner_text_top'],
+            banner_top_text: dbSettings['business_ad_banner_text_top'] || '',
+            
+            show_banner_bottom_biz: !!dbSettings['business_ad_banner_text_bottom'],
+            banner_bottom_text: dbSettings['business_ad_banner_text_bottom'] || '',
+            
+            show_popup_biz: !!dbSettings['business_welcome_msg'],
+            popup_text: dbSettings['business_welcome_msg'] || '',
+            
+            popup_title: 'הודעת מערכת'
+        });
     } catch(e) { 
         res.status(500).json({ error: e.message }); 
     }
