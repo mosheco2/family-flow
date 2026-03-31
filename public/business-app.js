@@ -65,6 +65,7 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
     const preloader = getEl('app-preloader');
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
+
 // --- נגישות ---
 function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
 function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = getEl(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
@@ -72,6 +73,7 @@ function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { getEl('accessibility-modal').classList.remove('hidden'); }
 function closeAccessibilityModal() { getEl('accessibility-modal').classList.add('hidden'); }
+
 window.onload = async () => { 
     initAccessibility();
     const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
@@ -128,7 +130,6 @@ async function saveAllBanners() {
     const btn = document.querySelector('button[onclick="saveAllBanners()"]');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> שומר נתונים...'; }
     try {
-        // 1. שמירת הודעות הפתיחה 
         await fetch(`${API}/superadmin/settings`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
@@ -138,7 +139,6 @@ async function saveAllBanners() {
             }) 
         });
 
-        // 2. שמירת כל הבאנרים 
         const res = await fetch(`${API}/superadmin/banners`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
@@ -183,13 +183,22 @@ function applyBannersToDOM(banners) {
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
         if(text || img) { 
-            let html = ''; if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
-            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; 
-            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            let html = ''; 
+            if(img && img.trim() !== '') { 
+                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                html += `<img src="${imgSrc}" alt="Banner" class="w-full h-auto max-h-32 object-cover block">`; 
+            }
+            if(text && text.trim() !== '') { 
+                html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
+            }
+            el.innerHTML = html; 
+            el.href = (link && link.trim() !== '') ? link : '#'; 
+            if(!link || link.trim() === '') { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
             el.classList.remove('hidden'); el.classList.add('flex'); 
         } else { el.classList.add('hidden'); el.classList.remove('flex'); }
     };
-    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); 
+    renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
 }
 
 async function fetchBanners() {
@@ -223,7 +232,6 @@ async function loadSAData() {
         }
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
         
-        // טעינת נתוני הקהילות לאדמין
         if (typeof loadSACommunityData === 'function') {
             loadSACommunityData();
         }
@@ -234,148 +242,184 @@ function renderSAGroups() {
     const groupsList = getEl('sa-groups-list'); let gHtml = ''; const term = val('sa-search-group').toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
     if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
-    
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `
-            <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה/עובד'})</span></span>
-                <div class="flex gap-1">
-                    <button onclick="openSAEditUserModal(${u.id}, '${safeStr(u.nickname)}')" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </div>
-        `).join('');
-        
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        
-        gHtml += `
-        <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
-            <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3>
-                        <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-down text-slate-300"></i>
-            </div>
-            <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
-                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
-                    <div class="flex gap-2">
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
-                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
-                        ${proToggleBtn}
-                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                    </div>
-                </div>
-                ${uHtml}
-            </div>
-        </div>`;
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
 
-// פונקציות העריכה
-function openSAEditGroupModal(id, name) {
-    getEl('sa-edit-group-id').value = id;
-    getEl('sa-edit-group-name').value = name;
-    getEl('sa-edit-group-modal').classList.remove('hidden');
-}
+function filterSAGroups() { renderSAGroups(); }
+async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
 
-async function saveSAEditGroup() {
-    const id = val('sa-edit-group-id');
-    const name = val('sa-edit-group-name');
-    if (!name) return showToast('error', 'שם לא יכול להיות ריק');
+async function checkGlobalWelcome() {
     try {
-        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-        if ((await res.json()).success) {
-            showToast('success', 'שם עודכן בהצלחה');
-            getEl('sa-edit-group-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון השם');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        const res = await fetch(`${API}/settings/welcome?type=BUSINESS`); const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
+            if (seen !== data.message) { getEl('welcome-modal-text').innerText = data.message; setupPwaInstallSection(); getEl('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
+        }
+    } catch(e) {} return false;
 }
 
-function openSAEditUserModal(id, nickname) {
-    getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = nickname;
-    getEl('sa-edit-user-pass').value = '';
-    getEl('sa-edit-user-modal').classList.remove('hidden');
+function closeWelcomeModal() { 
+    getEl('welcome-modal').classList.add('hidden'); 
+    if (window.pendingWelcomeMsg) { 
+        localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); 
+    } 
+    checkAndStartTour(forceTourStart); 
+    forceTourStart = false; 
 }
 
-async function saveSAEditUser() {
-    const id = val('sa-edit-user-id');
-    const nickname = val('sa-edit-user-name');
-    const password = val('sa-edit-user-pass');
-    if (!nickname) return showToast('error', 'כינוי לא יכול להיות ריק');
-    try {
-        const res = await fetch(`${API}/sa/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nickname, password }) });
-        if ((await res.json()).success) {
-            showToast('success', 'המשתמש עודכן בהצלחה!');
-            getEl('sa-edit-user-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון משתמש');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+function checkAndStartTour(force = false) { 
+    setTimeout(() => { 
+        try { 
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; 
+            if (force || !localStorage.getItem(tourKey)) { 
+                localStorage.setItem(tourKey, 'true'); 
+                switchTab('feed'); 
+                if (currentUser.role === 'ADMIN') {
+                    if (typeof startManagerTour === 'function') startManagerTour(); else startEmployeeTour();
+                } else {
+                    startEmployeeTour(); 
+                }
+            } else {
+                switchTab('feed');
+            }
+        } catch(e) { switchTab('feed'); } 
+    }, 1000); 
 }
 
-function startAdminTour() {
+function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') { if(typeof startManagerTour === 'function') startManagerTour(); else startEmployeeTour(); } else startEmployeeTour(); }, 300); }
+
+function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
+
+function executeWithAIWarning(actionCallback) {
+    if (currentGroup && currentGroup.is_premium) return actionCallback();
+    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
+    const modal = getEl('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    const leftEl = getEl('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
+    const btnContinue = getEl('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+    newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    modal.classList.remove('hidden');
+}
+
+function injectBusinessUI() {
+    if(!getEl('content-shifts')) {
+        const contentFeed = getEl('content-feed');
+        if(contentFeed) {
+            contentFeed.insertAdjacentHTML('afterend', `
+            <div id="content-shifts" class="hidden">
+                <div class="flex justify-between items-center mb-4 px-2 mt-2">
+                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
+                </div>
+                <div id="shifts-list" class="space-y-3 pb-20"></div>
+            </div>
+            `);
+        }
+
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
+                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
+                    <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="modern-input py-3 text-sm bg-white"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="modern-input py-3 text-sm"></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="modern-input py-3 text-sm"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="modern-input py-3 text-sm"></div>
+                    </div>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="getEl('shift-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
+                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
+                    <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="modern-input py-3 text-sm bg-white"></select></div>
+                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="modern-input py-3 text-sm"></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="modern-input py-3 text-sm"></div>
+                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="modern-input py-3 text-sm"></div>
+                    </div>
+                    <div class="flex gap-3 mt-4">
+                        <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
+                        <button id="btn-submit-mp" onclick="submitManualPunch()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `);
+    }
+}
+
+function startManagerTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו המשפחה שלכם מתנהלת פיננסית." },
-            { element: '#tour-header', title: "מרכז השליטה שלכם", intro: "כאן תמצאו את קוד המשפחה. לחיצה על תפריט תפתח את ההגדרות.", position: 'bottom' },
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו העסק שלכם מתנהל." },
+            { element: '#tour-header', title: "מרכז השליטה שלכם", intro: "כאן תמצאו את קוד הארגון. לחיצה על תפריט תפתח את ההגדרות.", position: 'bottom' },
             { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת מונעת ע\"י familAI. כאן תוכלו לראות את כמות הפעולות שנותרה.", position: 'bottom' },
-            { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תוכלו לראות את היתרה הפנויה של המשפחה בזמן אמת.", position: 'bottom' },
+            { element: '#user-balance', title: "הארנק הארגוני 💳", intro: "כאן תוכלו לראות את היתרה הפנויה של העסק בזמן אמת.", position: 'bottom' },
             { element: '#tour-fab-btn', title: "פעולה מהירה ⚡", intro: "רישום הוצאה או הכנסה מכל מקום באפליקציה.", position: 'top' },
-            { element: '#tab-shop', title: "סופר חכם 🛒", intro: "רשימת קניות משותפת לכולם. צלמו קבלה ו-familAI תזין את הנתונים!", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מזווה 📦", intro: "עקבו אחרי המלאי בבית והעבירו מוצרים חסרים לרשימת הקניות.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק המשפחתי 🏦", intro: "הגדירו דמי כיס שבועיים אוטומטיים לילדים ולמדו אותם לנהל כסף.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות הבית ✅", intro: "הגדירו משימות, תמחרו אותן, והילדים יקבלו תגמול על ביצוע.", position: 'bottom' },
-            { element: '#tab-academy', title: "אקדמיה פיננסית 🎓", intro: "יצרו לילדים אתגרים חינוכיים בהתאמה אישית עם ה-AI.", position: 'bottom' },
-            { element: '#tab-budget', title: "תקציב ושליטה 📊", intro: "הגדירו יעדי הוצאות חודשיים. familAI תנתח ותספק טיפים לחיסכון.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף תזרים 📅", intro: "צפו בפעולות עתידיות ותכננו את התקציב קדימה.", position: 'bottom' },
-            { element: '#tab-recipes', title: "השף הפרטי 👨‍🍳", intro: "ה-AI ירקח עבורכם מתכון מהמוצרים שיש במזווה!", position: 'bottom' },
-            { element: '#tab-members', title: "הזמנת המשפחה 👨‍👩‍👧‍👦", intro: "שלחו הזמנה מהירה בוואטסאפ לילדים ולבן/בת הזוג.", position: 'bottom' }
+            { element: '#tab-shop', title: "רכש ארגוני 🛒", intro: "ריכוז דרישות הרכש של העובדים, סריקת קבלות חכמה ואישור הזמנות מספקים.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "מעקב בזמן אמת אחרי ציוד משרדי וחומרי גלם. ה-AI יזהיר אתכם כשמשהו עומד להיגמר.", position: 'bottom' },
+            { element: '#tab-bank', title: "תקציבים והחזרים 🏦", intro: "סגירת חודש בקליק, הגדרת תקציבי פעילות לצוות ואישור החזרי הוצאות.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "הגדירו פרויקטים, וה-AI יעזור לפרק אותם למשימות. קבלו דיווחי ביצוע מצולמים.", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "צרו חפיפות מבוססות AI, רעננו נהלים וקבעו תמריצים למצטיינים.", position: 'bottom' },
+            { element: '#tab-budget', title: "תקציב ושליטה 📊", intro: "הגדירו יעדי הוצאות מחלקתיים. familAI תנתח ותספק תובנות עסקיות לחיסכון.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף תזרים 📅", intro: "צפו בהכנסות והוצאות עתידיות קבועות ותכננו את תזרים המזומנים קדימה.", position: 'bottom' },
+            { element: '#tab-members', title: "ניהול הרשאות 👨‍👩‍👧‍👦", intro: "נהלו את הצוות, קבעו הרשאות צפייה מדויקות לכל עובד ושלחו הזמנות בוואטסאפ.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-members') switchTab('members'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
 }
 
-function startChildTour() {
+function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף ולחסוך נכון." },
-            { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "הכירו את familAI - העוזרת החכמה והסודית שלנו!", position: 'bottom' },
-            { element: '#user-balance', title: "הארנק האישי שלך 💳", intro: "כאן מופיע כל הכסף שהרווחת מביצוע משימות ומדמי הכיס.", position: 'bottom' },
-            { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "בקש להוסיף דברים לרשימת הקניות כאן.", position: 'bottom' },
-            { element: '#tab-pantry', title: "המזווה 📦", intro: "בדוק בקלות אילו ממתקים או מוצרים כבר מחכים לכם בבית.", position: 'bottom' },
-            { element: '#tab-bank', title: "הבנק והיעדים 🏦", intro: "פתח 'קופת חיסכון' למטרה שאתה חולם עליה ותראה את הריבית מצטברת.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות ותגמולים ✅", intro: "בחר משימה, סיים אותה, וקבל תגמול ישר לארנק!", position: 'bottom' },
-            { element: '#tab-academy', title: "האקדמיה 🎓", intro: "ענה על חידונים כיפיים ותרוויח בונוסים על תשובות נכונות.", position: 'bottom' },
-            { element: '#tab-budget', title: "לאן הכסף הולך? 📊", intro: "ראה על מה בזבזת את הכסף ולמד לתכנן קניות חכם.", position: 'bottom' },
-            { element: '#tab-forecast', title: "התשקיף שלי 📅", intro: "צפה בהכנסות והוצאות עתידיות.", position: 'bottom' },
-            { element: '#tab-recipes', title: "שף AI 👨‍🍳", intro: "בחר מוצרים מהמטבח, והשף ייתן לך מתכון מנצח וקל להכנה!", position: 'bottom' }
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-budget') switchTab('budget'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-recipes') switchTab('recipes'); else switchTab('feed'); 
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -487,120 +531,6 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
-let currentAIAction = null;
-function executeWithAIWarning(actionFn) {
-    if(currentGroup && currentGroup.is_premium) { actionFn(); return; }
-    const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 0;
-    if(tokens <= 0) {
-        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser && currentUser.role === 'ADMIN' && upgradeSec) upgradeSec.classList.remove('hidden'); 
-        else if(upgradeSec) upgradeSec.classList.add('hidden');
-        if(modal) modal.classList.remove('hidden'); return;
-    }
-    
-    if (localStorage.getItem('ofl_hide_ai_warning') === new Date().toLocaleDateString('he-IL')) { actionFn(); return; }
-    
-    currentAIAction = actionFn;
-    const leftEl = getEl('ai-warning-left'); if(leftEl) leftEl.innerText = tokens;
-    const warnModal = getEl('ai-warning-modal'); if(warnModal) warnModal.classList.remove('hidden');
-    
-    const btnContinue = getEl('btn-ai-warning-continue');
-    if (btnContinue) {
-        btnContinue.onclick = () => {
-            const dontShow = getEl('ai-warning-dont-show');
-            if (dontShow && dontShow.checked) localStorage.setItem('ofl_hide_ai_warning', new Date().toLocaleDateString('he-IL'));
-            if(warnModal) warnModal.classList.add('hidden');
-            if (currentAIAction) { currentAIAction(); currentAIAction = null; }
-        };
-    }
-}
-
-function injectBusinessUI() {
-    if(!getEl('content-shifts')) {
-        const contentFeed = getEl('content-feed');
-        if(contentFeed) {
-            contentFeed.insertAdjacentHTML('afterend', `
-            <div id="content-shifts" class="hidden">
-                <div class="flex justify-between items-center mb-4 px-2 mt-2">
-                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
-                </div>
-                <div id="shifts-list" class="space-y-3 pb-20"></div>
-            </div>
-            `);
-        }
-
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
-                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
-                    <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="modern-input py-3 text-sm bg-white"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="modern-input py-3 text-sm"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="modern-input py-3 text-sm"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="modern-input py-3 text-sm"></div>
-                    </div>
-                    <div class="flex gap-3 mt-4">
-                        <button onclick="getEl('shift-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
-                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
-                    <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="modern-input py-3 text-sm bg-white"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="modern-input py-3 text-sm"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="modern-input py-3 text-sm"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="modern-input py-3 text-sm"></div>
-                    </div>
-                    <div class="flex gap-3 mt-4">
-                        <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-submit-mp" onclick="submitManualPunch()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-}
-
-function startEmployeeTour() {
-    switchTab('feed'); const intro = introJs();
-    intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
-        steps: [
-            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
-            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
-            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
-            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
-            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
-        ]
-    });
-    intro.onbeforechange(function(targetElement) { 
-        if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
-        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
-        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
-    });
-    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
-}
-
 async function loadDashboard() {
     try {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
@@ -653,14 +583,13 @@ async function loadDashboard() {
             }
         }
         
-       const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
+        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-        // הנה הפקודה שקוראת ומציירת את הבאנרים ברגע שהמערכת עולה:
+        // טעינת באנרים במסך העסק!
         try { fetchBanners(); } catch(e){}
-        
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
@@ -673,9 +602,25 @@ async function loadDashboard() {
         console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
-        if (preloader) { 
+        const finalizeLoad = async () => { 
+            try {
+                const showedWelcome = await checkGlobalWelcome(); 
+                if (!showedWelcome) { 
+                    checkAndStartTour(forceTourStart); 
+                    forceTourStart = false; 
+                }
+            } catch(e) {
+                checkAndStartTour(forceTourStart);
+            }
+        };
+        if (preloader && !preloader.classList.contains('hidden')) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
-            setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
+            setTimeout(() => { 
+                preloader.classList.add('hidden'); 
+                finalizeLoad(); 
+            }, 700); 
+        } else { 
+            finalizeLoad(); 
         }
     }
 }
@@ -1506,176 +1451,6 @@ async function saveStoreSettings() {
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
-}
-
-// --- הגדרות תבניות תפקידים וטאבים ב-Oneflowlife Pro ---
-const ALL_TABS = [
-    { id: 'feed', name: 'ראשי 🏠' },
-    { id: 'timeclock', name: 'נוכחות ⏱️' },
-    { id: 'shifts', name: 'משמרות 🗓️' },
-    { id: 'shop', name: 'רכש ארגוני 🛒' },
-    { id: 'pantry', name: 'ניהול מלאי 📦' },
-    { id: 'sales', name: 'מכירות / חנות 🛍️' },
-    { id: 'bank', name: 'כספים 💳' },
-    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
-    { id: 'budget', name: 'תקציבים 📊' },
-    { id: 'forecast', name: 'תשקיף 📅' },
-    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
-    { id: 'academy', name: 'מרכז הכשרות 🎓' },
-    { id: 'community', name: 'קהילות מחוברות 🏘️' },
-    { id: 'members', name: 'ניהול צוות 👥' }
-];
-
-const ROLE_DEFAULTS = {
-    'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
-    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
-    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
-};
-
-function enforcePermissions() {
-    if (!currentUser || !currentGroup) return;
-    const isAdmin = currentUser.role === 'ADMIN';
-    
-    let userTabs = [];
-    try {
-        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
-    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
-
-    ALL_TABS.forEach(tab => {
-        const btn = getEl(`tab-${tab.id}`);
-        if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-    });
-
-    const activeTabs = document.querySelectorAll('.tab-active');
-    activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none') switchTab('feed');
-    });
-    
-    if (!isAdmin) {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
-        if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.add('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.add('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
-        if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
-        if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
-    } else {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.remove('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
-    }
-}
-
-function openPermissionsModal(id, name, role, permissionsStr) {
-    getEl('perm-user-id').value = id;
-    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
-    
-    let perms = {};
-    try { perms = JSON.parse(permissionsStr); } catch(e) {}
-    
-    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
-    const selectEl = getEl('perm-role-select');
-    
-    if (selectEl) {
-        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
-        selectEl.className = role === 'ADMIN' 
-            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
-            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    
-    renderTabsCheckboxes(userTabs);
-    getEl('permissions-modal').classList.remove('hidden');
-}
-
-function applyRoleDefaults(role) {
-    const selectEl = getEl('perm-role-select');
-    if (selectEl) {
-        selectEl.className = role === 'ADMIN' 
-            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
-            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
-}
-
-function renderTabsCheckboxes(activeTabs) {
-    const container = getEl('perm-tabs-container');
-    container.innerHTML = ALL_TABS.map(tab => {
-        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
-        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; 
-        const opacity = isDisabled ? 'opacity-50' : '';
-        return `
-        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
-            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
-            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
-        </label>
-        `;
-    }).join('');
-}
-
-async function submitPermissions() {
-    const id = val('perm-user-id');
-    const role = val('perm-role-select');
-    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
-    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
-
-    const btn = getEl('btn-submit-permissions');
-    btn.disabled = true; btn.innerText = 'שומר בשרת...';
-    
-    try {
-        const res = await fetch(`${API}/users/${id}/permissions`, { 
-            method: 'PUT', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
-            getEl('permissions-modal').classList.add('hidden');
-            fetchMembers(); 
-            
-            if (String(id) === String(currentUser.id)) {
-                currentUser.role = role;
-                currentUser.permissions = { tabs: checkedTabs };
-                enforcePermissions();
-            }
-        } else {
-            showToast('error', data.error);
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור הרשאות'; }
-}
-
-const originalSwitchTab = window.switchTab;
-if (originalSwitchTab && !window.switchTabOverridden) {
-    window.switchTab = function(tabId) {
-        originalSwitchTab(tabId);
-        setTimeout(enforcePermissions, 50);
-    };
-    window.switchTabOverridden = true;
-}
-setTimeout(enforcePermissions, 1500);
-
-function copyStoreLink() {
-    const link = val('store-public-link');
-    if(!link) return;
-    navigator.clipboard.writeText(link).then(() => showToast('info', 'לינק החנות הועתק!'));
-}
-
-async function fetchStoreCatalog() {
-    try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); renderStoreCatalog(); } catch(e) {}
 }
 
 function renderStoreCatalog() {
