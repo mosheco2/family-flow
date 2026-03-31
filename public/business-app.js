@@ -3145,44 +3145,47 @@ async function leaveBizCommunity(commId) {
 }
 async function loadSystemAnnouncements() {
     try {
-        // 1. טעינת באנרים (עליון ותחתון) מהנתיב הייעודי
+        // 1. טעינת באנרים מהנתיב הייעודי לעסקים (בדיוק כמו במשפחות)
         const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
         const bannerData = await bannerRes.json();
         
         if (bannerData.success && bannerData.banners) {
             const banners = bannerData.banners;
+            // שימוש באלמנטים המקוריים של המערכת במקום באלו שהוספנו
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
             
-            // טיפול בבאנר עליון
-            const topBanner = document.getElementById('global-top-banner');
-            if (topBanner) {
-                if (banners.banner_top_text) {
-                    // אם יש קישור, נהפוך את הטקסט ללחיץ
-                    if (banners.banner_top_link) {
-                        topBanner.innerHTML = `<a href="${banners.banner_top_link}" target="_blank" class="w-full block hover:opacity-80 transition">${banners.banner_top_text}</a>`;
-                    } else {
-                        topBanner.innerHTML = `<span>${banners.banner_top_text}</span>`;
+            const renderBanner = (el, text, link, img) => {
+                if(!el) return;
+                if(text || img) { 
+                    let html = ''; 
+                    if(img) { 
+                        const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                        html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
                     }
-                    topBanner.classList.remove('hidden');
-                } else {
-                    topBanner.classList.add('hidden');
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
+                    
+                    el.innerHTML = html; 
+                    el.href = link || '#'; 
+                    
+                    if(!link) { 
+                        el.removeAttribute('target'); 
+                        el.style.cursor = 'default'; 
+                    } else { 
+                        el.target = '_blank'; 
+                        el.style.cursor = 'pointer'; 
+                    } 
+                    
+                    el.classList.remove('hidden'); 
+                    el.classList.add('flex'); 
+                } else { 
+                    el.classList.add('hidden'); 
+                    el.classList.remove('flex'); 
                 }
-            }
+            };
 
-            // טיפול בבאנר תחתון
-            const bottomBanner = document.getElementById('global-bottom-banner');
-            if (bottomBanner) {
-                if (banners.banner_bottom_text) {
-                    // אם יש קישור, נהפוך את הטקסט ללחיץ
-                    if (banners.banner_bottom_link) {
-                        bottomBanner.innerHTML = `<a href="${banners.banner_bottom_link}" target="_blank" class="w-full block hover:opacity-80 transition">${banners.banner_bottom_text}</a>`;
-                    } else {
-                        bottomBanner.innerHTML = `<span>${banners.banner_bottom_text}</span>`;
-                    }
-                    bottomBanner.classList.remove('hidden');
-                } else {
-                    bottomBanner.classList.add('hidden');
-                }
-            }
+            renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); 
+            renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
         }
 
         // 2. טעינת הודעת פתיחה (פופ-אפ) רק אם לא הוצגה בסשן הנוכחי
@@ -3191,12 +3194,22 @@ async function loadSystemAnnouncements() {
             const msgData = await msgRes.json();
             
             if (msgData && msgData.message && msgData.message.trim() !== '') {
-                showGlobalPopup('הודעת מערכת', msgData.message);
-                // מסמנים שההודעה הוצגה כדי שלא תקפוץ שוב בכל ריענון
+                // שימוש במודאל הודעת המערכת המקורי של האפליקציה (כמו ב-Family)
+                const welcomeModal = document.getElementById('welcome-modal');
+                const welcomeText = document.getElementById('welcome-modal-text');
+                
+                if (welcomeModal && welcomeText) {
+                    welcomeText.innerText = msgData.message;
+                    welcomeModal.classList.remove('hidden');
+                } else {
+                    // גיבוי (רק למקרה שהמודאל המקורי נמחק בטעות מהקובץ)
+                    if (typeof showGlobalPopup === 'function') {
+                        showGlobalPopup('הודעת מערכת', msgData.message);
+                    }
+                }
                 sessionStorage.setItem('biz_popup_shown', 'true');
             }
         }
-
     } catch (e) {
         console.error("Error loading system announcements:", e);
     }
