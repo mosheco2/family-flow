@@ -3145,38 +3145,60 @@ async function leaveBizCommunity(commId) {
 }
 async function loadSystemAnnouncements() {
     try {
-        const res = await fetch(`${API}/sa/settings`);
-        const settings = await res.json();
+        // 1. טעינת באנרים (עליון ותחתון) מהנתיב הייעודי
+        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
+        const bannerData = await bannerRes.json();
         
-        // הוספתי הדפסה לקונסול כדי שתמיד תראה בזמן אמת מה השרת שולח
-        console.log("System Settings Data Loaded:", settings);
-        
-        if (!settings) return;
-
-        // טיפול בבאנר עליון
-        if (settings.show_banner_top_biz && settings.banner_top_text) {
+        if (bannerData.success && bannerData.banners) {
+            const banners = bannerData.banners;
+            
+            // טיפול בבאנר עליון
             const topBanner = document.getElementById('global-top-banner');
             if (topBanner) {
-                topBanner.innerHTML = `<span>${settings.banner_top_text}</span>`;
-                topBanner.classList.remove('hidden');
+                if (banners.banner_top_text) {
+                    // אם יש קישור, נהפוך את הטקסט ללחיץ
+                    if (banners.banner_top_link) {
+                        topBanner.innerHTML = `<a href="${banners.banner_top_link}" target="_blank" class="w-full block hover:opacity-80 transition">${banners.banner_top_text}</a>`;
+                    } else {
+                        topBanner.innerHTML = `<span>${banners.banner_top_text}</span>`;
+                    }
+                    topBanner.classList.remove('hidden');
+                } else {
+                    topBanner.classList.add('hidden');
+                }
             }
-        }
 
-        // טיפול בבאנר תחתון
-        if (settings.show_banner_bottom_biz && settings.banner_bottom_text) {
+            // טיפול בבאנר תחתון
             const bottomBanner = document.getElementById('global-bottom-banner');
             if (bottomBanner) {
-                bottomBanner.innerHTML = `<span>${settings.banner_bottom_text}</span>`;
-                bottomBanner.classList.remove('hidden');
+                if (banners.banner_bottom_text) {
+                    // אם יש קישור, נהפוך את הטקסט ללחיץ
+                    if (banners.banner_bottom_link) {
+                        bottomBanner.innerHTML = `<a href="${banners.banner_bottom_link}" target="_blank" class="w-full block hover:opacity-80 transition">${banners.banner_bottom_text}</a>`;
+                    } else {
+                        bottomBanner.innerHTML = `<span>${banners.banner_bottom_text}</span>`;
+                    }
+                    bottomBanner.classList.remove('hidden');
+                } else {
+                    bottomBanner.classList.add('hidden');
+                }
             }
         }
 
-        // הודעת פתיחה (Popup) - הסרתי זמנית את ההגבלה של ה-sessionStorage כדי שתקפוץ בכל רענון לצורך בדיקות
-        if (settings.show_popup_biz && settings.popup_text) {
-            showGlobalPopup(settings.popup_title || 'הודעת מערכת', settings.popup_text);
+        // 2. טעינת הודעת פתיחה (פופ-אפ) רק אם לא הוצגה בסשן הנוכחי
+        if (!sessionStorage.getItem('biz_popup_shown')) {
+            const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
+            const msgData = await msgRes.json();
+            
+            if (msgData && msgData.message && msgData.message.trim() !== '') {
+                showGlobalPopup('הודעת מערכת', msgData.message);
+                // מסמנים שההודעה הוצגה כדי שלא תקפוץ שוב בכל ריענון
+                sessionStorage.setItem('biz_popup_shown', 'true');
+            }
         }
+
     } catch (e) {
-        console.error("Error loading announcements:", e);
+        console.error("Error loading system announcements:", e);
     }
 }
 function showGlobalPopup(title, text) {
