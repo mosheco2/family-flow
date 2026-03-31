@@ -1364,18 +1364,6 @@
                         <textarea id="sp-desc" class="modern-input py-3 text-sm h-20 bg-white" placeholder="פירוט מרכיבים או תיאור שיווקי..."></textarea>
                     </div>
 
-                    <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 shadow-sm mt-4">
-                        <label class="text-xs font-bold text-indigo-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר (יופיע על התמונה בחנות):</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="sp-badge-text" class="modern-input py-2 text-sm flex-1 bg-white" placeholder="למשל: חדש! / מוגבל / אזל" maxlength="15">
-                            <select id="sp-badge-color" class="modern-input py-2 text-sm w-24 bg-white font-bold">
-                                <option value="red" class="text-red-500">אדום</option>
-                                <option value="green" class="text-green-500">ירוק</option>
-                                <option value="blue" class="text-blue-500">כחול</option>
-                                <option value="yellow" class="text-yellow-600">צהוב</option>
-                            </select>
-                        </div>
-                    </div>
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
                         <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
                             <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות למנה:</label>
@@ -1514,8 +1502,8 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-600 text-white py-3 rounded-xl font-bold">בצע העברה ליעד</button></div>
             </div>
         </div>
-        fixed fixed inset-0 bg-slate
-        <div id="bank-settings-modal" class="-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+
+        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center">הגדרות תקציב עובד</h3>
                 <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
@@ -1523,7 +1511,8 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור נתונים</button></div>
             </div>
         </div>
-<div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+
+        <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיווג וגישה למערכת 🔐</h3>
                 <p id="perm-user-name" class="text-center text-slate-500 mb-4 text-sm"></p>
@@ -1549,6 +1538,7 @@
                 </div>
             </div>
         </div>
+        
         <div id="balance-adjustment-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center">תיקון תקציב (הפחתה/בונוס) 💳</h3>
