@@ -2088,7 +2088,14 @@ app.post('/api/sa/community-business/reject', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
+app.get('/api/sa/settings', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM system_settings WHERE id = 1');
+        res.json(result.rows[0] || {});
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
+});
 app.get('/api/sa/businesses', async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
