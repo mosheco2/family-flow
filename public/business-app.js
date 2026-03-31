@@ -122,7 +122,7 @@ async function saveAllBanners() {
     const btn = document.querySelector('button[onclick="saveAllBanners()"]');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> שומר נתונים...'; }
     try {
-        // 1. שמירת הודעות הפתיחה
+        // 1. שמירת הודעות הפתיחה 
         await fetch(`${API}/superadmin/settings`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
@@ -158,6 +158,20 @@ async function saveAllBanners() {
     }
 }
 
+async function saveWelcomeMsg(type = 'BUSINESS') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    try { 
+        await fetch(`${API}/superadmin/settings`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify(body) 
+        }); 
+        showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+    } catch(e) { 
+        showToast('error', 'שגיאה בשמירת ההודעה'); 
+    }
+}
+
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
@@ -174,9 +188,9 @@ function applyBannersToDOM(banners) {
 
 async function fetchBanners() {
     try {
-        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const cached = localStorage.getItem('ofl_biz_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
         const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+        if(data.success && data.banners) { localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
 
