@@ -215,8 +215,24 @@ async function checkGlobalWelcome() {
 }
 
 function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
-function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); } } catch(e) {} }, 1000); }
-function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); }, 300); }
+function checkAndStartTour(force = false) { 
+    setTimeout(() => { 
+        try { 
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; 
+            if (force || !localStorage.getItem(tourKey)) { 
+                localStorage.setItem(tourKey, 'true'); 
+                switchTab('feed'); 
+                if (currentUser.role === 'ADMIN') {
+                    if (typeof startManagerTour === 'function') startManagerTour(); else startEmployeeTour();
+                } else {
+                    startEmployeeTour(); 
+                }
+            } else {
+                switchTab('feed'); // חובה כדי שהמסך לא יישאר לבן וריק!
+            }
+        } catch(e) { switchTab('feed'); } 
+    }, 1000); 
+}function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startManagerTour(); else startEmployeeTour(); }, 300); }
 
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
@@ -491,9 +507,8 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-        // --- קריאה לבאנרים נוספה כאן ---
+        // ---> קריאה לבאנרים <---
         try { fetchBanners(); } catch(e){}
-        // -------------------------------
 
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
         
@@ -511,21 +526,24 @@ async function loadDashboard() {
             try {
                 const showedWelcome = await checkGlobalWelcome(); 
                 if (!showedWelcome) { 
-                    checkAndStartTour(forceTourStart); 
+                    if(typeof checkAndStartTour === 'function') checkAndStartTour(forceTourStart); 
+                    else switchTab('feed'); // גיבוי למניעת מסך לבן
                     forceTourStart = false; 
                 }
             } catch(e) {
-                checkAndStartTour(forceTourStart);
+                if(typeof checkAndStartTour === 'function') checkAndStartTour(forceTourStart);
+                else switchTab('feed'); // גיבוי למניעת מסך לבן
             }
         };
+
         if (preloader && !preloader.classList.contains('hidden')) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
             setTimeout(() => { 
                 preloader.classList.add('hidden'); 
-                finalizeLoad(); 
+                finalizeLoad();
             }, 700); 
-        } else { 
-            finalizeLoad(); 
+        } else {
+            finalizeLoad();
         }
     }
 }
