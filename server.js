@@ -418,28 +418,27 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
 
 app.post('/api/superadmin/settings', verifySA, async (req, res) => {
     try {
-        if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.welcomeMsg]);
-        if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [req.body.businessWelcomeMsg]);
+        if (req.body.welcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [req.body.welcomeMsg]);
+        if (req.body.businessWelcomeMsg !== undefined) await pool.query("INSERT INTO system_settings (key, value) VALUES ('business_welcome_msg', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [req.body.businessWelcomeMsg]);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.post('/api/superadmin/groups/:id/premium', verifySA, async (req, res) => {
+app.post('/api/superadmin/banners', verifySA, async (req, res) => {
+    const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg } = req.body;
+    const items = [ 
+        { k: 'ad_banner_text_top', v: topText || '' }, { k: 'ad_banner_link_top', v: topLink || '' }, { k: 'ad_banner_img_top', v: topImg || '' },
+        { k: 'ad_banner_text_bottom', v: bottomText || '' }, { k: 'ad_banner_link_bottom', v: bottomLink || '' }, { k: 'ad_banner_img_bottom', v: bottomImg || '' },
+        { k: 'business_ad_banner_text_top', v: bizTopText || '' }, { k: 'business_ad_banner_link_top', v: bizTopLink || '' }, { k: 'business_ad_banner_img_top', v: bizTopImg || '' },
+        { k: 'business_ad_banner_text_bottom', v: bizBottomText || '' }, { k: 'business_ad_banner_link_bottom', v: bizBottomLink || '' }, { k: 'business_ad_banner_img_bottom', v: bizBottomImg || '' }
+    ];
     try {
-        const enable = req.body.enable === true || req.body.enable === 'true';
-        await pool.query('UPDATE family_groups SET is_premium = $1 WHERE id = $2', [enable, req.params.id]);
+        await pool.query('BEGIN');
+        for (let item of items) await pool.query(`INSERT INTO system_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [item.k, item.v]);
+        await pool.query('COMMIT');
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה בשמירת באנרים' }); }
 });
-
-app.get('/api/settings/welcome', async (req, res) => {
-    try {
-        const key = req.query.type === 'BUSINESS' ? 'business_welcome_msg' : 'welcome_msg';
-        const s = await pool.query("SELECT value FROM system_settings WHERE key = $1", [key]);
-        res.json({ message: s.rows.length > 0 ? s.rows[0].value : '' });
-    } catch(e) { res.status(500).json({error: e.message}); }
-});
-
 app.get('/api/banners', async (req, res) => {
     try {
         const isBiz = req.query.type === 'BUSINESS';
