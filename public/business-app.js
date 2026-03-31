@@ -491,13 +491,11 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-        // --- קריאה לטעינת הבאנרים של העסק ---
+        // --- קריאה לבאנרים נוספה כאן ---
         try { fetchBanners(); } catch(e){}
-        // ------------------------------------
+        // -------------------------------
 
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
-        
-        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
@@ -509,9 +507,25 @@ async function loadDashboard() {
         console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
-        if (preloader) { 
+        const finalizeLoad = async () => { 
+            try {
+                const showedWelcome = await checkGlobalWelcome(); 
+                if (!showedWelcome) { 
+                    checkAndStartTour(forceTourStart); 
+                    forceTourStart = false; 
+                }
+            } catch(e) {
+                checkAndStartTour(forceTourStart);
+            }
+        };
+        if (preloader && !preloader.classList.contains('hidden')) { 
             preloader.classList.add('opacity-0', 'pointer-events-none'); 
-            setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
+            setTimeout(() => { 
+                preloader.classList.add('hidden'); 
+                finalizeLoad(); 
+            }, 700); 
+        } else { 
+            finalizeLoad(); 
         }
     }
 }
