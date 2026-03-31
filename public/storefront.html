@@ -301,7 +301,19 @@ function renderCatalog() {
 
             filtered.forEach(item => {
                 const hasOptions = hasValidModifiers(item.options_text);
-                const imgHtml = item.image_url ? `<img src="${item.image_url}" class="${storeType === 'retail' ? 'w-full h-40 object-cover rounded-xl mb-3' : 'w-24 h-24 object-cover rounded-xl flex-shrink-0'} shadow-sm">` : `<div class="${storeType === 'retail' ? 'w-full h-40 mb-3' : 'w-24 h-24 flex-shrink-0'} bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                
+                // --- תחילת קוד הדיגול ---
+                let badgeHtml = '';
+                if (item.badge_text) {
+                    const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+                    const bgClass = colors[item.badge_color] || 'bg-red-500';
+                    badgeHtml = `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
+                }
+                
+                const imgClasses = storeType === 'retail' ? 'w-full h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
+                const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
+                // --- סוף קוד הדיגול ---
                 
                 let actionHtml = '';
                 if (hasOptions) {
@@ -320,7 +332,7 @@ function renderCatalog() {
                     }
                 }
 
-                // עיצוב מחיר קהילה משודרג (דרישה 3)
+                // עיצוב מחיר קהילה 
                 let priceHtml = '';
                 const orig = parseFloat(item.original_price);
                 const curr = parseFloat(item.price);
@@ -346,7 +358,6 @@ function renderCatalog() {
             });
             container.innerHTML = html + '</div>';
         }
-
         // --- Modifiers Logic ---
         function calculateModTotal() {
             let total = currentModifierBasePrice;
