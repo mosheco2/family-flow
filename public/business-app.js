@@ -119,11 +119,43 @@ async function updateSACredentials() {
 }
 
 async function saveAllBanners() {
+    const btn = document.querySelector('button[onclick="saveAllBanners()"]');
+    if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> שומר נתונים...'; }
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
+        // 1. שמירת הודעות הפתיחה
+        await fetch(`${API}/superadmin/settings`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ 
+                welcomeMsg: val('sa-welcome-msg'), 
+                businessWelcomeMsg: val('sa-biz-welcome-msg') 
+            }) 
+        });
+
+        // 2. שמירת כל הבאנרים 
+        const res = await fetch(`${API}/superadmin/banners`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify({ 
+                topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), 
+                bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), 
+                bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), 
+                bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') 
+            }) 
+        });
+        
         const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
+        if(data.success) { 
+            showToast('success', 'הודעות הפתיחה והבאנרים נשמרו בהצלחה!'); 
+            fetchBanners(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה בשמירת הבאנרים'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת רשת מול השרת'); 
+    } finally {
+        if(btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i> שמור נתונים ופרסם באנרים למערכת'; }
+    }
 }
 
 function applyBannersToDOM(banners) {
