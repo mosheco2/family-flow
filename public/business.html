@@ -163,6 +163,7 @@
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
+ <div id="global-top-banner" class="hidden bg-indigo-600 text-white text-center py-2 px-4 text-sm font-bold sticky top-0 z-[60]"></div>   
 <datalist id="israel-cities">
         <option value="תל אביב - יפו"></option><option value="ירושלים"></option><option value="חיפה"></option>
         <option value="ראשון לציון"></option><option value="פתח תקווה"></option><option value="אשדוד"></option>
@@ -1760,5 +1761,15 @@
             });
         }
     </script>
+    <div id="global-bottom-banner" class="hidden bg-slate-800 text-white text-center py-2 px-4 text-xs fixed bottom-0 left-0 right-0 z-[50] mb-[70px]"></div>
+
+<div id="global-announcement-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <h3 id="announcement-title" class="text-xl font-black mb-2 text-slate-800"></h3>
+        <p id="announcement-body" class="text-slate-600 mb-6 whitespace-pre-line"></p>
+        <button onclick="document.getElementById('global-announcement-modal').classList.add('hidden')" 
+                class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">הבנתי, תודה</button>
+    </div>
+</div>
 </body>
 </html>
