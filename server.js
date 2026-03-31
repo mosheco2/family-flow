@@ -36,6 +36,7 @@ pool.connect()
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
       
       try {
           await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
@@ -71,9 +72,12 @@ pool.connect()
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
       client.release();
   })
@@ -216,13 +220,12 @@ app.get('/api/force-upgrade', async (req, res) => {
             'ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
             'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION',
             'ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION',
-            'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb'
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb',
             'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)',
             'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT \'red\'',
-            'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)',
+            'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)'
         ];
-      
+        
         for (let q of queries) {
             try { await client.query(q); results.push({ query: q, status: 'success' }); } catch (err) { results.push({ query: q, status: 'error', error: err.message }); }
         }
@@ -271,7 +274,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE users (
                 id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, nickname VARCHAR(50), birth_year INT, 
                 password_hash VARCHAR(100), role VARCHAR(20) DEFAULT 'MEMBER', status VARCHAR(20) DEFAULT 'pending', balance DECIMAL(10,2) DEFAULT 0.00, 
-                allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00
+                allowance_amount DECIMAL(10,2) DEFAULT 0.00, interest_rate DECIMAL(5,2) DEFAULT 0.00, permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb
             );
             CREATE TABLE transactions (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, amount DECIMAL(10,2), description VARCHAR(255), category VARCHAR(50), type VARCHAR(20), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_manual BOOLEAN DEFAULT TRUE, is_recurring BOOLEAN DEFAULT FALSE, end_month VARCHAR(10));
             CREATE TABLE tasks (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, created_by INT REFERENCES users(id), assigned_to INT REFERENCES users(id), title VARCHAR(255), reward DECIMAL(10,2) DEFAULT 0.00, status VARCHAR(20) DEFAULT 'pending', deadline TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
@@ -339,29 +342,7 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
                  unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
             }
         });
-        // --- עריכת שם סביבה (משפחה/עסק) מהאדמין ---
-app.put('/api/sa/groups/:id', async (req, res) => {
-    try {
-        const { name } = req.body;
-        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- עריכת שם משתמש וסיסמה מהאדמין ---
-app.put('/api/sa/users/:id', async (req, res) => {
-    try {
-        const { nickname, password } = req.body;
-        if (password && password.trim() !== '') {
-            // אם הוזנה סיסמה חדשה - נעדכן גם אותה
-            await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
-        } else {
-            // אם הושאר ריק - נעדכן רק את השם
-            await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
-        }
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
+        
         unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
         const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
 
@@ -387,6 +368,31 @@ app.put('/api/sa/users/:id', async (req, res) => {
         });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
+
+// --- עריכת שם סביבה (משפחה/עסק) מהאדמין ---
+app.put('/api/sa/groups/:id', async (req, res) => {
+    try {
+        const { name } = req.body;
+        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עריכת שם משתמש וסיסמה מהאדמין ---
+app.put('/api/sa/users/:id', async (req, res) => {
+    try {
+        const { nickname, password } = req.body;
+        if (password && password.trim() !== '') {
+            // אם הוזנה סיסמה חדשה - נעדכן גם אותה
+            await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
+        } else {
+            // אם הושאר ריק - נעדכן רק את השם
+            await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/superadmin/group-360/:id', verifySA, async (req, res) => {
     try {
         const groupId = req.params.id;
@@ -695,7 +701,6 @@ app.get('/api/data/:userId', async (req, res) => {
         }
         
         // --- שינוי קהילות ---
-        // נשלוף גם את עדכוני הקהילה וגם את העסקים המאושרים עצמם
         let community_updates = [];
         let community_businesses = [];
         
@@ -708,7 +713,7 @@ app.get('/api/data/:userId', async (req, res) => {
                 WHERE cb.community_id = $1 AND cb.status = 'approved'
             `, [group.community_id]);
             
-            community_businesses = commBizRes.rows; // שומרים את העסקים לטובת הרינדור בחזית
+            community_businesses = commBizRes.rows; 
             
             if (group.type === 'FAMILY') {
             commBizRes.rows.forEach(biz => {
@@ -737,7 +742,7 @@ app.get('/api/data/:userId', async (req, res) => {
             all_bundles: allBundles.rows, 
             weekly_stats: weeklyStats, 
             community_updates: community_updates,
-            community_businesses: community_businesses // <-- שדה חדש שהוספנו
+            community_businesses: community_businesses 
         });
     } catch (e) { 
         console.error('Error in /api/data/:userId:', e);
@@ -1631,25 +1636,29 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 
 app.post('/api/store/catalog', async (req, res) => {
     try {
-        const { groupId, name, description, price, category, imageUrl, optionsText } = req.body;
-        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor } = req.body;
         
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         if (parseInt(countRes.rows[0].count) >= 50) {
             return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
         }
 
-        await pool.query('INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText]);
+        await pool.query(
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', 
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red']
+        );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
-        const { name, description, price, category, imageUrl, optionsText } = req.body;
-        try { await pool.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor } = req.body;
         
-        await pool.query('UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6 WHERE id=$7', [name, description, parseFloat(price)||0, category, imageUrl, optionsText, req.params.id]);
+        await pool.query(
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8 WHERE id=$9', 
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', req.params.id]
+        );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
