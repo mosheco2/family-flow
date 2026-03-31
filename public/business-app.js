@@ -3143,7 +3143,57 @@ async function leaveBizCommunity(commId) {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
+async function loadSystemAnnouncements() {
+    try {
+        const res = await fetch(`${API}/sa/settings`);
+        const settings = await res.json();
+        if (!settings) return;
 
+        // טיפול בבאנר עליון
+        if (settings.show_banner_top_biz && settings.banner_top_text) {
+            const topBanner = document.getElementById('global-top-banner');
+            if (topBanner) {
+                topBanner.innerHTML = `<span>${settings.banner_top_text}</span>`;
+                topBanner.classList.remove('hidden');
+            }
+        }
+
+        // טיפול בבאנר תחתון
+        if (settings.show_banner_bottom_biz && settings.banner_bottom_text) {
+            const bottomBanner = document.getElementById('global-bottom-banner');
+            if (bottomBanner) {
+                bottomBanner.innerHTML = `<span>${settings.banner_bottom_text}</span>`;
+                bottomBanner.classList.remove('hidden');
+            }
+        }
+
+        // הודעת פתיחה (Popup) - מוצגת פעם אחת בכל סשן
+        if (settings.show_popup_biz && settings.popup_text && !sessionStorage.getItem('biz_popup_shown')) {
+            showGlobalPopup(settings.popup_title || 'הודעת מערכת', settings.popup_text);
+            sessionStorage.setItem('biz_popup_shown', 'true');
+        }
+    } catch (e) {
+        console.error("Error loading announcements:", e);
+    }
+}
+
+function showGlobalPopup(title, text) {
+    const modal = document.getElementById('global-announcement-modal');
+    if (!modal) return;
+    
+    document.getElementById('announcement-title').innerText = title;
+    document.getElementById('announcement-body').innerText = text;
+    modal.classList.remove('hidden');
+}
+
+// קריאה אוטומטית בעת טעינת המסך
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (typeof API !== 'undefined') {
+            loadSystemAnnouncements();
+        }
+    }, 1000);
+});
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
