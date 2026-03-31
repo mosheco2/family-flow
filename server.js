@@ -1650,7 +1650,6 @@ app.post('/api/store/catalog', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
         const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor } = req.body;
