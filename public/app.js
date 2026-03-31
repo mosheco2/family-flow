@@ -271,7 +271,34 @@ async function saveSAEditUser() {
         } else showToast('error', 'שגיאה בעדכון משתמש');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+async function saveWelcomeMsg(type) {
+    const msg = type === 'BUSINESS' ? val('sa-biz-welcome-msg') : val('sa-welcome-msg');
+    const payload = type === 'BUSINESS' ? { businessWelcomeMsg: msg } : { welcomeMsg: msg };
+    const btn = event.target;
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'שומר...';
 
+    try {
+        const res = await fetch(`${API}/superadmin/settings`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
+            body: JSON.stringify(payload) 
+        });
+        const data = await res.json();
+        
+        if (data.success) { 
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+        } else { 
+            showToast('error', 'שגיאה בשמירת ההודעה'); 
+        }
+    } catch (e) { 
+        showToast('error', 'תקלת תקשורת מול השרת'); 
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
