@@ -2501,106 +2501,29 @@ function renderStoreCatalog() {
     }
     let html = '';
     storeCatalogCache.forEach(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm shrink-0">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-box text-xl"></i></div>`;
+        let badgeHtml = '';
+        if (p.badge_text) {
+            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+            const bgClass = colors[p.badge_color] || 'bg-red-500';
+            badgeHtml = `<div class="absolute -top-2 -right-2 ${bgClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 border border-white">${safeStr(p.badge_text)}</div>`;
+        }
+        
+        const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
         html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
-
-function renderPresetSelector() {
-    const sel = getEl('preset-selector'); if (!sel) return;
-    if (storeModifierPresets.length > 0) {
-        sel.innerHTML = '<option value="">טען תבנית שמורה...</option>';
-        storeModifierPresets.forEach((p, idx) => { sel.innerHTML += `<option value="${idx}">${safeStr(p.name)}</option>`; });
-        sel.classList.remove('hidden');
-    } else { sel.classList.add('hidden'); }
-}
-
-function loadPreset(idx) {
-    if (idx === '') return; const preset = storeModifierPresets[idx];
-    if (preset) { currentModifiersUI.push(JSON.parse(JSON.stringify(preset))); renderModifiersUI(); } // Deep copy
-    getEl('preset-selector').value = '';
-}
-
-async function saveModifierAsPreset(index) {
-    const mod = currentModifiersUI[index];
-    if (!mod.name || mod.options.length === 0) return showToast('error', 'יש למלא שם לפחות אפשרות אחת לשמירה');
-    storeModifierPresets.push(JSON.parse(JSON.stringify(mod)));
-    
-    const btn = getEl(`btn-save-preset-${index}`); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        await fetch(`${API}/store/settings/presets`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) }) });
-        renderPresetSelector(); showToast('success', 'התבנית נשמרה לשימוש עתידי!');
-    } catch(e) { showToast('error', 'שגיאה בשמירה'); } finally { btn.innerHTML = '<i class="fa-solid fa-save text-xs"></i>'; }
-}
-
-function renderModifiersUI() {
-    const container = getEl('modifiers-builder-container');
-    if (currentModifiersUI.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
-        return;
-    }
-    
-    let html = '';
-    currentModifiersUI.forEach((mod, groupIndex) => {
-        const typeSingle = mod.type === 'single' ? 'selected' : ''; const typeMulti = mod.type === 'multiple' ? 'selected' : '';
-        
-        let optionsHtml = '';
-        mod.options.forEach((opt, optIndex) => {
-            optionsHtml += `
-            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
-                <div class="w-20 relative">
-                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
-                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
-                </div>
-                <button onclick="removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
-            </div>`;
-        });
-
-        html += `
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in">
-            <div class="absolute top-2 left-2 flex gap-2">
-                <button id="btn-save-preset-${groupIndex}" onclick="saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
-                <button onclick="removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
-            </div>
-            
-            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
-                <div class="flex-1">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
-                    <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-indigo-400 text-slate-800 transition" value="${safeStr(mod.name)}" onchange="updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
-                </div>
-                <div class="w-[45%]">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
-                    <select onchange="updateModType(${groupIndex}, this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs px-2 py-2.5 outline-none focus:border-indigo-400 text-slate-700">
-                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
-                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="space-y-1">
-                ${optionsHtml}
-                <button onclick="addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
-            </div>
-        </div>`;
-    }); container.innerHTML = html;
-}
-
-function addModifierGroup() { currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); renderModifiersUI(); }
-function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
-function updateModName(index, v) { currentModifiersUI[index].name = v; }
-function updateModType(index, v) { currentModifiersUI[index].type = v; }
-function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); renderModifiersUI(); }
-function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
-function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
-function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
         getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
+        
+        getEl('sp-badge-text').value = p.badge_text || ''; 
+        getEl('sp-badge-color').value = p.badge_color || 'red';
+        
         if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
         if (p.options_text) {
@@ -2608,6 +2531,7 @@ function openStoreProductModal(id = null) {
         }
     } else {
         getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
+        getEl('sp-badge-text').value = ''; getEl('sp-badge-color').value = 'red';
     }
     renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
 }
@@ -2616,7 +2540,7 @@ async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    // ניקוי של שדות ריקים לפני השמירה למסד הנתונים
+    // ניקוי של שדות ריקים לפני השמירה
     let validOptions = [];
     currentModifiersUI.forEach(mod => { 
         if (mod.name.trim()) {
@@ -2628,7 +2552,10 @@ async function submitStoreProduct() {
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null };
+        const payload = { 
+            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text'), badgeColor: val('sp-badge-color')
+        };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
