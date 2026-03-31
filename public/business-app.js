@@ -770,7 +770,7 @@ async function fetchMembers() {
             if (a && currentUser.role === 'ADMIN') { 
                 a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
-                else children.forEach(m => { 
+               else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     // המרה בטוחה של שדה ההרשאות לסטרינג כדי להעביר לפונקציה של הכפתור
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
