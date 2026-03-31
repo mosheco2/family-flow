@@ -745,6 +745,7 @@ async function fetchMembers() {
         if(!currentGroup || !currentGroup.id) return;
         const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
         membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
+        
         if (currentUser.role === 'ADMIN') { 
             try {
                 const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
@@ -754,6 +755,7 @@ async function fetchMembers() {
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור איזה צוות/עובד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
             } catch(err) {}
         } 
+        
         try {
             const c = getEl('members-list'); 
             if(c) { 
@@ -765,14 +767,15 @@ async function fetchMembers() {
                 }); 
             }
         } catch(err) {}
+        
         try {
             const a = getEl('bank-accounts-list'); 
             if (a && currentUser.role === 'ADMIN') { 
                 a.innerHTML = ''; const children = membersCache.filter(m => m.role !== 'ADMIN');
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
-               else children.forEach(m => { 
+                else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    // המרה בטוחה של שדה ההרשאות לסטרינג כדי להעביר לפונקציה של הכפתור
+                    // הנה המפתח! המרת ההרשאות לסטרינג בטוח כדי להעביר לכפתור
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
                     
                     a.innerHTML += `
@@ -787,12 +790,13 @@ async function fetchMembers() {
                         </div>
                         <div class="flex gap-1 sm:gap-2">
                             <button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button>
+                            
                             <button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>
                             <button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
                             <button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button>
                         </div>
                     </div>`; 
-                });
+                }); 
             } 
         } catch(err) {}
     } catch(e) {}
