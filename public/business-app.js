@@ -3151,59 +3151,72 @@ async function loadSystemAnnouncements() {
         if (bannerData.success && bannerData.banners) {
             const b = bannerData.banners;
             
-            const setupBanner = (id, text, link, img) => {
-                const el = document.getElementById(id);
-                if (!el) return;
+            // 1. הגנת מחיקה: נסתיר את האלמנטים הישנים במקום למחוק את התוכן שלהם (למקרה שהם עוטפים בטעות את כל המסך)
+            const oldTop = document.getElementById('app-banner-top');
+            if (oldTop) oldTop.style.display = 'none';
+            const oldBottom = document.getElementById('app-banner-bottom');
+            if (oldBottom) oldBottom.style.display = 'none';
+            
+            const wrapper = document.getElementById('main-wrapper');
+            
+            const injectBannerSafe = (position, text, link, img) => {
+                if (!wrapper || (!text && !img)) return;
                 
-                // ניקוי מלא של הבאנר כדי למנוע כפילויות
-                el.innerHTML = '';
+                // 2. יצירת אלמנט באנר חדש ונקי לחלוטין שלא מסתמך על ה-HTML שלך
+                const bannerEl = document.createElement('a');
+                bannerEl.id = `safe-banner-${position}`;
                 
-                if (!text && !img) {
-                    el.style.display = 'none';
-                    return;
+                // עיצוב תואם למקור מ-Family
+                if (position === 'top') {
+                    bannerEl.className = 'flex flex-col items-center justify-center w-full bg-indigo-600 text-white shrink-0 overflow-hidden relative z-50 transition hover:opacity-90';
+                } else {
+                    bannerEl.className = 'flex flex-col items-center justify-center w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white shrink-0 overflow-hidden relative z-50 transition hover:opacity-90 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.15)]';
                 }
                 
-                // בנייה מאובטחת של תמונה - עם הגבלות קשיחות שלא ישברו את המסך
+                bannerEl.style.textDecoration = 'none';
+                
+                // הגדרת קישור
+                if (link) {
+                    bannerEl.href = link;
+                    bannerEl.target = '_blank';
+                    bannerEl.style.cursor = 'pointer';
+                } else {
+                    bannerEl.removeAttribute('href');
+                    bannerEl.style.cursor = 'default';
+                }
+                
+                // הזרקת תמונה
                 if (img) {
                     const imgEl = document.createElement('img');
                     imgEl.src = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    imgEl.className = 'w-full object-cover';
-                    imgEl.style.maxHeight = '80px'; // הגבלת גובה קשיחה
-                    imgEl.style.display = 'block';
-                    imgEl.style.flexShrink = '0'; // מונע מהתמונה לגדול
-                    el.appendChild(imgEl);
+                    imgEl.className = 'w-full object-cover block';
+                    imgEl.style.maxHeight = '80px';
+                    imgEl.style.flexShrink = '0';
+                    bannerEl.appendChild(imgEl);
                 }
                 
-                // בנייה מאובטחת של טקסט
+                // הזרקת טקסט
                 if (text) {
                     const spanEl = document.createElement('span');
                     spanEl.className = 'py-3 px-4 block w-full text-center text-sm font-bold';
-                    spanEl.innerText = text; // innerText מונע הזרקת HTML בעייתי
-                    el.appendChild(spanEl);
+                    spanEl.innerText = text;
+                    bannerEl.appendChild(spanEl);
                 }
                 
-                // טיפול בקישור
-                if (link) {
-                    el.href = link;
-                    el.target = '_blank';
-                    el.style.cursor = 'pointer';
+                // מניעת כפילויות ברענון והזרקה למיקום המדויק בעץ
+                const existing = document.getElementById(`safe-banner-${position}`);
+                if (existing) existing.remove();
+                
+                if (position === 'top') {
+                    wrapper.insertBefore(bannerEl, wrapper.firstChild);
                 } else {
-                    el.removeAttribute('href');
-                    el.removeAttribute('target');
-                    el.style.cursor = 'default';
+                    wrapper.appendChild(bannerEl);
                 }
-                
-                // הגדרות עיצוב קשיחות למעטפת הבאנר כדי לשמור על האפליקציה יציבה
-                el.classList.remove('hidden');
-                el.style.display = 'flex';
-                el.style.flexDirection = 'column';
-                el.style.maxHeight = '130px'; 
-                el.style.overflow = 'hidden';
-                el.style.flexShrink = '0'; 
             };
 
-            setupBanner('app-banner-top', b.banner_top_text, b.banner_top_link, b.banner_top_img);
-            setupBanner('app-banner-bottom', b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
+            // מפעילים את ההזרקה הבטוחה
+            injectBannerSafe('top', b.banner_top_text, b.banner_top_link, b.banner_top_img);
+            injectBannerSafe('bottom', b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
         }
 
         // טעינת הודעת הפתיחה (מודאל)
@@ -3225,7 +3238,6 @@ async function loadSystemAnnouncements() {
         console.log("System Announcements Log:", e);
     }
 }
-
 // קריאה אוטומטית לאחר טעינת הדף
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
