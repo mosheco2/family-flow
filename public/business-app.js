@@ -3096,5 +3096,73 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
         }, 100);
     };
     window.saCommLoaded = true;
+// ==========================================
+// --- מערכת הבאנרים לעסקים ---
+// ==========================================
+function applyBannersToDOM(banners) {
+    const appTop = document.getElementById('app-banner-top'); 
+    const appBottom = document.getElementById('app-banner-bottom');
+    
+    const renderBanner = (el, text, link, img) => {
+        if(!el) return;
+        el.innerHTML = '';
+        
+        if (!text && !img) {
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+            return;
+        }
+        
+        if (img) {
+            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
+            el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
+        }
+        
+        if (text) {
+            el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
+        }
+        
+        if (link) {
+            el.href = link;
+            el.target = '_blank';
+            el.style.cursor = 'pointer';
+        } else {
+            el.removeAttribute('href');
+            el.removeAttribute('target');
+            el.style.cursor = 'default';
+        }
+        
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+    };
+
+    // כיסוי של כל מפתחות ה-API האפשריים מהשרת לעסקים
+    const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText || banners.banner_top_text || '';
+    const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink || banners.banner_top_link || '';
+    const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg || banners.banner_top_img || '';
+    
+    const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.bizBottomText || banners.banner_bottom_text || '';
+    const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
+    const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
+
+    renderBanner(appTop, topText, topLink, topImg);
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
+}
+
+async function fetchBanners() {
+    try {
+        const cached = localStorage.getItem('ofl_biz_banners'); 
+        if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        
+        const res = await fetch(`${API}/banners?type=BUSINESS`); 
+        const data = await res.json();
+        
+        if(data.success && data.banners) { 
+            localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); 
+            applyBannersToDOM(data.banners); 
+        }
+    } catch(e) { console.error("Error fetching banners:", e); }
+}
+    
 }
 // === סוף הקובץ ===
