@@ -466,7 +466,8 @@
                 </div>
             </div>
         </div>
-<div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+
+        <div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
             
             <a id="app-banner-top" class="hidden bg-gradient-to-r from-slate-700 to-slate-900 text-white text-center text-xs font-bold w-full shadow-md hover:opacity-90 transition flex-col items-center justify-center relative z-40 shrink-0 overflow-hidden"></a>
 
@@ -988,11 +989,10 @@
                 </div>
             </div>
 
-<a id="app-banner-bottom" class="hidden bg-gradient-to-r from-slate-800 to-slate-900 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden"></a>
+            <a id="app-banner-bottom" class="hidden bg-gradient-to-r from-slate-800 to-slate-900 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden"></a>
         </div>
-    </div>
         
-    <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
+        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
             <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ הזמנה מוערך</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
             <button onclick="openCheckoutSummary()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 transition">אשר הזמנת רכש</button>
         </div>
@@ -1506,7 +1506,7 @@
             </div>
         </div>
         
-      <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+        <div id="goal-deposit-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2">הפקדת עודפים ליעד מחלקה</h3>
                 <p id="deposit-goal-title" class="text-sm text-slate-500 mb-6"></p><input type="hidden" id="deposit-goal-id">
@@ -1514,8 +1514,8 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-600 text-white py-3 rounded-xl font-bold">בצע העברה ליעד</button></div>
             </div>
         </div>
-
-        <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+        fixed fixed inset-0 bg-slate
+        <div id="bank-settings-modal" class="-900/40 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center">הגדרות תקציב עובד</h3>
                 <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
@@ -1523,8 +1523,7 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('bank-settings-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitBankSettings()" class="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold">שמור נתונים</button></div>
             </div>
         </div>
-
-        <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+<div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיווג וגישה למערכת 🔐</h3>
                 <p id="perm-user-name" class="text-center text-slate-500 mb-4 text-sm"></p>
