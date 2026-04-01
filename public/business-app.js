@@ -3246,4 +3246,60 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 }
+async function loadSystemAnnouncements() {
+    try {
+        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
+        const bannerData = await bannerRes.json();
+        
+        if (bannerData.success && bannerData.banners) {
+            const banners = bannerData.banners;
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
+            
+            const renderBanner = (el, text, link, img) => {
+                if(!el) return;
+                if(text || img) { 
+                    let html = ''; 
+                    if(img) { 
+                        const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                        html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
+                    }
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
+                    
+                    el.innerHTML = html; 
+                    el.href = link || '#'; 
+                    
+                    if(!link) { 
+                        el.removeAttribute('target'); 
+                        el.style.cursor = 'default'; 
+                    } else { 
+                        el.target = '_blank'; 
+                        el.style.cursor = 'pointer'; 
+                    } 
+                    
+                    el.classList.remove('hidden'); 
+                    el.classList.add('flex'); 
+                } else { 
+                    el.classList.add('hidden'); 
+                    el.classList.remove('flex'); 
+                }
+            };
+
+            renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); 
+            renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+        }
+
+    } catch (e) {
+        console.error("Error loading system banners:", e);
+    }
+}
+
+// קריאה אוטומטית בעת טעינת המסך
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (typeof API !== 'undefined') {
+            loadSystemAnnouncements();
+        }
+    }, 1000);
+});
 // === סוף הקובץ ===
