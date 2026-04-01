@@ -130,14 +130,36 @@ function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
-        if(text || img) { 
-            let html = ''; if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
-            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; 
-            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
-            el.classList.remove('hidden'); el.classList.add('flex'); 
-        } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+        el.innerHTML = '';
+        if (!text && !img) {
+            el.classList.add('hidden'); el.classList.remove('flex');
+            return;
+        }
+        if(img) { 
+            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`; 
+            el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`; 
+        }
+        if(text) {
+            el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
+        }
+        if(link) { 
+            el.href = link; el.target = '_blank'; el.style.cursor = 'pointer'; 
+        } else { 
+            el.removeAttribute('href'); el.removeAttribute('target'); el.style.cursor = 'default'; 
+        } 
+        el.classList.remove('hidden'); el.classList.add('flex'); 
     };
-    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+
+    const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText;
+    const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink;
+    const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg;
+    
+    const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.bizBottomText;
+    const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink;
+    const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg;
+
+    renderBanner(appTop, topText, topLink, topImg); 
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 
 async function fetchBanners() {
@@ -3070,5 +3092,78 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
         }, 100);
     };
     window.saCommLoaded = true;
+}
+async function loadSystemAnnouncements() {
+    try {
+        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
+        const bannerData = await bannerRes.json();
+        
+        if (bannerData.success && bannerData.banners) {
+            const b = bannerData.banners;
+            const topBanner = document.getElementById('app-banner-top');
+            const bottomBanner = document.getElementById('app-banner-bottom');
+            
+            const renderBanner = (el, text, link, img) => {
+                if (!el) return;
+                el.innerHTML = '';
+                
+                if (!text && !img) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                    return;
+                }
+                
+                if (img) {
+                    const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
+                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
+                }
+                
+                if (text) {
+                    el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
+                }
+                
+                if (link) {
+                    el.href = link;
+                    el.target = '_blank';
+                    el.style.cursor = 'pointer';
+                } else {
+                    el.removeAttribute('href');
+                    el.removeAttribute('target');
+                    el.style.cursor = 'default';
+                }
+                
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            };
+
+            const topText = b.biz_banner_top_text || b.business_ad_banner_text_top || b.bizTopText;
+            const topLink = b.biz_banner_top_link || b.business_ad_banner_link_top || b.bizTopLink;
+            const topImg = b.biz_banner_top_img || b.business_ad_banner_img_top || b.bizTopImg;
+            
+            const bottomText = b.biz_banner_bottom_text || b.business_ad_banner_text_bottom || b.bizBottomText;
+            const bottomLink = b.biz_banner_bottom_link || b.business_ad_banner_link_bottom || b.bizBottomLink;
+            const bottomImg = b.biz_banner_bottom_img || b.business_ad_banner_img_bottom || b.bizBottomImg;
+
+            renderBanner(topBanner, topText, topLink, topImg);
+            renderBanner(bottomBanner, bottomText, bottomLink, bottomImg);
+        }
+
+        if (!sessionStorage.getItem('biz_popup_shown')) {
+            const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
+            const msgData = await msgRes.json();
+            
+            if (msgData && msgData.message && msgData.message.trim() !== '') {
+                const wModal = document.getElementById('welcome-modal');
+                const wText = document.getElementById('welcome-modal-text');
+                if (wModal && wText) {
+                    wText.innerText = msgData.message;
+                    wModal.classList.remove('hidden');
+                    sessionStorage.setItem('biz_popup_shown', 'true');
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error loading system announcements:", e);
+    }
 }
 // === סוף הקובץ ===
