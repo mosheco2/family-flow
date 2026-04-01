@@ -3145,72 +3145,82 @@ async function leaveBizCommunity(commId) {
 }
 async function loadSystemAnnouncements() {
     try {
+        // 1. טעינת באנרים מהנתיב הייעודי לעסקים (בדיוק כמו במשפחות)
         const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
         const bannerData = await bannerRes.json();
         
         if (bannerData.success && bannerData.banners) {
-            const b = bannerData.banners;
-            const topBanner = document.getElementById('app-banner-top');
-            const bottomBanner = document.getElementById('app-banner-bottom');
+            const banners = bannerData.banners;
+            // שימוש באלמנטים המקוריים של המערכת במקום באלו שהוספנו
+            const appTop = document.getElementById('app-banner-top'); 
+            const appBottom = document.getElementById('app-banner-bottom');
             
             const renderBanner = (el, text, link, img) => {
-                if (!el) return;
-                el.innerHTML = '';
-                
-                if (!text && !img) {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                    return;
+                if(!el) return;
+                if(text || img) { 
+                    let html = ''; 
+                    if(img) { 
+                        const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                        html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
+                    }
+                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
+                    
+                    el.innerHTML = html; 
+                    el.href = link || '#'; 
+                    
+                    if(!link) { 
+                        el.removeAttribute('target'); 
+                        el.style.cursor = 'default'; 
+                    } else { 
+                        el.target = '_blank'; 
+                        el.style.cursor = 'pointer'; 
+                    } 
+                    
+                    el.classList.remove('hidden'); 
+                    el.classList.add('flex'); 
+                } else { 
+                    el.classList.add('hidden'); 
+                    el.classList.remove('flex'); 
                 }
-                
-                // הגדרת תמונה עם חסימת גובה שלא תשבור את המסך
-                if (img) {
-                    const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
-                }
-                
-                // הגדרת טקסט
-                if (text) {
-                    el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
-                }
-                
-                // הגדרת קישור
-                if (link) {
-                    el.href = link;
-                    el.target = '_blank';
-                    el.style.cursor = 'pointer';
-                } else {
-                    el.removeAttribute('href');
-                    el.removeAttribute('target');
-                    el.style.cursor = 'default';
-                }
-                
-                el.classList.remove('hidden');
-                el.classList.add('flex');
             };
 
-            renderBanner(topBanner, b.banner_top_text, b.banner_top_link, b.banner_top_img);
-            renderBanner(bottomBanner, b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
+            renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); 
+            renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
         }
 
-        // טעינת הודעת הפתיחה
+        // 2. טעינת הודעת פתיחה (פופ-אפ) רק אם לא הוצגה בסשן הנוכחי
         if (!sessionStorage.getItem('biz_popup_shown')) {
             const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
             const msgData = await msgRes.json();
             
             if (msgData && msgData.message && msgData.message.trim() !== '') {
-                const wModal = document.getElementById('welcome-modal');
-                const wText = document.getElementById('welcome-modal-text');
-                if (wModal && wText) {
-                    wText.innerText = msgData.message;
-                    wModal.classList.remove('hidden');
-                    sessionStorage.setItem('biz_popup_shown', 'true');
+                // שימוש במודאל הודעת המערכת המקורי של האפליקציה (כמו ב-Family)
+                const welcomeModal = document.getElementById('welcome-modal');
+                const welcomeText = document.getElementById('welcome-modal-text');
+                
+                if (welcomeModal && welcomeText) {
+                    welcomeText.innerText = msgData.message;
+                    welcomeModal.classList.remove('hidden');
+                } else {
+                    // גיבוי (רק למקרה שהמודאל המקורי נמחק בטעות מהקובץ)
+                    if (typeof showGlobalPopup === 'function') {
+                        showGlobalPopup('הודעת מערכת', msgData.message);
+                    }
                 }
+                sessionStorage.setItem('biz_popup_shown', 'true');
             }
         }
     } catch (e) {
-        console.log("Error loading system announcements:", e);
+        console.error("Error loading system announcements:", e);
     }
+}
+function showGlobalPopup(title, text) {
+    const modal = document.getElementById('global-announcement-modal');
+    if (!modal) return;
+    
+    document.getElementById('announcement-title').innerText = title;
+    document.getElementById('announcement-body').innerText = text;
+    modal.classList.remove('hidden');
 }
 
 // קריאה אוטומטית בעת טעינת המסך
