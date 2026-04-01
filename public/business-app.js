@@ -517,12 +517,16 @@ async function loadDashboard() {
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
-        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+try { await fetchData(); } catch(e){}
+        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-    } catch (e) {
-        console.error("Dashboard error:", e);
+        // קריאה לשליפת באנרים והודעות קופצות בהתחברות למסך עסקים
+        try { fetchBanners(); } catch(e){}
+        try { checkGlobalWelcome(); } catch(e){}
+
+    } catch (e) {
+        console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
@@ -3093,77 +3097,3 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 }
-async function loadSystemAnnouncements() {
-    try {
-        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
-        const bannerData = await bannerRes.json();
-        
-        if (bannerData.success && bannerData.banners) {
-            const b = bannerData.banners;
-            const topBanner = document.getElementById('app-banner-top');
-            const bottomBanner = document.getElementById('app-banner-bottom');
-            
-            const renderBanner = (el, text, link, img) => {
-                if (!el) return;
-                el.innerHTML = '';
-                
-                if (!text && !img) {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                    return;
-                }
-                
-                if (img) {
-                    const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
-                }
-                
-                if (text) {
-                    el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
-                }
-                
-                if (link) {
-                    el.href = link;
-                    el.target = '_blank';
-                    el.style.cursor = 'pointer';
-                } else {
-                    el.removeAttribute('href');
-                    el.removeAttribute('target');
-                    el.style.cursor = 'default';
-                }
-                
-                el.classList.remove('hidden');
-                el.classList.add('flex');
-            };
-
-            const topText = b.biz_banner_top_text || b.business_ad_banner_text_top || b.bizTopText;
-            const topLink = b.biz_banner_top_link || b.business_ad_banner_link_top || b.bizTopLink;
-            const topImg = b.biz_banner_top_img || b.business_ad_banner_img_top || b.bizTopImg;
-            
-            const bottomText = b.biz_banner_bottom_text || b.business_ad_banner_text_bottom || b.bizBottomText;
-            const bottomLink = b.biz_banner_bottom_link || b.business_ad_banner_link_bottom || b.bizBottomLink;
-            const bottomImg = b.biz_banner_bottom_img || b.business_ad_banner_img_bottom || b.bizBottomImg;
-
-            renderBanner(topBanner, topText, topLink, topImg);
-            renderBanner(bottomBanner, bottomText, bottomLink, bottomImg);
-        }
-
-        if (!sessionStorage.getItem('biz_popup_shown')) {
-            const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
-            const msgData = await msgRes.json();
-            
-            if (msgData && msgData.message && msgData.message.trim() !== '') {
-                const wModal = document.getElementById('welcome-modal');
-                const wText = document.getElementById('welcome-modal-text');
-                if (wModal && wText) {
-                    wText.innerText = msgData.message;
-                    wModal.classList.remove('hidden');
-                    sessionStorage.setItem('biz_popup_shown', 'true');
-                }
-            }
-        }
-    } catch (e) {
-        console.error("Error loading system announcements:", e);
-    }
-}
-// === סוף הקובץ ===
