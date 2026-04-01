@@ -3145,13 +3145,11 @@ async function leaveBizCommunity(commId) {
 }
 async function loadSystemAnnouncements() {
     try {
-        // 1. טעינת באנרים מהנתיב הייעודי לעסקים (בדיוק כמו במשפחות)
         const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
         const bannerData = await bannerRes.json();
         
         if (bannerData.success && bannerData.banners) {
             const banners = bannerData.banners;
-            // שימוש באלמנטים המקוריים של המערכת במקום באלו שהוספנו
             const appTop = document.getElementById('app-banner-top'); 
             const appBottom = document.getElementById('app-banner-bottom');
             
@@ -3161,7 +3159,8 @@ async function loadSystemAnnouncements() {
                     let html = ''; 
                     if(img) { 
                         const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                        html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
+                        // התיקון הקריטי: הגבלת גובה כדי שהתמונה לא תדחוף את כל המסך
+                        html += `<img src="${imgSrc}" alt="Banner" class="w-full max-h-20 sm:max-h-28 object-cover block">`; 
                     }
                     if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
                     
@@ -3188,24 +3187,19 @@ async function loadSystemAnnouncements() {
             renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
         }
 
-        // 2. טעינת הודעת פתיחה (פופ-אפ) רק אם לא הוצגה בסשן הנוכחי
         if (!sessionStorage.getItem('biz_popup_shown')) {
             const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
             const msgData = await msgRes.json();
             
             if (msgData && msgData.message && msgData.message.trim() !== '') {
-                // שימוש במודאל הודעת המערכת המקורי של האפליקציה (כמו ב-Family)
                 const welcomeModal = document.getElementById('welcome-modal');
                 const welcomeText = document.getElementById('welcome-modal-text');
                 
                 if (welcomeModal && welcomeText) {
                     welcomeText.innerText = msgData.message;
                     welcomeModal.classList.remove('hidden');
-                } else {
-                    // גיבוי (רק למקרה שהמודאל המקורי נמחק בטעות מהקובץ)
-                    if (typeof showGlobalPopup === 'function') {
-                        showGlobalPopup('הודעת מערכת', msgData.message);
-                    }
+                } else if (typeof showGlobalPopup === 'function') {
+                    showGlobalPopup('הודעת מערכת', msgData.message);
                 }
                 sessionStorage.setItem('biz_popup_shown', 'true');
             }
@@ -3214,6 +3208,7 @@ async function loadSystemAnnouncements() {
         console.error("Error loading system announcements:", e);
     }
 }
+
 function showGlobalPopup(title, text) {
     const modal = document.getElementById('global-announcement-modal');
     if (!modal) return;
@@ -3223,7 +3218,6 @@ function showGlobalPopup(title, text) {
     modal.classList.remove('hidden');
 }
 
-// קריאה אוטומטית בעת טעינת המסך
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (typeof API !== 'undefined') {
