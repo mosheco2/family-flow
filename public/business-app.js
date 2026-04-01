@@ -3150,76 +3150,50 @@ async function loadSystemAnnouncements() {
         
         if (bannerData.success && bannerData.banners) {
             const b = bannerData.banners;
+            const topBanner = document.getElementById('app-banner-top');
+            const bottomBanner = document.getElementById('app-banner-bottom');
             
-            // 1. הגנת מחיקה: נסתיר את האלמנטים הישנים במקום למחוק את התוכן שלהם (למקרה שהם עוטפים בטעות את כל המסך)
-            const oldTop = document.getElementById('app-banner-top');
-            if (oldTop) oldTop.style.display = 'none';
-            const oldBottom = document.getElementById('app-banner-bottom');
-            if (oldBottom) oldBottom.style.display = 'none';
-            
-            const wrapper = document.getElementById('main-wrapper');
-            
-            const injectBannerSafe = (position, text, link, img) => {
-                if (!wrapper || (!text && !img)) return;
+            const renderBanner = (el, text, link, img) => {
+                if (!el) return;
+                el.innerHTML = '';
                 
-                // 2. יצירת אלמנט באנר חדש ונקי לחלוטין שלא מסתמך על ה-HTML שלך
-                const bannerEl = document.createElement('a');
-                bannerEl.id = `safe-banner-${position}`;
-                
-                // עיצוב תואם למקור מ-Family
-                if (position === 'top') {
-                    bannerEl.className = 'flex flex-col items-center justify-center w-full bg-indigo-600 text-white shrink-0 overflow-hidden relative z-50 transition hover:opacity-90';
-                } else {
-                    bannerEl.className = 'flex flex-col items-center justify-center w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white shrink-0 overflow-hidden relative z-50 transition hover:opacity-90 mt-auto shadow-[0_-5px_15px_rgba(0,0,0,0.15)]';
+                if (!text && !img) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                    return;
                 }
                 
-                bannerEl.style.textDecoration = 'none';
+                // הגדרת תמונה עם חסימת גובה שלא תשבור את המסך
+                if (img) {
+                    const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
+                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
+                }
+                
+                // הגדרת טקסט
+                if (text) {
+                    el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
+                }
                 
                 // הגדרת קישור
                 if (link) {
-                    bannerEl.href = link;
-                    bannerEl.target = '_blank';
-                    bannerEl.style.cursor = 'pointer';
+                    el.href = link;
+                    el.target = '_blank';
+                    el.style.cursor = 'pointer';
                 } else {
-                    bannerEl.removeAttribute('href');
-                    bannerEl.style.cursor = 'default';
+                    el.removeAttribute('href');
+                    el.removeAttribute('target');
+                    el.style.cursor = 'default';
                 }
                 
-                // הזרקת תמונה
-                if (img) {
-                    const imgEl = document.createElement('img');
-                    imgEl.src = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    imgEl.className = 'w-full object-cover block';
-                    imgEl.style.maxHeight = '80px';
-                    imgEl.style.flexShrink = '0';
-                    bannerEl.appendChild(imgEl);
-                }
-                
-                // הזרקת טקסט
-                if (text) {
-                    const spanEl = document.createElement('span');
-                    spanEl.className = 'py-3 px-4 block w-full text-center text-sm font-bold';
-                    spanEl.innerText = text;
-                    bannerEl.appendChild(spanEl);
-                }
-                
-                // מניעת כפילויות ברענון והזרקה למיקום המדויק בעץ
-                const existing = document.getElementById(`safe-banner-${position}`);
-                if (existing) existing.remove();
-                
-                if (position === 'top') {
-                    wrapper.insertBefore(bannerEl, wrapper.firstChild);
-                } else {
-                    wrapper.appendChild(bannerEl);
-                }
+                el.classList.remove('hidden');
+                el.classList.add('flex');
             };
 
-            // מפעילים את ההזרקה הבטוחה
-            injectBannerSafe('top', b.banner_top_text, b.banner_top_link, b.banner_top_img);
-            injectBannerSafe('bottom', b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
+            renderBanner(topBanner, b.banner_top_text, b.banner_top_link, b.banner_top_img);
+            renderBanner(bottomBanner, b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
         }
 
-        // טעינת הודעת הפתיחה (מודאל)
+        // טעינת הודעת הפתיחה
         if (!sessionStorage.getItem('biz_popup_shown')) {
             const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
             const msgData = await msgRes.json();
@@ -3235,13 +3209,31 @@ async function loadSystemAnnouncements() {
             }
         }
     } catch (e) {
-        console.log("System Announcements Log:", e);
+        console.log("Error loading system announcements:", e);
     }
 }
-// קריאה אוטומטית לאחר טעינת הדף
+
+// קריאה אוטומטית בעת טעינת המסך
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        if (typeof API !== 'undefined') loadSystemAnnouncements();
+        if (typeof API !== 'undefined') {
+            loadSystemAnnouncements();
+        }
     }, 1000);
 });
+const originalLoadSADashboard = window.loadSADashboard;
+if(originalLoadSADashboard && !window.saCommLoaded) {
+    window.loadSADashboard = async function() {
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        try { loadSACommunityData(); } catch(e) {}
+        
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
+    window.saCommLoaded = true;
+}
 // === סוף הקובץ ===
