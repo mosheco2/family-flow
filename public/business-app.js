@@ -150,25 +150,26 @@ function applyBannersToDOM(banners) {
         el.classList.remove('hidden'); el.classList.add('flex'); 
     };
 
-   const topText = banners.banner_top_text || '';
-    const topLink = banners.banner_top_link || '';
-    const topImg = banners.banner_top_img || '';
+    // כיסוי חכם של כל המפתחות האפשריים מהשרת
+    const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.banner_top_text || '';
+    const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.banner_top_link || '';
+    const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.banner_top_img || '';
     
-    const bottomText = banners.banner_bottom_text || '';
-    const bottomLink = banners.banner_bottom_link || '';
-    const bottomImg = banners.banner_bottom_img || '';
+    const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.banner_bottom_text || '';
+    const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.banner_bottom_link || '';
+    const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.banner_bottom_img || '';
+
     renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 
 async function fetchBanners() {
     try {
-        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const cached = localStorage.getItem('ofl_banners_biz'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
         const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+        if(data.success && data.banners) { localStorage.setItem('ofl_banners_biz', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
-
 async function loadSAData() {
     fetchBanners();
     try {
@@ -516,16 +517,16 @@ async function loadDashboard() {
         
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
-try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
-        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+        try { await fetchData(); } catch(e){}
+       try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-        // קריאה לשליפת באנרים והודעות קופצות בהתחברות למסך עסקים
+        // טעינת באנרים והודעת פתיחה עם התחברות המשתמש!
         try { fetchBanners(); } catch(e){}
         try { checkGlobalWelcome(); } catch(e){}
 
-    } catch (e) {
-        console.error("Dashboard error:", e);
+    } catch (e) {
+        console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
@@ -3096,3 +3097,4 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 }
+// === סוף הקובץ ===
