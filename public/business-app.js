@@ -3232,5 +3232,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
-
-// === סוף הקובץ ===
