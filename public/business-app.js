@@ -150,14 +150,13 @@ function applyBannersToDOM(banners) {
         el.classList.remove('hidden'); el.classList.add('flex'); 
     };
 
-    const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText;
-    const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink;
-    const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg;
+   const topText = banners.banner_top_text || '';
+    const topLink = banners.banner_top_link || '';
+    const topImg = banners.banner_top_img || '';
     
-    const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.bizBottomText;
-    const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink;
-    const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg;
-
+    const bottomText = banners.banner_bottom_text || '';
+    const bottomLink = banners.banner_bottom_link || '';
+    const bottomImg = banners.banner_bottom_img || '';
     renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
