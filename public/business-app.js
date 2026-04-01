@@ -2514,95 +2514,7 @@ function renderStoreCatalog() {
         html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
-function renderPresetSelector() {
-    const sel = getEl('preset-selector'); if (!sel) return;
-    if (storeModifierPresets.length > 0) {
-        sel.innerHTML = '<option value="">טען תבנית שמורה...</option>';
-        storeModifierPresets.forEach((p, idx) => { sel.innerHTML += `<option value="${idx}">${safeStr(p.name)}</option>`; });
-        sel.classList.remove('hidden');
-    } else { sel.classList.add('hidden'); }
-}
 
-function loadPreset(idx) {
-    if (idx === '') return; const preset = storeModifierPresets[idx];
-    if (preset) { currentModifiersUI.push(JSON.parse(JSON.stringify(preset))); renderModifiersUI(); } // Deep copy
-    getEl('preset-selector').value = '';
-}
-
-async function saveModifierAsPreset(index) {
-    const mod = currentModifiersUI[index];
-    if (!mod.name || mod.options.length === 0) return showToast('error', 'יש למלא שם לפחות אפשרות אחת לשמירה');
-    storeModifierPresets.push(JSON.parse(JSON.stringify(mod)));
-    
-    const btn = getEl(`btn-save-preset-${index}`); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        await fetch(`${API}/store/settings/presets`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, presets: JSON.stringify(storeModifierPresets) }) });
-        renderPresetSelector(); showToast('success', 'התבנית נשמרה לשימוש עתידי!');
-    } catch(e) { showToast('error', 'שגיאה בשמירה'); } finally { btn.innerHTML = '<i class="fa-solid fa-save text-xs"></i>'; }
-}
-
-function renderModifiersUI() {
-    const container = getEl('modifiers-builder-container');
-    if (!container) return;
-    if (currentModifiersUI.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
-        return;
-    }
-    
-    let html = '';
-    currentModifiersUI.forEach((mod, groupIndex) => {
-        const typeSingle = mod.type === 'single' ? 'selected' : ''; const typeMulti = mod.type === 'multiple' ? 'selected' : '';
-        
-        let optionsHtml = '';
-        mod.options.forEach((opt, optIndex) => {
-            optionsHtml += `
-            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
-                <div class="w-20 relative">
-                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
-                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
-                </div>
-                <button onclick="removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
-            </div>`;
-        });
-
-        html += `
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in">
-            <div class="absolute top-2 left-2 flex gap-2">
-                <button id="btn-save-preset-${groupIndex}" onclick="saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
-                <button onclick="removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
-            </div>
-            
-            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
-                <div class="flex-1">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
-                    <input type="text" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold px-3 py-2 outline-none focus:border-indigo-400 text-slate-800 transition" value="${safeStr(mod.name)}" onchange="updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
-                </div>
-                <div class="w-[45%]">
-                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
-                    <select onchange="updateModType(${groupIndex}, this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs px-2 py-2.5 outline-none focus:border-indigo-400 text-slate-700">
-                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
-                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="space-y-1">
-                ${optionsHtml}
-                <button onclick="addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
-            </div>
-        </div>`;
-    }); container.innerHTML = html;
-}
-
-function addModifierGroup() { currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); renderModifiersUI(); }
-function removeModifierGroup(index) { currentModifiersUI.splice(index, 1); renderModifiersUI(); }
-function updateModName(index, v) { currentModifiersUI[index].name = v; }
-function updateModType(index, v) { currentModifiersUI[index].type = v; }
-function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); renderModifiersUI(); }
-function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
-function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
-function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     if (id) {
@@ -3128,6 +3040,7 @@ async function submitBizCommunityJoin() {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
+
 async function leaveBizCommunity(commId) {
     if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
     
@@ -3158,77 +3071,4 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 }
-
-async function loadSystemAnnouncements() {
-    try {
-        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
-        const bannerData = await bannerRes.json();
-        
-        if (bannerData.success && bannerData.banners) {
-            const b = bannerData.banners;
-            const topBanner = document.getElementById('app-banner-top');
-            const bottomBanner = document.getElementById('app-banner-bottom');
-            
-            const renderBanner = (el, text, link, img) => {
-                if (!el) return;
-                el.innerHTML = '';
-                
-                if (!text && !img) {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                    return;
-                }
-                
-                if (img) {
-                    const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
-                }
-                
-                if (text) {
-                    el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
-                }
-                
-                if (link) {
-                    el.href = link;
-                    el.target = '_blank';
-                    el.style.cursor = 'pointer';
-                } else {
-                    el.removeAttribute('href');
-                    el.removeAttribute('target');
-                    el.style.cursor = 'default';
-                }
-                
-                el.classList.remove('hidden');
-                el.classList.add('flex');
-            };
-
-            renderBanner(topBanner, b.banner_top_text, b.banner_top_link, b.banner_top_img);
-            renderBanner(bottomBanner, b.banner_bottom_text, b.banner_bottom_link, b.banner_bottom_img);
-        }
-
-        if (!sessionStorage.getItem('biz_popup_shown')) {
-            const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
-            const msgData = await msgRes.json();
-            
-            if (msgData && msgData.message && msgData.message.trim() !== '') {
-                const wModal = document.getElementById('welcome-modal');
-                const wText = document.getElementById('welcome-modal-text');
-                if (wModal && wText) {
-                    wText.innerText = msgData.message;
-                    wModal.classList.remove('hidden');
-                    sessionStorage.setItem('biz_popup_shown', 'true');
-                }
-            }
-        }
-    } catch (e) {
-        console.error("Error loading system announcements:", e);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (typeof API !== 'undefined') {
-            loadSystemAnnouncements();
-        }
-    }, 1000);
-});
+// === סוף הקובץ ===
