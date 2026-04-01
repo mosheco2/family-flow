@@ -3128,7 +3128,6 @@ async function submitBizCommunityJoin() {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
-
 async function leaveBizCommunity(commId) {
     if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
     
@@ -3143,94 +3142,7 @@ async function leaveBizCommunity(commId) {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
-async function loadSystemAnnouncements() {
-    try {
-        // 1. טעינת באנרים מהנתיב הייעודי לעסקים (בדיוק כמו במשפחות)
-        const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
-        const bannerData = await bannerRes.json();
-        
-        if (bannerData.success && bannerData.banners) {
-            const banners = bannerData.banners;
-            // שימוש באלמנטים המקוריים של המערכת במקום באלו שהוספנו
-            const appTop = document.getElementById('app-banner-top'); 
-            const appBottom = document.getElementById('app-banner-bottom');
-            
-            const renderBanner = (el, text, link, img) => {
-                if(!el) return;
-                if(text || img) { 
-                    let html = ''; 
-                    if(img) { 
-                        const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                        html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; 
-                    }
-                    if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; 
-                    
-                    el.innerHTML = html; 
-                    el.href = link || '#'; 
-                    
-                    if(!link) { 
-                        el.removeAttribute('target'); 
-                        el.style.cursor = 'default'; 
-                    } else { 
-                        el.target = '_blank'; 
-                        el.style.cursor = 'pointer'; 
-                    } 
-                    
-                    el.classList.remove('hidden'); 
-                    el.classList.add('flex'); 
-                } else { 
-                    el.classList.add('hidden'); 
-                    el.classList.remove('flex'); 
-                }
-            };
 
-            renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); 
-            renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
-        }
-
-        // 2. טעינת הודעת פתיחה (פופ-אפ) רק אם לא הוצגה בסשן הנוכחי
-        if (!sessionStorage.getItem('biz_popup_shown')) {
-            const msgRes = await fetch(`${API}/settings/welcome?type=BUSINESS`);
-            const msgData = await msgRes.json();
-            
-            if (msgData && msgData.message && msgData.message.trim() !== '') {
-                // שימוש במודאל הודעת המערכת המקורי של האפליקציה (כמו ב-Family)
-                const welcomeModal = document.getElementById('welcome-modal');
-                const welcomeText = document.getElementById('welcome-modal-text');
-                
-                if (welcomeModal && welcomeText) {
-                    welcomeText.innerText = msgData.message;
-                    welcomeModal.classList.remove('hidden');
-                } else {
-                    // גיבוי (רק למקרה שהמודאל המקורי נמחק בטעות מהקובץ)
-                    if (typeof showGlobalPopup === 'function') {
-                        showGlobalPopup('הודעת מערכת', msgData.message);
-                    }
-                }
-                sessionStorage.setItem('biz_popup_shown', 'true');
-            }
-        }
-    } catch (e) {
-        console.error("Error loading system announcements:", e);
-    }
-}
-function showGlobalPopup(title, text) {
-    const modal = document.getElementById('global-announcement-modal');
-    if (!modal) return;
-    
-    document.getElementById('announcement-title').innerText = title;
-    document.getElementById('announcement-body').innerText = text;
-    modal.classList.remove('hidden');
-}
-
-// קריאה אוטומטית בעת טעינת המסך
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (typeof API !== 'undefined') {
-            loadSystemAnnouncements();
-        }
-    }, 1000);
-});
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
@@ -3246,6 +3158,7 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 }
+
 async function loadSystemAnnouncements() {
     try {
         const bannerRes = await fetch(`${API}/banners?type=BUSINESS`);
@@ -3268,7 +3181,7 @@ async function loadSystemAnnouncements() {
                 
                 if (img) {
                     const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 100px;">`;
+                    el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
                 }
                 
                 if (text) {
@@ -3319,4 +3232,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
+
 // === סוף הקובץ ===
