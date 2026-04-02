@@ -3055,7 +3055,6 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 } 
-
 // ==========================================
 // --- מערכת הבאנרים לעסקים ---
 // ==========================================
@@ -3086,16 +3085,16 @@ function applyBannersToDOM(banners) {
             return;
         }
         
-        // יצירת מבנה גמיש בתוך האלמנט הקיים
-        let contentHtml = `<div class="w-full px-4 py-2 flex items-center justify-center gap-3">`;
+        // יצירת מבנה גמיש בתוך האלמנט הקיים שמתפרס לכל הרוחב
+        let contentHtml = `<div class="w-full h-full flex items-center justify-center gap-3">`;
         
         if (img) {
             const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-            contentHtml += `<img src="${imgSrc}" class="h-8 w-auto object-contain rounded">`;
+            contentHtml += `<img src="${imgSrc}" class="max-h-full w-auto object-contain rounded">`;
         }
         
         if (text) {
-            contentHtml += `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>`;
+            contentHtml += `<span class="text-sm font-bold text-slate-800 text-center truncate px-2">${text}</span>`;
         }
         
         contentHtml += `</div>`;
