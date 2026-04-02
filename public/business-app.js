@@ -3070,51 +3070,59 @@ function applyBannersToDOM(banners) {
     const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
     const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
 
-    // הפעם אנחנו מחפשים את האלמנטים המקוריים מתוך ה-HTML
-    const appTop = document.getElementById('app-banner-top'); 
-    const appBottom = document.getElementById('app-banner-bottom');
-    
-    // פונקציית רינדור פנימית פשוטה שמכניסה את התוכן לאלמנט הקיים
-    const renderBannerContent = (el, text, link, img) => {
-        if(!el) return;
-        el.innerHTML = '';
+    // מסתירים את האלמנטים המקוריים כדי שלא יפריעו
+    const oldTop = getEl('app-banner-top'); if (oldTop) oldTop.style.display = 'none';
+    const oldBottom = getEl('app-banner-bottom'); if (oldBottom) oldBottom.style.display = 'none';
+
+    // מוצאים את הקונטיינר הראשי של האפליקציה
+    const mainContainer = document.querySelector('.max-w-md.mx-auto.bg-slate-50') || document.body;
+
+    const renderDynamicBanner = (position, text, link, img) => {
+        if (!text && !img) return;
         
-        if (!text && !img) {
-            el.classList.add('hidden');
-            el.classList.remove('flex');
-            return;
-        }
+        const isTop = position === 'top';
+        const bannerId = `dynamic-biz-banner-${position}`;
         
-        // יצירת מבנה גמיש בתוך האלמנט הקיים שמתפרס לכל הרוחב
-        let contentHtml = `<div class="w-full h-full flex items-center justify-center gap-3">`;
+        // מחיקת באנר ישן אם קיים
+        let bannerEl = getEl(bannerId);
+        if (bannerEl) bannerEl.remove();
         
-        if (img) {
-            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-            contentHtml += `<img src="${imgSrc}" class="max-h-full w-auto object-contain rounded">`;
-        }
+        bannerEl = document.createElement('div');
+        bannerEl.id = bannerId;
         
-        if (text) {
-            contentHtml += `<span class="text-sm font-bold text-slate-800 text-center truncate px-2">${text}</span>`;
-        }
+        // עיצוב תואם למשפחות - רקע לבן, שוליים עדינים, נשאר בתוך המסגרת
+        const posClass = isTop ? 'sticky top-0 z-[50] border-b border-slate-200' : 'fixed bottom-16 w-full max-w-md border-t border-slate-200 shadow-lg';
         
-        contentHtml += `</div>`;
-        el.innerHTML = contentHtml;
+        bannerEl.className = `w-full bg-white flex items-center justify-center cursor-pointer transition hover:bg-slate-50 py-2 px-4 gap-3 ${posClass}`;
         
-        // הגדרת הלינק על כל הדיב העוטף
+        const imgSrc = img ? ((img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`) : '';
+        
+        bannerEl.innerHTML = `
+            ${img ? `<img src="${imgSrc}" class="h-8 w-auto object-contain rounded">` : ''}
+            ${text ? `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>` : ''}
+        `;
+        
         if (link) {
-            el.onclick = () => window.open(link, '_blank');
-            el.style.cursor = 'pointer';
-        } else {
-            el.onclick = null;
-            el.style.cursor = 'default';
+            bannerEl.onclick = () => window.open(link, '_blank');
         }
         
-        el.classList.remove('hidden');
-        el.classList.add('flex');
+        // הזרקה למיקום הנכון ב-DOM
+        if (isTop) {
+            // מכניס את הבאנר העליון ממש בתחילת האפליקציה (אחרי ההדר)
+            const header = mainContainer.querySelector('header');
+            if (header && header.nextSibling) {
+                mainContainer.insertBefore(bannerEl, header.nextSibling);
+            } else {
+                mainContainer.prepend(bannerEl);
+            }
+        } else {
+            // מכניס את הבאנר התחתון בסוף האפליקציה (לפני הניווט)
+            mainContainer.appendChild(bannerEl);
+        }
     };
 
-    renderBannerContent(appTop, topText, topLink, topImg);
-    renderBannerContent(appBottom, bottomText, bottomLink, bottomImg);
+    renderDynamicBanner('top', topText, topLink, topImg);
+    renderDynamicBanner('bottom', bottomText, bottomLink, bottomImg);
 }
 
 async function fetchBanners() {
