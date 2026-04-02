@@ -82,17 +82,21 @@ window.onload = async () => {
         loadSAData(); return;
     }
 
-    const saved = localStorage.getItem('ofl_session'); 
-    if(saved) { 
-        try { 
-            const session = JSON.parse(saved); 
-            if(session && session.user && session.group) { 
-                if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
-                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
-            }
-        } catch(e) { localStorage.removeItem('ofl_session'); } 
-    }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+   const saved = localStorage.getItem('ofl_session'); 
+if(saved) { 
+    try { 
+        const session = JSON.parse(saved); 
+        if(session && session.user && session.group) { 
+            if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
+            currentUser = session.user; currentGroup = session.group; 
+            clearTimeout(failsafeTimer); 
+            loadDashboard(); 
+            fetchBanners();          // ←←← זה התיקון (הוספנו את הקריאה)
+            return; 
+        }
+    } catch(e) { localStorage.removeItem('ofl_session'); } 
+}
+clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
 };
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
