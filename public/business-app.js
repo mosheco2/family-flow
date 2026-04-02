@@ -522,21 +522,12 @@ async function loadDashboard() {
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+       try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-        // טעינת באנרים בכניסה
-        try { if(typeof fetchBanners === 'function') fetchBanners(); } catch(e){}
-        
-        // הצגת הודעת פתיחה - ואם אין הודעה, פתיחה אוטומטית של מסך הבית!
-        try { 
-            const showedWelcome = await checkGlobalWelcome(); 
-            if (!showedWelcome) {
-                checkAndStartTour();
-            }
-        } catch(e) {
-            checkAndStartTour();
-        }
+        // טעינת באנרים והודעת פתיחה עם התחברות המשתמש!
+        try { fetchBanners(); } catch(e){}
+        try { checkGlobalWelcome(); } catch(e){}
 
     } catch (e) {
         console.error("Dashboard error:", e);
