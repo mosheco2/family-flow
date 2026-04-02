@@ -745,6 +745,7 @@ async function fetchMembers() {
         if(!currentGroup || !currentGroup.id) return;
         const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
         membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
+        
         if (currentUser.role === 'ADMIN') { 
             try {
                 const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
@@ -754,17 +755,28 @@ async function fetchMembers() {
                 if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור איזה צוות/עובד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if(cur) gS.value = cur; }
             } catch(err) {}
         } 
-        try {
+        
+       try {
             const c = getEl('members-list'); 
             if(c) { 
                 c.innerHTML = ''; 
                 membersCache.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-3 text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-trash text-xs"></i></button>` : '';
-                    c.innerHTML+=`<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminDeleteBtn}</div></div>`; 
+                    
+                    // המרת ההרשאות לסטרינג כדי להעביר לכפתור
+                    const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    
+                    // כפתור הגדרות הרשאות (סגול)
+                    const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="סיווג והרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
+                    
+                    // כפתור מחיקת עובד (אדום)
+                    const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="מחיקת עובד"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
+                    
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
                 }); 
             }
         } catch(err) {}
+        
         try {
             const a = getEl('bank-accounts-list'); 
             if (a && currentUser.role === 'ADMIN') { 
@@ -772,7 +784,27 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-2"><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
+                    // הנה המפתח! המרת ההרשאות לסטרינג בטוח כדי להעביר לכפתור
+                    const permsStr = safeStr(JSON.stringify(m.permissions || {}));
+                    
+                    a.innerHTML += `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4>
+                                <p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p>
+                                <p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p>
+                            </div>
+                        </div>
+                        <div class="flex gap-1 sm:gap-2">
+                            <button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button>
+                            
+                            <button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>
+                            <button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
+                            <button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button>
+                        </div>
+                    </div>`; 
                 }); 
             } 
         } catch(err) {}
@@ -1642,7 +1674,7 @@ async function copyList(tripId) { if(!confirm('האם לייבא את דרישת
 
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
 function sendWhatsAppInvite(role) { 
-    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד ארגון לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
+    if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד ארגון לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/business.html?code=${currentGroup.group_code}&role=${role}`; 
     let text = role === 'ADMIN' ? `היי! פתחנו פורטל ארגוני ב-Oneflowlife Pro 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד הכניסה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflowlife Pro 🚀\n\nקוד הארגון לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); getEl('invite-modal').classList.add('hidden'); 
 }
@@ -2282,12 +2314,63 @@ async function saveStoreSettings() {
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
-// פונקציית מערכת: אכיפת הרשאות תצוגה מבוססות תפקיד בעסק
+// --- הגדרות תבניות תפקידים וטאבים ב-Oneflowlife Pro ---
+const ALL_TABS = [
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'timeclock', name: 'נוכחות ⏱️' },
+    { id: 'shifts', name: 'משמרות 🗓️' },
+    { id: 'shop', name: 'רכש ארגוני 🛒' },
+    { id: 'pantry', name: 'ניהול מלאי 📦' },
+    { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'bank', name: 'כספים 💳' },
+    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
+    { id: 'budget', name: 'תקציבים 📊' },
+    { id: 'forecast', name: 'תשקיף 📅' },
+    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
+    { id: 'academy', name: 'מרכז הכשרות 🎓' },
+    { id: 'community', name: 'קהילות מחוברות 🏘️' },
+    { id: 'members', name: 'ניהול צוות 👥' }
+];
+
+const ROLE_DEFAULTS = {
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
+    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
+    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
+};
+
+// פונקציית אכיפת הרשאות חכמה (טאבים + אלמנטים פנימיים)
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
     const isAdmin = currentUser.role === 'ADMIN';
     
-    // רשימת אלמנטים ניהוליים שאנו רוצים להסתיר מעובד סטנדרטי
+    // קריאת הרשאות הטאבים מהמשתמש ב-DB
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+
+    // אכיפת תצוגת טאבים בתפריט הגלילה העליון
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            // האדמין רואה הכל כברירת מחדל, השאר רואים לפי הטאבים שהוגדרו להם
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
+
+    // אם הטאב שהעובד נמצא בו כרגע הוסתר - נזרוק אותו חזרה לראשי
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none') switchTab('feed');
+    });
+    
+    // אכיפת אלמנטים ניהוליים פנימיים בתוך הטאבים
     if (!isAdmin) {
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
         if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
@@ -2296,12 +2379,9 @@ function enforcePermissions() {
         if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
         if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
         if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
-        
-        // בחנות - עובד רואה רק הזמנות נכנסות (לא הגדרות וקטלוג)
         if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
     } else {
-        // אם מדובר באדמין, נחזיר את האלמנטים לתצוגה (חשוב למקרים של החלפת סביבה)
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
         if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
         if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
@@ -2309,6 +2389,88 @@ function enforcePermissions() {
         if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
     }
+}
+
+// לוגיקת מודאל הרשאות
+function openPermissionsModal(id, name, role, permissionsStr) {
+    getEl('perm-user-id').value = id;
+    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
+    
+    let perms = {};
+    try { perms = JSON.parse(permissionsStr); } catch(e) {}
+    
+    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
+    const selectEl = getEl('perm-role-select');
+    
+    // עדכון סלקט התפקיד וצביעה בהתאם אם הוא מנהל 
+    if (selectEl) {
+        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
+        selectEl.className = role === 'ADMIN' 
+            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
+            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    
+    renderTabsCheckboxes(userTabs);
+    getEl('permissions-modal').classList.remove('hidden');
+}
+
+function applyRoleDefaults(role) {
+    const selectEl = getEl('perm-role-select');
+    if (selectEl) {
+        selectEl.className = role === 'ADMIN' 
+            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
+            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
+}
+
+function renderTabsCheckboxes(activeTabs) {
+    const container = getEl('perm-tabs-container');
+    container.innerHTML = ALL_TABS.map(tab => {
+        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
+        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; // feed חובה
+        const opacity = isDisabled ? 'opacity-50' : '';
+        return `
+        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
+            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
+            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
+        </label>
+        `;
+    }).join('');
+}
+
+async function submitPermissions() {
+    const id = val('perm-user-id');
+    const role = val('perm-role-select');
+    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
+    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
+
+    const btn = getEl('btn-submit-permissions');
+    btn.disabled = true; btn.innerText = 'שומר בשרת...';
+    
+    try {
+        const res = await fetch(`${API}/users/${id}/permissions`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
+            getEl('permissions-modal').classList.add('hidden');
+            fetchMembers(); // מרענן מיד את הנתונים
+            
+            // אם העובד משנה את עצמו בטעות (למשל מנהל מוריד לעצמו הרשאה), נרענן גם את המידע המקומי
+            if (String(id) === String(currentUser.id)) {
+                currentUser.role = role;
+                currentUser.permissions = { tabs: checkedTabs };
+                enforcePermissions();
+            }
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerText = 'שמור הרשאות'; }
 }
 
 // "התלבשות" על פונקציית החלפת הטאבים הגלובלית כדי לאכוף הרשאות בכל מעבר מסך
@@ -2339,12 +2501,19 @@ function renderStoreCatalog() {
     }
     let html = '';
     storeCatalogCache.forEach(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm shrink-0">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm shrink-0"><i class="fa-solid fa-box text-xl"></i></div>`;
+        let badgeHtml = '';
+        if (p.badge_text) {
+            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+            const bgClass = colors[p.badge_color] || 'bg-red-500';
+            badgeHtml = `<div class="absolute -top-2 -right-2 ${bgClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 border border-white">${safeStr(p.badge_text)}</div>`;
+        }
+        
+        const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
         const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
         html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
     }); list.innerHTML = html;
 }
-
 function renderPresetSelector() {
     const sel = getEl('preset-selector'); if (!sel) return;
     if (storeModifierPresets.length > 0) {
@@ -2374,6 +2543,7 @@ async function saveModifierAsPreset(index) {
 
 function renderModifiersUI() {
     const container = getEl('modifiers-builder-container');
+    if (!container) return;
     if (currentModifiersUI.length === 0) {
         container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
         return;
@@ -2433,12 +2603,16 @@ function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({na
 function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
 function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
-
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
         getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
+        
+        // הגנה מפני קריסה אם שדות הדיגול חסרים ב-HTML
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
+        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
+        
         if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
         if (p.options_text) {
@@ -2446,6 +2620,9 @@ function openStoreProductModal(id = null) {
         }
     } else {
         getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
+        
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
+        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
     }
     renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
 }
@@ -2454,7 +2631,7 @@ async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    // ניקוי של שדות ריקים לפני השמירה למסד הנתונים
+    // ניקוי של שדות ריקים לפני השמירה
     let validOptions = [];
     currentModifiersUI.forEach(mod => { 
         if (mod.name.trim()) {
@@ -2466,7 +2643,58 @@ async function submitStoreProduct() {
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const payload = { groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null };
+        const payload = { 
+            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red'
+        };
+        const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
+}function openStoreProductModal(id = null) {
+    currentModifiersUI = []; 
+    if (id) {
+        const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
+        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
+        
+        // הגנה מפני קריסה אם שדות הדיגול חסרים ב-HTML
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
+        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
+        
+        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
+        
+        if (p.options_text) {
+            try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
+        }
+    } else {
+        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
+        
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
+        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
+    }
+    renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
+}
+
+async function submitStoreProduct() {
+    const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
+    if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
+    
+    // ניקוי של שדות ריקים לפני השמירה
+    let validOptions = [];
+    currentModifiersUI.forEach(mod => { 
+        if (mod.name.trim()) {
+            const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
+            if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
+        }
+    });
+    const finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
+    
+    const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
+    try {
+        const payload = { 
+            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red'
+        };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
@@ -2782,10 +3010,7 @@ async function loadBizCommunities() {
         let data;
         try { data = await res.json(); } catch(err) { return; }
         
-        if (!res.ok) {
-            console.error("Backend Error in communities:", data.error);
-            return;
-        }
+        if (!res.ok) { return; }
         
         if (data.success && data.communities) {
             const list = document.getElementById('biz-my-communities-list');
@@ -2795,20 +3020,18 @@ async function loadBizCommunities() {
                 } else {
                     list.innerHTML = data.communities.map(c => {
                         let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
-                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center"><i class="fa-solid fa-users-rays"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
+                        
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
                     }).join('');
                 }
             }
         }
         
-        // טעינת הקהילות הפנויות להצטרפות
         await loadBizAvailableCommunities();
         
-    } catch(e) {
-        console.error("Error loading biz communities", e);
-    }
+    } catch(e) { console.error("Error loading biz communities", e); }
 }
-
 let bizAvailableCommCache = [];
 
 async function loadBizAvailableCommunities() {
@@ -2829,6 +3052,7 @@ function filterBizAvailableCommunities() {
 
     const cityFilter = (val('biz-filter-city') || '').toLowerCase();
     const sizeFilter = val('biz-filter-size') || 'all';
+    const multiFilter = getEl('biz-filter-multi') ? getEl('biz-filter-multi').checked : false;
 
     let filtered = [...bizAvailableCommCache];
 
@@ -2841,25 +3065,35 @@ function filterBizAvailableCommunities() {
         filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
     }
 
+    if (multiFilter) {
+        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
+    }
+
     if (filtered.length === 0) {
         list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
         return;
     }
 
-    list.innerHTML = filtered.map(c => `
+    list.innerHTML = filtered.map(c => {
+        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
+        return `
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
             <div class="flex justify-between items-start mb-3">
                 <div>
+                    ${imgHtml}
                     <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
+                    <p class="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
                 </div>
-                <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
+                <div class="flex flex-col gap-1 items-end">
+                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
+                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-user"></i> ${c.users_count || 0} משתמשים</span>
+                </div>
             </div>
             <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
-
 function openBizJoinModal(id, name) {
     const idEl = getEl('biz-join-comm-id');
     const nameEl = getEl('biz-join-comm-name');
