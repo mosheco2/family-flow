@@ -170,10 +170,6 @@ async function loadSAData() {
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
         saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
-        
-        // כאן קוראים לטעינת הקהילות מיד כשהמנהל נכנס!
-        loadSACommunityData();
-        
     } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
@@ -181,124 +177,54 @@ function renderSAGroups() {
     const groupsList = getEl('sa-groups-list'); let gHtml = ''; const term = val('sa-search-group').toLowerCase();
     const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
     if(filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
-    
     filteredGroups.forEach(g => {
-        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `
-            <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה/עובד'})</span></span>
-                <div class="flex gap-1">
-                    <button onclick="openSAEditUserModal(${u.id}, '${safeStr(u.nickname)}')" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
-                    <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </div>
-        `).join('');
-        
+        let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => `<div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm"><span>${safeStr(u.nickname)} <span class="text-[10px] text-slate-400">(${u.role === 'ADMIN' ? 'הורה/מנהל' : 'בן משפחה'})</span></span><button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm"><i class="fa-solid fa-trash"></i></button></div>`).join('');
         if (!uHtml) uHtml = '<p class="text-xs text-slate-400 py-1">אין משתמשים רשומים.</p>';
         const isPro = g.is_premium ? '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">PRO</span>' : '';
         const aiTokens = g.is_premium ? '∞' : (g.ai_tokens !== undefined ? g.ai_tokens : 10);
         const proToggleBtn = g.is_premium ? `<button onclick="saTogglePremium(${g.id}, false)" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-crown"></i> בטל Pro</button>` : `<button onclick="saTogglePremium(${g.id}, true)" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-3 py-1 rounded text-[10px] font-bold hover:opacity-90 transition"><i class="fa-solid fa-crown"></i> הפעל Pro</button>`;
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
-        
-        gHtml += `
-        <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
-            <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3>
-                        <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
-                    </div>
-                </div>
-                <i class="fa-solid fa-chevron-down text-slate-300"></i>
-            </div>
-            <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
-                <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
-                    <div class="flex gap-2">
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
-                        <button onclick="open360Report(${g.id})" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>
-                        ${proToggleBtn}
-                        <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                    </div>
-                </div>
-                ${uHtml}
-            </div>
-        </div>`;
+        gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2"><button onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
 }
 
-// פונקציות העריכה
-function openSAEditGroupModal(id, name) {
-    getEl('sa-edit-group-id').value = id;
-    getEl('sa-edit-group-name').value = name;
-    getEl('sa-edit-group-modal').classList.remove('hidden');
+function filterSAGroups() { renderSAGroups(); }
+async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
+async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
+
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    try { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); } catch(e) { showToast('error', 'שגיאה בשמירת ההודעה'); }
 }
 
-async function saveSAEditGroup() {
-    const id = val('sa-edit-group-id');
-    const name = val('sa-edit-group-name');
-    if (!name) return showToast('error', 'שם לא יכול להיות ריק');
+async function checkGlobalWelcome() {
     try {
-        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name }) });
-        if ((await res.json()).success) {
-            showToast('success', 'שם עודכן בהצלחה');
-            getEl('sa-edit-group-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון השם');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-function openSAEditUserModal(id, nickname) {
-    getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = nickname;
-    getEl('sa-edit-user-pass').value = '';
-    getEl('sa-edit-user-modal').classList.remove('hidden');
-}
-
-async function saveSAEditUser() {
-    const id = val('sa-edit-user-id');
-    const nickname = val('sa-edit-user-name');
-    const password = val('sa-edit-user-pass');
-    if (!nickname) return showToast('error', 'כינוי לא יכול להיות ריק');
-    try {
-        const res = await fetch(`${API}/sa/users/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nickname, password }) });
-        if ((await res.json()).success) {
-            showToast('success', 'המשתמש עודכן בהצלחה!');
-            getEl('sa-edit-user-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון משתמש');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-async function saveWelcomeMsg(type) {
-    const msg = type === 'BUSINESS' ? val('sa-biz-welcome-msg') : val('sa-welcome-msg');
-    const payload = type === 'BUSINESS' ? { businessWelcomeMsg: msg } : { welcomeMsg: msg };
-    const btn = event.target;
-    const originalText = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = 'שומר...';
-
-    try {
-        const res = await fetch(`${API}/superadmin/settings`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, 
-            body: JSON.stringify(payload) 
-        });
-        const data = await res.json();
-        
-        if (data.success) { 
-            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
-        } else { 
-            showToast('error', 'שגיאה בשמירת ההודעה'); 
+        const res = await fetch(`${API}/settings/welcome?type=FAMILY`); const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
+            if (seen !== data.message) { getEl('welcome-modal-text').innerText = data.message; setupPwaInstallSection(); getEl('welcome-modal').classList.remove('hidden'); window.pendingWelcomeMsg = data.message; return true; }
         }
-    } catch (e) { 
-        showToast('error', 'תקלת תקשורת מול השרת'); 
-    } finally {
-        btn.disabled = false;
-        btn.innerText = originalText;
-    }
+    } catch(e) {} return false;
 }
+
+function closeWelcomeModal() { getEl('welcome-modal').classList.add('hidden'); if (window.pendingWelcomeMsg) { localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg); } checkAndStartTour(forceTourStart); forceTourStart = false; }
+function checkAndStartTour(force = false) { setTimeout(() => { try { const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`; if (force || !localStorage.getItem(tourKey)) { localStorage.setItem(tourKey, 'true'); switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); } } catch(e) {} }, 1000); }
+function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); setTimeout(() => { switchTab('feed'); if (currentUser.role === 'ADMIN') startAdminTour(); else startChildTour(); }, 300); }
+
+function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
+
+function executeWithAIWarning(actionCallback) {
+    if (currentGroup && currentGroup.is_premium) return actionCallback();
+    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
+    const modal = getEl('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
+    const leftEl = getEl('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
+    const btnContinue = getEl('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+    newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
+    modal.classList.remove('hidden');
+}
+
 function startAdminTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
@@ -379,29 +305,17 @@ async function handleLogin(e) {
 }
 
 async function handleCreate(e) { 
-    e.preventDefault(); 
-    if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); 
-    forceTourStart = true; toggleLoader('login', true); 
+    e.preventDefault(); if(!getEl('create-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; toggleLoader('login', true); 
     try { 
         const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password') }) }); 
         const data = await res.json(); 
         if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; 
-            localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
-            try {
-                await loadDashboard(); 
-            } catch (dashErr) {
-                console.error("Dashboard Load Error:", dashErr);
-            }
-        } else {
-            showToast('error', data.error); 
-        }
-    } catch(e) { 
-        console.error("Create Fetch Error:", e);
-        showToast('error', 'שגיאה בטעינה המקומית: ' + e.message); 
-    } finally { toggleLoader('login', false); } 
+            await loadDashboard(); 
+        } else showToast('error', data.error); 
+    } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
 async function handleJoin(e) { 
@@ -415,21 +329,11 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-    }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    ['feed','tasks','shop','bank','cashflow','academy','members','budget','pantry','recipes','forecast'].forEach(x => { const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); }); 
+    getEl(`content-${t}`).classList.remove('hidden'); getEl(`tab-${t}`).classList.add('tab-active'); 
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); getEl('fab-container').classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
-    
-    if (t === 'pantry') try { renderPantry(); } catch(e) {}
-    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
-    if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
-    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
+    if (t === 'pantry') renderPantry(); if (t === 'recipes') renderRecipePantrySelection(); if (t === 'forecast') renderForecast(); if (t === 'cashflow') renderCashflow();
 }
 
 function updateBatteryUI() {
@@ -445,8 +349,8 @@ function updateBatteryUI() {
 function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser && currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) modal.classList.remove('hidden'); return false;
+        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
+        modal.classList.remove('hidden'); return false;
     }
     return true;
 }
@@ -454,33 +358,6 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
-let currentAIAction = null;
-function executeWithAIWarning(actionFn) {
-    if(currentGroup && currentGroup.is_premium) { actionFn(); return; }
-    const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 0;
-    if(tokens <= 0) {
-        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser && currentUser.role === 'ADMIN' && upgradeSec) upgradeSec.classList.remove('hidden'); 
-        else if(upgradeSec) upgradeSec.classList.add('hidden');
-        if(modal) modal.classList.remove('hidden'); return;
-    }
-    
-    if (localStorage.getItem('ofl_hide_ai_warning') === new Date().toLocaleDateString('he-IL')) { actionFn(); return; }
-    
-    currentAIAction = actionFn;
-    const leftEl = getEl('ai-warning-left'); if(leftEl) leftEl.innerText = tokens;
-    const warnModal = getEl('ai-warning-modal'); if(warnModal) warnModal.classList.remove('hidden');
-    
-    const btnContinue = getEl('btn-ai-warning-continue');
-    if (btnContinue) {
-        btnContinue.onclick = () => {
-            const dontShow = getEl('ai-warning-dont-show');
-            if (dontShow && dontShow.checked) localStorage.setItem('ofl_hide_ai_warning', new Date().toLocaleDateString('he-IL'));
-            if(warnModal) warnModal.classList.add('hidden');
-            if (currentAIAction) { currentAIAction(); currentAIAction = null; }
-        };
-    }
-}
 async function loadDashboard() {
     const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
     getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
@@ -496,109 +373,7 @@ async function loadDashboard() {
     } else { 
         ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
         const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-}async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-}async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-    }
-    const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
-    
-    try {
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ fetchLoans(); } catch(e){} if(isAdmin) { try{ fetchPendingUsers(); } catch(e){} } }, 30000); }
-        try { fetchBanners(); } catch(e){}
-        try { await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { await fetchLoans(); } catch(e){}
-    } catch (e) {
-        showToast('error', 'שגיאה בטעינת חלק מהנתונים');
-    } finally {
-        const preloader = getEl('app-preloader'); 
-        const finalizeLoad = async () => { const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; } };
-        if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
-    }
-}async function loadDashboard() {
-    const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-    getEl('dashboard-container').classList.remove('hidden'); getEl('fab-container').classList.remove('hidden');
-    const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד: ${currentGroup.group_code}</span>` : '';
-    getEl('dash-group-name').innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; getEl('dash-nickname').innerText = currentUser.nickname; 
-
-    const isAdmin = currentUser.role === 'ADMIN';
-    if(isAdmin) { 
-        ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור';
-        const profileUp = getEl('profile-upgrade-section');
-        if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-    } else { 
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-        const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-        getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
+        getEl('card-name').innerText = currentUser.nickname.toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`; 
         const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
     }
     const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); updateBatteryUI();
@@ -618,88 +393,7 @@ async function loadDashboard() {
         if (preloader && !preloader.classList.contains('hidden')) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => { preloader.classList.add('hidden'); finalizeLoad(); }, 700); } else { finalizeLoad(); }
     }
 }
-async function fetchData() {
-    try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
-        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
-        const res = await fetch(`${API}/data/${currentUser.id}`);
-        
-        let data;
-        try { data = await res.json(); } catch(err) { console.error("Failed to parse JSON", err); return; }
-        
-        if (!res.ok) { console.error("Backend Error:", data.error); return; }
-        if (!data || !data.user) return;
-        
-        currentUser.balance = data.user.balance; 
-        if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; 
-            currentGroup.is_premium = data.group.is_premium;
-            currentGroup.community_id = data.group.community_id;
-            try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
-            
-            const profileUp = document.getElementById('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
-        }
-
-        if (currentUser.role === 'ADMIN') {
-            const balEl = document.getElementById('user-balance'); 
-            if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
-                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
-                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
-            }
-        } else {
-            const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
-        }
-        
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; 
-        bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; 
-        pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-
-        try { if (currentUser.role === 'ADMIN' && typeof renderAdminAcademy === 'function') renderAdminAcademy(); else { if(typeof renderMyAssignments === 'function') renderMyAssignments(bundlesCache); if(typeof renderLibrary === 'function') renderLibrary(); } } catch(e) {}
-        try { if(typeof renderTasks === 'function') renderTasks(allTasks); if(typeof renderPantry === 'function') renderPantry(); if(typeof renderShifts === 'function') renderShifts(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; if(typeof renderShopList === 'function') renderShopList(); } catch(e) {}
-        try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) {}
-        try { if(typeof renderForecast === 'function') renderForecast(); } catch(e) {}
-        
-        try {
-            const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
-            if (goalsList) { 
-                goalsList.innerHTML = ''; 
-                if(data.goals && data.goals.length > 0) { 
-                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                    data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name ? g.owner_name.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}</span>` : ''; const adviseBtn = `<button onclick="if(typeof getBusinessAIAdvice === 'function') getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title ? g.title.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="if(typeof openDepositModal === 'function') openDepositModal(${g.id}, '${g.title ? g.title.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}')" class="mt-2 bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> העברה ליעד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים מוגדרים</p>'; } 
-            }
-        } catch(e) {}
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהתקציב שאושר!' : 'עמידה ביעדי התקציב מזכה בבונוס!'; 
-            }
-        } catch(e) {}
-
-        try {
-            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
-        } catch(e) { allTransactions = []; }
-
-        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const cashTab = document.getElementById('tab-cashflow'); if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e){}
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
-
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
-}
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
     const userId = val('adjustment-user-id'); const type = val('adjustment-type'); const amount = parseFloat(val('adjustment-amount')); const reason = val('adjustment-reason') || (type === 'add' ? 'בונוס מההורה' : 'הפחתה יזומה');
@@ -771,13 +465,12 @@ async function fetchData() {
             currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
         }
 
         if (currentUser.role === 'ADMIN') {
             const balEl = getEl('user-balance'); 
             if(balEl) {
+                // הצגת היתרה הכללית שמחושבת על ידי השרת (הכנסות פחות הוצאות)
                 const realBalance = data.group.admin_total_balance || 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
@@ -788,92 +481,12 @@ async function fetchData() {
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-        
-        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
-        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
-        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
         try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
         try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
         try { renderForecast(); } catch(e) {}
-        
-        // קריאה לרינדור הקהילות ממש כאן!
-        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
-        
-        try {
-            const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
-            if (goalsList) { 
-                goalsList.innerHTML = ''; 
-                if(data.goals && data.goals.length > 0) { 
-                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                    data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : ''; const adviseBtn = `<button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ מ-familAI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים פעילים</p>'; } 
-            }
-        } catch(e) {}
-        
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = getEl('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = getEl('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = getEl('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהיעד!' : 'שמור על ירוק לקבלת ריבית!'; 
-            }
-        } catch(e) {}
-
-        try {
-            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
-        } catch(e) { allTransactions = []; }
-
-        try { renderChildTodo(); buildAndRenderFeed(); if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow(); } catch(e) {}
-    } catch(e) {}
-}async function fetchData() {
-    try {
-        if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
-        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
-        if (!data || !data.user) return;
-        
-        currentUser.balance = data.user.balance; 
-        if(data.group) {
-            currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
-            const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
-            // עדכון המזהה למקרה שהקהילה השתנתה
-            currentGroup.community_id = data.group.community_id;
-        }
-
-        if (currentUser.role === 'ADMIN') {
-            const balEl = getEl('user-balance'); 
-            if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
-                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
-                balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
-            }
-        } else {
-            const balEl = getEl('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
-        }
-        
-        allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
-        
-        // שמירת עדכוני הקהילה והעסקים למטמון עבור הפיד והקהילות
-        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
-        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
-
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-        try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
-        try { fetchBudget(); } catch(e) {}
-        try { renderForecast(); } catch(e) {}
-        
-        // קריאה לרינדור הקהילות ממש כאן!
-        try { renderFamilyCommunities(window.communityBusinessesCache); } catch(e) {}
         
         try {
             const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
@@ -1351,171 +964,46 @@ function buildAndRenderFeed() {
     if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
     if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved') { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); } }); }
     if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
-    
-    // הוספת עדכוני הקהילה לתוך הפיד 
-    if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-        window.communityUpdatesCache.forEach(update => { 
-            // המרת התאריך הטקסטואלי לאובייקט כדי למנוע קריסה
-            update.date = new Date(update.date);
-            // העברת ה-description ל-title עבור תאימות לרינדור של הפיד
-            update.title = update.description || update.title;
-            feedCache.push(update); 
-        });
-    }
-
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
     renderUnifiedFeed();
 }
-function buildAndRenderFeed() {
-    try {
-        feedCache = [];
-        
-        // 1. הודעת מערכת (פתיחת משפחה)
-        if (currentGroup && currentGroup.created_at) { 
-            feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'הבנק המשפחתי נפתח בהצלחה! 🎉', amount: 0, status: 'welcome' }); 
-        }
-        
-        // 2. תנועות עובר ושב
-        if(Array.isArray(allTransactions)) { 
-            allTransactions.forEach(t => { 
-                feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); 
-            }); 
-        }
-        
-        // 3. משימות (רק מאושרות)
-        if(Array.isArray(allTasks)) { 
-            allTasks.forEach(t => { 
-                if(t.status === 'approved') { 
-                    feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title}`, amount: t.reward, status: t.status }); 
-                } 
-            }); 
-        }
-        
-        // 4. חידונים (אקדמיה)
-        if(Array.isArray(bundlesCache)) { 
-            bundlesCache.forEach(b => { 
-                feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `אתגר: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); 
-            }); 
-        }
-        
-        // 5. עדכוני קהילה - טיפול בטוח באובייקטים המגיעים מהשרת
-        if (window.communityUpdatesCache && Array.isArray(window.communityUpdatesCache)) {
-            window.communityUpdatesCache.forEach(update => { 
-                feedCache.push({
-                    type: 'system',
-                    id: update.id || ('comm_' + Math.random()),
-                    user_id: 0,
-                    user_name: 'קהילה',
-                    date: update.date ? new Date(update.date) : new Date(),
-                    title: update.description || update.title || 'עדכון מהקהילה',
-                    amount: 0
-                });
-            });
-        }
-
-        // מיון לפי תאריך יורד בצורה בטוחה
-        feedCache.sort((a, b) => {
-            const dA = a.date instanceof Date && !isNaN(a.date) ? a.date.getTime() : 0;
-            const dB = b.date instanceof Date && !isNaN(b.date) ? b.date.getTime() : 0;
-            return dB - dA;
-        });
-        
-        // טיפול בפילטר הראשי
-        const filterEl = getEl('feed-user-filter');
-        if (filterEl && currentUser) { 
-            if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); 
-            else filterEl.classList.add('hidden'); 
-        }
-        
-        renderUnifiedFeed();
-    } catch (err) {
-        console.error("Error in buildAndRenderFeed:", err);
-    }
-}
 
 function renderUnifiedFeed() {
-    try {
-        const list = getEl('unified-feed-list'); 
-        if (!list) return;
-        
-        if (!currentUser) return;
-
-        const userFilter = val('feed-user-filter') || 'all'; 
-        const dateFilter = val('feed-date-filter') || 'all'; 
-        
-        let filtered = feedCache;
-        
-        // סינון לפי משתמש
-        if (currentUser.role !== 'ADMIN') { 
-            filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); 
-        } else if (userFilter !== 'all' && userFilter !== '') { 
-            filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); 
+    const userFilter = val('feed-user-filter') || 'all'; const dateFilter = val('feed-date-filter') || 'all'; const list = getEl('unified-feed-list'); if (!list) return;
+    let filtered = feedCache;
+    if (currentUser.role !== 'ADMIN') { filtered = feedCache.filter(item => String(item.user_id) === String(currentUser.id) || item.type === 'system'); } 
+    else if (userFilter !== 'all' && userFilter !== '') { filtered = feedCache.filter(item => String(item.user_id) === String(userFilter) || item.type === 'system'); }
+    if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(item => item.date && item.date >= cutoffDate); }
+    filtered = filtered.slice(0, 30); 
+    if(filtered.length === 0) { list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; return; }
+    
+    let html = '';
+    filtered.forEach(item => {
+        if(!item.date || isNaN(item.date.getTime())) return;
+        const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[item.user_id % userColors.length] || 'bg-white border-slate-50'); 
+        const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
+        const d = item.date; const today = new Date(); const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
+        let contentHtml = '';
+        if (item.type === 'transaction') {
+            const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
+            const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; const prefix = item.isIncome ? '+' : '-';
+            contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
+        } else if (item.type === 'task') {
+            const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
+            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+        } else if (item.type === 'quiz') {
+            const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
+            contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+        } else if (item.type === 'system') {
+            const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
+            contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
         }
-        
-        // סינון לפי תאריך
-        if (dateFilter !== 'all') { 
-            const monthsBack = parseInt(dateFilter); 
-            const cutoffDate = new Date(); 
-            cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); 
-            filtered = filtered.filter(item => item.date && item.date >= cutoffDate); 
-        }
-        
-        // מקסימום 30 פעולות למניעת עומס
-        filtered = filtered.slice(0, 30); 
-        
-        // אם אין פעולות
-        if(filtered.length === 0) { 
-            list.innerHTML = '<div class="text-center py-10 bg-white rounded-3xl border border-dashed border-slate-200 mt-2"><i class="fa-solid fa-ghost text-4xl text-slate-200 mb-3"></i><p class="text-slate-400 text-sm font-medium">אין פעילות להצגה כרגע</p></div>'; 
-            return; 
-        }
-        
-        let html = '';
-        const today = new Date();
-        
-        filtered.forEach(item => {
-            // טיפול בטוח בתאריכים
-            if(!item.date || !(item.date instanceof Date) || isNaN(item.date.getTime())) return;
-            
-            const userIdNum = parseInt(item.user_id) || 0;
-            const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[userIdNum % userColors.length] || 'bg-white border-slate-50'); 
-            
-            const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
-            
-            const d = item.date; 
-            const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-            const timeStr = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
-            const dateStr = isToday ? `היום, ${timeStr}` : `${d.toLocaleDateString('he-IL')} ${timeStr}`;
-            
-            let contentHtml = '';
-            if (item.type === 'transaction') {
-                const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
-                const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; 
-                const prefix = item.isIncome ? '+' : '-';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${item.amount}</span></div>`;
-            } else if (item.type === 'task') {
-                const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; 
-                let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); 
-                let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-            } else if (item.type === 'quiz') {
-                const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; 
-                let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); 
-                let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
-            } else if (item.type === 'system') {
-                const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
-            }
-            
-            html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
-        });
-        
-        list.innerHTML = html;
-    } catch (err) {
-        console.error("Error in renderUnifiedFeed:", err);
-    }
+        html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
+    });
+    list.innerHTML = html;
 }
 
 function renderCashflow() {
@@ -2270,895 +1758,5 @@ async function submitForgotCode() {
         btn.disabled = false;
         btn.innerText = 'שלח קוד';
     }
-}
-// ============================================================
-// --- מודול הקהילה והעסקים המקומיים ---
-// ============================================================
-
-async function fetchCommunityData() {
-    if(!currentGroup || currentGroup.type !== 'FAMILY') return;
-    try {
-        const res = await fetch(`${API}/community/businesses/${currentGroup.id}`);
-        const data = await res.json();
-        
-        if (data.success && data.community) {
-            // מחוברים לקהילה
-            getEl('community-join-section').classList.add('hidden');
-            getEl('community-businesses-section').classList.remove('hidden');
-            getEl('community-name-display').innerText = data.community.name;
-            renderCommunityBusinesses(data.businesses);
-        } else {
-            // לא מחוברים
-            getEl('community-join-section').classList.remove('hidden');
-            getEl('community-businesses-section').classList.add('hidden');
-        }
-    } catch(e) { console.error('Error fetching community data', e); }
-}
-function renderFamilyCommunities(businesses) {
-    const container = document.getElementById('community-list-container');
-    if (!container) return;
-
-    if (!currentGroup || !currentGroup.community_id) {
-        container.innerHTML = `
-            <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6">
-                <div class="relative z-10">
-                    <h3 class="font-bold text-indigo-900 mb-1">הקהילה שלי</h3>
-                    <p class="text-xs text-indigo-700 opacity-80">בקשו ממנהל הסביבה (האדמין הראשי) לחבר אתכם לקהילה מקומית כדי לקבל כאן הטבות שוות!</p>
-                </div>
-                <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-7xl text-indigo-200 opacity-30 rotate-12"></i>
-            </div>
-        `;
-        return;
-    }
-
-    if (!businesses || businesses.length === 0) {
-        container.innerHTML = `
-            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center mb-6">
-                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
-                    <i class="fa-solid fa-shop text-2xl"></i>
-                </div>
-                <h3 class="font-bold text-slate-800 mb-1">הקהילה שלכם מתגבשת</h3>
-                <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
-            </div>
-        `;
-        return;
-    }
-
-    let html = `
-    <div class="mb-6">
-        <div class="flex items-center justify-between mb-4 px-1">
-            <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                <i class="fa-solid fa-users-rays text-indigo-500"></i>
-                עסקי הקהילה שלנו
-            </h2>
-        </div>
-        <div class="space-y-3">
-    `;
-
-    businesses.forEach(biz => {
-        html += `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-indigo-100 transition-colors">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-inner">
-                    <i class="fa-solid fa-shop"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(biz.business_name)}</h4>
-                    <p class="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                        ${biz.discount_pct}% הנחת קהילה
-                    </p>
-                </div>
-            </div>
-            <a href="storefront.html?code=${biz.group_code}&communityId=${currentGroup.community_id}" 
-               class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm">
-                לחנות
-            </a>
-        </div>`;
-    });
-
-    html += `</div></div>`;
-    container.innerHTML = html;
-}
-function renderCommunityBusinesses(businesses) {
-    const list = getEl('community-businesses-list');
-    if (!businesses || businesses.length === 0) {
-        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200">טרם צורפו עסקים לקהילה זו.</p>';
-        return;
-    }
-    
-    let html = '';
-    businesses.forEach(b => {
-        const imgHtml = b.logo_url ? `<img src="${b.logo_url}" class="w-14 h-14 rounded-xl object-cover shadow-sm shrink-0 border border-slate-100">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shadow-sm shrink-0 border border-slate-100"><i class="fa-solid fa-store text-xl"></i></div>`;
-        const discountBadge = b.discount_pct > 0 ? `<div class="bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block border border-green-200">הנחת קהילה: ${b.discount_pct}%</div>` : '';
-        
-        // התיקון כאן: שליחת הפרמטר המדויק שהחנות מחפשת (communityId)
-        const storeLink = `${window.location.origin}/storefront.html?store=${b.group_code}&communityId=${currentGroup.community_id}`;
-
-        html += `
-        <a href="${storeLink}" target="_blank" class="block bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex items-center gap-3 fade-in group">
-            ${imgHtml}
-            <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition">${safeStr(b.business_name)}</h4>
-                <p class="text-[10px] text-slate-500 truncate">${safeStr(b.slogan || 'היכנסו לחנות המקומית')}</p>
-                ${discountBadge}
-            </div>
-            <i class="fa-solid fa-chevron-left text-slate-300 group-hover:text-indigo-400 transition text-sm ml-2"></i>
-        </a>`;
-    });
-    list.innerHTML = html;
-}
-
-async function joinCommunity() {
-    const code = getEl('community-code-input').value;
-    if(!code) return showToast('error', 'יש להזין קוד קהילה');
-    
-    const btn = getEl('btn-join-community'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    try {
-        const res = await fetch(`${API}/community/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, code })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', `התחברתם בהצלחה לקהילת: ${data.community.name}`);
-            fetchCommunityData();
-        } else { showToast('error', data.error || 'שגיאה בחיבור'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerHTML = 'התחבר'; }
-}
-
-// עדכון פונקציית מעבר הטאבים באפליקציית המשפחה כדי שתטען את הקהילה
-const familyOriginalSwitchTab = window.switchTab;
-if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
-    window.switchTab = function(tabId) {
-        familyOriginalSwitchTab(tabId);
-        if (tabId === 'community') fetchCommunityData();
-    };
-    window.familySwitchTabOverridden = true;
-}
-// --- התנתקות מקהילה (משפחות) ---
-async function leaveCommunity() {
-    if(!confirm('האם אתם בטוחים שברצונכם להתנתק מהקהילה? לא תוכלו להנות יותר מההטבות המקומיות.')) return;
-    
-    try {
-        // שולחים בקשה לשרת לעדכן את קוד הקהילה לריק (ניתוק)
-        const res = await fetch(`${API}/groups/${currentGroup.id}/community`, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': token 
-            },
-            body: JSON.stringify({ communityCode: null }) 
-        });
-        
-        const data = await res.json();
-        
-        if(data.success) {
-            showToast('success', 'התנתקתם מהקהילה בהצלחה');
-            currentGroup.community_id = null; // עדכון הסטייט המקומי
-            
-            // עדכון הממשק
-            getEl('community-businesses-section').classList.add('hidden');
-            getEl('community-join-section').classList.remove('hidden');
-            getEl('community-code-input').value = '';
-            getEl('community-businesses-list').innerHTML = '';
-        } else {
-            showToast('error', data.error || 'אירעה שגיאה בניתוק מהקהילה');
-        }
-    } catch (e) {
-        console.error("Error leaving community:", e);
-        showToast('error', 'שגיאת תקשורת מול השרת');
-    }
-}
-
-// ============================================================
-// --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
-// ============================================================
-
-let saCommunitiesCache = [];
-let saBusinessesCache = [];
-let saBizConnectionsCache = []; // שומר את כל החיבורים בין עסק לקהילה
-let currentCommFamiliesCache = []; 
-
-// מנגנון תגיות ערים
-let createCityTags = [];
-let editCityTags = [];
-
-function updateCityTagsDisplay(type) {
-    const tagsArr = type === 'create' ? createCityTags : editCityTags;
-    const container = getEl(type === 'create' ? 'sa-comm-city-tags' : 'sa-edit-comm-city-tags');
-    const dataInput = getEl(type === 'create' ? 'sa-comm-city-data' : 'sa-edit-comm-city-data');
-    if (!container || !dataInput) return;
-
-    if (tagsArr.length === 0) {
-        container.innerHTML = '<p class="text-[10px] text-slate-400 w-full text-center my-auto">לא נבחרו ערים. חובה לבחור לפחות עיר אחת.</p>';
-        dataInput.value = '';
-        return;
-    }
-
-    container.innerHTML = tagsArr.map((city, index) => `
-        <div class="bg-orange-100 text-orange-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border border-orange-200 shadow-sm animate-bounce-in">
-            ${city}
-            <button onclick="removeCityTag('${type}', ${index})" class="text-orange-500 hover:text-red-500 transition focus:outline-none"><i class="fa-solid fa-times"></i></button>
-        </div>
-    `).join('');
-    dataInput.value = tagsArr.join(', ');
-}
-
-function addCityTag(type) {
-    const input = getEl(type === 'create' ? 'sa-comm-city-input' : 'sa-edit-comm-city-input');
-    if (!input) return;
-    const val = input.value.trim();
-    if (!val) return;
-
-    const tagsArr = type === 'create' ? createCityTags : editCityTags;
-    if (!tagsArr.includes(val)) {
-        tagsArr.push(val);
-        updateCityTagsDisplay(type);
-    }
-    input.value = '';
-}
-
-// המרת תמונה לקהילה
-function handleCommImageUpload(event, type) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width; let height = img.height;
-            const maxSize = 600; // נקטין קצת כדי לחסוך מקום בשרת
-            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
-            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
-            canvas.width = width; canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            const base64 = canvas.toDataURL('image/jpeg', 0.8);
-            
-            if (type === 'create') {
-                getEl('sa-comm-image-base64').value = base64;
-                getEl('sa-comm-img-preview').src = base64;
-                getEl('sa-comm-img-preview-container').classList.remove('hidden');
-            } else {
-                getEl('sa-edit-comm-image-base64').value = base64;
-                getEl('sa-edit-comm-img-preview').src = base64;
-                getEl('sa-edit-comm-img-preview').classList.remove('hidden');
-                const placeholder = getEl('sa-edit-comm-img-placeholder');
-                if(placeholder) placeholder.classList.add('hidden');
-            }
-        };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-}
-
-function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users', 'biz'].forEach(t => {
-        const view = document.getElementById(`sa-view-${t}`);
-        const btn = document.getElementById(`btn-sa-tab-${t}`);
-        if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition';
-    });
-    
-    const activeView = document.getElementById(`sa-view-${tabId}`);
-    const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
-    if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
-}
-
-async function loadSACommunityData() {
-    try {
-        const tbody = getEl('sa-communities-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מפענח נתוני קהילות...</td></tr>`;
-
-        // 1. קהילות
-        try {
-            const commRes = await fetch(`${API}/sa/communities`, { headers: { 'Authorization': saToken || '' } });
-            const commData = await commRes.json();
-            
-            if(commData.success) {
-                saCommunitiesCache = commData.communities || [];
-                
-                const totalCommunities = saCommunitiesCache.length;
-                const totalCommMembers = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.family_count || 0), 0);
-                
-                // סכימה של סך כל החיבורים המאושרים מתוך הקהילות ששלפנו!
-                const totalApprovedConnections = saCommunitiesCache.reduce((sum, c) => sum + parseInt(c.business_count || 0), 0);
-
-                if (getEl('sa-stat-communities')) getEl('sa-stat-communities').innerText = totalCommunities;
-                if (getEl('sa-stat-community-members')) getEl('sa-stat-community-members').innerText = totalCommMembers;
-                // עדכון הקובייה ה-6
-                if (getEl('sa-stat-connections')) getEl('sa-stat-connections').innerText = totalApprovedConnections;
-
-                if(typeof filterSACommSelect === 'function') filterSACommSelect();
-                renderSACommunitiesTable();
-            } else {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500 bg-red-50 rounded-xl">שגיאת שרת: ${commData.error}</td></tr>`;
-            }
-        } catch(e) { 
-            if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת בטעינת קהילות</td></tr>`;
-        }
-
-        // 2. עסקים
-        try {
-            let bizRes = await fetch(`${API}/sa/businesses`, { headers: { 'Authorization': saToken || '' } });
-            if (!bizRes.ok) bizRes = await fetch(`${API}/store/coupons/all`); 
-            
-            if (bizRes.ok) {
-                const bizData = await bizRes.json();
-                if(bizData.success) {
-                    saBusinessesCache = bizData.businesses || [];
-                    if(typeof filterSABizSelect === 'function') filterSABizSelect();
-                    renderSABusinessesTable();
-                }
-            }
-        } catch(e) {}
-
-        // 3. בקשות ממתינות לאישור
-        loadSAPendingRequests();
-
-    } catch(e) { console.error('General error in loadSACommunityData:', e); }
-}
-
-// -- חיפוש חכם (Live Search) שיוך עסקים לקהילות (דרישה 4) --
-
-function handleSmartCommSearch() {
-    const input = getEl('sa-smart-comm-search');
-    const resultsContainer = getEl('sa-smart-comm-results');
-    const query = input.value.toLowerCase().trim();
-    
-    if (!query) {
-        resultsContainer.classList.add('hidden');
-        return;
-    }
-
-    const filtered = saCommunitiesCache.filter(c => 
-        (c.name && c.name.toLowerCase().includes(query)) || 
-        (c.city && c.city.toLowerCase().includes(query)) ||
-        (String(c.family_count) === query)
-    ).slice(0, 10); // מציג עד 10 תוצאות
-
-    if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו קהילות תואמות.</div>';
-    } else {
-        resultsContainer.innerHTML = filtered.map(c => `
-            <div onclick="selectSmartComm(${c.id}, '${safeStr(c.name)}')" class="p-3 border-b border-slate-100 hover:bg-indigo-50 cursor-pointer transition">
-                <div class="font-bold text-slate-800 text-sm flex justify-between">
-                    <span>${safeStr(c.name)}</span>
-                    <span class="text-[10px] bg-slate-100 text-slate-500 px-2 rounded-full flex items-center gap-1"><i class="fa-solid fa-house"></i> ${c.family_count || 0} משפחות</span>
-                </div>
-                <div class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-location-dot text-indigo-400"></i> אזורים: ${safeStr(c.city || 'כללי')}</div>
-            </div>
-        `).join('');
-    }
-    resultsContainer.classList.remove('hidden');
-}
-
-function selectSmartComm(id, name) {
-    getEl('sa-link-comm').value = id;
-    getEl('sa-smart-comm-search').value = '';
-    getEl('sa-smart-comm-search').classList.add('hidden');
-    getEl('sa-smart-comm-results').classList.add('hidden');
-    
-    const display = getEl('sa-selected-comm-display');
-    display.querySelector('span').innerText = `קהילה נבחרה: ${name}`;
-    display.classList.remove('hidden');
-    
-    loadCommunityBusinesses(); // מרנדר את העסקים המחוברים לקהילה זו למטה
-}
-
-function clearSmartCommSelection() {
-    getEl('sa-link-comm').value = '';
-    getEl('sa-selected-comm-display').classList.add('hidden');
-    const searchInput = getEl('sa-smart-comm-search');
-    searchInput.classList.remove('hidden');
-    searchInput.focus();
-    getEl('sa-comm-biz-list').innerHTML = 'יש לבחור קהילה ממעל';
-}
-
-function handleSmartBizSearch() {
-    const input = getEl('sa-smart-biz-search');
-    const resultsContainer = getEl('sa-smart-biz-results');
-    const query = input.value.toLowerCase().trim();
-    
-    if (!query) {
-        resultsContainer.classList.add('hidden');
-        return;
-    }
-
-    const filtered = saBusinessesCache.filter(b => 
-        (b.name && b.name.toLowerCase().includes(query)) ||
-        (b.store_type && b.store_type.toLowerCase().includes(query)) // (בהנחה שנוסיף סוג בהמשך, כרגע סינון רגיל)
-    ).slice(0, 10);
-
-    if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="p-3 text-sm text-slate-500 text-center">לא נמצאו עסקים תואמים.</div>';
-    } else {
-        resultsContainer.innerHTML = filtered.map(b => `
-            <div onclick="selectSmartBiz(${b.id}, '${safeStr(b.name)}')" class="p-3 border-b border-slate-100 hover:bg-emerald-50 cursor-pointer transition">
-                <div class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-store text-emerald-500"></i> ${safeStr(b.name)}</div>
-            </div>
-        `).join('');
-    }
-    resultsContainer.classList.remove('hidden');
-}
-
-function selectSmartBiz(id, name) {
-    getEl('sa-link-biz').value = id;
-    getEl('sa-smart-biz-search').value = '';
-    getEl('sa-smart-biz-search').classList.add('hidden');
-    getEl('sa-smart-biz-results').classList.add('hidden');
-    
-    const display = getEl('sa-selected-biz-display');
-    display.querySelector('span').innerText = `עסק נבחר: ${name}`;
-    display.classList.remove('hidden');
-}
-
-function clearSmartBizSelection() {
-    getEl('sa-link-biz').value = '';
-    getEl('sa-selected-biz-display').classList.add('hidden');
-    const searchInput = getEl('sa-smart-biz-search');
-    searchInput.classList.remove('hidden');
-    searchInput.focus();
-}
-
-// -- טיפול בבקשות ממתינות --
-async function loadSAPendingRequests() {
-    const container = getEl('sa-pending-biz-container');
-    const list = getEl('sa-pending-biz-list');
-    if(!container || !list) return;
-
-    try {
-        const res = await fetch(`${API}/sa/communities/pending-businesses`);
-        const data = await res.json();
-        
-        if (data.success && data.pending && data.pending.length > 0) {
-            container.classList.remove('hidden');
-            list.innerHTML = data.pending.map(p => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
-                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה לחברי הקהילה</p>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition shadow-sm border border-slate-700"><i class="fa-solid fa-check mr-1"></i> אשר וצרף</button>
-                        <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition shadow-sm border border-red-100"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            container.classList.add('hidden');
-        }
-    } catch(e) { console.error('Error loading pending requests', e); }
-}
-
-async function approveSABizRequest(communityId, businessId) {
-    if(!confirm('האם לאשר את הצטרפות העסק לקהילה? הלקוחות יראו אותו מיד.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
-        if((await res.json()).success) { showToast('success', 'העסק אושר וצורף לקהילה!'); loadSACommunityData(); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function rejectSABizRequest(communityId, businessId) {
-    if(!confirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
-        if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-// -- טבלת קהילות כולל עיר --
-function renderSACommunitiesTable() {
-    const tbody = getEl('sa-communities-table-body');
-    if (!tbody) return;
-    
-    const query = getEl('sa-search-comm') ? getEl('sa-search-comm').value.toLowerCase() : '';
-    const countFilter = getEl('sa-filter-comm-count') ? getEl('sa-filter-comm-count').value : 'all';
-    const multiFilter = getEl('sa-filter-comm-multi') ? getEl('sa-filter-comm-multi').checked : false; 
-    
-    let filtered = [...saCommunitiesCache];
-    
-    if (query) {
-        filtered = filtered.filter(c => 
-            (c.name && c.name.toLowerCase().includes(query)) || 
-            (c.code && c.code.toLowerCase().includes(query)) ||
-            (c.city && c.city.toLowerCase().includes(query))
-        );
-    }
-    
-    if (countFilter === 'with_families') {
-        filtered = filtered.filter(c => parseInt(c.family_count || 0) > 0);
-    } else if (countFilter === 'empty') {
-        filtered = filtered.filter(c => parseInt(c.family_count || 0) === 0);
-    } else if (countFilter === 'sort_desc') {
-        filtered.sort((a, b) => parseInt(b.family_count || 0) - parseInt(a.family_count || 0));
-    }
-
-    if (multiFilter) {
-        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
-    }
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">לא נמצאו קהילות שמתאימות לסינון.</td></tr>`;
-        return;
-    }
-    
-    tbody.innerHTML = filtered.map(c => `
-        <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right flex items-center gap-3">
-                ${c.image_url ? `<img src="${c.image_url}" class="w-8 h-8 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-users"></i></div>`}
-                <div>
-                    ${safeStr(c.name || 'ללא שם')}
-                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">
-                        ${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}
-                    </div>
-                </div>
-            </td>
-            <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest text-right">${safeStr(c.code || '---')}</td>
-            <td class="px-4 py-4 text-right">
-                <div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div>
-                <div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password || '---')}</div>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="משפחות מחוברות"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0} משפחות</span>
-                <span class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="נפשות / משתמשים"><i class="fa-solid fa-user text-[10px]"></i> ${c.users_count || 0} משתמשים</span>
-                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1" title="עסקים"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0}</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> מחיקה וניהול</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function filterSACommunities() { renderSACommunitiesTable(); }
-
-async function openSACommunityModal(id) {
-    const comm = saCommunitiesCache.find(c => c.id == id);
-    if(!comm) return;
-    
-    getEl('sa-edit-comm-id').value = comm.id;
-    getEl('sa-edit-comm-title').innerText = comm.name;
-    getEl('sa-edit-comm-name').value = comm.name;
-    getEl('sa-edit-comm-code').value = comm.code;
-    getEl('sa-edit-comm-email').value = comm.manager_email;
-    getEl('sa-edit-comm-pass').value = comm.manager_password;
-    
-    editCityTags = comm.city ? comm.city.split(',').map(c => c.trim()).filter(c => c) : [];
-    updateCityTagsDisplay('edit');
-
-    getEl('sa-edit-comm-image-base64').value = '';
-    const imgPreview = getEl('sa-edit-comm-img-preview');
-    const placeholder = getEl('sa-edit-comm-img-placeholder');
-    if (comm.image_url) {
-        imgPreview.src = comm.image_url;
-        imgPreview.classList.remove('hidden');
-        if(placeholder) placeholder.classList.add('hidden');
-    } else {
-        imgPreview.src = '';
-        imgPreview.classList.add('hidden');
-        if(placeholder) placeholder.classList.remove('hidden');
-    }
-    
-    getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0;
-    getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
-    
-    const searchInput = getEl('sa-search-comm-fam');
-    if (searchInput) searchInput.value = '';
-    
-    const famList = getEl('sa-edit-comm-families');
-    const bizList = getEl('sa-edit-comm-businesses');
-    famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
-    bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
-    
-    getEl('sa-community-modal').classList.remove('hidden');
-    
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}/details`);
-        const data = await res.json();
-        if(data.success) {
-            currentCommFamiliesCache = data.families || [];
-            renderSACommFamilies();
-            
-            if(data.businesses.length === 0) {
-                bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>';
-            } else {
-                bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join('');
-            }
-        }
-    } catch(e) {
-        famList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
-        bizList.innerHTML = '<p class="text-xs text-red-400 p-2">שגיאה בטעינה</p>';
-    }
-}
-
-function renderSACommFamilies(query = '') {
-    const famList = getEl('sa-edit-comm-families');
-    if (!famList) return;
-    
-    let filtered = currentCommFamiliesCache;
-    if (query) {
-        const q = query.toLowerCase();
-        filtered = currentCommFamiliesCache.filter(f => 
-            (f.name && f.name.toLowerCase().includes(q)) || 
-            (f.group_code && f.group_code.toLowerCase().includes(q))
-        );
-    }
-    
-    if (filtered.length === 0) {
-        famList.innerHTML = `<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">${query ? 'לא נמצאו משפחות תואמות לחיפוש' : 'אין משפחות מחוברות לקהילה זו.'}</p>`;
-        return;
-    }
-    
-    famList.innerHTML = filtered.map(f => {
-        const usersHtml = f.users && f.users.length > 0
-            ? f.users.map(u => `<div class="text-[10px] text-slate-500 pl-2 pr-1 py-1.5 border-t border-slate-100 flex justify-between bg-slate-50/50 hover:bg-slate-100 transition"><span><i class="fa-solid ${u.role === 'ADMIN' ? 'fa-user-tie text-blue-400' : 'fa-user text-slate-400'} ml-1"></i> ${safeStr(u.nickname)}</span><span class="bg-white px-1.5 rounded shadow-sm">${u.role === 'ADMIN' ? 'מנהל/הורה' : 'חבר/ילד'}</span></div>`).join('')
-            : '<div class="text-[10px] text-slate-400 pl-2 py-1.5 border-t border-slate-100 bg-slate-50/50">אין משתמשים פנימיים.</div>';
-
-        return `
-        <div class="bg-white rounded-lg border border-slate-200 mb-1.5 overflow-hidden shadow-sm">
-            <div class="p-2.5 text-xs flex justify-between items-center cursor-pointer hover:bg-blue-50 transition group" onclick="document.getElementById('sa-comm-fam-${f.id}').classList.toggle('hidden')">
-                <div class="font-bold text-slate-700 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-slate-300 group-hover:text-blue-400 transition"></i> ${safeStr(f.name)}
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">קוד: ${safeStr(f.group_code || '---')}</span>
-                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
-                </div>
-            </div>
-            <div id="sa-comm-fam-${f.id}" class="hidden flex flex-col">
-                ${usersHtml}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function filterSACommFamilies() {
-    const query = getEl('sa-search-comm-fam') ? getEl('sa-search-comm-fam').value : '';
-    renderSACommFamilies(query);
-}
-
-async function saveSACommunityEdit() {
-    const id = val('sa-edit-comm-id');
-    const name = val('sa-edit-comm-name');
-    const code = val('sa-edit-comm-code');
-    const email = val('sa-edit-comm-email');
-    const pass = val('sa-edit-comm-pass');
-    const cityData = val('sa-edit-comm-city-data'); 
-    const imageUrl = val('sa-edit-comm-image-base64'); // משיכת התמונה אם עודכנה
-    
-    if(!name || !code) return showToast('error', 'שם וקוד חובה');
-    if(!cityData) return showToast('error', 'חובה להגדיר לפחות אזור גאוגרפי אחד לקהילה');
-
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl}) });
-        if((await res.json()).success) {
-            showToast('success', 'הקהילה עודכנה בהצלחה!');
-            getEl('sa-community-modal').classList.add('hidden');
-            loadSACommunityData();
-        } else showToast('error', 'שגיאה בעדכון הקהילה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function deleteSACommunity() {
-    const id = val('sa-edit-comm-id');
-    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
-    try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
-        if((await res.json()).success) {
-            showToast('success', 'הקהילה נמחקה לחלוטין!');
-            getEl('sa-community-modal').classList.add('hidden');
-            loadSACommunityData();
-        } else showToast('error', 'שגיאה במחיקת הקהילה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function createSACommunity() {
-    const name = val('sa-comm-name'); 
-    const code = val('sa-comm-code'); 
-    const email = val('sa-comm-email'); 
-    const pass = val('sa-comm-pass');
-    const cityData = val('sa-comm-city-data'); 
-    const imageUrl = val('sa-comm-image-base64'); // משיכת התמונה
-    
-    if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
-    
-    const btn = document.querySelector('button[onclick="createSACommunity()"]');
-    if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
-    
-    try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl})});
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'קהילה הוקמה בהצלחה!'); 
-            getEl('sa-comm-name').value=''; getEl('sa-comm-city-input').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; 
-            getEl('sa-comm-image-base64').value=''; const prevCont = getEl('sa-comm-img-preview-container'); if(prevCont) prevCont.classList.add('hidden');
-            createCityTags = []; updateCityTagsDisplay('create');
-            loadSACommunityData(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה ביצירת הקהילה'); 
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    } finally {
-        if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; }
-    }
-}
-
-async function linkBizToCommunity() {
-    const communityId = val('sa-link-comm'); 
-    const businessId = val('sa-link-biz'); 
-    let discountPct = val('sa-link-discount');
-    discountPct = discountPct ? parseFloat(discountPct) : 0;
-    
-    if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
-    
-    try {
-        const res = await fetch(`${API}/sa/community-business`, { 
-            method: 'POST', 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('saToken') || '')
-            }, 
-            body: JSON.stringify({ communityId, businessId, discountPct })
-        });
-        
-        const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'העסק שויך לקהילה!'); 
-            if(typeof loadCommunityBusinesses === 'function') loadCommunityBusinesses(); 
-            if(typeof loadSACommunityData === 'function') loadSACommunityData(); 
-            if(typeof clearSmartBizSelection === 'function') clearSmartBizSelection(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בחיבור העסק'); 
-        }
-    } catch(e) { 
-        console.error('Network Error linking biz:', e);
-        showToast('error', 'שגיאת תקשורת מול השרת'); 
-    }
-}
-
-async function loadCommunityBusinesses() {
-    const communityId = val('sa-link-comm');
-    const list = getEl('sa-comm-biz-list');
-    if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
-    
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
-    try {
-        const res = await fetch(`${API}/sa/community-business/${communityId}`);
-        const data = await res.json();
-        if(data.success) {
-            if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
-            list.innerHTML = data.connections.map(c => `
-                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-700">${safeStr(c.business_name)} <span class="text-green-700 bg-green-100 px-1.5 py-0.5 rounded ml-1 text-[10px]">${c.discount_pct}% הנחה</span><span class="text-slate-400 text-[10px] pr-2">(${c.status === 'approved' ? 'אושר' : 'ממתין'})</span></span>
-                    <button onclick="removeBizFromCommunity(${c.community_id}, ${c.business_id})" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center transition bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
-                </div>
-            `).join('');
-        }
-    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינת עסקים</p>'; }
-}
-
-async function removeBizFromCommunity(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יקבלו יותר את ההנחה של העסק הזה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה.'); loadCommunityBusinesses(); loadSACommunityData(); }
-    } catch(e) {}
-}
-
-// -- ניהול עסקים כולל (דרישה 5) --
-function renderSABusinessesTable() {
-    const tbody = getEl('sa-businesses-table-body');
-    if (!tbody) return;
-
-    const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
-    let filtered = [...saBusinessesCache];
-    
-    if (query) {
-        filtered = filtered.filter(b => 
-            (b.name && b.name.toLowerCase().includes(query)) || 
-            (b.group_code && b.group_code.toLowerCase().includes(query))
-        );
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
-        return;
-    }
-
-    // מאחר ואין לנו Endpoint שמחזיר את כל החיבורים יחד, נצטרך לעשות Fetch פר עסק בעת פתיחת המודאל.
-    // בטבלה נציג נתונים כלליים ונגישות לחלון הניהול
-    tbody.innerHTML = filtered.map(b => `
-        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">
-                ${safeStr(b.name)}
-                <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div>
-            </td>
-            <td class="px-4 py-4 text-right">
-                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span>
-            </td>
-            <td class="px-4 py-4 text-center">
-                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function filterSABusinessesTable() { renderSABusinessesTable(); }
-
-async function openSABusinessModal(bizId) {
-    const biz = saBusinessesCache.find(b => b.id == bizId);
-    if (!biz) return;
-    
-    getEl('sa-edit-biz-title').innerText = biz.name;
-    getEl('sa-edit-biz-code').innerText = biz.group_code;
-    
-    const list = getEl('sa-edit-biz-communities-list');
-    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
-    
-    getEl('sa-business-modal').classList.remove('hidden');
-
-    try {
-        // מכיוון שאנחנו כאדמין ראשי, יש לנו גישה לנתיב החיבורים של העסק (Biz App route)
-        const res = await fetch(`${API}/biz/communities/my/${bizId}`);
-        const data = await res.json();
-        
-        if (data.success && data.communities) {
-            if (data.communities.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>';
-            } else {
-                list.innerHTML = data.communities.map(c => `
-                    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center mb-2">
-                        <div>
-                            <span class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</span>
-                            <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות | <span class="font-bold text-green-600">${c.discount_pct}% הנחה</span></p>
-                        </div>
-                        <div class="flex flex-col items-end gap-2">
-                            <span class="text-[10px] ${c.status === 'approved' ? 'text-green-600 bg-green-50' : 'text-orange-500 bg-orange-50'} px-2 py-0.5 rounded font-bold">${c.status === 'approved' ? 'מחובר ופעיל' : 'ממתין לאישור'}</span>
-                            <button onclick="removeBizFromCommunityInModal(${c.id}, ${bizId})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition"><i class="fa-solid fa-trash"></i> נתק עסק</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-    } catch(e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינת נתונים</p>';
-    }
-}
-
-async function removeBizFromCommunityInModal(commId, bizId) {
-    if(!confirm('להסיר את העסק מהקהילה? הלקוחות לא יראו יותר את ההנחה.')) return;
-    try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
-        if((await res.json()).success) { 
-            showToast('success', 'העסק נותק מהקהילה בהצלחה.'); 
-            openSABusinessModal(bizId); // טעינה מחדש של החלון
-            loadSACommunityData(); // רענון נתוני הרקע
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-const originalLoadSADashboard = window.loadSADashboard;
-if(originalLoadSADashboard && !window.saCommLoaded) {
-    window.loadSADashboard = async function() {
-        const userDash = document.getElementById('dashboard-container');
-        if (userDash) userDash.classList.add('hidden');
-        
-        await originalLoadSADashboard();
-        loadSACommunityData();
-        
-        setTimeout(() => {
-            if (userDash) userDash.classList.add('hidden');
-        }, 100);
-    };
-    window.saCommLoaded = true;
 }
 // === סוף הקובץ ===
