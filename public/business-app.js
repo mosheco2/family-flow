@@ -3062,6 +3062,7 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
 function applyBannersToDOM(banners) {
     if (!banners) return;
 
+    // שליפת הנתונים עם תאימות לאחור לשמות משתנים
     const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText || banners.banner_top_text || '';
     const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink || banners.banner_top_link || '';
     const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg || banners.banner_top_img || '';
@@ -3070,59 +3071,52 @@ function applyBannersToDOM(banners) {
     const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
     const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
 
-    // מסתירים את האלמנטים המקוריים כדי שלא יפריעו
-    const oldTop = getEl('app-banner-top'); if (oldTop) oldTop.style.display = 'none';
-    const oldBottom = getEl('app-banner-bottom'); if (oldBottom) oldBottom.style.display = 'none';
-
-    // מוצאים את הקונטיינר הראשי של האפליקציה
-    const mainContainer = document.querySelector('.max-w-md.mx-auto.bg-slate-50') || document.body;
-
-    const renderDynamicBanner = (position, text, link, img) => {
-        if (!text && !img) return;
+    // בחירת האלמנטים מתוך business.html
+    const appTop = document.getElementById('app-banner-top'); 
+    const appBottom = document.getElementById('app-banner-bottom');
+    
+    const renderBanner = (el, text, link, img) => {
+        if(!el) return;
+        el.innerHTML = '';
         
-        const isTop = position === 'top';
-        const bannerId = `dynamic-biz-banner-${position}`;
+        // אם אין טקסט ואין תמונה - הסתר את הבאנר
+        if (!text && !img) {
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+            return;
+        }
         
-        // מחיקת באנר ישן אם קיים
-        let bannerEl = getEl(bannerId);
-        if (bannerEl) bannerEl.remove();
+        // יצירת מבנה פנימי (בלי מחלקות שמשנות פריסה חיצונית)
+        let innerHtml = `<div class="flex items-center justify-center gap-3 w-full px-4 py-2">`;
         
-        bannerEl = document.createElement('div');
-        bannerEl.id = bannerId;
+        if (img) {
+            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
+            innerHtml += `<img src="${imgSrc}" class="h-8 w-auto object-contain rounded">`;
+        }
         
-        // עיצוב תואם למשפחות - רקע לבן, שוליים עדינים, נשאר בתוך המסגרת
-        const posClass = isTop ? 'sticky top-0 z-[50] border-b border-slate-200' : 'fixed bottom-16 w-full max-w-md border-t border-slate-200 shadow-lg';
+        if (text) {
+            innerHtml += `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>`;
+        }
         
-        bannerEl.className = `w-full bg-white flex items-center justify-center cursor-pointer transition hover:bg-slate-50 py-2 px-4 gap-3 ${posClass}`;
+        innerHtml += `</div>`;
+        el.innerHTML = innerHtml;
         
-        const imgSrc = img ? ((img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`) : '';
-        
-        bannerEl.innerHTML = `
-            ${img ? `<img src="${imgSrc}" class="h-8 w-auto object-contain rounded">` : ''}
-            ${text ? `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>` : ''}
-        `;
-        
+        // הוספת לחיצות
         if (link) {
-            bannerEl.onclick = () => window.open(link, '_blank');
+            el.onclick = () => window.open(link, '_blank');
+            el.style.cursor = 'pointer';
+        } else {
+            el.onclick = null;
+            el.style.cursor = 'default';
         }
         
-        // הזרקה למיקום הנכון ב-DOM
-        if (isTop) {
-            // מכניס את הבאנר העליון ממש בתחילת האפליקציה (אחרי ההדר)
-            const header = mainContainer.querySelector('header');
-            if (header && header.nextSibling) {
-                mainContainer.insertBefore(bannerEl, header.nextSibling);
-            } else {
-                mainContainer.prepend(bannerEl);
-            }
-        } else {
-            // מכניס את הבאנר התחתון בסוף האפליקציה (לפני הניווט)
-            mainContainer.appendChild(bannerEl);
-        }
+        // הדלקת הבאנר
+        el.classList.remove('hidden');
+        el.classList.add('flex');
     };
 
-    renderDynamicBanner('top', topText, topLink, topImg);
-    renderDynamicBanner('bottom', bottomText, bottomLink, bottomImg);
+    renderBanner(appTop, topText, topLink, topImg);
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 
 async function fetchBanners() {
