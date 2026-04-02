@@ -129,69 +129,6 @@ async function saveAllBanners() {
         if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
-
-function applyBannersToDOM(banners) {
-    if (!banners) return;
-
-    // שליפת הנתונים מהמסד (תומך בכל הגרסאות של שמות המשתנים שלך)
-    const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText || banners.banner_top_text || '';
-    const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink || banners.banner_top_link || '';
-    const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg || banners.banner_top_img || '';
-
-    const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.bizBottomText || banners.banner_bottom_text || '';
-    const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
-    const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
-
-    // קריאה לפונקציה המתוקנת - במקום להעביר אלמנט DOM, אנו מעבירים מיקום ('top' / 'bottom')
-    renderBanner('top', topText, topLink, topImg);
-    renderBanner('bottom', bottomText, bottomLink, bottomImg);
-}
-
-function renderBanner(position, text, link, img) {
-    // אם אין טקסט ואין תמונה, אין סיבה לרנדר את הבאנר
-    if (!text && !img) return;
-
-    // זיהוי המיקום וקביעת מזהה ייחודי
-    const isTop = position === 'top';
-    const bannerId = `ofl-biz-banner-${position}`;
-
-    let bannerEl = document.getElementById(bannerId);
-
-    // יצירת הקונטיינר לבאנר אם הוא עדיין לא קיים ב-DOM
-    if (!bannerEl) {
-        bannerEl = document.createElement('div');
-        bannerEl.id = bannerId;
-
-        // שימוש ב-fixed כדי להבטיח שהבאנר תמיד בתוך המסך ולא נדחף החוצה
-        // הבאנר התחתון ימוקם מעל תפריט הניווט התחתון (מוגדר כ-bottom-16 כדי לפנות מקום לתפריט)
-        const positionClasses = isTop 
-            ? 'top-0 border-b border-slate-200' 
-            : 'bottom-16 md:bottom-0 border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]';
-            
-        bannerEl.className = `fixed left-0 right-0 w-full z-[9999] bg-white transition-all duration-300 ${positionClasses}`;
-        document.body.appendChild(bannerEl);
-
-        // דחיפת תוכן האפליקציה (Body) כדי שהבאנר העליון לא יסתיר את ה-Header
-        if (isTop) {
-            document.body.style.paddingTop = '45px';
-        }
-    }
-
-    // הזרקת התוכן לבאנר
-    bannerEl.innerHTML = `
-        <div class="w-full max-w-3xl mx-auto px-4 py-2 flex items-center justify-center gap-3 cursor-pointer hover:bg-slate-50 transition" onclick="${link ? `window.open('${link}', '_blank')` : 'return false;'}">
-            ${img ? `<img src="${img}" alt="Ad" class="h-8 w-auto object-contain rounded">` : ''}
-            ${text ? `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>` : ''}
-        </div>
-    `;
-}
-async function fetchBanners() {
-    try {
-        const cached = localStorage.getItem('ofl_banners_biz'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
-        const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_banners_biz', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
-    } catch(e) {}
-}
 async function loadSAData() {
     fetchBanners();
     try {
@@ -3122,53 +3059,56 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
 // --- מערכת הבאנרים לעסקים ---
 // ==========================================
 function applyBannersToDOM(banners) {
-    const appTop = document.getElementById('app-banner-top'); 
-    const appBottom = document.getElementById('app-banner-bottom');
-    
-    const renderBanner = (el, text, link, img) => {
-        if(!el) return;
-        el.innerHTML = '';
-        
-        if (!text && !img) {
-            el.classList.add('hidden');
-            el.classList.remove('flex');
-            return;
-        }
-        
-        if (img) {
-            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
-            el.innerHTML += `<img src="${imgSrc}" class="w-full object-cover block" style="max-height: 80px; flex-shrink: 0;">`;
-        }
-        
-        if (text) {
-            el.innerHTML += `<span class="py-2 px-4 block w-full text-center text-sm">${text}</span>`;
-        }
-        
-        if (link) {
-            el.href = link;
-            el.target = '_blank';
-            el.style.cursor = 'pointer';
-        } else {
-            el.removeAttribute('href');
-            el.removeAttribute('target');
-            el.style.cursor = 'default';
-        }
-        
-        el.classList.remove('hidden');
-        el.classList.add('flex');
-    };
+    if (!banners) return;
 
-    // כיסוי של כל מפתחות ה-API האפשריים מהשרת לעסקים
     const topText = banners.biz_banner_top_text || banners.business_ad_banner_text_top || banners.bizTopText || banners.banner_top_text || '';
     const topLink = banners.biz_banner_top_link || banners.business_ad_banner_link_top || banners.bizTopLink || banners.banner_top_link || '';
     const topImg = banners.biz_banner_top_img || banners.business_ad_banner_img_top || banners.bizTopImg || banners.banner_top_img || '';
-    
+
     const bottomText = banners.biz_banner_bottom_text || banners.business_ad_banner_text_bottom || banners.bizBottomText || banners.banner_bottom_text || '';
     const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
     const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
 
-    renderBanner(appTop, topText, topLink, topImg);
-    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
+    renderBanner('top', topText, topLink, topImg);
+    renderBanner('bottom', bottomText, bottomLink, bottomImg);
+}
+
+function renderBanner(position, text, link, img) {
+    if (!text && !img) return;
+
+    const isTop = position === 'top';
+    const bannerId = `ofl-biz-banner-${position}`;
+
+    let bannerEl = document.getElementById(bannerId);
+
+    if (!bannerEl) {
+        bannerEl = document.createElement('div');
+        bannerEl.id = bannerId;
+
+        // התיקון: bottom-[68px] כדי לא להסתיר את התפריט, ו- max-w-md למירכוז לפי האפליקציה
+        const positionClasses = isTop 
+            ? 'top-0 border-b border-slate-200' 
+            : 'bottom-[68px] border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]';
+            
+        bannerEl.className = `fixed left-1/2 -translate-x-1/2 w-full max-w-md z-[9999] bg-white transition-all duration-300 ${positionClasses}`;
+        
+        document.body.appendChild(bannerEl);
+
+        if (isTop) {
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.top = '45px'; 
+            }
+            document.body.style.paddingTop = '45px';
+        }
+    }
+
+    bannerEl.innerHTML = `
+        <div class="w-full px-4 py-2 flex items-center justify-center gap-3 cursor-pointer hover:bg-slate-50 transition" onclick="${link ? `window.open('${link}', '_blank')` : 'return false;'}">
+            ${img ? `<img src="${img}" alt="Ad" class="h-8 w-auto object-contain rounded">` : ''}
+            ${text ? `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>` : ''}
+        </div>
+    `;
 }
 
 async function fetchBanners() {
@@ -3184,7 +3124,5 @@ async function fetchBanners() {
             applyBannersToDOM(data.banners); 
         }
     } catch(e) { console.error("Error fetching banners:", e); }
-}
-    
 }
 // === סוף הקובץ ===
