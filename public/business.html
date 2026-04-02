@@ -639,29 +639,16 @@
                             <h3 class="font-bold text-slate-800 text-lg mb-2 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
                             <p class="text-xs text-slate-500 mb-4">בקשו להצטרף לקהילות אלו והציעו הנחה קבועה לחבריהן.</p>
                             
-<div class="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 items-end">
-                                <div class="flex-1 w-full">
-                                    <label class="text-xs font-bold text-slate-500 block mb-2"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i> בחירת עיר / יישוב:</label>
-                                    <input type="text" id="biz-filter-city" list="israel-cities" oninput="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-3 px-4 text-sm shadow-sm border-slate-200 w-full focus:border-blue-500" placeholder="הקלידו ובחרו עיר לחיפוש..." autocomplete="off">
-                                </div>
-                                <div class="flex-1 w-full">
-                                    <label class="text-xs font-bold text-slate-500 block mb-2"><i class="fa-solid fa-users text-blue-500 mr-1"></i> גודל הקהילה:</label>
-                                    <select id="biz-filter-size" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-3 px-4 text-sm shadow-sm bg-white border-slate-200 w-full focus:border-blue-500">
-                                        <option value="all">כל הגדלים (הצג הכל)</option>
-                                        <option value="10">מעל 10 משפחות</option>
-                                        <option value="50">מעל 50 משפחות</option>
-                                        <option value="100">מעל 100 משפחות</option>
-                                    </select>
-                                </div>
+                            <div class="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                <input type="text" id="biz-filter-city" list="israel-cities" oninput="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm" placeholder="סינון לפי עיר/יישוב..." autocomplete="off">
+                                <select id="biz-filter-size" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-2 text-xs flex-1 shadow-sm bg-white">
+                                    <option value="all">כל הגדלים</option>
+                                    <option value="10">מעל 10 משפחות</option>
+                                    <option value="50">מעל 50 משפחות</option>
+                                    <option value="100">מעל 100 משפחות</option>
+                                </select>
                             </div>
                             
-                            <div class="flex items-center mt-2 pl-2">
-                                <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-green-600 transition">
-                                    <input type="checkbox" id="biz-filter-multi" onchange="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="w-4 h-4 accent-green-500 rounded border-slate-300">
-                                    <span class="font-bold text-xs"><i class="fa-solid fa-map-location-dot ml-1"></i> פיזור מרובה (מחוברת ליותר מ-2 ערים)</span>
-                                </label>
-                            </div>
-                        </div>
                             <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
                         </div>
                     </div>
