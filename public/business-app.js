@@ -3055,6 +3055,7 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
     };
     window.saCommLoaded = true;
 } 
+
 // ==========================================
 // --- מערכת הבאנרים לעסקים ---
 // ==========================================
@@ -3070,46 +3071,51 @@ function applyBannersToDOM(banners) {
     const bottomLink = banners.biz_banner_bottom_link || banners.business_ad_banner_link_bottom || banners.bizBottomLink || banners.banner_bottom_link || '';
     const bottomImg = banners.biz_banner_bottom_img || banners.business_ad_banner_img_bottom || banners.bizBottomImg || banners.banner_bottom_img || '';
 
-    renderBanner('top', topText, topLink, topImg);
-    renderBanner('bottom', bottomText, bottomLink, bottomImg);
-}
-
-function renderBanner(position, text, link, img) {
-    if (!text && !img) return;
-
-    const isTop = position === 'top';
-    const bannerId = `ofl-biz-banner-${position}`;
-
-    let bannerEl = document.getElementById(bannerId);
-
-    if (!bannerEl) {
-        bannerEl = document.createElement('div');
-        bannerEl.id = bannerId;
-
-        // התיקון: bottom-[68px] כדי לא להסתיר את התפריט, ו- max-w-md למירכוז לפי האפליקציה
-        const positionClasses = isTop 
-            ? 'top-0 border-b border-slate-200' 
-            : 'bottom-[68px] border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]';
-            
-        bannerEl.className = `fixed left-1/2 -translate-x-1/2 w-full max-w-md z-[9999] bg-white transition-all duration-300 ${positionClasses}`;
+    // הפעם אנחנו מחפשים את האלמנטים המקוריים מתוך ה-HTML
+    const appTop = document.getElementById('app-banner-top'); 
+    const appBottom = document.getElementById('app-banner-bottom');
+    
+    // פונקציית רינדור פנימית פשוטה שמכניסה את התוכן לאלמנט הקיים
+    const renderBannerContent = (el, text, link, img) => {
+        if(!el) return;
+        el.innerHTML = '';
         
-        document.body.appendChild(bannerEl);
-
-        if (isTop) {
-            const header = document.querySelector('header');
-            if (header) {
-                header.style.top = '45px'; 
-            }
-            document.body.style.paddingTop = '45px';
+        if (!text && !img) {
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+            return;
         }
-    }
+        
+        // יצירת מבנה גמיש בתוך האלמנט הקיים
+        let contentHtml = `<div class="w-full px-4 py-2 flex items-center justify-center gap-3">`;
+        
+        if (img) {
+            const imgSrc = (img.startsWith('http') || img.startsWith('data:')) ? img : `/${img}`;
+            contentHtml += `<img src="${imgSrc}" class="h-8 w-auto object-contain rounded">`;
+        }
+        
+        if (text) {
+            contentHtml += `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>`;
+        }
+        
+        contentHtml += `</div>`;
+        el.innerHTML = contentHtml;
+        
+        // הגדרת הלינק על כל הדיב העוטף
+        if (link) {
+            el.onclick = () => window.open(link, '_blank');
+            el.style.cursor = 'pointer';
+        } else {
+            el.onclick = null;
+            el.style.cursor = 'default';
+        }
+        
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+    };
 
-    bannerEl.innerHTML = `
-        <div class="w-full px-4 py-2 flex items-center justify-center gap-3 cursor-pointer hover:bg-slate-50 transition" onclick="${link ? `window.open('${link}', '_blank')` : 'return false;'}">
-            ${img ? `<img src="${img}" alt="Ad" class="h-8 w-auto object-contain rounded">` : ''}
-            ${text ? `<span class="text-sm font-bold text-slate-800 text-center truncate">${text}</span>` : ''}
-        </div>
-    `;
+    renderBannerContent(appTop, topText, topLink, topImg);
+    renderBannerContent(appBottom, bottomText, bottomLink, bottomImg);
 }
 
 async function fetchBanners() {
