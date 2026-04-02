@@ -3040,7 +3040,6 @@ async function leaveBizCommunity(commId) {
         }
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
-
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
@@ -3055,9 +3054,11 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
         }, 100);
     };
     window.saCommLoaded = true;
+} 
 // ==========================================
 // --- מערכת הבאנרים לעסקים ---
 // ==========================================
+
 function applyBannersToDOM(banners) {
     if (!banners) return;
 
