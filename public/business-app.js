@@ -107,7 +107,36 @@ async function handleSALogin(e) {
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
 function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
+function applyBannersToDOM(banners) {
+    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
+    const renderBanner = (el, text, link, img) => {
+        if(!el) return;
+        if(text || img) { 
+            let html = ''; if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
+            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; 
+            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            el.classList.remove('hidden'); el.classList.add('flex'); 
+        } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+    };
+    // שימוש במפתחות הביזנס מהשרת
+    const topT = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.banner_top_text;
+    const topL = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.banner_top_link;
+    const topI = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.banner_top_img;
+    const botT = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.banner_bottom_text;
+    const botL = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.banner_bottom_link;
+    const botI = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.banner_bottom_img;
 
+    renderBanner(appTop, topT, topL, topI); 
+    renderBanner(appBottom, botT, botL, botI);
+}
+
+async function fetchBanners() {
+    try {
+        const cached = localStorage.getItem('ofl_biz_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
+        if(data.success && data.banners) { localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+    } catch(e) {}
+}
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
     if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
@@ -461,7 +490,10 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden');
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
 
-       if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+
+        // --- קריאה לבאנרים ---
+        try { fetchBanners(); } catch(e){}
 
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
