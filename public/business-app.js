@@ -134,18 +134,20 @@ function applyBannersToDOM(banners) {
             let html = ''; 
             if(img) { 
                 const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block" style="width: 100%; max-height: 80px;">`; 
+                html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block" style="width: 100%; max-height: 80px; border-radius: 12px;">`; 
             }
             if(text) {
-                html += `<div class="w-full text-center py-2.5 px-4 text-sm font-bold ${img ? 'absolute bottom-0 left-0 bg-slate-900/80 text-white' : 'block text-slate-800'}" style="width: 100%;">${text}</div>`; 
+                html += `<div class="w-full text-center py-2.5 px-4 text-sm font-bold ${img ? 'absolute bottom-0 left-0 bg-slate-900/80 text-white rounded-b-xl' : 'block text-slate-800 bg-slate-100 rounded-xl'}" style="width: 100%; box-sizing: border-box;">${text}</div>`; 
             }
             el.innerHTML = html; 
             el.href = link || '#'; 
             if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
             
-            el.classList.remove('hidden', 'flex'); 
-            el.classList.add('block', 'w-full', 'relative');
+            el.style.display = 'block';
             el.style.width = '100%';
+            el.style.position = 'relative';
+            el.classList.remove('hidden', 'flex'); 
+            el.classList.add('block', 'w-full', 'col-span-full', 'col-span-2');
         } else { 
             el.classList.add('hidden'); 
         }
@@ -162,7 +164,6 @@ function applyBannersToDOM(banners) {
     renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
-
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
