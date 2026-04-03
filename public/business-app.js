@@ -122,7 +122,6 @@ async function saveAllBanners() {
     try {
         const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
         const data = await res.json();
-        if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
@@ -420,21 +419,21 @@ async function loadDashboard() {
 
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
-        
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
+
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
-        
+
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
-        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
+        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
+        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname;
 
         const isAdmin = currentUser.role === 'ADMIN';
-        if(isAdmin) { 
+        if(isAdmin) {
             ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
-            
+
             const tcHeader = getEl('timeclock-admin-view');
             if(tcHeader && !getEl('tc-month-filter')) {
                 tcHeader.insertAdjacentHTML('afterbegin', `
@@ -447,34 +446,36 @@ async function loadDashboard() {
                     getEl('tc-month-filter').innerHTML += `<option value="${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}">${d.getMonth()+1}/${d.getFullYear()}</option>`;
                 }
             }
-        } else { 
+        } else {
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
-            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`; 
-            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`; 
+            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase();
+            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`;
+            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`;
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-            
+
             const tcUserHeader = getEl('timeclock-user-view');
             if(tcUserHeader && !getEl('btn-export-pdf-user')) {
                  tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
             }
         }
-        
-        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
-        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
-        try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
-        
-        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
-        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-        // הבטחה שהמסך הראשי יטען ויוצג לאחר שהכל מוכן
+        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
+        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden');
+        try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
+
+       if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+
+        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
+        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
+        try { await fetchData(); } catch(e){}
+        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+
         switchTab('feed');
 
-    } catch (e) {
-        console.error("Dashboard error:", e);
+    } catch (e) {
+        console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
