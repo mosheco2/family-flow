@@ -127,52 +127,44 @@ async function saveAllBanners() {
 }
 
 function applyBannersToDOM(banners) {
-    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
-    const renderBanner = (el, text, link, img) => {
-        if(!el) return;
-        if(text || img) { 
-            let html = ''; 
-            if(img) { 
-                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block" style="width: 100%; max-height: 80px; border-radius: 12px;">`; 
-            }
-            if(text) {
-                html += `<div class="w-full text-center py-2.5 px-4 text-sm font-bold ${img ? 'absolute bottom-0 left-0 bg-slate-900/80 text-white rounded-b-xl' : 'block text-slate-800 bg-slate-100 rounded-xl'}" style="width: 100%; box-sizing: border-box;">${text}</div>`; 
-            }
-            el.innerHTML = html; 
-            el.href = link || '#'; 
-            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
-            
-            // עיצוב אגרסיבי למתיחה מלאה ללא תלות באלמנט האב
-            el.style.display = 'block';
-            el.style.width = '100%';
-            el.style.position = 'relative';
-            // הוספת מרווחים (margin) כדי לשמור על האסתטיקה
-            el.style.marginBottom = '12px';
-            el.classList.remove('hidden', 'flex', 'col-span-full', 'col-span-2'); 
-            el.classList.add('block', 'w-full');
-        } else { 
-            el.classList.add('hidden'); 
-        }
-    };
+    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
+    const renderBanner = (el, text, link, img) => {
+        if(!el) return;
+        if(text || img) { 
+            let html = ''; 
+            if(img) { 
+                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                // התמונה מוגדרת כרקע (absolute) כדי שלא תתפוס את המקום של הטקסט
+                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover opacity-80 z-0">`; 
+            }
+            if(text) {
+                // הטקסט מוגדר מעל התמונה (z-10) 
+                html += `<span class="relative z-10 w-full text-center drop-shadow-md px-4 py-2">${text}</span>`; 
+            }
+            el.innerHTML = html; el.href = link || '#'; 
+            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            el.classList.remove('hidden'); el.classList.add('flex'); 
+        } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+    };
 
-    const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
-    const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
-    const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
+    // משיכת המפתחות (Keys) בצורה חכמה כדי לתמוך בפורמט של אזור עסקים
+    const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
+    const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
+    const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
 
-    const bottomText = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.biz_banner_bottom_text || banners.banner_bottom_text;
-    const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
-    const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
+    const bottomText = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.biz_banner_bottom_text || banners.banner_bottom_text;
+    const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
+    const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
 
-    renderBanner(appTop, topText, topLink, topImg); 
-    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
+    renderBanner(appTop, topText, topLink, topImg); 
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 async function fetchBanners() {
-    try {
-        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
-        const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
-    } catch(e) {}
+    try {
+        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
+        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+    } catch(e) {}
 }
 
 async function loadSAData() {
@@ -476,9 +468,6 @@ async function loadDashboard() {
         
         const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
-        
-        // --- התיקון: משיכת הבאנרים בעת טעינת המערכת ---
-        fetchBanners(); 
         
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
