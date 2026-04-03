@@ -450,6 +450,9 @@ async function loadDashboard() {
         const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
         
+        // --- התיקון: משיכת הבאנרים בעת טעינת המערכת ---
+        fetchBanners(); 
+        
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
