@@ -125,72 +125,6 @@ async function saveAllBanners() {
         if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
-
-function applyBannersToDOM(banners) {
-    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
-    const renderBanner = (el, text, link, img) => {
-        if(!el) return;
-        if(text || img) { 
-            let html = ''; 
-            if(img) { 
-                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                // תמונת הרקע הופכת לאבסולוטית כדי שלא תתפוס מקום בגריד/פלקס
-                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover opacity-60 z-0">`; 
-            }
-            if(text) {
-                // הטקסט מקבל relative כדי לצוף מעל התמונה
-                html += `<span class="relative z-10 py-3 px-4 block w-full text-center drop-shadow-md text-white">${text}</span>`; 
-            }
-            el.innerHTML = html; 
-            el.href = link || '#'; 
-            
-            if(!link) { 
-                el.removeAttribute('target'); 
-                el.style.cursor = 'default'; 
-            } else { 
-                el.target = '_blank'; 
-                el.style.cursor = 'pointer'; 
-            } 
-            
-            el.classList.remove('hidden'); 
-            el.classList.add('flex'); 
-        } else { 
-            el.classList.add('hidden'); 
-            el.classList.remove('flex'); 
-        }
-    };
-
-    // משיכת המפתחות (Keys) בצורה חכמה כדי לתמוך בפורמט של אזור עסקים מהשרת
-    const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
-    const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
-    const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
-
-    const bottomText = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.biz_banner_bottom_text || banners.banner_bottom_text;
-    const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
-    const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
-
-    renderBanner(appTop, topText, topLink, topImg); 
-    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
-}
-
-async function fetchBanners() {
-    try {
-        // שינוי שם המפתח ל- ofl_biz_banners
-        const cached = localStorage.getItem('ofl_biz_banners'); 
-        if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
-        
-        const res = await fetch(`${API}/banners?type=BUSINESS`); 
-        const data = await res.json();
-        
-        if(data.success && data.banners) { 
-            localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); 
-            applyBannersToDOM(data.banners); 
-        }
-    } catch(e) {}
-}
-async function loadSAData() {
-    fetchBanners();
-    try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
         
@@ -531,12 +465,6 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-       if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
-        
-        // --- קריאה לבאנרים בעליית הלוח של העסק ---
-        try { fetchBanners(); } catch(e){}
-
-        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
