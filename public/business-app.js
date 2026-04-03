@@ -118,16 +118,13 @@ async function updateSACredentials() {
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
-async function saveAllBanners() {
+async function loadSAData() {
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); 
         const data = await res.json();
-    } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
-}
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        
-        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+
+        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
         setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
         setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
         setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
