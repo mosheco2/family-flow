@@ -137,9 +137,19 @@ function applyBannersToDOM(banners) {
             el.classList.remove('hidden'); el.classList.add('flex'); 
         } else { el.classList.add('hidden'); el.classList.remove('flex'); }
     };
-    renderBanner(appTop, banners.biz_banner_top_text, banners.biz_banner_top_link, banners.biz_banner_top_img); renderBanner(appBottom, banners.biz_banner_bottom_text, banners.biz_banner_bottom_link, banners.biz_banner_bottom_img);
-}
 
+    // מנגנון חכם שמושך את הנתונים מכל פורמט אפשרי שהשרת עשוי לשלוח
+    const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
+    const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
+    const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
+
+    const bottomText = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.biz_banner_bottom_text || banners.banner_bottom_text;
+    const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
+    const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
+
+    renderBanner(appTop, topText, topLink, topImg); 
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
+}
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
