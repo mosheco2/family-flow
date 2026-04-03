@@ -175,12 +175,15 @@ function applyBannersToDOM(banners) {
 
 async function fetchBanners() {
     try {
-        const cached = localStorage.getItem('ofl_banners'); 
+        // שינוי שם המפתח ל- ofl_biz_banners
+        const cached = localStorage.getItem('ofl_biz_banners'); 
         if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        
         const res = await fetch(`${API}/banners?type=BUSINESS`); 
         const data = await res.json();
+        
         if(data.success && data.banners) { 
-            localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); 
+            localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); 
             applyBannersToDOM(data.banners); 
         }
     } catch(e) {}
@@ -529,15 +532,18 @@ async function loadDashboard() {
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
-        
-        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
-        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+        
+        // --- קריאה לבאנרים בעליית הלוח של העסק ---
+        try { fetchBanners(); } catch(e){}
 
-    } catch (e) {
-        console.error("Dashboard error:", e);
+        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
+        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
+        try { await fetchData(); } catch(e){}
+        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
+        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+
+    } catch (e) {
+        console.error("Dashboard error:", e);
     } finally {
         const preloader = document.getElementById('app-preloader'); 
         if (preloader) { 
