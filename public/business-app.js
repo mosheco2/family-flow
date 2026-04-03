@@ -531,16 +531,19 @@ async function loadDashboard() {
         const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
         
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
+       if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
         
-        // --- קריאה לבאנרים בעליית הלוח של העסק ---
-        try { fetchBanners(); } catch(e){}
+        // --- קריאה לבאנרים בעליית הלוח של העסק ---
+        try { fetchBanners(); } catch(e){}
 
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
+
+        // הבטחה שהמסך הראשי יטען ויוצג לאחר שהכל מוכן
+        switchTab('feed');
 
     } catch (e) {
         console.error("Dashboard error:", e);
