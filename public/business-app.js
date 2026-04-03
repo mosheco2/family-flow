@@ -137,7 +137,7 @@ function applyBannersToDOM(banners) {
             el.classList.remove('hidden'); el.classList.add('flex'); 
         } else { el.classList.add('hidden'); el.classList.remove('flex'); }
     };
-    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+    renderBanner(appTop, banners.biz_banner_top_text, banners.biz_banner_top_link, banners.biz_banner_top_img); renderBanner(appBottom, banners.biz_banner_bottom_text, banners.biz_banner_bottom_link, banners.biz_banner_bottom_img);
 }
 
 async function fetchBanners() {
