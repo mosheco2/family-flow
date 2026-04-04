@@ -187,9 +187,22 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+       <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
+
+    <!-- === BANNERS - TOP & BOTTOM (Oneflow BIZ) === -->
+    <a id="app-banner-top" 
+       href="#" 
+       target="_blank"
+       class="glass-header hidden mx-4 mt-3 flex items-center justify-center text-sm font-medium py-3 px-4 border-b border-slate-100 text-slate-700 rounded-3xl shadow-sm overflow-hidden">
+    </a>
+
+    <a id="app-banner-bottom" 
+       href="#" 
+       target="_blank"
+       class="glass-header hidden mx-4 mt-auto mb-6 flex items-center justify-center text-sm font-medium py-3 px-4 border-t border-slate-100 text-slate-700 rounded-3xl shadow-sm overflow-hidden">
+    </a>
 
     <div class="min-h-screen flex items-center justify-center p-0 sm:p-4" id="main-wrapper">
         
