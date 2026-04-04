@@ -473,42 +473,7 @@ async function loadDashboard() {
 
     console.log('✅ Oneflow BIZ Dashboard loaded successfully with banners');
 }
-        } else { 
-            ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-            const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
-            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`; 
-            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`; 
-            const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-            
-            const tcUserHeader = getEl('timeclock-user-view');
-            if(tcUserHeader && !getEl('btn-export-pdf-user')) {
-                 tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
-            }
-        }
-        
-        const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
-        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
-        try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
-        
-        if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
-        
-        try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
-        if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
-        try { await fetchData(); } catch(e){}
-        try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
-        try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
-
-    } catch (e) {
-        console.error("Dashboard error:", e);
-    } finally {
-        const preloader = document.getElementById('app-preloader'); 
-        if (preloader) { 
-            preloader.classList.add('opacity-0', 'pointer-events-none'); 
-            setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
-        }
-    }
-}
+       
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
     if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
