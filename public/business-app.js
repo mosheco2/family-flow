@@ -106,14 +106,26 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
+
+async function updateSACredentials() {
+    const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
+    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
+    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); const data = await res.json();
+        if(data.success) { showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); getEl('sa-new-username').value = ''; getEl('sa-new-password').value = ''; } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+}
+
 async function saveAllBanners() {
     try {
-        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img') }) });
+        const res = await fetch(`${API}/superadmin/banners`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ topText: val('sa-banner-top-text'), topLink: val('sa-banner-top-link'), topImg: val('sa-banner-top-img'), bottomText: val('sa-banner-bottom-text'), bottomLink: val('sa-banner-bottom-link'), bottomImg: val('sa-banner-bottom-img'), bizTopText: val('sa-biz-banner-top-text'), bizTopLink: val('sa-biz-banner-top-link'), bizTopImg: val('sa-biz-banner-top-img'), bizBottomText: val('sa-biz-banner-bottom-text'), bizBottomLink: val('sa-biz-banner-bottom-link'), bizBottomImg: val('sa-biz-banner-bottom-img') }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבאנרים נשמרו בהצלחה!'); fetchBanners(); } else { showToast('error', 'שגיאה בשמירת הבאנרים'); }
     } catch(e) { showToast('error', 'תקלת רשת מול השרת'); }
 }
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
+
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
@@ -125,60 +137,45 @@ function applyBannersToDOM(banners) {
             el.classList.remove('hidden'); el.classList.add('flex'); 
         } else { el.classList.add('hidden'); el.classList.remove('flex'); }
     };
-    // שימוש במפתחות הביזנס מהשרת
-    const topT = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.banner_top_text;
-    const topL = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.banner_top_link;
-    const topI = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.banner_top_img;
-    const botT = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.banner_bottom_text;
-    const botL = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.banner_bottom_link;
-    const botI = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.banner_bottom_img;
-
-    renderBanner(appTop, topT, topL, topI); 
-    renderBanner(appBottom, botT, botL, botI);
+    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
 }
 
 async function fetchBanners() {
     try {
-        const cached = localStorage.getItem('ofl_biz_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
+        const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
         const res = await fetch(`${API}/banners?type=BUSINESS`); const data = await res.json();
-        if(data.success && data.banners) { localStorage.setItem('ofl_biz_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
+        if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
-}
-async function updateSACredentials() {
-    const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
-    if(!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
-    if(!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'פרטי ההתחברות שונו בהצלחה!'); getEl('sa-new-username').value = ''; getEl('sa-new-password').value = ''; } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 async function loadSAData() {
-    fetchBanners();
-    try {
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        
-        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
-        setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
-        setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
-        setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
+    fetchBanners();
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+        
+        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
+        setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
+        setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
+        setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
+        setVal('sa-biz-banner-top-text', data.bizBannerTextTop); setVal('sa-biz-banner-top-link', data.bizBannerLinkTop); setVal('sa-biz-banner-top-img', data.bizBannerImgTop);
+        setVal('sa-biz-banner-bottom-text', data.bizBannerTextBottom); setVal('sa-biz-banner-bottom-link', data.bizBannerLinkBottom); setVal('sa-biz-banner-bottom-img', data.bizBannerImgBottom);
 
-        const setTxt = (id, v) => { const e = getEl(id); if(e) e.innerText = v || 0; };
-        if(data.stats) { setTxt('sa-stat-families', data.stats.families); setTxt('sa-stat-businesses', data.stats.businesses); setTxt('sa-stat-family-users', data.stats.familyUsers); setTxt('sa-stat-biz-users', data.stats.businessUsers); }
+        const setTxt = (id, v) => { const e = getEl(id); if(e) e.innerText = v || 0; };
+        if(data.stats) { setTxt('sa-stat-families', data.stats.families); setTxt('sa-stat-businesses', data.stats.businesses); setTxt('sa-stat-family-users', data.stats.familyUsers); setTxt('sa-stat-biz-users', data.stats.businessUsers); }
 
-        const actList = getEl('sa-activity-list');
-        if(actList) {
-            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
-            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
-        }
-        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
+        const actList = getEl('sa-activity-list');
+        if(actList) {
+            actList.innerHTML = data.activity.map(a => { const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`; return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`; }).join('');
+            if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
+        }
+        saAllGroups = data.groups; saAllUsers = data.users; renderSAGroups();
         
+        // טעינת נתוני הקהילות לאדמין
         if (typeof loadSACommunityData === 'function') {
             loadSACommunityData();
         }
-    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+    } catch(e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 function renderSAGroups() {
@@ -449,21 +446,21 @@ async function loadDashboard() {
 
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
-
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
+        
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
-
+        
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
-        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname;
+        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
+        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
         const isAdmin = currentUser.role === 'ADMIN';
-        if(isAdmin) {
+        if(isAdmin) { 
             ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
-
+            
             const tcHeader = getEl('timeclock-admin-view');
             if(tcHeader && !getEl('tc-month-filter')) {
                 tcHeader.insertAdjacentHTML('afterbegin', `
@@ -476,36 +473,31 @@ async function loadDashboard() {
                     getEl('tc-month-filter').innerHTML += `<option value="${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}">${d.getMonth()+1}/${d.getFullYear()}</option>`;
                 }
             }
-        } else {
+        } else { 
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
-            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase();
-            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`;
-            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`;
+            const cardName = getEl('card-name'); if(cardName) cardName.innerText = currentUser.nickname.toUpperCase(); 
+            const cardAllowance = getEl('card-allowance'); if(cardAllowance) cardAllowance.innerText = `₪${currentUser.allowance_amount || 0}`; 
+            const cardInt = getEl('card-interest'); if(cardInt) cardInt.innerText = `${currentUser.interest_rate || 0}`; 
             const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> הבקשות שלי לקניות';
-
+            
             const tcUserHeader = getEl('timeclock-user-view');
             if(tcUserHeader && !getEl('btn-export-pdf-user')) {
                  tcUserHeader.insertAdjacentHTML('beforeend', `<button id="btn-export-pdf-user" onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="mt-4 w-full max-w-[200px] mx-auto bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold shadow-sm border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-pdf"></i> ייצא דוח חודשי ל-PDF</button>`);
             }
         }
-
+        
         const tcView = getEl('timeclock-user-view'); if(tcView) tcView.classList.remove('hidden');
-        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden');
+        const btnAddBudget = getEl('btn-add-budget-cat'); if(btnAddBudget) btnAddBudget.classList.remove('hidden'); 
         try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
-
+        
         if(!pollInterval) { pollInterval = setInterval(() => { try{ fetchData(); } catch(e){} try{ if(typeof fetchLoans === 'function') fetchLoans(); } catch(e){} if(isAdmin) { try{ if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} } }, 30000); }
-
-        // --- קריאה לבאנרים ---
-        try { fetchBanners(); } catch(e){}
-
+        
         try { if(typeof fetchMembers === 'function') await fetchMembers(); } catch(e){}
         if(isAdmin) { try { if(typeof fetchPendingUsers === 'function') fetchPendingUsers(); } catch(e){} }
         try { await fetchData(); } catch(e){}
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
-
-        switchTab('feed');
 
     } catch (e) {
         console.error("Dashboard error:", e);
