@@ -436,10 +436,10 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    // === כל הקוד הקיים של loadDashboard (אל תמחק שום דבר) ===
-    // ... (membersCache, transactions, pantry, tasks, store settings וכו')
+    const dashContainer = getEl('dashboard-container');
+    if (dashContainer) dashContainer.classList.remove('hidden');
 
-    // === טעינת נתונים בסיסיים ===
+    // טעינת כל הנתונים הבסיסיים
     await Promise.all([
         loadMembers(),
         loadTransactions(),
@@ -449,23 +449,34 @@ async function loadDashboard() {
         loadStoreSettings()
     ]);
 
-    // === עדכון UI ===
+    // עדכון ממשק
     renderMembers();
     renderTransactions();
     renderPantry();
     updateBalanceDisplay();
 
-    // === טעינת באנרים לעסקים (התיקון החשוב) ===
+    // === טעינת באנרים לעסקים (התיקון הסופי) ===
     fetchBanners();
 
-    // === טעינת קהילות (כבר קיים אצלך) ===
+    // טעינת קהילות
     if (typeof loadBizCommunities === 'function') {
         loadBizCommunities();
     }
 
-    console.log('✅ Oneflow BIZ Dashboard loaded with banners');
-}
+    // טעינת שאר הדברים הרגילים
+    if (typeof injectBusinessUI === 'function') injectBusinessUI();
+    updateBatteryUI();
+    enforcePermissions();
 
+    // הסתרת preloader
+    const preloader = getEl('app-preloader');
+    if (preloader) {
+        preloader.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => preloader.classList.add('hidden'), 700);
+    }
+
+    console.log('✅ Oneflow BIZ Dashboard loaded successfully with banners');
+}
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
         
