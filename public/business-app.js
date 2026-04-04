@@ -456,7 +456,7 @@ async function loadDashboard() {
     renderPantry();
     updateBalanceDisplay();
 
-    // === טעינת הבאנרים (זה מה שרצינו) ===
+    // === טעינת הבאנרים לעסקים ===
     fetchBanners();
 
     // טעינת קהילות ופיצ'רים נוספים
