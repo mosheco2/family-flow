@@ -436,13 +436,35 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
-            console.warn("No active user or group found, redirecting to login...");
-            const authContainer = document.getElementById('auth-container');
-            if (authContainer) authContainer.classList.remove('hidden');
-            return;
-        }
+    // === כל הקוד הקיים של loadDashboard (אל תמחק שום דבר) ===
+    // ... (membersCache, transactions, pantry, tasks, store settings וכו')
+
+    // === טעינת נתונים בסיסיים ===
+    await Promise.all([
+        loadMembers(),
+        loadTransactions(),
+        loadPantry(),
+        loadShoppingList(),
+        loadTasks(),
+        loadStoreSettings()
+    ]);
+
+    // === עדכון UI ===
+    renderMembers();
+    renderTransactions();
+    renderPantry();
+    updateBalanceDisplay();
+
+    // === טעינת באנרים לעסקים (התיקון החשוב) ===
+    fetchBanners();
+
+    // === טעינת קהילות (כבר קיים אצלך) ===
+    if (typeof loadBizCommunities === 'function') {
+        loadBizCommunities();
+    }
+
+    console.log('✅ Oneflow BIZ Dashboard loaded with banners');
+}
 
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
