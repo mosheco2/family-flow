@@ -473,35 +473,6 @@ async function loadDashboard() {
 
     console.log('✅ Oneflow BIZ Dashboard loaded successfully with banners');
 }
-        const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
-        
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
-        const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
-        
-        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
-        const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
-
-        const isAdmin = currentUser.role === 'ADMIN';
-        if(isAdmin) { 
-            ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
-            const reqTitle = getEl('req-title'); if(reqTitle) reqTitle.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> בקשות רכש לאישור';
-            const profileUp = getEl('profile-upgrade-section');
-            if (profileUp && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מנוי PRO פעיל</p>'; }
-            
-            const tcHeader = getEl('timeclock-admin-view');
-            if(tcHeader && !getEl('tc-month-filter')) {
-                tcHeader.insertAdjacentHTML('afterbegin', `
-                    <select id="tc-month-filter" onchange="if(typeof fetchTimeclockReport === 'function') fetchTimeclockReport()" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 outline-none font-bold mb-2 ml-2"><option value="all">כל החודשים</option></select>
-                    <button onclick="if(typeof exportTimeclockPDF === 'function') exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-red-100 hover:bg-red-100 transition ml-2"><i class="fa-solid fa-file-pdf"></i> ייצא PDF</button>
-                    <button onclick="if(typeof openManualPunchModal === 'function') openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-sm font-bold mb-2 shadow-sm border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> דיווח נוכחות ידני</button>
-                `);
-                for(let i=0; i<12; i++) {
-                    let d = new Date(); d.setMonth(d.getMonth()-i);
-                    getEl('tc-month-filter').innerHTML += `<option value="${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}">${d.getMonth()+1}/${d.getFullYear()}</option>`;
-                }
-            }
         } else { 
             ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
             const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
