@@ -436,10 +436,11 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
+    // הסרת preloader + הצגת הדשבורד
     const dashContainer = getEl('dashboard-container');
     if (dashContainer) dashContainer.classList.remove('hidden');
 
-    // טעינת כל הנתונים הבסיסיים
+    // טעינת כל הנתונים החיוניים
     await Promise.all([
         loadMembers(),
         loadTransactions(),
@@ -455,20 +456,17 @@ async function loadDashboard() {
     renderPantry();
     updateBalanceDisplay();
 
-    // === טעינת באנרים לעסקים (התיקון הסופי) ===
+    // === טעינת הבאנרים (זה מה שרצינו) ===
     fetchBanners();
 
-    // טעינת קהילות
-    if (typeof loadBizCommunities === 'function') {
-        loadBizCommunities();
-    }
-
-    // טעינת שאר הדברים הרגילים
+    // טעינת קהילות ופיצ'רים נוספים
+    if (typeof loadBizCommunities === 'function') loadBizCommunities();
     if (typeof injectBusinessUI === 'function') injectBusinessUI();
+    
     updateBatteryUI();
     enforcePermissions();
 
-    // הסתרת preloader
+    // הסתרת מסך הטעינה
     const preloader = getEl('app-preloader');
     if (preloader) {
         preloader.classList.add('opacity-0', 'pointer-events-none');
