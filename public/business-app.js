@@ -438,21 +438,22 @@ async function loadDashboard() {
     const dashContainer = getEl('dashboard-container');
     if (dashContainer) dashContainer.classList.remove('hidden');
 
-    // טעינת כל הנתונים החיוניים
-    await Promise.all([
-        loadMembers(),
-        loadTransactions(),
-        loadPantry(),
-        loadShoppingList(),
-        loadTasks(),
-        loadStoreSettings()
-    ]);
+    // === טעינת נתונים לעסקים (רק מה שקיים בקובץ) ===
+    try {
+        // פונקציות שקיימות ב-business-app.js
+        if (typeof fetchMembers === 'function') await fetchMembers();
+        if (typeof fetchData === 'function') await fetchData();
+        if (typeof fetchLoans === 'function') await fetchLoans();
+        if (typeof checkTimeclockStatus === 'function') await checkTimeclockStatus();
+    } catch (e) {
+        console.warn('חלק מפונקציות הטעינה חסרות - ממשיך בכל זאת', e);
+    }
 
-    // עדכון ממשק
-    renderMembers();
-    renderTransactions();
-    renderPantry();
-    updateBalanceDisplay();
+    // עדכון ממשק (רק מה שקיים)
+    if (typeof renderMembers === 'function') renderMembers();
+    if (typeof renderTransactions === 'function') renderTransactions();
+    if (typeof renderPantry === 'function') renderPantry();
+    if (typeof updateBalanceDisplay === 'function') updateBalanceDisplay();
 
     // === טעינת הבאנרים לעסקים ===
     fetchBanners();
@@ -460,9 +461,9 @@ async function loadDashboard() {
     // טעינת קהילות ופיצ'רים נוספים
     if (typeof loadBizCommunities === 'function') loadBizCommunities();
     if (typeof injectBusinessUI === 'function') injectBusinessUI();
-    
+   
     updateBatteryUI();
-    enforcePermissions();
+    if (typeof enforcePermissions === 'function') enforcePermissions();
 
     // הסתרת מסך הטעינה
     const preloader = getEl('app-preloader');
