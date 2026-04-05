@@ -2620,7 +2620,6 @@ function openPromotionModal(id = null) {
     const modal = getEl('promotion-modal');
     if (!modal) return;
     
-    // יצירת input מוסתר שישמור את המזהה במידה וזה מצב עריכה
     if (!getEl('promo-id')) {
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -2642,9 +2641,12 @@ function openPromotionModal(id = null) {
             else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
             getEl('promo-target-category').value = targetArray.length > 0 ? targetArray[0] : '';
             
-            // המרת התאריך לתצוגה נכונה ב-input date
             getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
             getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            
+            getEl('promo-show-banner').checked = p.show_in_banner !== false;
+            getEl('promo-show-tab').checked = p.show_in_tab !== false;
+            getEl('promo-bg-color').value = p.bg_color || 'pink';
         }
     } else {
         getEl('promo-id').value = '';
@@ -2655,6 +2657,9 @@ function openPromotionModal(id = null) {
         getEl('promo-target-category').value = '';
         getEl('promo-start-date').value = '';
         getEl('promo-end-date').value = '';
+        getEl('promo-show-banner').checked = true;
+        getEl('promo-show-tab').checked = true;
+        getEl('promo-bg-color').value = 'pink';
     }
     
     togglePromoValueInput();
@@ -2704,7 +2709,8 @@ async function submitPromotion() {
         const payload = { 
             groupId: currentGroup.id, title, promoType, promoValue, targetType, 
             targetIds: targetType === 'category' ? [targetCategory] : [],
-            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null
+            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null,
+            showInBanner: getEl('promo-show-banner').checked, showInTab: getEl('promo-show-tab').checked, bgColor: val('promo-bg-color')
         };
         
         const url = id ? `${API}/store/promotions/${id}` : `${API}/store/promotions`;
