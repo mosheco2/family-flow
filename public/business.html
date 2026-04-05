@@ -797,47 +797,41 @@
                     </div>
 
                     <div id="content-community" class="hidden">
-                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">הקהילה שלנו 🏘️</h3>
-                            <p class="text-orange-50 text-xs opacity-90">הישארו מעודכנים בכל מה שקורה בקהילה שלכם.</p>
-                            <i class="fa-solid fa-calendar-days absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                        <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+                            <h3 class="text-xl font-bold mb-1">הקהילות שלנו 🏘️</h3>
+                            <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות והציעו הטבות כדי למשוך לקוחות חדשים!</p>
+                            <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
+                        </div>
+
+                        <h3 class="font-bold text-slate-700 text-lg mb-3 px-2">הקהילות שלי</h3>
+                        <div id="biz-my-communities-list" class="space-y-3 mb-8">
+                            <p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען קהילות...</p>
+                        </div>
+
+                        <div class="flex justify-between items-center mb-3 px-2">
+                            <h3 class="font-bold text-slate-700 text-lg">גלו קהילות חדשות 🔍</h3>
                         </div>
                         
-                        <div id="community-list-container" class="hidden" style="display: none;"></div>
-
-                        <div id="community-join-section" class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-6 text-center">
-                            <i class="fa-solid fa-house-flag text-4xl text-slate-300 mb-3"></i>
-                            <h4 class="font-bold text-slate-700 mb-2">חיבור לקהילה המקומית</h4>
-                            <p class="text-xs text-slate-500 mb-4">הזינו את קוד הקהילה שלכם (יישוב, ועד עובדים, שכונה) כדי לראות עסקים מקומיים ולהנות מהנחות.</p>
-                            <div class="flex gap-2">
-                                <input type="text" id="community-code-input" class="modern-input py-2 text-center tracking-widest font-mono uppercase text-sm" placeholder="קוד קהילה">
-                                <button onclick="joinCommunity()" id="btn-join-community" class="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-slate-700 transition whitespace-nowrap">התחבר</button>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                                <div class="relative">
+                                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="biz-filter-city" onkeyup="filterBizAvailableCommunities()" class="modern-input py-2 pr-9 text-sm bg-slate-50" placeholder="חיפוש עיר/אזור...">
+                                </div>
+                                <select id="biz-filter-size" onchange="filterBizAvailableCommunities()" class="modern-input py-2 text-sm bg-slate-50">
+                                    <option value="all">כל הגדלים</option>
+                                    <option value="50">+50 משפחות</option>
+                                    <option value="100">+100 משפחות</option>
+                                    <option value="500">+500 משפחות</option>
+                                </select>
+                                <label class="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 rounded-xl border border-slate-200 sm:col-span-1 col-span-2">
+                                    <input type="checkbox" id="biz-filter-multi" onchange="filterBizAvailableCommunities()" class="w-4 h-4 accent-orange-500">
+                                    <span class="text-xs font-bold text-slate-600">קהילות רב-אזוריות</span>
+                                </label>
                             </div>
                         </div>
 
-                        <div id="community-businesses-section" class="hidden">
-                            
-                            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm mb-6 mx-2">
-                                <span id="community-name-display" class="text-xs font-bold text-slate-700"></span>
-                                <button onclick="leaveCommunity()" class="text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition border border-red-100 shadow-sm"><i class="fa-solid fa-right-from-bracket"></i> התנתק מקהילה</button>
-                            </div>
-
-                            <div class="mb-8 px-2">
-                                <h3 class="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-3">חדשות הקהילה - בקרוב</h3>
-                                <div class="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-6 text-center">
-                                    <i class="fa-regular fa-newspaper text-4xl text-slate-300 mb-3"></i>
-                                    <p class="text-sm text-slate-500 font-medium">כאן יופיעו בקרוב עדכונים, חדשות ופעילויות מהקהילה שלכם!</p>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-col gap-2 mb-4 px-2">
-                                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
-                                    <h3 class="font-bold text-slate-700 text-lg">הטבות בעסקים לקהילה</h3>
-                                </div>
-                                <p class="text-xs text-slate-500 font-medium">הטבות מיוחדות ובלעדיות לחברי הקהילה בעסקים המקומיים:</p>
-                            </div>
-                            <div id="community-businesses-list" class="space-y-3 pb-20"></div>
-                            
+                        <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20">
                         </div>
                     </div>
                     <div id="content-members" class="hidden space-y-6">
