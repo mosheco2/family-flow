@@ -3720,5 +3720,139 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
         }, 100);
     };
     window.saCommLoaded = true;
+    // ==========================================
+// --- ניהול רכש וספקים (Procurement) ---
+// ==========================================
+let suppliersList = [];
+
+function switchProcurementTab(tab) {
+    // איפוס כל הטאבים הפנימיים
+    ['list', 'rfq', 'suppliers'].forEach(t => {
+        const view = getEl(`proc-view-${t}`);
+        const btn = getEl(`btn-proc-${t}`);
+        if(view) view.classList.add('hidden');
+        if(btn) {
+            btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+            btn.classList.add('text-slate-500', 'hover:text-slate-700');
+        }
+    });
+    
+    // הפעלת הטאב הנבחר
+    const targetView = getEl(`proc-view-${tab}`);
+    const targetBtn = getEl(`btn-proc-${tab}`);
+    if(targetView) targetView.classList.remove('hidden');
+    if(targetBtn) {
+        targetBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        targetBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+    }
+
+    // משיכת נתונים בהתאם לטאב
+    if (tab === 'suppliers') fetchSuppliers();
+    // if (tab === 'rfq') fetchRFQs(); // יתווסף בשלב הבא של הצעות המחיר
 }
+
+async function fetchSuppliers() {
+    try {
+        const res = await fetch(`${API}/suppliers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            suppliersList = data.suppliers || [];
+            renderSuppliers();
+        }
+    } catch(e) { console.error("Error fetching suppliers:", e); }
+}
+
+function renderSuppliers() {
+    const list = getEl('suppliers-list');
+    if (!list) return;
+    
+    if (suppliersList.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 col-span-full">טרם הוזנו ספקים למערכת.</p>';
+        return;
+    }
+    
+    let html = '';
+    suppliersList.forEach(s => {
+        html += `
+        <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition">
+            <div>
+                <div class="flex justify-between items-start mb-3">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(s.name)}</h4>
+                    <span class="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold">${safeStr(s.category || 'כללי')}</span>
+                </div>
+                <div class="space-y-1.5 mt-3">
+                    ${s.contact_person ? `<p class="text-[11px] text-slate-600 flex items-center gap-2"><i class="fa-regular fa-user w-3 text-slate-400"></i> ${safeStr(s.contact_person)}</p>` : ''}
+                    ${s.phone ? `<p class="text-[11px] text-slate-600 flex items-center gap-2"><i class="fa-solid fa-phone w-3 text-slate-400"></i> <a href="tel:${s.phone}" class="hover:text-indigo-600 dir-ltr inline-block font-medium">${s.phone}</a></p>` : ''}
+                    ${s.email ? `<p class="text-[11px] text-slate-600 flex items-center gap-2"><i class="fa-regular fa-envelope w-3 text-slate-400"></i> <a href="mailto:${s.email}" class="hover:text-indigo-600">${s.email}</a></p>` : ''}
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4 pt-3 border-t border-slate-50">
+                <button onclick="deleteSupplier(${s.id})" class="flex-1 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-trash-can"></i> מחק ספק</button>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openSupplierModal() {
+    getEl('supplier-id').value = '';
+    getEl('supplier-name').value = '';
+    getEl('supplier-contact').value = '';
+    getEl('supplier-phone').value = '';
+    getEl('supplier-email').value = '';
+    getEl('supplier-category').value = 'כללי';
+    getEl('supplier-modal').classList.remove('hidden');
+}
+
+async function submitSupplier() {
+    const name = val('supplier-name');
+    if (!name) return showToast('error', 'חובה להזין שם ספק / חברה');
+    
+    const payload = {
+        groupId: currentGroup.id,
+        name: name,
+        contactPerson: val('supplier-contact'),
+        phone: val('supplier-phone'),
+        email: val('supplier-email'),
+        category: val('supplier-category')
+    };
+
+    const btn = getEl('btn-submit-supplier');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...';
+    
+    try {
+        const res = await fetch(`${API}/suppliers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הספק נוסף בהצלחה למאגר!');
+            getEl('supplier-modal').classList.add('hidden');
+            fetchSuppliers(); // ריענון הרשימה
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ספק');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת בשמירת הספק');
+    } finally {
+        btn.disabled = false; btn.innerText = 'שמור פרטי ספק';
+    }
+}
+
+async function deleteSupplier(id) {
+    if(!confirm('האם למחוק ספק זה? לא ניתן לבטל פעולה זו.')) return;
+    try {
+        await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' });
+        showToast('success', 'הספק נמחק בהצלחה');
+        fetchSuppliers();
+    } catch(e) {}
+}
+
+function openRFQModal() {
+    showToast('success', 'אוסף את הפריטים... ממתין להקמת המודאל!');
+    // בשלב הבא נוסיף את הקוד שמייצר את מסמך ה-RFQ ומאפשר לשלוח אותו לספק.
+}
+
 // === סוף הקובץ ===
