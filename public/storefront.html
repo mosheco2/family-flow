@@ -218,7 +218,6 @@ async function initStore() {
                     const appContainer = getEl('store-app');
                     const heroHeader = document.querySelector('.hero-bg');
                     
-                    // הזרקת סרגל קהילה לראש הדף מעל ההידר (hero)
                     if (heroHeader) {
                         heroHeader.insertAdjacentHTML('beforebegin', `
                             <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
@@ -242,32 +241,46 @@ async function initStore() {
                     if (promoData.success) {
                         storeData.promotions = promoData.promotions.filter(p => {
                             if (!p.is_active) return false;
-                            const now = new Date();
-                            if (p.start_date && new Date(p.start_date) > now) return false;
-                            if (p.end_date && new Date(p.end_date) < now) return false;
-                            return true;
+                            try {
+                                const now = new Date();
+                                if (p.start_date && new Date(p.start_date) > now) return false;
+                                if (p.end_date && new Date(p.end_date) < now) return false;
+                                return true;
+                            } catch(dateErr) { return true; } // אם יש שגיאה בעיבוד התאריך, נציג בכל זאת
                         });
                     }
-                } catch(e) {}
+                } catch(e) { console.warn("Failed loading promotions", e); }
 
-                renderHeader();
-                extractCategories();
+                try { renderHeader(); } catch(e) { console.error(e); }
+                try { extractCategories(); } catch(e) { console.error(e); }
                 
-                // הזרקת אזור המבצעים ייעודי מעל הקטלוג
-                getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
-                renderPromotionsBanner();
+                try {
+                    if (!getEl('store-promotions-banner')) {
+                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
+                    }
+                    renderPromotionsBanner();
+                } catch(e) { console.error("Banner error", e); }
                 
-                renderCatalog();
+                try { renderCatalog(); } catch(e) { console.error(e); }
 
-                getEl('loading-screen').classList.add('hidden');
-                getEl('store-app').classList.remove('hidden');
-            } catch (err) {}
+                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
+                const app = getEl('store-app'); if(app) app.classList.remove('hidden');
+                
+            } catch (err) {
+                console.error("Critical store init error", err);
+                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
+                showToast('error', 'שגיאה בטעינת החנות');
+            }
         }
         
         function renderPromotionsBanner() {
-           function renderPromotionsBanner() {
             const bannerContainer = getEl('store-promotions-banner');
-            if (!bannerContainer || !storeData.promotions || storeData.promotions.length === 0) return;
+            if (!bannerContainer) return;
+            
+            if (!storeData.promotions || storeData.promotions.length === 0) {
+                 bannerContainer.innerHTML = '';
+                 return;
+            }
             
             let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-4 pt-2 px-4 modal-scroll snap-x bg-slate-50 border-b border-slate-200">`;
             storeData.promotions.forEach(p => {
