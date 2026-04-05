@@ -185,7 +185,7 @@
             setTimeout(() => el.classList.add('hidden'), 3000); 
         }
 
- async function initStore() {
+async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId');
@@ -255,6 +255,24 @@
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
             } catch (err) {}
+        }
+        
+        function renderPromotionsBanner() {
+            if (!storeData.promotions || storeData.promotions.length === 0) return;
+            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-2 px-4 modal-scroll snap-x mt-4">`;
+            storeData.promotions.forEach(p => {
+                let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
+                let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `מחלקת: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
+                promoHtml += `
+                <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl min-w-[220px] shrink-0 snap-center shadow-md relative overflow-hidden">
+                    <i class="fa-solid fa-gift absolute -left-2 -bottom-2 text-6xl opacity-20"></i>
+                    <h4 class="font-black text-base relative z-10">${safeStr(p.title)}</h4>
+                    <p class="text-xs font-bold mt-1 bg-white/20 inline-block px-2.5 py-1 rounded-md relative z-10">${desc}</p>
+                    <p class="text-[10px] mt-2 opacity-90 relative z-10">${targetDesc}</p>
+                </div>`;
+            });
+            promoHtml += `</div>`;
+            getEl('catalog-container').insertAdjacentHTML('beforebegin', promoHtml);
         }
         
         function renderPromotionsBanner() {
