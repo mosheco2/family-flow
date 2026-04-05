@@ -164,7 +164,7 @@
         <button onclick="window.location.reload()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
 
-    <script>
+   <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -185,12 +185,15 @@
             setTimeout(() => el.classList.add('hidden'), 3000); 
         }
 
-async function initStore() {
+        async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId');
             
-            if (!storeCode) return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור שגוי</h1>";
+            if (!storeCode) {
+                getEl('loading-screen').classList.add('hidden');
+                return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור לחנות שגוי</h1>";
+            }
 
             try {
                 let fetchUrl = `${API}/storefront/${storeCode}`;
@@ -201,6 +204,7 @@ async function initStore() {
                 
                 const isActive = data.settings && data.settings.is_active !== false;
                 if (!data.success || !isActive) {
+                    getEl('loading-screen').classList.add('hidden');
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
                 }
 
@@ -246,29 +250,25 @@ async function initStore() {
                                 if (p.start_date && new Date(p.start_date) > now) return false;
                                 if (p.end_date && new Date(p.end_date) < now) return false;
                                 return true;
-                            } catch(dateErr) { return true; } // אם יש שגיאה בעיבוד התאריך, נציג בכל זאת
+                            } catch(dateErr) { return true; }
                         });
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
-                try { renderHeader(); } catch(e) { console.error(e); }
-                try { extractCategories(); } catch(e) { console.error(e); }
+                renderHeader();
+                extractCategories();
                 
-                try {
-                    if (!getEl('store-promotions-banner')) {
-                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
-                    }
-                    renderPromotionsBanner();
-                } catch(e) { console.error("Banner error", e); }
-                
-                try { renderCatalog(); } catch(e) { console.error(e); }
+                if (!getEl('store-promotions-banner')) {
+                    getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
+                }
+                renderPromotionsBanner();
+                renderCatalog();
 
-                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
-                const app = getEl('store-app'); if(app) app.classList.remove('hidden');
-                
+                getEl('loading-screen').classList.add('hidden');
+                getEl('store-app').classList.remove('hidden');
             } catch (err) {
                 console.error("Critical store init error", err);
-                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
+                getEl('loading-screen').classList.add('hidden');
                 showToast('error', 'שגיאה בטעינת החנות');
             }
         }
@@ -333,6 +333,7 @@ async function initStore() {
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
         }
+
         function extractCategories() {
             const container = getEl('categories-container'); if (!storeData.catalog) return;
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
@@ -355,7 +356,7 @@ async function initStore() {
             try { const parsed = JSON.parse(optionsText); return Array.isArray(parsed) && parsed.length > 0; } catch(e) { return false; }
         }
 
-function renderCatalog() {
+        function renderCatalog() {
             const container = getEl('catalog-container');
             if (!storeData.catalog || storeData.catalog.length === 0) return container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
 
@@ -395,7 +396,8 @@ function renderCatalog() {
                     priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
                 }
 
-                const btnText = item.product_type === 'service' ? 'הזמן שירות' : (item.product_type === 'food' ? 'בחר מנה' : 'פרטים והוספה');
+                const pType = item.product_type || 'retail';
+                const btnText = pType === 'service' ? 'הזמן שירות' : (pType === 'food' ? 'בחר מנה' : 'פרטים והוספה');
                 const actionHtml = `<button onclick="openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
 
                 if (storeType === 'retail') {
@@ -407,7 +409,6 @@ function renderCatalog() {
             container.innerHTML = html + '</div>';
         }
 
-        // --- Product Details & Modifiers Logic ---
         let currentModalQty = 1;
 
         function updateModalQty(delta) {
@@ -456,9 +457,10 @@ function renderCatalog() {
                 placeholder.classList.remove('hidden');
             }
 
+            const pType = item.product_type || 'retail';
             let btnText = 'הוסף לסל';
-            if (item.product_type === 'service') btnText = 'הזמן שירות';
-            if (item.product_type === 'apparel') btnText = 'בחר מידה והוסף';
+            if (pType === 'service') btnText = 'הזמן שירות';
+            if (pType === 'apparel') btnText = 'בחר מידה והוסף';
             getEl('prod-btn-text').innerText = btnText;
 
             let options = [];
@@ -519,7 +521,6 @@ function renderCatalog() {
 
         function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
 
-        // --- ניהול עגלה ---
         function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
             const catId = originalCatalogId || cartKey; 
             if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
@@ -580,6 +581,7 @@ function renderCatalog() {
             finalTotal = baseTotal - discountAmount;
             return { baseTotal, finalTotal, discountAmount, totalQty };
         }
+
         function updateCartFooter() {
             const calc = calculateCartDetails();
             const footer = getEl('cart-footer');
