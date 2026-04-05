@@ -158,15 +158,8 @@
         body.acc-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px; }
         body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
 
-body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid #3b82f6 !important; text-decoration: underline !important; }
-
+        /* Hide broken banner images */
         img[src="/undefined"], img[src="/null"], img[src="/"], img:not([src]) { display: none !important; }
-
-        /* הגבלת גובה לבאנרים - מונע את דחיקת האפליקציה למטה ושומר על הצמדה לדפנות */
-        [id="app-banner-top"], [id="app-banner-bottom"] { max-height: 90px !important; overflow: hidden !important; }
-        [id="app-banner-top"] img, [id="app-banner-bottom"] img { max-height: 90px !important; width: 100% !important; height: 100% !important; object-fit: cover !important; }
-
-        .modal-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
@@ -474,7 +467,14 @@ body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid 
             </div>
         </div>
 
-                          <div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+                  <div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+
+            <!-- === BANNER TOP (Oneflow BIZ) === -->
+            <a id="app-banner-top"
+               href="#"
+               target="_blank"
+               class="glass-header hidden mx-4 mt-3 flex items-center justify-center text-sm font-medium py-3 px-4 border-b border-slate-100 text-slate-700 rounded-3xl shadow-sm overflow-hidden">
+            </a>
             <div class="flex-1 pb-28 relative flex flex-col w-full">
                 <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                     <div class="flex items-center gap-3">
@@ -491,9 +491,7 @@ body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid 
                     </div>
                     <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center" title="התנתק"><i class="fa-solid fa-right-from-bracket"></i></button>
                 </header>
-
-                <!-- === BANNER TOP (Oneflow BIZ) - ממוקם מתחת לכותרת === -->
-               </header>
+                
                 <div class="relative px-2 mb-6 group shrink-0">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
@@ -993,15 +991,18 @@ body.acc-highlight-links a, body.acc-highlight-links button { border: 2px solid 
                         </div>
                     </div>
                 </div>
-                      </div>
-
+            </div>
             <!-- === BANNER BOTTOM (Oneflow BIZ) - צמוד לתחתית === -->
-<a id="app-banner-bottom" class="hidden bg-gradient-to-r from-slate-800 to-slate-900 text-white text-center text-sm font-bold w-full shadow-[0_-5px_15px_rgba(0,0,0,0.15)] hover:opacity-90 transition flex-col items-center justify-center mt-auto shrink-0 relative z-40 overflow-hidden py-3"></a>
+            <a id="app-banner-bottom"
+               href="#"
+               target="_blank"
+               class="glass-header hidden mx-4 mt-auto mb-6 flex items-center justify-center text-sm font-medium py-3 px-4 border-t border-slate-100 text-slate-700 rounded-3xl shadow-sm overflow-hidden">
+            </a>
+
         </div>
-
-    </div>
-
-    <div id="cart-footer" class="fixed bottom-6 left-4 right-4 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-[30rem] bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-[99] flex justify-between items-center animate-bounce-in hidden slide-up">
+       
+        <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
+        
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                 <button onclick="openShopModal(); toggleFab()" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition" title="בקשת רכש"><i class="fa-solid fa-cart-arrow-down"></i></button>
