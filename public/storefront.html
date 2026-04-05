@@ -265,6 +265,7 @@ async function initStore() {
         }
         
         function renderPromotionsBanner() {
+           function renderPromotionsBanner() {
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer || !storeData.promotions || storeData.promotions.length === 0) return;
             
@@ -275,10 +276,10 @@ async function initStore() {
                 let targetDesc = '';
                 if(p.target_type === 'all') targetDesc = 'על כל החנות';
                 else {
-                    try {
-                        const targetCats = JSON.parse(p.target_ids);
-                        targetDesc = `תקף על: ${targetCats.join(', ')}`;
-                    } catch(e) { targetDesc = 'על פריטים נבחרים'; }
+                    let targetArray = [];
+                    if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+                    else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+                    targetDesc = `תקף על: ${(targetArray || []).join(', ')}`;
                 }
                 
                 promoHtml += `
@@ -535,7 +536,8 @@ function renderCatalog() {
                     let relevantItems = itemsForPromo;
                     if (promo.target_type === 'category') {
                         let cats = [];
-                        try { cats = JSON.parse(promo.target_ids); } catch(e){}
+                        if(Array.isArray(promo.target_ids)) cats = promo.target_ids;
+                        else if(typeof promo.target_ids === 'string') { try { cats = JSON.parse(promo.target_ids); } catch(e){} }
                         if(cats.length > 0) relevantItems = itemsForPromo.filter(i => cats.includes(i.category));
                     }
 
@@ -565,7 +567,6 @@ function renderCatalog() {
             finalTotal = baseTotal - discountAmount;
             return { baseTotal, finalTotal, discountAmount, totalQty };
         }
-
         function updateCartFooter() {
             const calc = calculateCartDetails();
             const footer = getEl('cart-footer');
