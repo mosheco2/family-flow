@@ -1906,6 +1906,64 @@ app.delete('/api/store/coupons/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// --- מערכת מבצעים (Promotions) ---
+// ==========================================
+
+// ראוט לאתחול טבלת המבצעים (להרצה חד פעמית בדפדפן)
+app.get('/api/init-promotions', async (req, res) => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS store_promotions (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                title VARCHAR(100) NOT NULL,
+                promo_type VARCHAR(50) NOT NULL,
+                promo_value DECIMAL(10,2),
+                target_type VARCHAR(50) DEFAULT 'all',
+                target_ids JSONB,
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        res.send('Promotions table created successfully! You can close this tab.');
+    } catch(e) { res.status(500).send('Error creating table: ' + e.message); }
+});
+
+app.get('/api/store/promotions/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM store_promotions WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, promotions: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/promotions', async (req, res) => {
+    try {
+        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate } = req.body;
+        const result = await pool.query(
+            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null]
+        );
+        res.json({ success: true, promotion: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/promotions/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/promotions/toggle/:id', async (req, res) => {
+    try {
+        const { isActive } = req.body;
+        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // --- FAMILY COMMUNITY ENDPOINTS ---
 app.post('/api/community/join', async (req, res) => {
     try {
