@@ -2576,44 +2576,90 @@ function renderStorePromotions() {
     storePromotionsCache.forEach(p => {
         let desc = '';
         if (p.promo_type === 'discount_pct') desc = `${p.promo_value}% הנחה`;
-        else if (p.promo_type === 'bogo') desc = `1+1 מתנה`;
+        else if (p.promo_type === 'bogo') desc = `1+1 מתנה (עד ₪${p.promo_value})`;
         else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
 
         let targetArray = [];
         if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
         else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
         
-        let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
+        let targetDesc = p.target_type === 'all' ? 'חל על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
         const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
+        // יצירת מחרוזות תאריך יפות
+        const createdStr = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '';
+        const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
+        const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
 
         html += `
-        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-2">
-            <div class="flex items-center gap-3">
-                <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-gift"></i></div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
-                    <p class="text-[10px] text-slate-500 mt-0.5">${targetDesc}</p>
+        <div class="flex flex-col bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3 relative hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"><i class="fa-solid fa-gift"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
+                        <p class="text-[10px] text-slate-500 mt-0.5 font-medium">${targetDesc}</p>
+                        <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock"></i> תוקף: ${startStr} - ${endStr}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
+                    <div class="text-[9px] text-slate-400">נוצר: ${createdStr}</div>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
-                <button onclick="deleteStorePromotion(${p.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            <div class="flex gap-2 border-t border-slate-50 pt-3">
+                <button onclick="openPromotionModal(${p.id})" class="flex-1 text-slate-500 bg-slate-50 hover:bg-slate-100 py-1.5 rounded-lg text-xs font-bold transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-pen"></i> עריכה</button>
+                <button onclick="deleteStorePromotion(${p.id})" class="w-10 text-slate-400 bg-slate-50 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
             </div>
         </div>`;
     });
     list.innerHTML = html;
 }
-function openPromotionModal() {
-    getEl('promo-title').value = '';
-    getEl('promo-type').value = 'discount_pct';
-    getEl('promo-value').value = '';
-    getEl('promo-target-type').value = 'all';
-    getEl('promo-target-category').value = '';
-    getEl('promo-start-date').value = '';
-    getEl('promo-end-date').value = '';
+
+function openPromotionModal(id = null) {
+    const modal = getEl('promotion-modal');
+    if (!modal) return;
+    
+    // יצירת input מוסתר שישמור את המזהה במידה וזה מצב עריכה
+    if (!getEl('promo-id')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'promo-id';
+        modal.querySelector('.space-y-4').prepend(input);
+    }
+
+    if (id) {
+        const p = storePromotionsCache.find(x => x.id === id);
+        if (p) {
+            getEl('promo-id').value = p.id;
+            getEl('promo-title').value = p.title;
+            getEl('promo-type').value = p.promo_type;
+            getEl('promo-value').value = p.promo_value || '';
+            getEl('promo-target-type').value = p.target_type;
+            
+            let targetArray = [];
+            if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+            else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+            getEl('promo-target-category').value = targetArray.length > 0 ? targetArray[0] : '';
+            
+            // המרת התאריך לתצוגה נכונה ב-input date
+            getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+            getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
+        }
+    } else {
+        getEl('promo-id').value = '';
+        getEl('promo-title').value = '';
+        getEl('promo-type').value = 'discount_pct';
+        getEl('promo-value').value = '';
+        getEl('promo-target-type').value = 'all';
+        getEl('promo-target-category').value = '';
+        getEl('promo-start-date').value = '';
+        getEl('promo-end-date').value = '';
+    }
+    
     togglePromoValueInput();
     togglePromoTargetInput();
-    getEl('promotion-modal').classList.remove('hidden');
+    modal.classList.remove('hidden');
 }
 
 function togglePromoValueInput() {
@@ -2642,6 +2688,7 @@ function togglePromoTargetInput() {
 }
 
 async function submitPromotion() {
+    const id = val('promo-id');
     const title = val('promo-title');
     const promoType = val('promo-type');
     const promoValue = val('promo-value');
@@ -2649,25 +2696,31 @@ async function submitPromotion() {
     const targetCategory = val('promo-target-category');
     
     if (!title) return showToast('error', 'נא להזין שם למבצע');
-    if (promoType !== 'bogo' && !promoValue) return showToast('error', 'נא להזין את ערך המבצע');
+    if (!promoValue) return showToast('error', 'נא להזין את ערך המבצע');
     if (targetType === 'category' && !targetCategory) return showToast('error', 'נא להזין את שם הקטגוריה');
 
     const btn = getEl('btn-submit-promo'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        const res = await fetch(`${API}/store/promotions`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, title, promoType, promoValue, targetType, 
-                targetIds: targetType === 'category' ? [targetCategory] : [],
-                startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null
-            })
+        const payload = { 
+            groupId: currentGroup.id, title, promoType, promoValue, targetType, 
+            targetIds: targetType === 'category' ? [targetCategory] : [],
+            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null
+        };
+        
+        const url = id ? `${API}/store/promotions/${id}` : `${API}/store/promotions`;
+        const method = id ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
         });
+        
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'המבצע נוצר ופעיל!');
+            showToast('success', id ? 'המבצע עודכן בהצלחה!' : 'המבצע נוצר ופעיל!');
             getEl('promotion-modal').classList.add('hidden');
             fetchStorePromotions();
-        } else { showToast('error', data.error || 'שגיאה ביצירת המבצע'); }
+        } else { showToast('error', data.error || 'שגיאה בשמירת המבצע'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור והפעל'; }
 }
 
