@@ -68,14 +68,17 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
-      
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
@@ -223,6 +226,9 @@ app.get('/api/force-upgrade', async (req, res) => {
             'ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT \'{"tabs":["feed"]}\'::jsonb',
             'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)',
             'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT \'red\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT \'retail\'',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT',
+            'ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT',
             'CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)'
         ];
         
@@ -1636,29 +1642,29 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 
 app.post('/api/store/catalog', async (req, res) => {
     try {
-        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor } = req.body;
+        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
         
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         if (parseInt(countRes.rows[0].count) >= 50) {
             return res.status(400).json({ error: 'הגעת למגבלת 50 המוצרים במסלול החינמי! שדרג למסלול PRO.' });
         }
 
-        await pool.query(
-            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)', 
-            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red']
+        const result = await pool.query(
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *', 
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '']
         );
-        res.json({ success: true });
+        res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
         
-        await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8 WHERE id=$9', 
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', req.params.id]
+        const result = await pool.query(
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10 WHERE id=$11 RETURNING *', 
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.params.id]
         );
-        res.json({ success: true });
+        res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
