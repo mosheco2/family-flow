@@ -533,6 +533,10 @@ async function loadDashboard() {
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
+        // התיקון: חשיפת הטאב הראשי והפעלת בדיקת הודעת פתיחה שמעירה את האפליקציה לחיים
+        switchTab('feed');
+        try { await checkGlobalWelcome(); } catch(e) {}
+
     } catch (e) {
         console.error("Dashboard error:", e);
     } finally {
