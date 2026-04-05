@@ -1278,7 +1278,7 @@
             </div>
         </div>
 
-        <div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+<div id="promotion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll relative">
                 <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 sticky top-0 bg-white z-10">
                     <h3 class="text-xl font-black text-slate-800">יצירת מבצע חדש 🎁</h3>
@@ -1291,7 +1291,7 @@
                         <input type="text" id="promo-title" class="modern-input py-3 text-sm font-bold" placeholder="למשל: 1+1 על כל הפיצות!">
                     </div>
 
-<div class="bg-pink-50 p-3 rounded-2xl border border-pink-100 shadow-sm">
+                    <div class="bg-pink-50 p-3 rounded-2xl border border-pink-100 shadow-sm">
                         <label class="text-xs font-bold text-pink-800 block mb-2">סוג המבצע:</label>
                         <select id="promo-type" class="modern-input py-2 text-sm bg-white font-bold text-pink-700" onchange="togglePromoValueInput()">
                             <option value="discount_pct">אחוז הנחה (%)</option>
@@ -1303,6 +1303,7 @@
                             <input type="number" id="promo-value" class="modern-input py-2 text-sm text-center" placeholder="למשל: 20">
                         </div>
                     </div>
+
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">על מה חל המבצע?</label>
                         <select id="promo-target-type" class="modern-input py-2 text-sm bg-white" onchange="togglePromoTargetInput()">
@@ -1323,6 +1324,30 @@
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">סיום (אופציונלי):</label>
                             <input type="datetime-local" id="promo-end-date" class="modern-input py-2 text-xs bg-white">
                         </div>
+                    </div>
+                    
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm mt-4">
+                        <label class="text-xs font-bold text-slate-800 block mb-3 border-b border-slate-200 pb-2">תצוגה ועיצוב בחנות:</label>
+                        
+                        <label class="flex items-center gap-2 cursor-pointer mb-3">
+                            <input type="checkbox" id="promo-show-banner" class="w-5 h-5 accent-pink-500" checked>
+                            <span class="text-sm text-slate-700 font-bold">הצג בבאנר עליון רחב</span>
+                        </label>
+                        
+                        <label class="flex items-center gap-2 cursor-pointer mb-4">
+                            <input type="checkbox" id="promo-show-tab" class="w-5 h-5 accent-pink-500" checked>
+                            <span class="text-sm text-slate-700 font-bold">הצג ככרטיסייה בטאב "מבצעים"</span>
+                        </label>
+
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">צבע רקע למבצע:</label>
+                        <select id="promo-bg-color" class="modern-input py-2 text-sm bg-white font-bold">
+                            <option value="pink" class="text-pink-500">ורוד אבטיח (ברירת מחדל)</option>
+                            <option value="blue" class="text-blue-500">כחול תכלת</option>
+                            <option value="emerald" class="text-emerald-500">ירוק אמרלד</option>
+                            <option value="orange" class="text-orange-500">כתום חם</option>
+                            <option value="purple" class="text-purple-500">סגול לילך</option>
+                            <option value="slate" class="text-slate-800">שחור אלגנטי</option>
+                        </select>
                     </div>
                 </div>
 
