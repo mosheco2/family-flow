@@ -262,6 +262,7 @@ function executeWithAIWarning(actionCallback) {
 }
 
 function injectBusinessUI() {
+    // 1. הזרקת משמרות
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) {
@@ -273,27 +274,151 @@ function injectBusinessUI() {
                 </div>
                 <div id="shifts-list" class="space-y-3 pb-20"></div>
             </div>
-            <div id="content-timeclock" class="hidden">
-                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4 text-center">
-                    <h3 class="font-bold text-slate-800 text-lg mb-2">שעון נוכחות ⏱️</h3>
-                    <div class="flex justify-center my-6">
-                        <button id="btn-punch" onclick="handlePunch()" class="punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700">
-                            <i id="tc-icon" class="fa-solid fa-fingerprint text-5xl mb-2"></i>
-                            <span id="tc-btn-text" class="font-bold text-lg">כניסה</span>
-                        </button>
+            `);
+        }
+    }
+
+    // 2. הזרקת חנות ומכירות (היה חסר)
+    if(!getEl('content-sales')) {
+        const contentShifts = getEl('content-shifts') || getEl('content-feed');
+        if(contentShifts) {
+            contentShifts.insertAdjacentHTML('afterend', `
+            <div id="content-sales" class="hidden">
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
+                    
+                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
+                        <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
+                        <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
+                        <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק וקופונים</button>
+                        <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
                     </div>
-                    <p id="tc-active-info" class="text-xs font-bold text-slate-500 hidden">משמרת פעילה משעה: <span id="tc-start-time" class="text-indigo-600"></span></p>
-                </div>
-                <div id="timeclock-admin-view" class="hidden flex flex-wrap gap-2 mb-4 justify-between items-center px-2">
-                    <h4 class="font-bold text-slate-700 text-sm">דוח נוכחות ופעילות</h4>
-                </div>
-                <div id="timeclock-user-view" class="hidden flex flex-col items-center w-full">
-                    <div id="timeclock-report-list" class="w-full space-y-2 pb-20"></div>
+
+                    <div id="sales-view-orders" class="space-y-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
+                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
+                                <option value="all">כל ההזמנות</option>
+                                <option value="new">חדשות</option>
+                                <option value="processing">בהכנה</option>
+                                <option value="ready">מוכנות</option>
+                                <option value="shipped">במשלוח</option>
+                                <option value="completed">הושלמו</option>
+                            </select>
+                        </div>
+                        <div id="store-orders-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-catalog" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
+                            <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
+                        </div>
+                        <div id="store-catalog-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-marketing" class="hidden space-y-6">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <h4 class="font-bold text-slate-700 text-sm mb-3">יצירת קופון חדש</h4>
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">קוד קופון:</label>
+                                    <input type="text" id="coupon-code" class="modern-input py-2 text-sm font-mono uppercase text-left dir-ltr" placeholder="SUMMER20">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">אחוז הנחה (%):</label>
+                                    <input type="number" id="coupon-discount" class="modern-input py-2 text-sm text-center" placeholder="10">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (אופציונלי):</label>
+                                <input type="date" id="coupon-date" class="modern-input py-2 text-sm bg-white">
+                            </div>
+                            <button onclick="createStoreCoupon()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">צור קופון</button>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-700 text-sm mb-3">קופונים פעילים</h4>
+                            <div id="store-coupons-list" class="space-y-2 pb-8"></div>
+                        </div>
+                    </div>
+
+                    <div id="sales-view-settings" class="hidden space-y-5 pb-8">
+                        <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                            <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600">
+                            <label class="font-bold text-indigo-800 text-sm cursor-pointer" for="store-is-active">חנות פעילה ופתוחה להזמנות</label>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
+                            <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm bg-white"><option value="retail">קמעונאות / מוצרים</option><option value="food">מסעדה / מזון</option><option value="services">שירותים</option></select></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">סלוגן / תיאור קצר:</label>
+                            <input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="המוצרים הכי טובים בעיר">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">טלפון לעסק:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">וואטסאפ להזמנות:</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="972500000000"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm bg-white"></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm bg-white"></div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1.5">לוגו העסק:</label>
+                            <div class="flex items-center gap-3">
+                                <div id="store-logo-preview-container" class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300">
+                                    <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
+                                    <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
+                                </div>
+                                <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition border border-slate-200"><i class="fa-solid fa-camera mr-1"></i> העלה לוגו</button>
+                                <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                <input type="hidden" id="store-logo-base64">
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <label class="text-xs font-bold text-blue-800 block mb-1.5">קישור לחנות הציבורית שלכם:</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="store-public-link" class="modern-input py-2 text-xs font-mono text-left dir-ltr flex-1 bg-white text-slate-500" readonly>
+                                <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm text-sm"><i class="fa-regular fa-copy"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-list-check"></i> תבניות תוספות (Modifiers):</label>
+                            <select id="preset-selector" onchange="loadPreset(this.value)" class="modern-input py-2 text-sm bg-white mb-2 hidden"></select>
+                        </div>
+
+                        <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
+                    </div>
                 </div>
             </div>
             `);
         }
+    }
+    
+    // 3. הוספת כפתורי ניווט (טאבים עליונים) אם חסרים
+    if(!getEl('tab-shifts')) {
+        const tabPantry = getEl('tab-pantry');
+        if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
+    }
+    if(!getEl('tab-sales')) {
+        const tabBank = getEl('tab-bank');
+        if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+    }
 
+    // 4. הזרקת חלונות הפופ-אפ החסרים (כדי שההרשאות לא יקרסו)
+    if(!getEl('shift-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
@@ -315,6 +440,11 @@ function injectBusinessUI() {
                 </div>
             </div>
         </div>
+        `);
+    }
+
+    if(!getEl('manual-punch-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
         <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
                 <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
@@ -335,6 +465,11 @@ function injectBusinessUI() {
                 </div>
             </div>
         </div>
+        `);
+    }
+
+    if(!getEl('permissions-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
         <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיווג וגישה למערכת 🔐</h3>
