@@ -444,7 +444,7 @@ function switchTab(t) {
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
-    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון: רינדור הפיד כשחוזרים לטאב הראשי
+    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון לטעינת הפיד המרכזי
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -549,7 +549,7 @@ async function loadDashboard() {
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-        // התיקון: חשיפת הטאב הראשי והפעלת בדיקת הודעת פתיחה שמעירה את האפליקציה לחיים
+        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
 
@@ -2047,8 +2047,30 @@ function getForecastInsight() {
     });
 }
 
-function initAccessibility() { const saved = localStorage.getItem('ofl_accessibility'); if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } }
-function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = getEl(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
+function initAccessibility() { 
+    const saved = localStorage.getItem('ofl_accessibility'); 
+    if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } 
+    
+    // יצירת חלון נגישות במידה ולא קיים ב-HTML
+    if(!getEl('accessibility-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="accessibility-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+                <button onclick="closeAccessibilityModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-bold mb-4 text-center text-slate-800"><i class="fa-solid fa-universal-access text-blue-500"></i> תפריט נגישות</h3>
+                <div class="space-y-3 mb-6">
+                    <button id="acc-text-lg" onclick="toggleAccess('text-lg')" class="w-full p-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition text-right flex justify-between items-center">טקסט מוגדל <i class="fa-solid fa-text-height"></i></button>
+                    <button id="acc-grayscale" onclick="toggleAccess('grayscale')" class="w-full p-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition text-right flex justify-between items-center">גווני אפור <i class="fa-solid fa-droplet-slash"></i></button>
+                    <button id="acc-contrast" onclick="toggleAccess('contrast')" class="w-full p-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition text-right flex justify-between items-center">ניגודיות גבוהה <i class="fa-solid fa-circle-half-stroke"></i></button>
+                    <button id="acc-readable-font" onclick="toggleAccess('readable-font')" class="w-full p-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition text-right flex justify-between items-center">גופן קריא <i class="fa-solid fa-font"></i></button>
+                    <button id="acc-highlight-links" onclick="toggleAccess('highlight-links')" class="w-full p-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition text-right flex justify-between items-center">הדגשת קישורים <i class="fa-solid fa-link"></i></button>
+                </div>
+                <button onclick="resetAccessibility()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition">איפוס הגדרות נגישות</button>
+            </div>
+        </div>
+        `);
+    }
+}function applyAccessibility() { Object.keys(accState).forEach(key => { const btn = getEl(`acc-${key}`); if(accState[key]) { document.body.classList.add(`acc-${key}`); if(btn) { btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.remove('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } else { document.body.classList.remove(`acc-${key}`); if(btn) { btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700'); btn.classList.add('border-slate-200', 'bg-slate-50', 'text-slate-700'); } } }); localStorage.setItem('ofl_accessibility', JSON.stringify(accState)); }
 function toggleAccess(key) { accState[key] = !accState[key]; applyAccessibility(); }
 function resetAccessibility() { Object.keys(accState).forEach(k => accState[k] = false); applyAccessibility(); showToast('success', 'הגדרות הנגישות אופסו'); closeAccessibilityModal(); }
 function openAccessibilityModal() { getEl('accessibility-modal').classList.remove('hidden'); }
