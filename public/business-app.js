@@ -2589,6 +2589,10 @@ function renderStorePromotions() {
         const createdStr = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '';
         const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
         const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
+        
+        // תצוגה באדמין איפה המבצע מופיע (באנר / טאב)
+        const isBanner = p.show_in_banner === true || String(p.show_in_banner) === 'true';
+        const isTab = p.show_in_tab === true || String(p.show_in_tab) === 'true';
 
         html += `
         <div class="flex flex-col bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3 relative hover:shadow-md transition">
@@ -2599,6 +2603,10 @@ function renderStorePromotions() {
                         <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
                         <p class="text-[10px] text-slate-500 mt-0.5 font-medium">${targetDesc}</p>
                         <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock"></i> תוקף: ${startStr} - ${endStr}</p>
+                        <div class="flex gap-2 mt-1">
+                            ${isBanner ? '<span class="text-[9px] bg-blue-50 text-blue-600 px-1.5 rounded border border-blue-100"><i class="fa-regular fa-eye"></i> באנר עליון</span>' : ''}
+                            ${isTab ? '<span class="text-[9px] bg-purple-50 text-purple-600 px-1.5 rounded border border-purple-100"><i class="fa-solid fa-layer-group"></i> טאב מבצעים</span>' : ''}
+                        </div>
                     </div>
                 </div>
                 <div class="flex flex-col items-end gap-2 shrink-0">
@@ -2643,8 +2651,8 @@ function openPromotionModal(id = null) {
             getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
             getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
             
-            if(getEl('promo-show-banner')) getEl('promo-show-banner').checked = p.show_in_banner !== false && String(p.show_in_banner) !== 'false';
-            if(getEl('promo-show-tab')) getEl('promo-show-tab').checked = p.show_in_tab !== false && String(p.show_in_tab) !== 'false';
+            if(getEl('promo-show-banner')) getEl('promo-show-banner').checked = p.show_in_banner === true || String(p.show_in_banner) === 'true';
+            if(getEl('promo-show-tab')) getEl('promo-show-tab').checked = p.show_in_tab === true || String(p.show_in_tab) === 'true';
             if(getEl('promo-bg-color')) getEl('promo-bg-color').value = p.bg_color || 'pink';
         }
     } else {
