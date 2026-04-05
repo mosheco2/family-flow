@@ -390,6 +390,7 @@ async function handleLogin(e) {
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
+            loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
         } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
@@ -403,8 +404,24 @@ async function handleCreate(e) {
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
+            loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
         } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
+}
+
+// נוספה פונקציית בחירת סוג שחשובה למסך ההרשמה שלא היתה
+function handleTypeSelection(type) {
+    const typeInput = getEl('create-type'); if(typeInput) typeInput.value = type;
+    const btnBiz = getEl('type-business'); const btnFam = getEl('type-family'); const nameInput = getEl('create-group-name');
+    if(type === 'BUSINESS') {
+        if(btnBiz) { btnBiz.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600'); btnBiz.classList.remove('border-slate-100', 'text-slate-400'); }
+        if(btnFam) { btnFam.classList.add('border-slate-100', 'text-slate-400'); btnFam.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-600'); }
+        if(nameInput) nameInput.placeholder = 'שם העסק';
+    } else {
+        if(btnFam) { btnFam.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600'); btnFam.classList.remove('border-slate-100', 'text-slate-400'); }
+        if(btnBiz) { btnBiz.classList.add('border-slate-100', 'text-slate-400'); btnBiz.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-600'); }
+        if(nameInput) nameInput.placeholder = 'שם המשפחה';
+    }
 }
 
 async function handleJoin(e) { 
@@ -413,7 +430,6 @@ async function handleJoin(e) {
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
-
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
@@ -428,6 +444,7 @@ function switchTab(t) {
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
+    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון: רינדור הפיד כשחוזרים לטאב הראשי
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -441,7 +458,6 @@ function switchTab(t) {
     if (t === 'tasks') { try { renderTasks(allTasks); } catch(e) {} }
     if (t === 'members') { try { fetchMembers(); } catch(e) {} }
 }
-
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
