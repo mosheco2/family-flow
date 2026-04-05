@@ -90,21 +90,39 @@
         </button>
     </div>
 
-    <div id="modifiers-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] slide-up">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h3 class="text-xl font-black text-slate-900" id="mod-product-name"></h3>
-                    <p class="font-bold text-slate-500 mt-1" id="mod-product-price"></p>
+<div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
+            <div class="relative w-full h-48 sm:h-56 bg-slate-100 shrink-0">
+                <img id="prod-modal-image" src="" class="w-full h-full object-cover hidden">
+                <div id="prod-modal-placeholder" class="w-full h-full flex items-center justify-center text-slate-300">
+                    <i class="fa-solid fa-image text-5xl"></i>
                 </div>
-                <button onclick="closeModifiersModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div id="mod-options-container" class="flex-1 overflow-y-auto modal-scroll space-y-4 mb-6 pr-1"></div>
+            <div class="p-5 flex-1 overflow-y-auto modal-scroll flex flex-col">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-2xl font-black text-slate-900 leading-tight" id="prod-modal-name"></h3>
+                    <span id="prod-modal-price" class="text-xl font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 shrink-0 mr-3"></span>
+                </div>
+                <p class="text-sm text-slate-500 mb-4 leading-relaxed" id="prod-modal-desc"></p>
+                <div id="prod-modal-long-desc" class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100 whitespace-pre-line hidden"></div>
+                
+                <div id="mod-options-container" class="space-y-4 mb-4"></div>
+            </div>
             
-            <button id="btn-add-with-mod" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center items-center gap-2 text-lg">
-                הוסף לסל <span id="mod-total-display" class="font-normal text-sm bg-white/20 px-2 py-0.5 rounded ml-2"></span>
-            </button>
+            <div class="p-4 border-t border-slate-100 bg-white shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-between bg-slate-100 rounded-xl p-1 w-28 shrink-0">
+                        <button onclick="updateModalQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
+                        <span id="prod-modal-qty" class="font-bold text-slate-900 text-sm">1</span>
+                        <button onclick="updateModalQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <button id="btn-add-with-mod" class="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center items-center gap-2 text-base">
+                        <span id="prod-btn-text">הוסף לסל</span> <span id="mod-total-display" class="font-normal text-sm bg-white/20 px-2 py-0.5 rounded ml-1"></span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -300,9 +318,6 @@ function renderCatalog() {
             let html = storeType === 'retail' ? '<div class="grid grid-cols-2 gap-4">' : '<div class="flex flex-col gap-4">';
 
             filtered.forEach(item => {
-                const hasOptions = hasValidModifiers(item.options_text);
-                
-                // --- תחילת קוד הדיגול ---
                 let badgeHtml = '';
                 if (item.badge_text) {
                     const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
@@ -313,26 +328,7 @@ function renderCatalog() {
                 const imgClasses = storeType === 'retail' ? 'w-full h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
                 const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
                 const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
-                // --- סוף קוד הדיגול ---
                 
-                let actionHtml = '';
-                if (hasOptions) {
-                    actionHtml = `<button onclick="openModifiersModal(${item.id})" class="bg-slate-900 text-white hover:bg-black px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-md w-full sm:w-auto"><i class="fa-solid fa-plus mr-1"></i> בחר אפשרויות</button>`;
-                } else {
-                    const currentQty = Object.values(cart).filter(c => c.catalogId === item.id).reduce((sum, c) => sum + c.qty, 0);
-                    if (currentQty > 0) {
-                        actionHtml = `
-                        <div class="flex items-center justify-between gap-1 bg-slate-100 rounded-lg p-1 w-full sm:w-auto">
-                            <button onclick="updateCart('${item.id}', -1, '${safeStr(item.name)}', ${item.price})" class="w-7 h-7 rounded bg-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-minus text-[10px]"></i></button>
-                            <span class="font-bold text-slate-800 text-xs px-2">${currentQty}</span>
-                            <button onclick="updateCart('${item.id}', 1, '${safeStr(item.name)}', ${item.price})" class="w-7 h-7 rounded bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus text-[10px]"></i></button>
-                        </div>`;
-                    } else {
-                        actionHtml = `<button onclick="updateCart('${item.id}', 1, '${safeStr(item.name)}', ${item.price})" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full sm:w-auto border border-slate-200 shadow-sm"><i class="fa-solid fa-plus"></i> הוסף</button>`;
-                    }
-                }
-
-                // עיצוב מחיר קהילה 
                 let priceHtml = '';
                 const orig = parseFloat(item.original_price);
                 const curr = parseFloat(item.price);
@@ -350,31 +346,74 @@ function renderCatalog() {
                     priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
                 }
 
+                const btnText = item.product_type === 'service' ? 'הזמן שירות' : (item.product_type === 'food' ? 'בחר מנה' : 'פרטים והוספה');
+                const actionHtml = `<button onclick="openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
+
                 if (storeType === 'retail') {
-                    html += `<div class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
+                    html += `<div onclick="openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
-                    html += `<div class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
+                    html += `<div onclick="openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
                 }
             });
             container.innerHTML = html + '</div>';
         }
-        // --- Modifiers Logic ---
-        function calculateModTotal() {
-            let total = currentModifierBasePrice;
-            document.querySelectorAll('.mod-checkbox, .mod-radio').forEach(input => {
-                if (input.checked) total += parseFloat(input.dataset.price) || 0;
-            });
-            getEl('mod-total-display').innerText = `(₪${total.toFixed(2)})`;
+
+        // --- Product Details & Modifiers Logic ---
+        let currentModalQty = 1;
+
+        function updateModalQty(delta) {
+            currentModalQty += delta;
+            if(currentModalQty < 1) currentModalQty = 1;
+            getEl('prod-modal-qty').innerText = currentModalQty;
+            calculateModTotal();
         }
 
-        function openModifiersModal(itemId) {
+        function calculateModTotal() {
+            let totalOptions = 0;
+            document.querySelectorAll('.mod-checkbox, .mod-radio').forEach(input => {
+                if (input.checked) totalOptions += parseFloat(input.dataset.price) || 0;
+            });
+            const grandTotal = (currentModifierBasePrice + totalOptions) * currentModalQty;
+            getEl('mod-total-display').innerText = `(₪${grandTotal.toFixed(2)})`;
+        }
+
+        function openProductModal(itemId) {
             const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
-            currentModifierProduct = item; currentModifierBasePrice = parseFloat(item.price) || 0;
+            currentModifierProduct = item; 
+            currentModifierBasePrice = parseFloat(item.price) || 0;
+            currentModalQty = 1;
             
-            getEl('mod-product-name').innerText = item.name; getEl('mod-product-price').innerText = `מחיר בסיס: ₪${item.price}`;
-            
+            getEl('prod-modal-name').innerText = item.name; 
+            getEl('prod-modal-price').innerText = `₪${item.price}`;
+            getEl('prod-modal-desc').innerText = item.description || '';
+            getEl('prod-modal-qty').innerText = currentModalQty;
+
+            const longDesc = getEl('prod-modal-long-desc');
+            if (item.long_description) {
+                longDesc.innerText = item.long_description;
+                longDesc.classList.remove('hidden');
+            } else {
+                longDesc.classList.add('hidden');
+            }
+
+            const imgPreview = getEl('prod-modal-image');
+            const placeholder = getEl('prod-modal-placeholder');
+            if (item.image_url) {
+                imgPreview.src = item.image_url;
+                imgPreview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                imgPreview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+
+            let btnText = 'הוסף לסל';
+            if (item.product_type === 'service') btnText = 'הזמן שירות';
+            if (item.product_type === 'apparel') btnText = 'בחר מידה והוסף';
+            getEl('prod-btn-text').innerText = btnText;
+
             let options = [];
-            try { options = JSON.parse(item.options_text); } catch(e) { return; }
+            try { options = JSON.parse(item.options_text); } catch(e) { }
             
             let html = '';
             options.forEach((optGroup, idx) => {
@@ -382,12 +421,12 @@ function renderCatalog() {
                 const inputType = isSingle ? 'radio' : 'checkbox';
                 const requiredAsterisk = isSingle ? '<span class="text-red-500">*</span>' : '';
                 
-                html += `<div class="mb-5 bg-slate-50 p-4 rounded-2xl border border-slate-100"><h4 class="font-bold text-slate-800 text-sm mb-3">${safeStr(optGroup.name)} ${requiredAsterisk} <span class="text-[10px] font-normal text-slate-500 ml-1">(${isSingle ? 'בחר 1' : 'אפשר לבחור כמה'})</span></h4><div class="space-y-2">`;
+                html += `<div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100"><h4 class="font-bold text-slate-800 text-sm mb-3">${safeStr(optGroup.name)} ${requiredAsterisk} <span class="text-[10px] font-normal text-slate-500 ml-1">(${isSingle ? 'בחר 1' : 'אפשר לבחור כמה'})</span></h4><div class="space-y-2">`;
                 
                 optGroup.options.forEach((valOpt, vIdx) => {
-                    const priceBadge = valOpt.price > 0 ? `<span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">+₪${valOpt.price}</span>` : '';
+                    const priceBadge = valOpt.price > 0 ? `<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">+₪${valOpt.price}</span>` : '';
                     html += `
-                    <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 transition group">
+                    <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-900 transition group">
                         <div class="flex items-center gap-3">
                             <input type="${inputType}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="calculateModTotal()" ${isSingle ? 'required' : ''}>
                             <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900">${safeStr(valOpt.name)}</span>
@@ -404,7 +443,6 @@ function renderCatalog() {
             getEl('btn-add-with-mod').onclick = () => {
                 let selectedModifiers = []; let totalModPrice = 0;
                 
-                // בדיקת חובת בחירה (Single)
                 for(let i=0; i<options.length; i++) {
                     if(options[i].type === 'single') {
                         const checked = document.querySelector(`input[name="mod_group_${i}"]:checked`);
@@ -412,7 +450,6 @@ function renderCatalog() {
                         selectedModifiers.push(checked.value);
                         totalModPrice += parseFloat(checked.dataset.price) || 0;
                     } else {
-                        // בחירה מרובה (Multiple)
                         document.querySelectorAll(`input[name="mod_group_${i}"]:checked`).forEach(checked => {
                             selectedModifiers.push(checked.value);
                             totalModPrice += parseFloat(checked.dataset.price) || 0;
@@ -424,14 +461,14 @@ function renderCatalog() {
                 const finalPrice = currentModifierBasePrice + totalModPrice;
                 const cartKey = `${item.id}_${selectedModifiers.join('-')}`; 
                 
-                updateCart(cartKey, 1, finalName, finalPrice, item.id);
-                closeModifiersModal(); showToast('success', 'נוסף לסל בהצלחה!');
+                updateCart(cartKey, currentModalQty, finalName, finalPrice, item.id);
+                closeProductModal(); showToast('success', 'נוסף לסל בהצלחה!');
             };
             
-            getEl('modifiers-modal').classList.remove('hidden');
+            getEl('product-modal').classList.remove('hidden');
         }
 
-        function closeModifiersModal() { getEl('modifiers-modal').classList.add('hidden'); }
+        function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
 
         // --- ניהול עגלה ---
         function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
