@@ -19,7 +19,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css" rel="stylesheet">
@@ -98,7 +97,7 @@
         .report-table td { padding: 8px; border: 1px solid #e2e8f0; color: #1e293b; }
         .report-badge { background-color: #f1f5f9; color: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; border: 1px solid #cbd5e1; }
 
-        /* IntroJS Overrides for modern modal look */
+        /* IntroJS Overrides */
         .introjs-tooltip { 
             font-family: 'Rubik', sans-serif !important; 
             border-radius: 2rem !important; 
@@ -163,7 +162,7 @@
     </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative">
-<datalist id="israel-cities">
+    <datalist id="israel-cities">
         <option value="תל אביב - יפו"></option><option value="ירושלים"></option><option value="חיפה"></option>
         <option value="ראשון לציון"></option><option value="פתח תקווה"></option><option value="אשדוד"></option>
         <option value="נתניה"></option><option value="באר שבע"></option><option value="חולון"></option>
@@ -178,6 +177,7 @@
         <option value="צפת"></option><option value="שדרות"></option><option value="נתיבות"></option>
         <option value="טירת כרמל"></option><option value="עכו"></option>
     </datalist>
+
     <div id="app-preloader" class="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center transition-opacity duration-700">
         <img src="logo.png" alt="Oneflowlife Pro" class="w-32 h-auto mb-4 animate-pulse object-contain" id="preloader-logo" onerror="this.style.display='none';">
         <h2 class="text-xl font-bold text-slate-800 mb-1">Oneflow life BIZ</h2>
@@ -187,7 +187,7 @@
     <input type="file" id="task-proof-upload" accept="image/*" capture="environment" class="hidden" onchange="handleTaskProofUpload(event)">
     <input type="file" id="receipt-scan-upload" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
-       <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full shadow-2xl hidden z-[999999] flex items-center gap-3 transition-all duration-300 w-max max-w-[90%]">
         <i id="toast-icon" class="text-lg"></i><span id="toast-message" class="font-medium text-sm"></span>
     </div>
 
@@ -204,7 +204,6 @@
                         <i class="fa-solid fa-microchip text-yellow-400/90 text-4xl shadow-sm transform -rotate-90"></i>
                         <i class="fa-solid fa-wifi text-slate-300 text-2xl opacity-70"></i>
                     </div>
-                    
                     <img src="logo.png" alt="Logo" class="w-28 sm:w-36 h-auto mx-auto mb-4 object-contain drop-shadow-2xl" id="auth-logo" onerror="this.style.display='none'; document.getElementById('auth-logo-fallback').classList.remove('hidden');">
                     <div id="auth-logo-fallback" class="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl shadow-inner mx-auto mb-4 flex items-center justify-center text-4xl text-white border border-white/20 hidden"><i class="fa-solid fa-wallet"></i></div>
                     
@@ -400,15 +399,15 @@
                             <h3 class="font-bold text-slate-700 border-b pb-2">באנר תחתון (Bottom Banner)</h3>
                             <div>
                                 <label class="text-xs font-bold text-slate-500 block mb-1">טקסט להצגה:</label>
-                                <input type="text" id="sa-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
+                                <input type="text" id="sa-biz-banner-bottom-text" class="modern-input py-2 text-sm" placeholder="למשל: לחצו כאן להצטרפות לקבוצת הוואטסאפ שלנו">
                             </div>
                             <div>
                                 <label class="text-xs font-bold text-slate-500 block mb-1">קישור (אופציונלי):</label>
-                                <input type="url" id="sa-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
+                                <input type="url" id="sa-biz-banner-bottom-link" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="https://...">
                             </div>
                             <div>
                                 <label class="text-xs font-bold text-slate-500 block mb-1">תמונה (שם קובץ בתיקיית public):</label>
-                                <input type="text" id="sa-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
+                                <input type="text" id="sa-biz-banner-bottom-img" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: banner2.png">
                             </div>
                         </div>
                     </div>
@@ -466,32 +465,30 @@
                 </div>
             </div>
         </div>
-                                     <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
-                <!-- === BANNER TOP – בראש האפליקציה, פרוס 100% עם פינות מעוגלות === -->
-                <a id="app-banner-top"
-                   href="#"
-                   target="_blank"
-                   class="glass-header hidden mx-0 mt-0 w-full flex items-center justify-center text-sm font-medium py-3 px-4 border-b border-slate-100 text-slate-700 rounded-t-[2rem] shadow-sm overflow-hidden">
-                </a>
 
-                <!-- Header + תפריט (שם העסק + "שלום" באותה שורה) -->
-                <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-0 flex justify-between items-center sticky top-0 z-40 shadow-sm w-full" id="tour-header">
-                    <div class="flex items-center gap-3 flex-1">
+        <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+            
+            <a id="app-banner-top" class="hidden bg-gradient-to-r from-slate-700 to-slate-900 text-white text-center text-xs font-bold w-full shadow-md hover:opacity-90 transition flex-col items-center justify-center relative z-40 shrink-0 overflow-hidden min-h-[60px]"></a>
+
+            <div class="flex-1 pb-28 relative flex flex-col w-full">
+                <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
+                    <div class="flex items-center gap-3">
                         <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
                             <i class="fa-solid fa-bars"></i> תפריט
                         </button>
-                        <div class="flex items-center gap-2">
-                            <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none"></h2>
-                            <p class="text-xs text-slate-500">שלום <span id="dash-nickname" class="font-bold"></span></p>
-                            <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition flex items-center gap-1"></button>
+                        <div class="flex flex-col items-start">
+                            <h2 id="dash-group-name" class="font-bold text-slate-800 text-lg leading-none flex items-center"></h2>
+                            <div class="flex items-center gap-2 mt-1">
+                                <p class="text-xs text-slate-500">שלום <span id="dash-nickname" class="font-bold"></span></p>
+                                <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full border cursor-pointer hover:opacity-80 transition flex items-center gap-1"></button>
+                            </div>
                         </div>
                     </div>
                     <button onclick="logout()" class="w-10 h-10 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center" title="התנתק"><i class="fa-solid fa-right-from-bracket"></i></button>
                 </header>
-                <!-- תוכן ראשי -->
-                <div class="flex-1 pb-28 relative flex flex-col w-full">
-                    <div class="relative px-2 mb-6 group shrink-0">
-                        <div class="slider-container">
+                
+                <div class="relative px-2 mb-6 group shrink-0">
+                    <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
                         <div class="slider-scroll" id="slider-scroll">
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
@@ -544,7 +541,6 @@
                     </div>
 
                     <div id="content-timeclock" class="hidden">
-                        
                         <div id="timeclock-user-view" class="space-y-6 mb-6">
                             <div class="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center min-h-[300px]">
                                 <h3 class="font-bold text-slate-800 text-xl mb-2" id="tc-status-title">שעון נוכחות</h3>
@@ -577,7 +573,6 @@
                                 <div id="timeclock-report-list" class="divide-y divide-slate-50 min-h-[150px]"></div>
                             </div>
                         </div>
-                        
                     </div>
 
                     <div id="content-bank" class="hidden">
@@ -621,11 +616,11 @@
                                      <option value="3">רבעון אחרון</option>
                                  </select>
                             </div>
-                 <div id="cashflow-list" class="space-y-3 pb-20"></div>
+                            <div id="cashflow-list" class="space-y-3 pb-20"></div>
                         </div>
                     </div>
 
-<div id="content-community" class="hidden space-y-6">
+                    <div id="content-community" class="hidden space-y-6">
                         <div class="bg-gradient-to-r from-orange-400 to-pink-500 rounded-[2rem] p-6 text-white shadow-xl relative overflow-hidden">
                             <h3 class="text-xl font-bold mb-1">חיבור לקהילות 🏘️</h3>
                             <p class="text-orange-50 text-xs opacity-90">הצטרפו לקהילות מקומיות, הציעו הנחות והגדילו את מעגל הלקוחות שלכם.</p>
@@ -641,7 +636,7 @@
                             <h3 class="font-bold text-slate-800 text-lg mb-2 flex items-center gap-2"><i class="fa-solid fa-earth-americas text-green-500"></i> קהילות פתוחות להצטרפות</h3>
                             <p class="text-xs text-slate-500 mb-4">בקשו להצטרף לקהילות אלו והציעו הנחה קבועה לחבריהן.</p>
                             
-<div class="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 items-end">
+                            <div class="flex flex-col sm:flex-row gap-4 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 items-end">
                                 <div class="flex-1 w-full">
                                     <label class="text-xs font-bold text-slate-500 block mb-2"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i> בחירת עיר / יישוב:</label>
                                     <input type="text" id="biz-filter-city" list="israel-cities" oninput="if(typeof filterBizAvailableCommunities === 'function') filterBizAvailableCommunities()" class="modern-input py-3 px-4 text-sm shadow-sm border-slate-200 w-full focus:border-blue-500" placeholder="הקלידו ובחרו עיר לחיפוש..." autocomplete="off">
@@ -668,7 +663,7 @@
                         </div>
                     </div>
 
-          <div id="content-shop" class="hidden">
+                    <div id="content-shop" class="hidden">
                         <div class="flex justify-between items-center mb-4 px-2">
                             <h3 class="font-bold text-slate-700 text-lg">רכש והזמנות 🛒</h3>
                             <div class="flex gap-2">
@@ -976,7 +971,7 @@
                                 </button>
                             </div>
                         </div>
-                                                <div id="admin-members-tools" class="hidden bg-slate-50 rounded-3xl p-6 border border-slate-200">
+                                            <div id="admin-members-tools" class="hidden bg-slate-50 rounded-3xl p-6 border border-slate-200">
                             <button onclick="sendCredentialsEmail()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-envelope-open-text"></i> קבל פרטי גישה למייל המנהל</button>
                             <p class="text-[10px] text-slate-400 text-center mt-2">ישלח אליכם דו"ח גישה מלא של כלל העובדים לשם אבטחה ובקרה.</p>
                         </div>
@@ -984,19 +979,22 @@
                             <h3 class="font-bold text-orange-800 text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-user-clock"></i> בקשות הצטרפות (עובדים חדשים)</h3>
                             <div id="pending-list" class="space-y-2"></div>
                         </div>
-                            </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- === BANNER BOTTOM – צמוד לתחתית, פרוס 100% עם פינות מעוגלות === -->
             <a id="app-banner-bottom"
                href="#"
                target="_blank"
-               class="glass-header hidden mx-0 mt-auto mb-0 w-full flex items-center justify-center text-sm font-medium py-3 px-4 border-t border-slate-100 text-slate-700 rounded-b-[2rem] shadow-sm overflow-hidden">
+               class="glass-header hidden mx-0 mt-auto mb-0 w-full flex items-center justify-center text-sm font-medium py-3 px-4 border-t border-slate-100 text-slate-700 rounded-b-[2rem] shadow-sm overflow-hidden min-h-[60px]">
             </a>
         </div>
- 
+
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
+            <div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">סה"כ הזמנה מוערך</p><span id="cart-total-display" class="font-bold text-2xl text-slate-800">₪0.00</span></div>
+            <button onclick="openCheckoutSummary()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:scale-105 transition">אשר הזמנת רכש</button>
+        </div>
+        
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
                 <button onclick="openShopModal(); toggleFab()" class="w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-700 transition" title="בקשת רכש"><i class="fa-solid fa-cart-arrow-down"></i></button>
@@ -1514,7 +1512,7 @@
                 <div class="flex gap-3"><button onclick="document.getElementById('goal-deposit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button onclick="submitDeposit()" class="flex-1 bg-cyan-600 text-white py-3 rounded-xl font-bold">בצע העברה ליעד</button></div>
             </div>
         </div>
-       
+        
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center">הגדרות תקציב עובד</h3>
                 <p id="bank-user-name" class="text-center text-slate-500 mb-6 text-sm"></p><input type="hidden" id="bank-user-id">
@@ -1707,7 +1705,7 @@
         
     </div>
 
-<script src="business-app.js?v=25" defer></script>
+    <script src="business-app.js?v=24" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
