@@ -1981,6 +1981,43 @@ app.put('/api/store/promotions/toggle/:id', async (req, res) => {
 
 app.post('/api/store/promotions', async (req, res) => {
     try {
+        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const result = await pool.query(
+            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor]
+        );
+        res.json({ success: true, promotion: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/promotions/:id', async (req, res) => {
+    try {
+        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const result = await pool.query(
+            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10 WHERE id=$11 RETURNING *',
+            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, req.params.id]
+        );
+        res.json({ success: true, promotion: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/promotions/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/promotions/toggle/:id', async (req, res) => {
+    try {
+        const { isActive } = req.body;
+        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/promotions', async (req, res) => {
+    try {
         const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate } = req.body;
         const result = await pool.query(
             'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
