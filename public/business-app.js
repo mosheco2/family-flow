@@ -2928,9 +2928,59 @@ async function loadSACommunityData() {
             saBusinessesCache = bizData.businesses;
             if (typeof filterSABizSelect === 'function') filterSABizSelect();
         }
+        
+        // קריאה קריטית להבאת הבקשות הממתינות!
+        if (typeof loadSAPendingRequests === 'function') {
+            loadSAPendingRequests();
+        }
     } catch(e) { console.error("Error loading SA Communities", e); }
 }
 
+async function loadSAPendingRequests() {
+    const container = getEl('sa-pending-biz-container');
+    const list = getEl('sa-pending-biz-list');
+    if(!container || !list) return;
+
+    try {
+        const res = await fetch(`${API}/sa/communities/pending-businesses`);
+        const data = await res.json();
+        
+        if (data.success && data.pending && data.pending.length > 0) {
+            container.classList.remove('hidden');
+            list.innerHTML = data.pending.map(p => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
+                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה לחברי הקהילה</p>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition shadow-sm border border-slate-700"><i class="fa-solid fa-check mr-1"></i> אשר וצרף</button>
+                        <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition shadow-sm border border-red-100"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.classList.add('hidden');
+        }
+    } catch(e) { console.error('Error loading pending requests', e); }
+}
+
+async function approveSABizRequest(communityId, businessId) {
+    if(!confirm('האם לאשר את הצטרפות העסק לקהילה? הלקוחות יראו אותו מיד.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('success', 'העסק אושר וצורף לקהילה!'); loadSACommunityData(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function rejectSABizRequest(communityId, businessId) {
+    if(!confirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
 function filterSACommSelect() {
     const queryInput = getEl('sa-search-comm-select');
     const query = queryInput ? queryInput.value.toLowerCase() : '';
