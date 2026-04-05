@@ -188,7 +188,7 @@
  async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
-            const communityId = urlParams.get('communityId'); // שליפת קהילה מהנתיב אם קיימת
+            const communityId = urlParams.get('communityId');
             
             if (!storeCode) return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור שגוי</h1>";
 
@@ -196,67 +196,83 @@
                 let fetchUrl = `${API}/storefront/${storeCode}`;
                 if (communityId) fetchUrl += `?communityId=${communityId}`;
                 
-  const res = await fetch(fetchUrl);
+                const res = await fetch(fetchUrl);
                 const data = await res.json();
                 
-                // תיקון: החנות תיסגר רק אם success הוא false או אם is_active הוגדר במפורש כ-false
                 const isActive = data.settings && data.settings.is_active !== false;
-                
                 if (!data.success || !isActive) {
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
                 }
 
-                // החלת הנחת הקהילה ועיבוד הנתונים (דרישות 1+2)
                 if (data.communityData) {
                     const discount = parseFloat(data.communityData.discount_pct) || 0;
                     if (data.catalog && discount > 0) {
                         data.catalog.forEach(item => {
                             item.original_price = parseFloat(item.price);
                             item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
-                            // הורדת אפסים מיותרים כדי שייראה טוב
                             if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
-                            
-                            // הוספת סממן ברור למוצר עצמו שמסמל מחיר קהילה
                             item.is_community_discount = true;
                         });
                     }
                     
-                    // הזרקת באנר קהילה דביק בראש המסך עם כפתור חזרה לאפליקציה (כיווניות מתוקנת)
                     const appContainer = getEl('store-app');
                     appContainer.insertAdjacentHTML('afterbegin', `
                         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center sticky top-0 z-[100] w-full animate-bounce-in" dir="rtl">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0">
-                                    <i class="fa-solid fa-house-flag text-xl"></i>
-                                </div>
+                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
                                 <div class="flex flex-col justify-center text-right">
                                     <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                    <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5">
-                                        <span>הנחת קהילה פעילה:</span>
-                                        <span class="font-black" dir="ltr">${discount}%</span>
-                                    </div>
+                                    <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
                                 </div>
                             </div>
-                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5 shrink-0">
-                                <i class="fa-solid fa-mobile-screen"></i> לאפליקציה
-                            </button>
+                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-mobile-screen"></i> לאפליקציה</button>
                         </div>
                     `);
-                    
-                    // שינוי ה-Sticky המקורי של שורת החיפוש כדי שלא יסתיר את סרגל הקהילה החדש
-                    setTimeout(() => {
-                        const searchHeader = document.querySelector('.glass-header.sticky');
-                        if(searchHeader) searchHeader.style.top = '64px';
-                    }, 100);
+                    setTimeout(() => { const searchHeader = document.querySelector('.glass-header.sticky'); if(searchHeader) searchHeader.style.top = '64px'; }, 100);
                 }
 
                 storeData = data;
+                
+                try {
+                    const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId || storeData.group?.id || data.groupId}`);
+                    const promoData = await promoRes.json();
+                    if (promoData.success) {
+                        storeData.promotions = promoData.promotions.filter(p => {
+                            if (!p.is_active) return false;
+                            const now = new Date();
+                            if (p.start_date && new Date(p.start_date) > now) return false;
+                            if (p.end_date && new Date(p.end_date) < now) return false;
+                            return true;
+                        });
+                    }
+                } catch(e) {}
+
                 renderHeader();
                 extractCategories();
+                renderPromotionsBanner(); // קריאה להצגת הבאנר
                 renderCatalog();
+
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
             } catch (err) {}
+        }
+        
+        function renderPromotionsBanner() {
+            if (!storeData.promotions || storeData.promotions.length === 0) return;
+            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-2 px-4 modal-scroll snap-x mt-4">`;
+            storeData.promotions.forEach(p => {
+                let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
+                let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `מחלקת: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
+                promoHtml += `
+                <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl min-w-[220px] shrink-0 snap-center shadow-md relative overflow-hidden">
+                    <i class="fa-solid fa-gift absolute -left-2 -bottom-2 text-6xl opacity-20"></i>
+                    <h4 class="font-black text-base relative z-10">${safeStr(p.title)}</h4>
+                    <p class="text-xs font-bold mt-1 bg-white/20 inline-block px-2.5 py-1 rounded-md relative z-10">${desc}</p>
+                    <p class="text-[10px] mt-2 opacity-90 relative z-10">${targetDesc}</p>
+                </div>`;
+            });
+            promoHtml += `</div>`;
+            getEl('catalog-container').insertAdjacentHTML('beforebegin', promoHtml);
         }
 
       function renderHeader() {
@@ -481,25 +497,86 @@ function renderCatalog() {
             renderCatalog(); updateCartFooter();
         }
 
-        function updateCartFooter() {
-            let totalQty = 0; let totalPrice = 0;
-            Object.values(cart).forEach(item => { totalQty += item.qty; totalPrice += (item.qty * item.price); });
+        function calculateCartDetails() {
+            let baseTotal = 0; let totalQty = 0;
+            let itemsForPromo = [];
+            
+            Object.values(cart).forEach(item => {
+                baseTotal += (item.qty * item.price);
+                totalQty += item.qty;
+                const catalogItem = storeData.catalog.find(c => String(c.id) === String(item.catalogId));
+                itemsForPromo.push({ ...item, category: catalogItem ? catalogItem.category : '' });
+            });
 
+            let finalTotal = baseTotal;
+            let discountAmount = 0;
+
+            if (storeData.promotions && storeData.promotions.length > 0) {
+                storeData.promotions.forEach(promo => {
+                    let relevantItems = itemsForPromo;
+                    if (promo.target_type === 'category') {
+                        let cats = [];
+                        try { cats = JSON.parse(promo.target_ids); } catch(e){}
+                        if(cats.length > 0) relevantItems = itemsForPromo.filter(i => cats.includes(i.category));
+                    }
+
+                    if (relevantItems.length > 0) {
+                        let promoItemsTotal = relevantItems.reduce((sum, i) => sum + (i.qty * i.price), 0);
+                        let promoItemsQty = relevantItems.reduce((sum, i) => sum + i.qty, 0);
+
+                        if (promo.promo_type === 'discount_pct') {
+                            discountAmount += promoItemsTotal * (parseFloat(promo.promo_value) / 100);
+                        } else if (promo.promo_type === 'fixed_price') {
+                            const fixedP = parseFloat(promo.promo_value);
+                            relevantItems.forEach(ri => {
+                                if (ri.price > fixedP) discountAmount += (ri.price - fixedP) * ri.qty;
+                            });
+                        } else if (promo.promo_type === 'bogo') {
+                            let freeItems = Math.floor(promoItemsQty / 2);
+                            let expandedItems = [];
+                            relevantItems.forEach(i => { for(let j=0; j<i.qty; j++) expandedItems.push(i.price); });
+                            expandedItems.sort((a,b) => a - b);
+                            for(let i=0; i<freeItems; i++) discountAmount += expandedItems[i];
+                        }
+                    }
+                });
+            }
+
+            if (discountAmount > baseTotal) discountAmount = baseTotal;
+            finalTotal = baseTotal - discountAmount;
+            return { baseTotal, finalTotal, discountAmount, totalQty };
+        }
+
+        function updateCartFooter() {
+            const calc = calculateCartDetails();
             const footer = getEl('cart-footer');
-            if (totalQty > 0) { getEl('cart-count').innerText = totalQty; getEl('cart-total').innerText = `₪${totalPrice.toFixed(2)}`; footer.classList.remove('hidden'); } 
-            else footer.classList.add('hidden');
+            if (calc.totalQty > 0) { 
+                getEl('cart-count').innerText = calc.totalQty; 
+                getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`; 
+                footer.classList.remove('hidden'); 
+            } else footer.classList.add('hidden');
         }
 
         function openCheckoutModal() {
-            let total = 0; let itemsHtml = '';
+            const calc = calculateCartDetails();
+            let itemsHtml = '';
             Object.values(cart).forEach((item, index) => {
-                const itemTotal = item.qty * item.price; total += itemTotal;
+                const itemTotal = item.qty * item.price;
                 itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
-            getEl('checkout-items').innerHTML = itemsHtml; getEl('checkout-total').innerText = `₪${total.toFixed(2)}`;
+            getEl('checkout-items').innerHTML = itemsHtml; 
+            
+            if (calc.discountAmount > 0) {
+                getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${calc.baseTotal.toFixed(2)}</span>₪${calc.finalTotal.toFixed(2)}`;
+                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
+                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-left w-max mr-auto mt-1 mb-3">חסכת ₪${calc.discountAmount.toFixed(2)} במבצעים!</div>`);
+            } else {
+                getEl('checkout-total').innerText = `₪${calc.finalTotal.toFixed(2)}`;
+                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
+            }
 
             const minOrder = parseFloat(storeData.settings.min_order) || 0; const btnSubmit = getEl('btn-submit-order'); const warning = getEl('checkout-min-warning');
-            if (minOrder > 0 && total < minOrder) { getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden'); btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); } 
+            if (minOrder > 0 && calc.finalTotal < minOrder) { getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden'); btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); } 
             else { warning.classList.add('hidden'); btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); }
             getEl('checkout-modal').classList.remove('hidden');
         }
@@ -509,11 +586,12 @@ function renderCatalog() {
         async function submitOrder(e) {
             e.preventDefault(); const btn = getEl('btn-submit-order'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
 
-            let totalAmount = 0; const items = [];
-            Object.values(cart).forEach(i => { totalAmount += (i.qty * i.price); items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
+            const calc = calculateCartDetails();
+            const items = [];
+            Object.values(cart).forEach(i => { items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
 
             try {
-                const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: totalAmount }) });
+                const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: calc.finalTotal }) });
                 const data = await res.json();
                 
                 if (data.success) { confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); getEl('checkout-modal').classList.add('hidden'); getEl('cart-footer').classList.add('hidden'); getEl('success-order-id').innerText = `#${data.orderId}`; getEl('success-screen').classList.remove('hidden'); cart = {}; } 
