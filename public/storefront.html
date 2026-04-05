@@ -196,7 +196,7 @@
             'slate': 'from-slate-700 to-slate-900'
         };
 
-        async function initStore() {
+ async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId');
@@ -230,7 +230,9 @@
                         });
                     }
                     
+                    const appContainer = getEl('store-app');
                     const heroHeader = document.querySelector('.hero-bg');
+                    
                     if (heroHeader) {
                         heroHeader.insertAdjacentHTML('beforebegin', `
                             <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
@@ -272,7 +274,7 @@
                 
                 try {
                     if (!getEl('store-promotions-banner')) {
-                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
+                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner" class="w-full"></div>`);
                     }
                     renderPromotionsBanner();
                 } catch(e) { console.error("Banner error", e); }
@@ -296,7 +298,8 @@
             const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_banner !== false && String(p.show_in_banner) !== 'false') : [];
             if (bannerPromos.length === 0) { bannerContainer.innerHTML = ''; return; }
             
-            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-4 pt-2 w-full modal-scroll snap-x px-4 border-b border-slate-200">`;
+            // הורדנו את הרווחים מהצדדים (px-4) והגדרנו הצמדה מלאה (snap-mandatory)
+            let promoHtml = `<div class="flex overflow-x-auto w-full modal-scroll snap-x snap-mandatory">`;
             bannerPromos.forEach(p => {
                 let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
                 let targetArray = [];
@@ -306,12 +309,13 @@
                 
                 const bgClass = colorMap[p.bg_color] || colorMap['pink'];
 
+                // שינוי ל-min-w-full וביטול rounded-3xl כדי שהבאנר ייצמד לדפנות
                 promoHtml += `
-                <div class="bg-gradient-to-r ${bgClass} text-white p-5 rounded-3xl min-w-[280px] sm:min-w-[320px] shrink-0 snap-center shadow-lg relative overflow-hidden flex flex-col justify-center text-right">
-                    <i class="fa-solid fa-gift absolute -left-4 -bottom-4 text-8xl opacity-20 transform -rotate-12"></i>
-                    <h4 class="font-black text-xl relative z-10 leading-tight mb-2 drop-shadow-md">${safeStr(p.title)}</h4>
+                <div class="bg-gradient-to-r ${bgClass} text-white py-5 px-6 min-w-full w-full shrink-0 snap-center relative overflow-hidden flex flex-col justify-center text-right shadow-inner border-b border-black/10">
+                    <i class="fa-solid fa-gift absolute -left-4 -bottom-6 text-9xl opacity-20 transform -rotate-12"></i>
+                    <h4 class="font-black text-2xl relative z-10 leading-tight mb-2 drop-shadow-md">${safeStr(p.title)}</h4>
                     <div class="relative z-10 flex items-center gap-2">
-                        <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/30">${desc}</span>
+                        <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/30 shadow-sm">${desc}</span>
                         <span class="text-xs font-medium opacity-90">${targetDesc}</span>
                     </div>
                 </div>`;
