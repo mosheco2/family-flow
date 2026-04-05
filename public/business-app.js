@@ -127,48 +127,39 @@ async function saveAllBanners() {
 }
 
 function applyBannersToDOM(banners) {
-    const appTop = getEl('app-banner-top'); 
-    const appBottom = getEl('app-banner-bottom');
-
+    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
-        if (!el) return;
-
-        // מאלצים את כל הסגנונות הנכונים של glass + full-width + rounded
-        el.classList.add('glass-header', 'mx-0', 'w-full', 'flex', 'items-center', 'justify-center', 'text-sm', 'font-medium', 'py-3', 'px-4', 'shadow-sm', 'overflow-hidden');
-        el.classList.remove('hidden', 'bg-gradient-to-r', 'from-slate-700', 'to-slate-900', 'text-white', 'flex-col');
-
-        if (text || img) {
-            let html = '';
-
-            // תמונה כרקע (עם opacity נמוכה כדי שה-glass יישאר גלוי)
-            if (img) {
-                const imgSrc = img.startsWith('http') ? img : `/${img}`;
-                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover opacity-30 z-0 rounded-inherit">`;
+        if(!el) return;
+        if(text || img) { 
+            let html = ''; 
+            if(img) { 
+                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover z-0">`; 
             }
-
-            // טקסט (עם צל כדי שיהיה קריא גם על תמונה)
-            if (text) {
-                html += `<span class="relative z-10 py-3 px-4 block w-full text-center drop-shadow-md font-bold text-slate-800">${text}</span>`;
+            if(text) {
+                html += `<div class="absolute inset-0 bg-black/20 z-0"></div>`; // רקע עדין לטקסט כדי שיהיה קריא
+                html += `<span class="relative z-10 py-3 px-4 block w-full text-center drop-shadow-md text-white font-bold">${text}</span>`; 
             }
-
-            el.innerHTML = html;
-            el.href = link || '#';
-
-            if (!link) {
-                el.removeAttribute('target');
-                el.style.cursor = 'default';
-            } else {
-                el.target = '_blank';
-                el.style.cursor = 'pointer';
-            }
-
-            el.classList.remove('hidden');
-        } else {
-            el.classList.add('hidden');
+            el.innerHTML = html; 
+            el.href = link || '#'; 
+            
+            if(!link) { 
+                el.removeAttribute('target'); 
+                el.style.cursor = 'default'; 
+            } else { 
+                el.target = '_blank'; 
+                el.style.cursor = 'pointer'; 
+            } 
+            
+            el.classList.remove('hidden'); 
+            el.classList.add('flex');
+            el.style.width = '100%'; 
+        } else { 
+            el.classList.add('hidden'); 
+            el.classList.remove('flex'); 
         }
     };
 
-    // שליפת הנתונים לעסקים
     const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
     const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
     const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
@@ -177,7 +168,7 @@ function applyBannersToDOM(banners) {
     const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
     const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
 
-    renderBanner(appTop, topText, topLink, topImg);
+    renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 async function fetchBanners() {
