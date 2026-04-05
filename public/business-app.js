@@ -3089,7 +3089,30 @@ async function loadBizCommunities() {
                 }
             }
         }
-        
+
+        async function deleteSACommunity(id) {
+    if(!confirm('למחוק את הקהילה לצמיתות?')) return;
+    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+    loadSACommunityData();
+}
+
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
+    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try { 
+        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        if ((await res.json()).success) {
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+        } else {
+            showToast('error', 'שגיאה בשמירת ההודעה');
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
+    }
+}
         await loadBizAvailableCommunities();
         
     } catch(e) { console.error("Error loading biz communities", e); }
