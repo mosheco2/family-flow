@@ -266,24 +266,24 @@
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
-                try { renderHeader(); } catch(e) { console.error(e); }
-                try { extractCategories(); } catch(e) { console.error(e); }
+                renderHeader();
+                extractCategories();
                 
-                try {
-                    if (!getEl('store-promotions-banner')) {
-                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
+                if (!getEl('store-promotions-banner')) {
+                    const heroHeader = document.querySelector('.hero-bg');
+                    if (heroHeader) {
+                        heroHeader.insertAdjacentHTML('beforeend', `<div id="store-promotions-banner" class="w-full"></div>`);
                     }
-                    renderPromotionsBanner();
-                } catch(e) { console.error("Banner error", e); }
-                
-                try { renderCatalog(); } catch(e) { console.error(e); }
+                }
+                renderPromotionsBanner();
+                renderCatalog();
 
-                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
-                const app = getEl('store-app'); if(app) app.classList.remove('hidden');
+                getEl('loading-screen').classList.add('hidden');
+                getEl('store-app').classList.remove('hidden');
                 
             } catch (err) {
                 console.error("Critical store init error", err);
-                const ls = getEl('loading-screen'); if(ls) ls.classList.add('hidden');
+                getEl('loading-screen').classList.add('hidden');
                 showToast('error', 'שגיאה בטעינת החנות');
             }
         }
@@ -349,7 +349,6 @@
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
             
             let html = '';
-            // סינון קפדני וברור רק למבצעים שמוגדרים להופיע בטאב
             const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab === true || String(p.show_in_tab) === 'true') : [];
             if (tabPromos.length > 0) {
                 html += `<button onclick="filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
@@ -691,7 +690,7 @@
 
         initStore();
     </script>
- 
-    </script>
+</body>
+</html>
 </body>
 </html>
