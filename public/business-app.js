@@ -2615,9 +2615,20 @@ function openPromotionModal() {
 
 function togglePromoValueInput() {
     const type = val('promo-type');
-    const container = getEl('promo-value-container');
-    if (type === 'bogo') container.classList.add('hidden');
-    else container.classList.remove('hidden');
+    const label = getEl('promo-value-label');
+    const input = getEl('promo-value');
+    if(!label || !input) return;
+
+    if (type === 'bogo') {
+        label.innerText = 'שווי ההטבה (המקסימלי לפריט):';
+        input.placeholder = 'למשל: עד 50 ש"ח למנה מתנה';
+    } else if (type === 'discount_pct') {
+        label.innerText = 'ערך המבצע באחוזים:';
+        input.placeholder = 'למשל: 20 (%)';
+    } else {
+        label.innerText = 'המחיר הקבוע למבצע (פיקס):';
+        input.placeholder = 'למשל: 99 (₪)';
+    }
 }
 
 function togglePromoTargetInput() {
