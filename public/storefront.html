@@ -46,8 +46,8 @@
 
     <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-white shadow-2xl relative sm:rounded-2xl sm:my-4 overflow-hidden">
         
-<header class="hero-bg pt-10 pb-6 text-center relative border-b border-slate-100 flex flex-col items-center">
-            <div class="relative z-10 flex flex-col items-center px-6">
+        <header class="hero-bg pt-10 pb-0 text-center relative border-b border-slate-100 flex flex-col items-center">
+            <div class="relative z-10 flex flex-col items-center px-6 pb-6">
                 <div class="w-24 h-24 rounded-2xl bg-white shadow-lg p-1 mb-4 flex items-center justify-center relative overflow-hidden">
                     <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
                     <i id="store-logo-placeholder" class="fa-solid fa-store text-4xl text-slate-300"></i>
@@ -61,10 +61,10 @@
                     <a id="header-phone" href="#" class="hidden text-blue-600 hover:text-blue-700 flex items-center gap-1"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
                 </div>
 
-                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hidden shadow-sm mb-4"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
+                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hidden shadow-sm mb-2"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
             </div>
             
-            <div id="store-promotions-banner" class="w-full px-4 sm:px-6"></div>
+            <div id="store-promotions-banner" class="w-full m-0 p-0"></div>
         </header>
 
         <div class="glass-header sticky top-0 z-40">
@@ -92,7 +92,7 @@
         </button>
     </div>
 
-<div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
             <div class="relative w-full h-48 sm:h-56 bg-slate-100 shrink-0">
                 <img id="prod-modal-image" src="" class="w-full h-full object-cover hidden">
@@ -165,7 +165,8 @@
         </div>
         <button onclick="window.location.reload()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
-<script>
+
+    <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -177,6 +178,9 @@
         const getEl = id => document.getElementById(id);
         const val = id => getEl(id) ? getEl(id).value : '';
         const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        
+        // פונקציית עזר להמרת בוליאנים ממסד הנתונים
+        const isTrue = val => val === true || val === 'true' || val === 1 || val === '1' || val === 't';
 
         function showToast(t, m) { 
             const el = getEl('toast'); 
@@ -212,7 +216,7 @@
                 const res = await fetch(fetchUrl);
                 const data = await res.json();
                 
-                const isActive = data.settings && data.settings.is_active !== false;
+                const isActive = data.settings && isTrue(data.settings.is_active);
                 if (!data.success || !isActive) {
                     getEl('loading-screen').classList.add('hidden');
                     return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
@@ -231,8 +235,8 @@
                     
                     const heroHeader = document.querySelector('.hero-bg');
                     if (heroHeader) {
-                        heroHeader.insertAdjacentHTML('beforebegin', `
-                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
+                        heroHeader.insertAdjacentHTML('afterbegin', `
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
                                     <div class="flex flex-col justify-center text-right">
@@ -246,21 +250,20 @@
                 }
 
                 storeData = data;
-                storeData.groupId = data.groupId || data.group?.id || (data.settings && data.settings.group_id) || (data.catalog && data.catalog.length > 0 && data.catalog[0].group_id);
+                
+                // מציאת קוד העסק בצורה מאובטחת
+                let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
+                if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
+                storeData.groupId = gId;
                 
                 try {
                     if (storeData.groupId) {
                         const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId}`);
                         const promoData = await promoRes.json();
-                        if (promoData.success) {
+                        if (promoData.success && promoData.promotions) {
                             storeData.promotions = promoData.promotions.filter(p => {
-                                if (p.is_active === false || String(p.is_active) === 'false') return false;
-                                try {
-                                    const now = new Date().getTime();
-                                    if (p.start_date && (new Date(p.start_date).getTime() - 10800000) > now) return false;
-                                    if (p.end_date && new Date(p.end_date).getTime() < now) return false;
-                                    return true;
-                                } catch(dateErr) { return true; } 
+                                if (!isTrue(p.is_active)) return false;
+                                return true; // ביטול בדיקת תאריכים בצד לקוח כדי למנוע תקלות אזורי זמן
                             });
                         }
                     }
@@ -268,13 +271,6 @@
 
                 renderHeader();
                 extractCategories();
-                
-                if (!getEl('store-promotions-banner')) {
-                    const heroHeader = document.querySelector('.hero-bg');
-                    if (heroHeader) {
-                        heroHeader.insertAdjacentHTML('beforeend', `<div id="store-promotions-banner" class="w-full"></div>`);
-                    }
-                }
                 renderPromotionsBanner();
                 renderCatalog();
 
@@ -292,7 +288,7 @@
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer) return;
             
-            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_banner === true || String(p.show_in_banner) === 'true') : [];
+            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_banner)) : [];
             if (bannerPromos.length === 0) { bannerContainer.innerHTML = ''; return; }
             
             let promoHtml = `<div class="flex overflow-x-auto w-full modal-scroll snap-x snap-mandatory">`;
@@ -349,7 +345,7 @@
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
             
             let html = '';
-            const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab === true || String(p.show_in_tab) === 'true') : [];
+            const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
             if (tabPromos.length > 0) {
                 html += `<button onclick="filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
             }
@@ -378,7 +374,7 @@
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
-                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab === true || String(p.show_in_tab) === 'true') : [];
+                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
                 if (tabPromos.length === 0) {
                     container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
                     return;
@@ -690,7 +686,5 @@
 
         initStore();
     </script>
-</body>
-</html>
 </body>
 </html>
