@@ -857,14 +857,16 @@ async function fetchData() {
         if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
         const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
-        let parsed;
-        try { parsed = await res.json(); } catch(err) { console.error("JSON Error", err); return; }
+        let parsed = {};
+        try { parsed = await res.json(); } catch(err) { console.warn("JSON Error, continuing with empty data", err); }
         
-        let data = parsed.data || parsed;
-        if (!data || !data.user) return;
+        let data = parsed.data || parsed || {};
         
-        currentUser.balance = data.user.balance || 0; 
-        if(data.group) {
+        if (data && data.user) {
+            currentUser.balance = data.user.balance || 0; 
+        }
+        
+        if(data && data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
@@ -890,7 +892,6 @@ async function fetchData() {
         pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-        // שימוש בבלוקים נפרדים ומוגנים (try-catch) כדי שקריסה במסך אחד לא תשבית את כל האפליקציה!
         try {
             if (currentUser.role === 'ADMIN') {
                 if(typeof renderAdminAcademy === 'function') renderAdminAcademy();
