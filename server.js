@@ -1913,8 +1913,12 @@ app.delete('/api/store/coupons/:id', async (req, res) => {
 // ראוט לאתחול טבלת המבצעים (להרצה חד פעמית בדפדפן)
 app.get('/api/init-promotions', async (req, res) => {
     try {
+        // מחיקת הטבלה הישנה והשגויה
+        await pool.query(`DROP TABLE IF EXISTS store_promotions`);
+        
+        // יצירה מחדש עם העמודות התקינות (ללא IF NOT EXISTS כדי לוודא שזה נוצר מחדש)
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS store_promotions (
+            CREATE TABLE store_promotions (
                 id SERIAL PRIMARY KEY,
                 group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
                 title VARCHAR(100) NOT NULL,
@@ -1928,10 +1932,9 @@ app.get('/api/init-promotions', async (req, res) => {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        res.send('Promotions table created successfully! You can close this tab.');
+        res.send('Promotions table dropped and recreated successfully with the correct schema! You can close this tab.');
     } catch(e) { res.status(500).send('Error creating table: ' + e.message); }
 });
-
 app.get('/api/store/promotions/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_promotions WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
