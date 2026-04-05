@@ -799,7 +799,9 @@ async function fetchMembers() {
     try {
         if(!currentGroup || !currentGroup.id) return;
         const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
-        membersCache = await res.json(); if(!Array.isArray(membersCache)) membersCache = [];
+        let json = await res.json(); 
+        // תיקון: הגנה ממצב שבו השרת מחזיר אובייקט במקום מערך ישיר
+        membersCache = json.members || (Array.isArray(json) ? json : []);
         
         if (currentUser.role === 'ADMIN') { 
             try {
@@ -817,17 +819,10 @@ async function fetchMembers() {
                 c.innerHTML = ''; 
                 membersCache.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    
-                    // המרת ההרשאות לסטרינג כדי להעביר לכפתור
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                    
-                    // כפתור הגדרות הרשאות (סגול)
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="סיווג והרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
-                    
-                    // כפתור מחיקת עובד (אדום)
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="מחיקת עובד"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null && m.balance !== undefined ? `₪${m.balance}` : '🔒'}</span>${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
                 }); 
             }
         } catch(err) {}
@@ -839,33 +834,13 @@ async function fetchMembers() {
                 if(children.length === 0) a.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין עובדים רשומים כרגע בארגון.</p>';
                 else children.forEach(m => { 
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
-                    // הנה המפתח! המרת ההרשאות לסטרינג בטוח כדי להעביר לכפתור
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                    
-                    a.innerHTML += `
-                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div>
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4>
-                                <p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p>
-                                <p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p>
-                            </div>
-                        </div>
-                        <div class="flex gap-1 sm:gap-2">
-                            <button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button>
-                            
-                            <button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button>
-                            <button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button>
-                            <button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button>
-                        </div>
-                    </div>`; 
+                    a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'עובד'}</h4><p class="text-[10px] text-slate-400">תעריף: ₪${m.allowance_amount || 0}/שעה • מינימום: ${m.interest_rate || 0} ש'</p><p class="text-xs font-bold text-slate-700 mt-1">תקציב נוכחי: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות וגישה"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBalanceAdjustmentModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center transition" title="תיקון/בונוס"><i class="fa-solid fa-money-bill-transfer text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`; 
                 }); 
             } 
         } catch(err) {}
     } catch(e) {}
 }
-
 async function sendCredentialsEmail() {
     if(!confirm('האם לשלוח את כל שמות המשתמשים והסיסמאות של העובדים למייל שלך?')) return;
     const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
@@ -881,15 +856,16 @@ async function fetchData() {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
         if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
-        const res = await fetch(`${API}/data/${currentUser.id}`);
+        // הוספת groupId כדי למנוע קריסה מול חלק ממסלולי השרת, וטיפול נכון באובייקטים עטופים
+        const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
+        let parsed;
+        try { parsed = await res.json(); } catch(err) { return; }
         
-        let data;
-        try { data = await res.json(); } catch(err) { console.error("Failed to parse JSON", err); return; }
+        let data = parsed.data || parsed;
         
-        if (!res.ok) { console.error("Backend Error:", data.error); return; }
         if (!data || !data.user) return;
         
-        currentUser.balance = data.user.balance; 
+        currentUser.balance = data.user.balance || 0; 
         if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
@@ -903,7 +879,8 @@ async function fetchData() {
         if (currentUser.role === 'ADMIN') {
             const balEl = document.getElementById('user-balance'); 
             if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
+                // הגנה מקריסה אם נתוני הקבוצה חסרים מסיבה כלשהי
+                const realBalance = (data.group && data.group.admin_total_balance) ? data.group.admin_total_balance : 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
@@ -948,16 +925,18 @@ async function fetchData() {
         try {
             const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
             const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
+            if(transRes.ok) { 
+                let transData = await transRes.json(); 
+                allTransactions = transData.transactions || (Array.isArray(transData) ? transData : []); 
+            }
         } catch(e) { allTransactions = []; }
 
         try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const cashTab = document.getElementById('tab-cashflow'); if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e){}
         try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+    } catch(e) {}
 }
+
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
     if (text) { getEl('familai-advisor-loading').classList.add('hidden'); getEl('familai-advice-text').innerText = text; getEl('familai-advisor-content').classList.remove('hidden'); } 
@@ -1161,146 +1140,14 @@ function handleProductImageUpload(event, target) {
 
 function closeBarcodeScanner() { const modal = getEl('barcode-scanner-modal'); if(modal) modal.classList.add('hidden'); }
 
-// ======================================
-// הוספה וגריעה חכמה מהמזווה (כולל שברים)
-// ======================================
-
-function renderPantry() {
-    const list = getEl('pantry-list'); if(!list) return; list.innerHTML = '';
-    if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
-    pantryCache.forEach(p => {
-        const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
-        const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
-        const totalSubUnits = Math.round(packQty * upp);
-        
-        let qtyDisplay = '';
-        if (upp > 1) {
-            qtyDisplay = `
-            <div class="flex flex-col items-center px-3 min-w-[75px]">
-                <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
-                <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
-                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
-            </div>`;
-        } else {
-            qtyDisplay = `
-            <div class="flex flex-col items-center px-3 min-w-[75px]">
-                <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
-                <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
-            </div>`;
-        }
-
-        const minusAmount = packQty - (1 / upp);
-        const plusAmount = packQty + (1 / upp);
-
-        list.innerHTML += `
-        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
-            <div class="flex justify-between items-center mb-3">
-                <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
-                    <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
-                </div>
-                <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
-                    <button onclick="updatePantryQty(${p.id}, ${minusAmount})" class="text-slate-400 hover:text-red-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-minus text-sm"></i></button>
-                    ${qtyDisplay}
-                    <button onclick="updatePantryQty(${p.id}, ${plusAmount})" class="text-slate-400 hover:text-green-500 w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 transition"><i class="fa-solid fa-plus text-sm"></i></button>
-                </div>
-            </div>
-            <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
-                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
-                <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
-            </div>
-        </div>`;
-    });
-}
-
-function openPantryModal() { getEl('pantry-modal').classList.remove('hidden'); }
-
-async function submitPantryItem() {
-    const name = val('pantry-item'); const qty = parseFloat(val('pantry-quantity')) || 1; const unit = val('pantry-unit') || "יח'"; const upp = parseInt(val('pantry-upp')) || 1; 
-    if(!name) return showToast('error', 'יש להזין שם מוצר');
-    const btn = getEl('btn-submit-pantry'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try {
-        const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
-        const data = await res.json();
-        if (data.success) { getEl('pantry-modal').classList.add('hidden'); val('pantry-item', ''); val('pantry-quantity', 1); getEl('pantry-unit').value = "יח'"; getEl('pantry-upp').value = 1; fetchData(); showToast('success', 'המוצר נקלט במלאי'); } 
-        else { showToast('error', data.error || 'שגיאת שרת בהוספת הפריט'); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הוסף למאגר'; } }
-}
-
-async function updatePantryQty(id, newQty) {
-    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
-    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
-}
-
-function openPantryUseModal(name, unit, qty, upp) { 
-    const totalSubUnits = Math.round(parseFloat(qty) * parseInt(upp || 1));
-    getEl('use-pantry-title').innerText = `גריעה מהמלאי: ${name}`; 
-    getEl('use-pantry-name').value = name; 
-    
-    let dynContainer = getEl('pantry-dyn-container');
-    if (!dynContainer) {
-        const origInput = getEl('use-pantry-qty');
-        if(origInput && origInput.parentElement && origInput.parentElement.parentElement) {
-            dynContainer = document.createElement('div');
-            dynContainer.id = 'pantry-dyn-container';
-            origInput.parentElement.parentElement.insertBefore(dynContainer, origInput.parentElement);
-            origInput.parentElement.style.display = 'none';
-        }
-    }
-    
-    if (dynContainer) {
-        dynContainer.innerHTML = `
-            <div class="text-center mb-4 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl border border-indigo-100 shadow-sm flex flex-col gap-1">
-                <span class="font-bold text-sm">יתרה: ${parseFloat(qty).toFixed(2)} ${unit}</span>
-                <span class="text-xs font-medium opacity-80">(סה"כ ${totalSubUnits} יחידות לשימוש)</span>
-            </div>
-            
-            <div class="space-y-3">
-                <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1">גריעה ביחידות בודדות</label>
-                    <input type="number" id="use-pantry-units-dyn" placeholder="כמה יחידות לקחת?" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none font-black text-slate-800 text-center shadow-sm focus:border-indigo-500 transition">
-                </div>
-                
-                <div class="relative">
-                    <label class="block text-[10px] font-bold text-slate-400 mb-1.5 ml-1">או: גריעה לפי מארז / משקל שלם</label>
-                    <input type="number" step="0.1" id="use-pantry-qty-dyn" placeholder="כמה ${unit} לקחת?" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none font-bold text-slate-500 text-center text-sm focus:border-slate-400 transition">
-                </div>
-            </div>
-        `;
-    }
-    
-    const display = getEl('use-pantry-unit-display');
-    if(display) display.innerText = unit || "יח'"; 
-    getEl('pantry-use-modal').classList.remove('hidden'); 
-}
-
-async function submitPantryUse() {
-    const name = val('use-pantry-name'); 
-    const dynQty = val('use-pantry-qty-dyn');
-    const origQty = val('use-pantry-qty');
-    const qty = dynQty !== '' && dynQty !== undefined ? dynQty : origQty;
-    
-    const dynUnits = val('use-pantry-units-dyn');
-    const origUnits = val('use-pantry-units');
-    const units = dynUnits !== '' && dynUnits !== undefined ? dynUnits : origUnits;
-
-    if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
-    
-    try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
-        if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
-}
-
-async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
-
 function renderEmployeeTodo() {
     const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
     if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
     let hasItems = false; let htmlStr = '';
     const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
     myTasks.forEach(t => {
-        if(t.title.startsWith('SHIFT|')) return;
+        // הוספת ההגנה t.title && 
+        if(t.title && t.title.startsWith('SHIFT|')) return;
         hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימים</span>` : ` • <span class="text-red-500">חריגת זמנים!</span>`; }
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
         htmlStr += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer hover:bg-slate-50 transition mb-2" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(t.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • טיקט / משימה • בונוס: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
@@ -1328,7 +1175,8 @@ async function submitTaskApproval() {
 function renderTasks(tasks) {
     const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
     tasks.forEach(t => {
-        if(t.title.startsWith('SHIFT|')) return;
+        // הוספת ההגנה t.title &&
+        if(t.title && t.title.startsWith('SHIFT|')) return;
         const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
         let statusColor = 'bg-white border-slate-100'; let statusBadge = ''; let actionBtn = '';
         if (t.status === 'pending') { if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center gap-1"><i class="fa-solid fa-check"></i> דיווח סיום</button>`; } else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לביצוע</span>`; } } 
@@ -1343,7 +1191,8 @@ function renderTasks(tasks) {
 }
 
 function renderShifts() {
-    const shiftTasks = allTasks.filter(t => t.title.startsWith('SHIFT|'));
+    // הוספת ההגנה t.title &&
+    const shiftTasks = allTasks.filter(t => t.title && t.title.startsWith('SHIFT|'));
     const list = getEl('shifts-list'); if(!list) return;
     let html = '';
     shiftTasks.forEach(t => {
