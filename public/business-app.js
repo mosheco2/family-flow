@@ -2391,176 +2391,7 @@ async function saveStoreSettings() {
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
-// --- הגדרות תבניות תפקידים וטאבים ב-Oneflowlife Pro ---
-const ALL_TABS = [
-    { id: 'feed', name: 'ראשי 🏠' },
-    { id: 'timeclock', name: 'נוכחות ⏱️' },
-    { id: 'shifts', name: 'משמרות 🗓️' },
-    { id: 'shop', name: 'רכש ארגוני 🛒' },
-    { id: 'pantry', name: 'ניהול מלאי 📦' },
-    { id: 'sales', name: 'מכירות / חנות 🛍️' },
-    { id: 'bank', name: 'כספים 💳' },
-    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
-    { id: 'budget', name: 'תקציבים 📊' },
-    { id: 'forecast', name: 'תשקיף 📅' },
-    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
-    { id: 'academy', name: 'מרכז הכשרות 🎓' },
-    { id: 'community', name: 'קהילות מחוברות 🏘️' },
-    { id: 'members', name: 'ניהול צוות 👥' }
-];
 
-const ROLE_DEFAULTS = {
-    'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
-    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
-    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
-};
-
-// פונקציית אכיפת הרשאות חכמה (טאבים + אלמנטים פנימיים)
-function enforcePermissions() {
-    if (!currentUser || !currentGroup) return;
-    const isAdmin = currentUser.role === 'ADMIN';
-    
-    // קריאת הרשאות הטאבים מהמשתמש ב-DB
-    let userTabs = [];
-    try {
-        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
-        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
-    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
-
-    // אכיפת תצוגת טאבים בתפריט הגלילה העליון
-    ALL_TABS.forEach(tab => {
-        const btn = getEl(`tab-${tab.id}`);
-        if(btn) {
-            // האדמין רואה הכל כברירת מחדל, השאר רואים לפי הטאבים שהוגדרו להם
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-    });
-
-    // אם הטאב שהעובד נמצא בו כרגע הוסתר - נזרוק אותו חזרה לראשי
-    const activeTabs = document.querySelectorAll('.tab-active');
-    activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none') switchTab('feed');
-    });
-    
-    // אכיפת אלמנטים ניהוליים פנימיים בתוך הטאבים
-    if (!isAdmin) {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
-        if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.add('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.add('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
-        if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
-        if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
-    } else {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.remove('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
-    }
-}
-
-// לוגיקת מודאל הרשאות
-function openPermissionsModal(id, name, role, permissionsStr) {
-    getEl('perm-user-id').value = id;
-    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
-    
-    let perms = {};
-    try { perms = JSON.parse(permissionsStr); } catch(e) {}
-    
-    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
-    const selectEl = getEl('perm-role-select');
-    
-    // עדכון סלקט התפקיד וצביעה בהתאם אם הוא מנהל 
-    if (selectEl) {
-        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
-        selectEl.className = role === 'ADMIN' 
-            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
-            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    
-    renderTabsCheckboxes(userTabs);
-    getEl('permissions-modal').classList.remove('hidden');
-}
-
-function applyRoleDefaults(role) {
-    const selectEl = getEl('perm-role-select');
-    if (selectEl) {
-        selectEl.className = role === 'ADMIN' 
-            ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold'
-            : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
-}
-
-function renderTabsCheckboxes(activeTabs) {
-    const container = getEl('perm-tabs-container');
-    container.innerHTML = ALL_TABS.map(tab => {
-        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
-        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; // feed חובה
-        const opacity = isDisabled ? 'opacity-50' : '';
-        return `
-        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
-            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
-            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
-        </label>
-        `;
-    }).join('');
-}
-
-async function submitPermissions() {
-    const id = val('perm-user-id');
-    const role = val('perm-role-select');
-    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
-    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
-
-    const btn = getEl('btn-submit-permissions');
-    btn.disabled = true; btn.innerText = 'שומר בשרת...';
-    
-    try {
-        const res = await fetch(`${API}/users/${id}/permissions`, { 
-            method: 'PUT', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
-            getEl('permissions-modal').classList.add('hidden');
-            fetchMembers(); // מרענן מיד את הנתונים
-            
-            // אם העובד משנה את עצמו בטעות (למשל מנהל מוריד לעצמו הרשאה), נרענן גם את המידע המקומי
-            if (String(id) === String(currentUser.id)) {
-                currentUser.role = role;
-                currentUser.permissions = { tabs: checkedTabs };
-                enforcePermissions();
-            }
-        } else {
-            showToast('error', data.error);
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור הרשאות'; }
-}
-
-// "התלבשות" על פונקציית החלפת הטאבים הגלובלית כדי לאכוף הרשאות בכל מעבר מסך
-const originalSwitchTab = window.switchTab;
-if (originalSwitchTab && !window.switchTabOverridden) {
-    window.switchTab = function(tabId) {
-        originalSwitchTab(tabId);
-        setTimeout(enforcePermissions, 50);
-    };
-    window.switchTabOverridden = true;
-}
-// הפעלה ראשונית מיד לאחר טעינת הדף
-setTimeout(enforcePermissions, 1500);
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
@@ -2602,7 +2433,7 @@ function renderPresetSelector() {
 
 function loadPreset(idx) {
     if (idx === '') return; const preset = storeModifierPresets[idx];
-    if (preset) { currentModifiersUI.push(JSON.parse(JSON.stringify(preset))); renderModifiersUI(); } // Deep copy
+    if (preset) { currentModifiersUI.push(JSON.parse(JSON.stringify(preset))); renderModifiersUI(); } 
     getEl('preset-selector').value = '';
 }
 
@@ -2680,13 +2511,13 @@ function addModifierOption(gIndex) { currentModifiersUI[gIndex].options.push({na
 function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); renderModifiersUI(); }
 function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
+
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
         getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
         
-        // הגנה מפני קריסה אם שדות הדיגול חסרים ב-HTML
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
         if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
         
@@ -2708,55 +2539,6 @@ async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    // ניקוי של שדות ריקים לפני השמירה
-    let validOptions = [];
-    currentModifiersUI.forEach(mod => { 
-        if (mod.name.trim()) {
-            const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
-            if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
-        }
-    });
-    const finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
-    
-    const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
-    try {
-        const payload = { 
-            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
-            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red'
-        };
-        const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
-    } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
-}function openStoreProductModal(id = null) {
-    currentModifiersUI = []; 
-    if (id) {
-        const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
-        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
-        
-        // הגנה מפני קריסה אם שדות הדיגול חסרים ב-HTML
-        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
-        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
-        
-        if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
-        
-        if (p.options_text) {
-            try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
-        }
-    } else {
-        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
-        
-        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
-        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
-    }
-    renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
-}
-
-async function submitStoreProduct() {
-    const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
-    if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
-    
-    // ניקוי של שדות ריקים לפני השמירה
     let validOptions = [];
     currentModifiersUI.forEach(mod => { 
         if (mod.name.trim()) {
@@ -2800,6 +2582,7 @@ function renderStoreOrders() {
         html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
     }); list.innerHTML = html;
 }
+
 // --- מערכת קופונים ---
 let storeCouponsCache = [];
 
@@ -2871,6 +2654,7 @@ async function deleteStoreCoupon(id) {
         fetchStoreCoupons();
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
+
 function openStoreOrderModal(orderId) {
     currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
     getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
@@ -3109,6 +2893,7 @@ async function loadBizCommunities() {
         
     } catch(e) { console.error("Error loading biz communities", e); }
 }
+
 let bizAvailableCommCache = [];
 
 async function loadBizAvailableCommunities() {
@@ -3171,6 +2956,7 @@ function filterBizAvailableCommunities() {
         `;
     }).join('');
 }
+
 function openBizJoinModal(id, name) {
     const idEl = getEl('biz-join-comm-id');
     const nameEl = getEl('biz-join-comm-name');
