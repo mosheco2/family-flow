@@ -2579,11 +2579,15 @@ function renderStorePromotions() {
         else if (p.promo_type === 'bogo') desc = `1+1 מתנה`;
         else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
 
-        let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `קטגוריה: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
+        let targetArray = [];
+        if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
+        else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
+        
+        let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
         const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
 
         html += `
-        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-2">
             <div class="flex items-center gap-3">
                 <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-gift"></i></div>
                 <div>
@@ -2599,7 +2603,6 @@ function renderStorePromotions() {
     });
     list.innerHTML = html;
 }
-
 function openPromotionModal() {
     getEl('promo-title').value = '';
     getEl('promo-type').value = 'discount_pct';
