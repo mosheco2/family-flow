@@ -861,7 +861,6 @@ async function fetchData() {
         try { parsed = await res.json(); } catch(err) { console.error("JSON Error", err); return; }
         
         let data = parsed.data || parsed;
-        
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance || 0; 
@@ -891,23 +890,25 @@ async function fetchData() {
         pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-        // הפעלה כפויה ומיידית של הרינדור (ללא try-catch שעשוי לחסום שגיאות)
-        if (currentUser.role === 'ADMIN') {
-            if(typeof renderAdminAcademy === 'function') renderAdminAcademy();
-        } else {
-            if(typeof renderMyAssignments === 'function') renderMyAssignments(bundlesCache);
-            if(typeof renderLibrary === 'function') renderLibrary();
-        }
+        // שימוש בבלוקים נפרדים ומוגנים (try-catch) כדי שקריסה במסך אחד לא תשבית את כל האפליקציה!
+        try {
+            if (currentUser.role === 'ADMIN') {
+                if(typeof renderAdminAcademy === 'function') renderAdminAcademy();
+            } else {
+                if(typeof renderMyAssignments === 'function') renderMyAssignments(bundlesCache);
+                if(typeof renderLibrary === 'function') renderLibrary();
+            }
+        } catch(e) { console.warn(e); }
         
-        if(typeof renderTasks === 'function') renderTasks(allTasks);
-        if(typeof renderPantry === 'function') renderPantry();
-        if(typeof renderShifts === 'function') renderShifts();
+        try { if(typeof renderTasks === 'function') renderTasks(allTasks); } catch(e) { console.warn(e); }
+        try { if(typeof renderPantry === 'function') renderPantry(); } catch(e) { console.warn(e); }
+        try { if(typeof renderShifts === 'function') renderShifts(); } catch(e) { console.warn(e); }
         
         shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : [];
-        if(typeof renderShopList === 'function') renderShopList();
+        try { if(typeof renderShopList === 'function') renderShopList(); } catch(e) { console.warn(e); }
         
-        if(typeof fetchBudget === 'function') fetchBudget();
-        if(typeof renderForecast === 'function') renderForecast();
+        try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) { console.warn(e); }
+        try { if(typeof renderForecast === 'function') renderForecast(); } catch(e) { console.warn(e); }
         
         try {
             const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
@@ -941,13 +942,15 @@ async function fetchData() {
             }
         } catch(e) { allTransactions = []; }
 
-        if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo();
-        if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed();
+        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); } catch(e) {}
+        try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e) {}
         
-        const cashTab = document.getElementById('tab-cashflow'); 
-        if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
+        try {
+            const cashTab = document.getElementById('tab-cashflow'); 
+            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
+        } catch(e) {}
         
-        if (typeof loadBizCommunities === 'function') loadBizCommunities(); 
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
 
     } catch(e) {
         console.error("Fetch data error:", e);
@@ -1253,7 +1256,14 @@ function buildAndRenderFeed() {
     feedCache = [];
     if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
     if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
-    if(Array.isArray(allTasks)) { allTasks.forEach(t => { if(t.status === 'approved' && !t.title.startsWith('SHIFT|')) { feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `טיקט: ${t.title}`, amount: t.reward, status: t.status }); } }); }
+    if(Array.isArray(allTasks)) { 
+        allTasks.forEach(t => { 
+            // תיקון: הגנה מקריסה אם למשימה אין כותרת
+            if(t.status === 'approved' && (!t.title || !t.title.startsWith('SHIFT|'))) { 
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `טיקט: ${t.title || 'ללא שם'}`, amount: t.reward, status: t.status }); 
+            } 
+        }); 
+    }
     if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
@@ -1488,25 +1498,25 @@ async function clearEntireCart() {
 function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
 
 function renderShopList() {
-    if (document.activeElement.classList.contains('price-input')) return;
+    if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
     const list = getEl('shop-list'); const reqList = getEl('shop-requests-list'); const reqContainer = getEl('shop-requests-container');
     const activeItems = []; const requestedItems = [];
     shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
     
     let reqHtml = '';
     if (requestedItems.length > 0) {
-        reqContainer.classList.remove('hidden');
+        if(reqContainer) reqContainer.classList.remove('hidden'); // הגנה קריטית
         requestedItems.forEach(i => {
             const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להנהלה</span>`;
             reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">דרישה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
         });
-        reqList.innerHTML = reqHtml;
-    } else { reqContainer.classList.add('hidden'); }
+        if(reqList) reqList.innerHTML = reqHtml;
+    } else { if(reqContainer) reqContainer.classList.add('hidden'); }
 
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
     if(activeItems.length === 0) { 
-        list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
         const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
         const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
         return; 
@@ -1536,9 +1546,9 @@ function renderShopList() {
 
         shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3"><input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-2"><i class="fa-solid fa-trash"></i></button></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold">${i.quantity} ${safeStr(i.unit || "יח'")}</span></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
-    list.innerHTML = shopHtml; calcRunningTotal();
+    if(list) list.innerHTML = shopHtml; 
+    calcRunningTotal();
 }
-
 async function updateRow(id, type, value) {
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
     else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
@@ -1689,7 +1699,10 @@ async function fetchBudget() {
     try {
         const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
         let data = await res.json(); if (!Array.isArray(data)) data = []; 
-        const list = getEl('budget-list'); list.innerHTML = '';
+        const list = getEl('budget-list'); 
+        if(!list) return; // הגנה קריטית: אם הטאב לא קיים אל תקרוס
+        list.innerHTML = '';
+        
         const baseCategories = CATEGORIES.expense.map(c => c.value);
         data.forEach(b => { if(!CATEGORIES.expense.find(c => c.value === b.category) && !['allowance','tasks','academy','allocations','savings'].includes(b.category)) { CATEGORIES.expense.push({value: b.category, label: `🏷️ ${b.category}`}); BUDGET_LABELS[b.category] = `🏷️ ${b.category}`; } });
         baseCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); }); const childrenCategories = ['allowance', 'tasks', 'academy']; childrenCategories.forEach(catId => { if (!data.find(d => d.category === catId)) data.push({ category: catId, spent: 0, limit: 0 }); });
@@ -1713,7 +1726,6 @@ async function fetchBudget() {
         otherItems.forEach(b => { list.innerHTML += createRow(b.category, b.spent, b.limit, false); });
     } catch(e) {}
 }
-
 function openAddBudgetCategoryModal() { getEl('new-budget-cat-name').value = ''; getEl('add-budget-cat-modal').classList.remove('hidden'); }
 async function submitNewBudgetCat() { 
     const catName = val('new-budget-cat-name'); if(!catName) return; 
