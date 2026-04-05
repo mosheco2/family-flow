@@ -2961,7 +2961,36 @@ async function createSACommunity() {
         if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; }
     }
 }
+async function deleteSACommunity() {
+    const id = val('sa-edit-comm-id');
+    if(!confirm('אזהרה: מחיקת הקהילה תנתק את כל המשפחות והעסקים המקושרים אליה. פעולה זו בלתי הפיכה! האם להמשיך?')) return;
+    try {
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+        if((await res.json()).success) {
+            showToast('success', 'הקהילה נמחקה לחלוטין!');
+            getEl('sa-community-modal').classList.add('hidden');
+            loadSACommunityData();
+        } else showToast('error', 'שגיאה במחיקת הקהילה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
 
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
+    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try { 
+        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        if ((await res.json()).success) {
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+        } else {
+            showToast('error', 'שגיאה בשמירת ההודעה');
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
+    }
+}
 async function linkBizToCommunity() {
     const communityId = val('sa-link-comm'); 
     const businessId = val('sa-link-biz'); 
