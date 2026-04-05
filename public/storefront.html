@@ -166,7 +166,7 @@
         <button onclick="window.location.reload()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
 
-   <script>
+  <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -187,7 +187,7 @@
             setTimeout(() => el.classList.add('hidden'), 3000); 
         }
 
-const colorMap = {
+        const colorMap = {
             'pink': 'from-pink-500 to-rose-500',
             'blue': 'from-blue-500 to-cyan-500',
             'emerald': 'from-emerald-500 to-teal-500',
@@ -230,9 +230,7 @@ const colorMap = {
                         });
                     }
                     
-                    const appContainer = getEl('store-app');
                     const heroHeader = document.querySelector('.hero-bg');
-                    
                     if (heroHeader) {
                         heroHeader.insertAdjacentHTML('beforebegin', `
                             <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
@@ -382,7 +380,10 @@ const colorMap = {
             
             if (currentCategory === 'promotions') {
                 const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab !== false && String(p.show_in_tab) !== 'false') : [];
-                if (tabPromos.length === 0) return container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
+                if (tabPromos.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
+                    return;
+                }
                 
                 let html = '<div class="flex flex-col gap-4">';
                 tabPromos.forEach(p => {
@@ -409,61 +410,11 @@ const colorMap = {
                 return;
             }
 
-            if (!storeData.catalog || storeData.catalog.length === 0) return container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
-
-            let filtered = storeData.catalog;
-            if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
-            if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
-
-            const storeType = storeData.settings.store_type || 'retail';
-            let html = storeType === 'retail' ? '<div class="grid grid-cols-2 gap-4">' : '<div class="flex flex-col gap-4">';
-
-            filtered.forEach(item => {
-                let badgeHtml = '';
-                if (item.badge_text) {
-                    const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
-                    const bgClass = colors[item.badge_color] || 'bg-red-500';
-                    badgeHtml = `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
-                }
-                
-                const imgClasses = storeType === 'retail' ? 'w-full h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
-                const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
-                const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
-                
-                let priceHtml = '';
-                const orig = parseFloat(item.original_price);
-                const curr = parseFloat(item.price);
-                
-                if (orig && orig > curr) {
-                    priceHtml = `
-                        <div class="flex flex-col">
-                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs text-slate-400 line-through">₪${orig}</span>
-                                <span class="font-black text-emerald-600 text-base">₪${curr}</span>
-                            </div>
-                        </div>`;
-                } else {
-                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
-                }
-
-                const pType = item.product_type || 'retail';
-                const btnText = pType === 'service' ? 'הזמן שירות' : (pType === 'food' ? 'בחר מנה' : 'פרטים והוספה');
-                const actionHtml = `<button onclick="openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
-
-                if (storeType === 'retail') {
-                    html += `<div onclick="openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
-                } else {
-                    html += `<div onclick="openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
-                }
-            });
-            container.innerHTML = html + '</div>';
-        }
+            if (!storeData.catalog || storeData.catalog.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
                 return;
             }
 
-            if (!storeData.catalog || storeData.catalog.length === 0) return container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
-
             let filtered = storeData.catalog;
             if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
             if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
@@ -511,7 +462,6 @@ const colorMap = {
                 }
             });
             container.innerHTML = html + '</div>';
-        }
         }
 
         let currentModalQty = 1;
@@ -740,6 +690,7 @@ const colorMap = {
         }
 
         initStore();
+    </script>
     </script>
 </body>
 </html>
