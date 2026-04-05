@@ -216,19 +216,22 @@ async function initStore() {
                     }
                     
                     const appContainer = getEl('store-app');
-                    appContainer.insertAdjacentHTML('afterbegin', `
-                        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center sticky top-0 z-[100] w-full animate-bounce-in" dir="rtl">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
-                                <div class="flex flex-col justify-center text-right">
-                                    <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                    <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                    const heroHeader = document.querySelector('.hero-bg');
+                    
+                    // הזרקת סרגל קהילה לראש הדף מעל ההידר (hero)
+                    if (heroHeader) {
+                        heroHeader.insertAdjacentHTML('beforebegin', `
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
+                                    <div class="flex flex-col justify-center text-right">
+                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
+                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                                    </div>
                                 </div>
                             </div>
-                            <button onclick="window.location.href='/'" class="bg-white text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-mobile-screen"></i> לאפליקציה</button>
-                        </div>
-                    `);
-                    setTimeout(() => { const searchHeader = document.querySelector('.glass-header.sticky'); if(searchHeader) searchHeader.style.top = '64px'; }, 100);
+                        `);
+                    }
                 }
 
                 storeData = data;
@@ -249,7 +252,11 @@ async function initStore() {
 
                 renderHeader();
                 extractCategories();
-                renderPromotionsBanner(); // קריאה להצגת הבאנר
+                
+                // הזרקת אזור המבצעים ייעודי מעל הקטלוג
+                getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
+                renderPromotionsBanner();
+                
                 renderCatalog();
 
                 getEl('loading-screen').classList.add('hidden');
@@ -258,48 +265,42 @@ async function initStore() {
         }
         
         function renderPromotionsBanner() {
-            if (!storeData.promotions || storeData.promotions.length === 0) return;
-            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-2 px-4 modal-scroll snap-x mt-4">`;
+            const bannerContainer = getEl('store-promotions-banner');
+            if (!bannerContainer || !storeData.promotions || storeData.promotions.length === 0) return;
+            
+            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-4 pt-2 px-4 modal-scroll snap-x bg-slate-50 border-b border-slate-200">`;
             storeData.promotions.forEach(p => {
                 let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
-                let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `מחלקת: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
+                
+                let targetDesc = '';
+                if(p.target_type === 'all') targetDesc = 'על כל החנות';
+                else {
+                    try {
+                        const targetCats = JSON.parse(p.target_ids);
+                        targetDesc = `תקף על: ${targetCats.join(', ')}`;
+                    } catch(e) { targetDesc = 'על פריטים נבחרים'; }
+                }
+                
                 promoHtml += `
-                <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl min-w-[220px] shrink-0 snap-center shadow-md relative overflow-hidden">
+                <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl min-w-[220px] max-w-[240px] shrink-0 snap-center shadow-md relative overflow-hidden flex flex-col justify-between">
                     <i class="fa-solid fa-gift absolute -left-2 -bottom-2 text-6xl opacity-20"></i>
-                    <h4 class="font-black text-base relative z-10">${safeStr(p.title)}</h4>
-                    <p class="text-xs font-bold mt-1 bg-white/20 inline-block px-2.5 py-1 rounded-md relative z-10">${desc}</p>
-                    <p class="text-[10px] mt-2 opacity-90 relative z-10">${targetDesc}</p>
+                    <div>
+                        <h4 class="font-black text-base relative z-10 leading-tight">${safeStr(p.title)}</h4>
+                        <p class="text-xs font-bold mt-1 bg-white/20 inline-block px-2 py-0.5 rounded-md relative z-10">${desc}</p>
+                    </div>
+                    <p class="text-[10px] mt-2 opacity-90 relative z-10 font-medium">${targetDesc}</p>
                 </div>`;
             });
             promoHtml += `</div>`;
-            getEl('catalog-container').insertAdjacentHTML('beforebegin', promoHtml);
-        }
-        
-        function renderPromotionsBanner() {
-            if (!storeData.promotions || storeData.promotions.length === 0) return;
-            let promoHtml = `<div class="flex gap-3 overflow-x-auto pb-2 px-4 modal-scroll snap-x mt-4">`;
-            storeData.promotions.forEach(p => {
-                let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
-                let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `מחלקת: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
-                promoHtml += `
-                <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl min-w-[220px] shrink-0 snap-center shadow-md relative overflow-hidden">
-                    <i class="fa-solid fa-gift absolute -left-2 -bottom-2 text-6xl opacity-20"></i>
-                    <h4 class="font-black text-base relative z-10">${safeStr(p.title)}</h4>
-                    <p class="text-xs font-bold mt-1 bg-white/20 inline-block px-2.5 py-1 rounded-md relative z-10">${desc}</p>
-                    <p class="text-[10px] mt-2 opacity-90 relative z-10">${targetDesc}</p>
-                </div>`;
-            });
-            promoHtml += `</div>`;
-            getEl('catalog-container').insertAdjacentHTML('beforebegin', promoHtml);
+            bannerContainer.innerHTML = promoHtml;
         }
 
-      function renderHeader() {
+        function renderHeader() {
             getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
             if(storeData.settings.logo_url) { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
             if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
             
-            // תצוגת שעות פתיחה, טלפון ווואטסאפ בראש העמוד
             let showContactRow = false;
             if(storeData.settings.open_time && storeData.settings.close_time) {
                 getEl('header-hours-text').innerText = `${storeData.settings.open_time} - ${storeData.settings.close_time}`;
