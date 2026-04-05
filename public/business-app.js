@@ -2540,10 +2540,131 @@ function switchSalesTab(subTab) {
 
     if(subTab === 'orders') fetchStoreOrders();
     if(subTab === 'catalog') fetchStoreCatalog();
-    if(subTab === 'marketing') fetchStoreCoupons();
+    if(subTab === 'marketing') fetchStoreMarketing();
     if(subTab === 'settings') fetchStoreSettings();
 }
 
+// === Marketing (Promotions & Coupons) ===
+let storePromotionsCache = [];
+
+async function fetchStoreMarketing() {
+    fetchStoreCoupons();
+    fetchStorePromotions();
+}
+
+async function fetchStorePromotions() {
+    try {
+        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storePromotionsCache = data.promotions || [];
+            renderStorePromotions();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderStorePromotions() {
+    const list = getEl('store-promotions-list');
+    if(!list) return;
+    
+    if (storePromotionsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא מוגדרים מבצעים פעילים.</p>';
+        return;
+    }
+    
+    let html = '';
+    storePromotionsCache.forEach(p => {
+        let desc = '';
+        if (p.promo_type === 'discount_pct') desc = `${p.promo_value}% הנחה`;
+        else if (p.promo_type === 'bogo') desc = `1+1 מתנה`;
+        else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
+
+        let targetDesc = p.target_type === 'all' ? 'על כל החנות' : `קטגוריה: ${p.target_ids ? JSON.parse(p.target_ids)[0] : ''}`;
+        const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+
+        html += `
+        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-gift"></i></div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
+                    <p class="text-[10px] text-slate-500 mt-0.5">${targetDesc}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
+                <button onclick="deleteStorePromotion(${p.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openPromotionModal() {
+    getEl('promo-title').value = '';
+    getEl('promo-type').value = 'discount_pct';
+    getEl('promo-value').value = '';
+    getEl('promo-target-type').value = 'all';
+    getEl('promo-target-category').value = '';
+    getEl('promo-start-date').value = '';
+    getEl('promo-end-date').value = '';
+    togglePromoValueInput();
+    togglePromoTargetInput();
+    getEl('promotion-modal').classList.remove('hidden');
+}
+
+function togglePromoValueInput() {
+    const type = val('promo-type');
+    const container = getEl('promo-value-container');
+    if (type === 'bogo') container.classList.add('hidden');
+    else container.classList.remove('hidden');
+}
+
+function togglePromoTargetInput() {
+    const type = val('promo-target-type');
+    const container = getEl('promo-target-category-container');
+    if (type === 'category') container.classList.remove('hidden');
+    else container.classList.add('hidden');
+}
+
+async function submitPromotion() {
+    const title = val('promo-title');
+    const promoType = val('promo-type');
+    const promoValue = val('promo-value');
+    const targetType = val('promo-target-type');
+    const targetCategory = val('promo-target-category');
+    
+    if (!title) return showToast('error', 'נא להזין שם למבצע');
+    if (promoType !== 'bogo' && !promoValue) return showToast('error', 'נא להזין את ערך המבצע');
+    if (targetType === 'category' && !targetCategory) return showToast('error', 'נא להזין את שם הקטגוריה');
+
+    const btn = getEl('btn-submit-promo'); btn.disabled = true; btn.innerText = 'שומר...';
+    try {
+        const res = await fetch(`${API}/store/promotions`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, title, promoType, promoValue, targetType, 
+                targetIds: targetType === 'category' ? [targetCategory] : [],
+                startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המבצע נוצר ופעיל!');
+            getEl('promotion-modal').classList.add('hidden');
+            fetchStorePromotions();
+        } else { showToast('error', data.error || 'שגיאה ביצירת המבצע'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור והפעל'; }
+}
+
+async function deleteStorePromotion(id) {
+    if(!confirm('האם למחוק מבצע זה?')) return;
+    try { await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchStorePromotions(); } catch(e) {}
+}
+
+async function toggleStorePromotion(id, isActive) {
+    try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
+}
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
