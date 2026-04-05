@@ -468,7 +468,6 @@
         </div>
 
                                                            <div id="dashboard-container" class="w-full max-w-lg hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
-            <div class="flex-1 pb-28 relative flex flex-col w-full">
                 <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm" id="tour-header">
                     <div class="flex items-center gap-3">
                         <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
@@ -492,7 +491,8 @@
                    class="glass-header hidden mx-0 mt-0 flex items-center justify-center text-sm font-medium py-3 px-4 border-b border-slate-100 text-slate-700 rounded-t-[2rem] shadow-sm overflow-hidden">
                 </a>
 
-                <div class="relative px-2 mb-6 group shrink-0">
+                <div class="flex-1 pb-28 relative flex flex-col w-full">
+                    <div class="relative px-2 mb-6 group shrink-0">
                     <div class="slider-container">
                         <button onclick="scrollTabs(1)" class="scroll-btn right"><i class="fa-solid fa-chevron-right"></i></button>
                         <div class="slider-scroll" id="slider-scroll">
@@ -970,9 +970,9 @@
                                 <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-users-gear text-indigo-500"></i> עובדים והרשאות</h3>
                                 <button onclick="openInviteModal()" class="text-white bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> הוסף איש צוות</button>
                             </div>
-                           
+                          
                             <div id="members-list" class="divide-y divide-slate-50 mb-4 min-h-[100px]"></div>
-                           
+                          
                             <div class="pt-4 border-t border-slate-100 flex justify-center">
                                 <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-slate-100 text-slate-700 border border-slate-200 py-3 px-6 rounded-xl font-bold hover:bg-slate-200 transition shadow-sm flex justify-center items-center gap-2 text-sm">
                                     <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) לארגון
@@ -998,7 +998,7 @@
                class="glass-header hidden mx-4 mt-auto mb-6 flex items-center justify-center text-sm font-medium py-3 px-4 border-t border-slate-100 text-slate-700 rounded-3xl shadow-sm overflow-hidden">
             </a>
         </div>
-    
+   
         <div id="cart-footer" class="fixed bottom-6 left-4 right-4 bg-white/95 backdrop-blur border border-slate-200 p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center animate-bounce-in hidden slide-up">
         <div id="fab-container" class="fixed bottom-6 left-6 z-40 flex flex-col gap-3 items-center transition-all duration-300 hidden">
             <div id="fab-menu" class="flex flex-col gap-3 opacity-0 translate-y-10 pointer-events-none transition-all duration-300">
@@ -1711,7 +1711,7 @@
         
     </div>
 
-<script src="business-app.js?v=17" defer></script>
+<script src="business-app.js?v=18" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;
