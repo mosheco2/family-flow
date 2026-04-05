@@ -237,21 +237,30 @@
                     }
                 }
 
-                storeData = data;
+storeData = data;
+                // תיקון קריטי: הגדרת מזהה העסק בצורה גורפת כדי שהמבצעים וההזמנות יעבדו חלק
+                storeData.groupId = data.groupId || data.group?.id || (data.settings && data.settings.group_id) || (data.catalog && data.catalog.length > 0 && data.catalog[0].group_id);
                 
                 try {
-                    const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId || storeData.group?.id || data.groupId}`);
-                    const promoData = await promoRes.json();
-                    if (promoData.success) {
-                        storeData.promotions = promoData.promotions.filter(p => {
-                            if (!p.is_active) return false;
-                            try {
-                                const now = new Date();
-                                if (p.start_date && new Date(p.start_date) > now) return false;
-                                if (p.end_date && new Date(p.end_date) < now) return false;
+                    if (storeData.groupId) {
+                        const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId}`);
+                        const promoData = await promoRes.json();
+                        if (promoData.success) {
+                            storeData.promotions = promoData.promotions.filter(p => {
+                                // המבצע לא מסומן כפעיל
+                                if (p.is_active === false || p.is_active === 'false') return false;
+                                
+                                // בדיקת תאריכים סלחנית (מונעת בעיות אזורי זמן - Timezone בין השרת לדפדפן)
+                                try {
+                                    const now = new Date().getTime();
+                                    // מחסירים 3 שעות (זמן ישראל) מההתחלה כדי למנוע חסימה של מבצע שזה עתה נוצר
+                                    if (p.start_date && (new Date(p.start_date).getTime() - 10800000) > now) return false;
+                                    if (p.end_date && new Date(p.end_date).getTime() < now) return false;
+                                } catch(dateErr) {} 
+                                
                                 return true;
-                            } catch(dateErr) { return true; }
-                        });
+                            });
+                        }
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
