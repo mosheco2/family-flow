@@ -856,10 +856,9 @@ async function fetchData() {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
         if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
-        // הוספת groupId כדי למנוע קריסה מול חלק ממסלולי השרת, וטיפול נכון באובייקטים עטופים
         const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
         let parsed;
-        try { parsed = await res.json(); } catch(err) { return; }
+        try { parsed = await res.json(); } catch(err) { console.error("JSON Error", err); return; }
         
         let data = parsed.data || parsed;
         
@@ -879,7 +878,6 @@ async function fetchData() {
         if (currentUser.role === 'ADMIN') {
             const balEl = document.getElementById('user-balance'); 
             if(balEl) {
-                // הגנה מקריסה אם נתוני הקבוצה חסרים מסיבה כלשהי
                 const realBalance = (data.group && data.group.admin_total_balance) ? data.group.admin_total_balance : 0;
                 balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
@@ -893,11 +891,23 @@ async function fetchData() {
         pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
         if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
 
-        try { if (currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {}
-        try { if(typeof renderTasks === 'function') renderTasks(allTasks); if(typeof renderPantry === 'function') renderPantry(); if(typeof renderShifts === 'function') renderShifts(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; if(typeof renderShopList === 'function') renderShopList(); } catch(e) {}
-        try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) {}
-        try { if(typeof renderForecast === 'function') renderForecast(); } catch(e) {}
+        // הפעלה כפויה ומיידית של הרינדור (ללא try-catch שעשוי לחסום שגיאות)
+        if (currentUser.role === 'ADMIN') {
+            if(typeof renderAdminAcademy === 'function') renderAdminAcademy();
+        } else {
+            if(typeof renderMyAssignments === 'function') renderMyAssignments(bundlesCache);
+            if(typeof renderLibrary === 'function') renderLibrary();
+        }
+        
+        if(typeof renderTasks === 'function') renderTasks(allTasks);
+        if(typeof renderPantry === 'function') renderPantry();
+        if(typeof renderShifts === 'function') renderShifts();
+        
+        shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : [];
+        if(typeof renderShopList === 'function') renderShopList();
+        
+        if(typeof fetchBudget === 'function') fetchBudget();
+        if(typeof renderForecast === 'function') renderForecast();
         
         try {
             const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
@@ -931,12 +941,18 @@ async function fetchData() {
             }
         } catch(e) { allTransactions = []; }
 
-        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const cashTab = document.getElementById('tab-cashflow'); if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e){}
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+        if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo();
+        if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed();
+        
+        const cashTab = document.getElementById('tab-cashflow'); 
+        if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
+        
+        if (typeof loadBizCommunities === 'function') loadBizCommunities(); 
 
-    } catch(e) {}
+    } catch(e) {
+        console.error("Fetch data error:", e);
+    }
 }
-
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
     if (text) { getEl('familai-advisor-loading').classList.add('hidden'); getEl('familai-advice-text').innerText = text; getEl('familai-advisor-content').classList.remove('hidden'); } 
