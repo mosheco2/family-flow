@@ -1291,19 +1291,18 @@
                         <input type="text" id="promo-title" class="modern-input py-3 text-sm font-bold" placeholder="למשל: 1+1 על כל הפיצות!">
                     </div>
 
-                    <div class="bg-pink-50 p-3 rounded-2xl border border-pink-100 shadow-sm">
+<div class="bg-pink-50 p-3 rounded-2xl border border-pink-100 shadow-sm">
                         <label class="text-xs font-bold text-pink-800 block mb-2">סוג המבצע:</label>
                         <select id="promo-type" class="modern-input py-2 text-sm bg-white font-bold text-pink-700" onchange="togglePromoValueInput()">
                             <option value="discount_pct">אחוז הנחה (%)</option>
-                            <option value="bogo">1+1 מתנה (Buy 1 Get 1)</option>
+                            <option value="bogo">1+1 מתנה (הנחה כספית במקסימום)</option>
                             <option value="fixed_price">מחיר פיקס (₪)</option>
                         </select>
                         <div id="promo-value-container" class="mt-3">
-                            <label class="text-[10px] font-bold text-pink-800 block mb-1">ערך המבצע:</label>
+                            <label id="promo-value-label" class="text-[10px] font-bold text-pink-800 block mb-1">ערך המבצע:</label>
                             <input type="number" id="promo-value" class="modern-input py-2 text-sm text-center" placeholder="למשל: 20">
                         </div>
                     </div>
-
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">על מה חל המבצע?</label>
                         <select id="promo-target-type" class="modern-input py-2 text-sm bg-white" onchange="togglePromoTargetInput()">
