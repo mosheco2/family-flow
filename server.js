@@ -1978,7 +1978,65 @@ app.put('/api/store/promotions/toggle/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// --- מערכת ספקים ורכש (Procurement & Suppliers) ---
+// ==========================================
 
+app.get('/api/init-procurement', async (req, res) => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS suppliers (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                name VARCHAR(100) NOT NULL,
+                contact_person VARCHAR(100),
+                phone VARCHAR(50),
+                email VARCHAR(100),
+                category VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS purchase_requests (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                title VARCHAR(100),
+                items JSONB NOT NULL,
+                status VARCHAR(50) DEFAULT 'draft', 
+                supplier_id INT REFERENCES suppliers(id) ON DELETE SET NULL,
+                total_amount DECIMAL(10,2),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        res.send('Procurement tables created successfully! You can close this tab.');
+    } catch(e) { res.status(500).send('Error creating tables: ' + e.message); }
+});
+
+app.get('/api/suppliers/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM suppliers WHERE group_id = $1 ORDER BY name ASC', [req.params.groupId]);
+        res.json({ success: true, suppliers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/suppliers', async (req, res) => {
+    try {
+        const { groupId, name, contactPerson, phone, email, category } = req.body;
+        const result = await pool.query(
+            'INSERT INTO suppliers (group_id, name, contact_person, phone, email, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [groupId, name, contactPerson || '', phone || '', email || '', category || '']
+        );
+        res.json({ success: true, supplier: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/suppliers/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM suppliers WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.post('/api/store/promotions', async (req, res) => {
     try {
         const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
