@@ -262,22 +262,40 @@ function executeWithAIWarning(actionCallback) {
 }
 
 function injectBusinessUI() {
-    if(!getEl('content-shifts')) {
-        const contentFeed = getEl('content-feed');
-        if(contentFeed) {
-            contentFeed.insertAdjacentHTML('afterend', `
-            <div id="content-shifts" class="hidden">
-                <div class="flex justify-between items-center mb-4 px-2 mt-2">
-                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
-                </div>
-                <div id="shifts-list" class="space-y-3 pb-20"></div>
-            </div>
-            `);
-        }
+    if(!getEl('content-shifts')) {
+        const contentFeed = getEl('content-feed');
+        if(contentFeed) {
+            contentFeed.insertAdjacentHTML('afterend', `
+            <div id="content-shifts" class="hidden">
+                <div class="flex justify-between items-center mb-4 px-2 mt-2">
+                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
+                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
+                </div>
+                <div id="shifts-list" class="space-y-3 pb-20"></div>
+            </div>
+            <div id="content-timeclock" class="hidden">
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4 text-center">
+                    <h3 class="font-bold text-slate-800 text-lg mb-2">שעון נוכחות ⏱️</h3>
+                    <div class="flex justify-center my-6">
+                        <button id="btn-punch" onclick="handlePunch()" class="punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700">
+                            <i id="tc-icon" class="fa-solid fa-fingerprint text-5xl mb-2"></i>
+                            <span id="tc-btn-text" class="font-bold text-lg">כניסה</span>
+                        </button>
+                    </div>
+                    <p id="tc-active-info" class="text-xs font-bold text-slate-500 hidden">משמרת פעילה משעה: <span id="tc-start-time" class="text-indigo-600"></span></p>
+                </div>
+                <div id="timeclock-admin-view" class="hidden flex flex-wrap gap-2 mb-4 justify-between items-center px-2">
+                    <h4 class="font-bold text-slate-700 text-sm">דוח נוכחות ופעילות</h4>
+                </div>
+                <div id="timeclock-user-view" class="hidden flex flex-col items-center w-full">
+                    <div id="timeclock-report-list" class="w-full space-y-2 pb-20"></div>
+                </div>
+            </div>
+            `);
+        }
 
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
                 <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
                     <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
@@ -314,6 +332,28 @@ function injectBusinessUI() {
                         <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
                         <button id="btn-submit-mp" onclick="submitManualPunch()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
+                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיווג וגישה למערכת 🔐</h3>
+                <p id="perm-user-name" class="text-center text-slate-500 mb-4 text-sm"></p>
+                <input type="hidden" id="perm-user-id">
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-500 block mb-2">סיווג העובד/ת (משנה תבנית אוטומטית):</label>
+                    <select id="perm-role-select" onchange="applyRoleDefaults(this.value)" class="modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold">
+                        <option value="MEMBER">עובד רגיל / איש צוות</option>
+                        <option value="SENIOR">עובד בכיר / אחראי</option>
+                        <option value="MANAGER">מנהל משמרת (אחמ"ש)</option>
+                        <option value="ADMIN">בעלים / מנהל ראשי (הרשאה מלאה)</option>
+                    </select>
+                </div>
+                <label class="text-xs font-bold text-slate-500 block mb-2">טאבים מורשים למשתמש (התאמה אישית):</label>
+                <div id="perm-tabs-container" class="grid grid-cols-2 gap-2 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('permissions-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-permissions" onclick="submitPermissions()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הרשאות</button>
                 </div>
             </div>
         </div>
@@ -671,11 +711,14 @@ async function fetchTimeclockReport() {
         const monthFilter = getEl('tc-month-filter') ? getEl('tc-month-filter').value : 'all';
         if(filterEl && filterEl.options.length === 0) { filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
         
-        // עובד רגיל רואה רק את שלו, מנהל רואה לפי הסינון
         const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
         
         let reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
-        const res = await fetch(reqUrl); let data = await res.json();
+        const res = await fetch(reqUrl); 
+        let rawData = await res.json();
+        
+        // הגנה קריטית: חילוץ המערך למקרה והשרת עוטף אותו באובייקט
+        let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
         if (monthFilter !== 'all') {
             const [y, m] = monthFilter.split('-');
@@ -687,7 +730,6 @@ async function fetchTimeclockReport() {
         
         let html = ''; let userSummaries = {};
         
-        // ציור רשימת משמרות - שורה אחת קומפקטית לכל משמרת (סעיף 4)
         data.forEach(r => {
             const inTime = new Date(r.punch_in); 
             const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
@@ -712,7 +754,6 @@ async function fetchTimeclockReport() {
                 outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
             }
             
-            // עיצוב בשורה אחת (שם עובד רק למנהלים)
             const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : '';
             html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                         <div class="flex items-center gap-2">
@@ -738,7 +779,6 @@ async function fetchTimeclockReport() {
             summaryHtml += `</div></div>`;
         }
         
-        // יצירת קונטיינר לייצוא PDF הכולל הכל
         list.innerHTML = `
             ${summaryHtml}
             <div id="pdf-report-content" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -747,6 +787,154 @@ async function fetchTimeclockReport() {
         `;
     } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
 }
+
+const ALL_TABS = [
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'timeclock', name: 'נוכחות ⏱️' },
+    { id: 'shifts', name: 'משמרות 🗓️' },
+    { id: 'shop', name: 'רכש ארגוני 🛒' },
+    { id: 'pantry', name: 'ניהול מלאי 📦' },
+    { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'bank', name: 'כספים 💳' },
+    { id: 'cashflow', name: 'תזרים מזומנים 💸' },
+    { id: 'budget', name: 'תקציבים 📊' },
+    { id: 'forecast', name: 'תשקיף 📅' },
+    { id: 'tasks', name: 'פרויקטים ומשימות ✅' },
+    { id: 'academy', name: 'מרכז הכשרות 🎓' },
+    { id: 'community', name: 'קהילות מחוברות 🏘️' },
+    { id: 'members', name: 'ניהול צוות 👥' }
+];
+
+const ROLE_DEFAULTS = {
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
+    'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
+    'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
+};
+
+function enforcePermissions() {
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            if (userTabs.includes(tab.id) || isAdmin) btn.style.display = 'inline-block';
+            else btn.style.display = 'none';
+        }
+    });
+
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none') switchTab('feed');
+    });
+    
+    if (!isAdmin) {
+        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
+        if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
+        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.add('hidden');
+        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.add('hidden');
+        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
+        if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
+        if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
+        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
+        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
+    } else {
+        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
+        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
+        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
+        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.remove('hidden');
+        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
+        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
+    }
+}
+
+function openPermissionsModal(id, name, role, permissionsStr) {
+    getEl('perm-user-id').value = id;
+    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
+    let perms = {};
+    try { perms = JSON.parse(permissionsStr); } catch(e) {}
+    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
+    const selectEl = getEl('perm-role-select');
+    if (selectEl) {
+        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
+        selectEl.className = role === 'ADMIN' ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold' : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    renderTabsCheckboxes(userTabs);
+    getEl('permissions-modal').classList.remove('hidden');
+}
+
+function applyRoleDefaults(role) {
+    const selectEl = getEl('perm-role-select');
+    if (selectEl) {
+        selectEl.className = role === 'ADMIN' ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold' : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
+    }
+    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
+}
+
+function renderTabsCheckboxes(activeTabs) {
+    const container = getEl('perm-tabs-container');
+    if(!container) return;
+    container.innerHTML = ALL_TABS.map(tab => {
+        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
+        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; 
+        const opacity = isDisabled ? 'opacity-50' : '';
+        return `
+        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
+            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
+            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
+        </label>
+        `;
+    }).join('');
+}
+
+async function submitPermissions() {
+    const id = val('perm-user-id');
+    const role = val('perm-role-select');
+    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
+    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
+
+    const btn = getEl('btn-submit-permissions');
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר בשרת...'; }
+    
+    try {
+        const res = await fetch(`${API}/users/${id}/permissions`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
+            getEl('permissions-modal').classList.add('hidden');
+            fetchMembers(); 
+            
+            if (String(id) === String(currentUser.id)) {
+                currentUser.role = role;
+                currentUser.permissions = { tabs: checkedTabs };
+                enforcePermissions();
+            }
+        } else {
+            showToast('error', data.error);
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הרשאות'; } }
+}
+
+const originalSwitchTab = window.switchTab;
+if (originalSwitchTab && !window.switchTabOverridden) {
+    window.switchTab = function(tabId) {
+        originalSwitchTab(tabId);
+        setTimeout(enforcePermissions, 50);
+    };
+    window.switchTabOverridden = true;
+}
+setTimeout(enforcePermissions, 1500);
 
 // פונקציה חדשה: ייצוא ל-PDF (סעיף 5 ו-6)
 function exportTimeclockPDF() {
