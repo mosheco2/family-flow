@@ -542,7 +542,36 @@
 
                         <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
+<div id="content-timeclock" class="hidden">
+                        <div id="timeclock-admin-view" class="hidden flex flex-wrap items-center justify-between px-2 mb-4">
+                            <h3 class="font-bold text-slate-700 text-lg w-full mb-3">דוחות נוכחות ופעילות <i class="fa-solid fa-clock-rotate-left text-blue-500"></i></h3>
+                            <div class="flex gap-2 w-full">
+                                <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white flex-1 font-bold shadow-sm border-slate-200 outline-none"></select>
+                            </div>
+                        </div>
 
+                        <div id="timeclock-user-view" class="hidden mb-8">
+                            <div class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 flex flex-col items-center justify-center relative overflow-hidden">
+                                <h3 class="font-bold text-slate-800 text-xl mb-6">שעון נוכחות ⏱️</h3>
+                                <button id="btn-punch" onclick="handlePunch()" class="punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700 relative z-10">
+                                    <i id="tc-icon" class="fa-solid fa-fingerprint text-5xl mb-2"></i>
+                                    <span id="tc-btn-text" class="font-bold text-xl">כניסה</span>
+                                </button>
+                                <div id="tc-active-info" class="mt-6 text-center hidden relative z-10">
+                                    <p class="text-sm font-bold text-slate-700 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                                        <i class="fa-solid fa-circle text-[8px] text-red-500 animate-pulse mr-1"></i> משמרת פעילה מ- <span id="tc-start-time" class="text-blue-600">--:--</span>
+                                    </p>
+                                </div>
+                                <button onclick="setBusinessLocation()" class="absolute top-4 right-4 text-slate-400 hover:text-blue-500 transition" title="הגדר מיקום עסק (מנהל)"><i class="fa-solid fa-location-dot"></i></button>
+                                
+                                <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-60"></div>
+                                <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
+                            </div>
+                        </div>
+
+                        <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פירוט שעות</h3>
+                        <div id="timeclock-report-list" class="space-y-3 pb-24"></div>
+                    </div>
                     <div id="content-bank" class="hidden">
                         <div id="bank-admin-view" class="hidden space-y-6">
                             <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
