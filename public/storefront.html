@@ -165,8 +165,7 @@
         </div>
         <button onclick="window.location.reload()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
     </div>
-
-  <script>
+<script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -196,7 +195,7 @@
             'slate': 'from-slate-700 to-slate-900'
         };
 
- async function initStore() {
+        async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
             const storeCode = urlParams.get('store');
             const communityId = urlParams.get('communityId');
@@ -230,9 +229,7 @@
                         });
                     }
                     
-                    const appContainer = getEl('store-app');
                     const heroHeader = document.querySelector('.hero-bg');
-                    
                     if (heroHeader) {
                         heroHeader.insertAdjacentHTML('beforebegin', `
                             <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full animate-bounce-in" dir="rtl">
@@ -274,7 +271,7 @@
                 
                 try {
                     if (!getEl('store-promotions-banner')) {
-                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner" class="w-full"></div>`);
+                        getEl('catalog-container').insertAdjacentHTML('beforebegin', `<div id="store-promotions-banner"></div>`);
                     }
                     renderPromotionsBanner();
                 } catch(e) { console.error("Banner error", e); }
@@ -295,10 +292,9 @@
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer) return;
             
-            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_banner !== false && String(p.show_in_banner) !== 'false') : [];
+            const bannerPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_banner === true || String(p.show_in_banner) === 'true') : [];
             if (bannerPromos.length === 0) { bannerContainer.innerHTML = ''; return; }
             
-            // הורדנו את הרווחים מהצדדים (px-4) והגדרנו הצמדה מלאה (snap-mandatory)
             let promoHtml = `<div class="flex overflow-x-auto w-full modal-scroll snap-x snap-mandatory">`;
             bannerPromos.forEach(p => {
                 let desc = p.promo_type === 'bogo' ? '1+1 מתנה!' : (p.promo_type === 'discount_pct' ? `${p.promo_value}% הנחה` : `ב-₪${p.promo_value} בלבד`);
@@ -309,7 +305,6 @@
                 
                 const bgClass = colorMap[p.bg_color] || colorMap['pink'];
 
-                // שינוי ל-min-w-full וביטול rounded-3xl כדי שהבאנר ייצמד לדפנות
                 promoHtml += `
                 <div class="bg-gradient-to-r ${bgClass} text-white py-5 px-6 min-w-full w-full shrink-0 snap-center relative overflow-hidden flex flex-col justify-center text-right shadow-inner border-b border-black/10">
                     <i class="fa-solid fa-gift absolute -left-4 -bottom-6 text-9xl opacity-20 transform -rotate-12"></i>
@@ -354,7 +349,8 @@
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
             
             let html = '';
-            const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab !== false && String(p.show_in_tab) !== 'false') : [];
+            // סינון קפדני וברור רק למבצעים שמוגדרים להופיע בטאב
+            const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab === true || String(p.show_in_tab) === 'true') : [];
             if (tabPromos.length > 0) {
                 html += `<button onclick="filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
             }
@@ -383,7 +379,7 @@
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
-                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab !== false && String(p.show_in_tab) !== 'false') : [];
+                const tabPromos = storeData.promotions ? storeData.promotions.filter(p => p.show_in_tab === true || String(p.show_in_tab) === 'true') : [];
                 if (tabPromos.length === 0) {
                     container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
                     return;
@@ -695,6 +691,7 @@
 
         initStore();
     </script>
+ 
     </script>
 </body>
 </html>
