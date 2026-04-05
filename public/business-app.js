@@ -2717,7 +2717,17 @@ function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
-        getEl('sp-id').value = p.id; getEl('sp-name').value = p.name; getEl('sp-price').value = p.price; getEl('sp-category').value = p.category || ''; getEl('sp-desc').value = p.description || ''; getEl('sp-image-base64').value = p.image_url || '';
+        getEl('sp-id').value = p.id; 
+        getEl('sp-name').value = p.name; 
+        getEl('sp-price').value = p.price; 
+        getEl('sp-category').value = p.category || ''; 
+        getEl('sp-desc').value = p.description || ''; 
+        
+        // טעינת שדות חדשים: סוג מוצר ותיאור מורחב
+        if(getEl('sp-product-type')) getEl('sp-product-type').value = p.product_type || 'retail';
+        if(getEl('sp-long-desc')) getEl('sp-long-desc').value = p.long_description || '';
+        
+        getEl('sp-image-base64').value = p.image_url || '';
         
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = p.badge_text || ''; 
         if(getEl('sp-badge-color')) getEl('sp-badge-color').value = p.badge_color || 'red';
@@ -2728,7 +2738,17 @@ function openStoreProductModal(id = null) {
             try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
         }
     } else {
-        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
+        getEl('sp-id').value = ''; 
+        getEl('sp-name').value = ''; 
+        getEl('sp-price').value = ''; 
+        getEl('sp-category').value = ''; 
+        getEl('sp-desc').value = ''; 
+        
+        // איפוס השדות החדשים
+        if(getEl('sp-product-type')) getEl('sp-product-type').value = 'retail';
+        if(getEl('sp-long-desc')) getEl('sp-long-desc').value = '';
+
+        getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
         
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
         if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
@@ -2752,15 +2772,23 @@ async function submitStoreProduct() {
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
         const payload = { 
-            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
-            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red'
+            groupId: currentGroup.id, 
+            name, 
+            price, 
+            category: val('sp-category'), 
+            description: val('sp-desc'), 
+            optionsText: finalOptionsText, 
+            imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text') || '', 
+            badgeColor: val('sp-badge-color') || 'red',
+            productType: val('sp-product-type') || 'retail', 
+            longDescription: val('sp-long-desc') || ''
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
-
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
