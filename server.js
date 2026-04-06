@@ -131,17 +131,17 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // =========================================================
-// פונקציית מערכת המיילים מול ג'ימייל
+// פונקציית מערכת המיילים המרכזית
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
-    // השתמשנו בפרטים הקבועים שלך כדי שהמערכת לא תדלג על שליחת המיילים!
     const user = 'mcgames1978@gmail.com';
     const pass = 'gkoo yhnp qbfz hnzl';
 
-    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // משתמש בפורט מאובטח 465
             auth: { user: user, pass: pass }
         });
         
@@ -152,10 +152,10 @@ async function sendSystemEmail(to, subject, htmlContent) {
             html: htmlContent
         });
         
-        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
+        console.log(`✅ מייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
-        console.error('❌ שגיאה בשליחת המייל דרך Gmail:', e.message);
+        console.error('❌ שגיאה בשליחת מייל:', e.message);
         return false;
     }
 }
@@ -497,44 +497,18 @@ app.post('/api/groups', async (req, res) => {
         
         await dbClient.query('COMMIT');
         
-        // --- מערכת שליחת המיילים ---
-        try {
-            const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
-            
-            // 1. התראה ל-ADMIN העולמי
-            const adminAlertHtml = `
-                <div style="direction: rtl; font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
-                    <h2 style="color: #1e3a8a;">🎉 סביבה חדשה הוקמה במערכת!</h2>
-                    <div style="background-color: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                        <p><strong>סוג מערכת:</strong> ${sysType}</p>
-                        <p><strong>שם הקבוצה/עסק:</strong> ${req.body.groupName}</p>
-                        <p><strong>אימייל מנהל הסביבה:</strong> ${req.body.adminEmail}</p>
-                        <p><strong>קוד סביבה שנוצר:</strong> <span style="color: #2563eb; font-weight: bold;">${code}</span></p>
-                        <p><strong>שם משתמש מנהל:</strong> ${req.body.adminNickname}</p>
-                        <p><strong>סיסמה:</strong> ${req.body.password}</p>
-                    </div>
-                </div>`;
-            sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+        // --- מערכת שליחת המיילים (עם המתנה לסיום השליחה כדי לא לקרוס) ---
+        const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
+        
+        // 1. מייל למנהל המערכת (mcgames1978@gmail.com)
+        const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
+        await sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
 
-            // 2. שליחת מייל ברוכים הבאים ליוצר הסביבה
-            if (req.body.adminEmail) {
-                const userThanksHtml = `
-                    <div style="direction: rtl; font-family: Arial, sans-serif;">
-                        <h2>ברוכים הבאים ל-${sysType}! 🚀</h2>
-                        <p>שלום ${req.body.adminNickname},</p>
-                        <p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p>
-                        <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                            <h3 style="margin-top: 0; color: #3b82f6;">אלו פרטי ההתחברות שלכם למערכת:</h3>
-                            <p style="font-size: 16px;"><strong>קוד הסביבה:</strong> <span style="font-size: 18px; color: #1d4ed8; font-weight: bold;">${code}</span></p>
-                            <p style="font-size: 16px;"><strong>שם משתמש:</strong> ${req.body.adminNickname}</p>
-                            <p style="font-size: 16px;"><strong>סיסמה:</strong> ${req.body.password}</p>
-                        </div>
-                        <p>אנא שמרו את פרטי הגישה במקום בטוח, והעבירו את קוד הסביבה לשאר חברי הצוות/המשפחה כדי שיוכלו להצטרף.</p>
-                        <p>בהצלחה!<br>צוות Oneflow</p>
-                    </div>`;
-                sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה! מצרפים פרטי גישה`, userThanksHtml);
-            }
-        } catch (mailErr) { console.error('Mail error:', mailErr); }
+        // 2. מייל ברוכים הבאים למשתמש החדש
+        if (req.body.adminEmail) {
+            const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
+            await sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+        }
         
         res.json({ success: true, user: uRes.rows[0], group: group });
     } catch (e) { 
@@ -543,7 +517,6 @@ app.post('/api/groups', async (req, res) => {
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
-
 app.post('/api/forgot-code', async (req, res) => {
     try {
         const { email } = req.body;
