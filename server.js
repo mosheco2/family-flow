@@ -2083,6 +2083,64 @@ app.put('/api/b2b/orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// קבלת סחורה: עדכון מלאי, העלאת חוסרים לדרישות שוטפות ויצירת הזמנת השלמה
+app.post('/api/b2b/orders/receive', async (req, res) => {
+    let dbClient;
+    try {
+        const { orderId, groupId, userId, receivedItems, missingItems } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        // 1. עדכון סטטוס הזמנה ל'סופק'
+        await dbClient.query("UPDATE purchase_orders SET status = 'delivered' WHERE id = $1", [orderId]);
+
+        // 2. הוספת מה שהתקבל למלאי הארגוני (Pantry)
+        for (let item of receivedItems) {
+            const pRes = await dbClient.query(`SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
+            if (pRes.rows.length > 0) {
+                await dbClient.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE id=$2`, [parseFloat(item.qty) || 0, pRes.rows[0].id]);
+            } else {
+                await dbClient.query(`INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1, $2, $3, $4)`, [groupId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'"]);
+            }
+        }
+
+        // 3. הוספת מה שחסר חזרה לטאב "דרישות שוטפות / עגלה" (כדי שהעובדים יראו מה חסר)
+        for (let item of missingItems) {
+            await dbClient.query(`
+                INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, status) 
+                VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+            `, [groupId, userId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'", item.price || 0]);
+        }
+
+        // 4. בנוסף, יצירת טיוטת הזמנה חדשה (סטטוס 'חדשה') לאותו ספק בהיסטוריית הזמנות (B2B)
+        if (missingItems && missingItems.length > 0) {
+            const origOrderRes = await dbClient.query('SELECT supplier_id FROM purchase_orders WHERE id = $1', [orderId]);
+            if (origOrderRes.rows.length > 0) {
+                const supplierId = origOrderRes.rows[0].supplier_id;
+                let missingTotal = 0;
+                const mappedMissingItems = missingItems.map(item => {
+                    const price = parseFloat(item.price) || 0; const qty = parseFloat(item.qty) || 0; const rowTotal = price * qty;
+                    missingTotal += rowTotal;
+                    return { id: `missing_${Date.now()}`, name: item.name, quantity: qty, unit: item.unit || "יח'", price_per_unit: price, row_total: rowTotal };
+                });
+                await dbClient.query(`
+                    INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, notes)
+                    VALUES ($1, $2, $3, $4, $5, 'new', $6)
+                `, [groupId, userId, supplierId, JSON.stringify(mappedMissingItems), missingTotal, `הזמנת השלמת חוסרים שנוצרה אוטומטית מקבלת סחורה של הזמנה #${orderId}`]);
+            }
+        }
+
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if(dbClient) await dbClient.query('ROLLBACK');
+        console.error("Receive Order Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if(dbClient) dbClient.release();
+    }
+});
+
 // קבלת סחורה: עדכון מלאי ויצירת הזמנת חוסרים אוטומטית לספק
 app.post('/api/b2b/orders/receive', async (req, res) => {
     let dbClient;
