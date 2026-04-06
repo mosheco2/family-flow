@@ -1819,7 +1819,21 @@ async function clearEntireCart() {
     try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
-function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
+function toggleSelectAll() { 
+    const allItems = shoppingListCache; 
+    const anyPending = allItems.some(i => i.status === 'pending'); 
+    const targetStatus = anyPending; 
+    document.querySelectorAll('.shop-row').forEach(row => { 
+        if(row.classList.contains('missing')) return; 
+        const cb = row.querySelector('input[type="checkbox"]'); 
+        const inp = row.querySelector('.price-input'); 
+        cb.checked = targetStatus; 
+        row.classList.toggle('in-cart', targetStatus); 
+        inp.disabled = !targetStatus; 
+    }); 
+    calcRunningTotal(); 
+    allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); 
+}
 
 function renderShopList() {
     if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
@@ -1829,7 +1843,7 @@ function renderShopList() {
     
     let reqHtml = '';
     if (requestedItems.length > 0) {
-        if(reqContainer) reqContainer.classList.remove('hidden'); // הגנה קריטית
+        if(reqContainer) reqContainer.classList.remove('hidden');
         requestedItems.forEach(i => {
             const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להנהלה</span>`;
             reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">דרישה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
@@ -1876,8 +1890,8 @@ function renderShopList() {
 async function updateRow(id, type, value) {
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
     else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
+    else if (type === 'price_calc') { const item = shoppingListCache.find(i => String(i.id) === String(id)); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
+    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => String(i.id) === String(id)); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
     if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
 }
 
@@ -1888,7 +1902,7 @@ function calcRunningTotal() {
     document.querySelectorAll('.shop-row').forEach(row => { 
         const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); 
         if (isChecked && !isMissing) { 
-            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
+            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id)); 
             const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; 
             total += (unitPrice * qty); 
         } 
@@ -1901,7 +1915,7 @@ function openCheckoutSummary() {
     document.querySelectorAll('.shop-row').forEach(row => { 
         if (row.classList.contains('missing')) missing++; 
         else if (row.querySelector('input[type="checkbox"]').checked) { 
-            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
+            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id)); 
             const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; total += (unitPrice * qty); 
         } 
     }); 
@@ -1912,7 +1926,7 @@ function openCheckoutSummary() {
 async function submitFinalCheckout() {
     const store = val('checkout-store') || 'ספק כללי'; const branch = val('checkout-branch'); let total = 0; const boughtItems = []; const missingItems = [];
     document.querySelectorAll('.shop-row').forEach(row => {
-        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
+        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id));
         if (row.classList.contains('missing')) { missingItems.push({ id }); } 
         else if (row.querySelector('input[type="checkbox"]').checked) {
             const unitPrice = parseFloat(getEl(`price-${id}`).value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; const rowTotal = unitPrice * qty; total += rowTotal;
@@ -4523,7 +4537,6 @@ function openReceiveGoodsModal(orderId) {
 
     getEl('receive-goods-modal').classList.remove('hidden');
 }
-
 // שיגור הליקוט לשרת
 async function submitReceiveGoods() {
     if (!currentReceiveOrder) return;
@@ -4533,7 +4546,10 @@ async function submitReceiveGoods() {
     const missingItems = [];
 
     items.forEach((item, idx) => {
-        const receivedQty = parseFloat(getEl(`receive-qty-${idx}`).value) || 0;
+        const inputEl = getEl(`receive-qty-${idx}`);
+        if (!inputEl) return;
+        const receivedQty = parseFloat(inputEl.value) || 0;
+        
         if (receivedQty > 0) {
             receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit });
         }
@@ -4544,7 +4560,7 @@ async function submitReceiveGoods() {
     });
 
     const btn = getEl('btn-submit-receive');
-    btn.disabled = true; btn.innerText = 'מעדכן נתונים...';
+    if(btn) { btn.disabled = true; btn.innerText = 'מעדכן נתונים...'; }
 
     try {
         const res = await fetch(`${API}/b2b/orders/receive`, {
@@ -4555,12 +4571,17 @@ async function submitReceiveGoods() {
         if (data.success) {
             triggerConfetti();
             showToast('success', 'הסחורה התקבלה! המלאי עודכן וחוסרים עברו לדרישות רכש.');
-            getEl('receive-goods-modal').classList.add('hidden');
+            const modal = getEl('receive-goods-modal'); if(modal) modal.classList.add('hidden');
             fetchB2BOrders();
-            fetchData(); // מעדכן מלאי ורכש ברקע
-        } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); }
-    finally { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
+            fetchData();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת נתונים');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
+    }
 }
 
 // קריאת תעודת משלוח עם AI
