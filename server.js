@@ -2037,6 +2037,49 @@ app.delete('/api/suppliers/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// הוספת בקשת רכש חדשה (RFQ) ומחיקת הפריטים מרשימת הקניות הפתוחה
+app.post('/api/rfq', async (req, res) => {
+    try {
+        const { groupId, supplierId, items, totalAmount } = req.body;
+        
+        // 1. יצירת בקשת הרכש
+        const result = await pool.query(
+            `INSERT INTO purchase_requests (group_id, supplier_id, items, total_amount, status) 
+             VALUES ($1, $2, $3, $4, 'sent') RETURNING *`,
+            [groupId, supplierId || null, JSON.stringify(items), totalAmount || 0]
+        );
+        
+        // 2. מחיקת הפריטים מסל הקניות השוטף (כי הם עברו להזמנה)
+        const itemIds = items.map(i => i.id);
+        if (itemIds.length > 0) {
+            await pool.query(`DELETE FROM shopping_list WHERE id = ANY($1::int[])`, [itemIds]);
+        }
+        
+        res.json({ success: true, rfq: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת כל בקשות הרכש של העסק (כולל פרטי הספק)
+app.get('/api/rfq/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT pr.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone 
+            FROM purchase_requests pr 
+            LEFT JOIN suppliers s ON pr.supplier_id = s.id 
+            WHERE pr.group_id = $1 
+            ORDER BY pr.created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, rfqs: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/rfq/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE purchase_requests SET status = $1 WHERE id = $2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.post('/api/store/promotions', async (req, res) => {
     try {
         const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
