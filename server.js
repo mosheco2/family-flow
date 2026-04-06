@@ -2131,17 +2131,68 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליחת הזמנות מפוצלות מרובות (פיצול לספקים)
+const nodemailer = require('nodemailer');
+
+// הגדרת חשבון המייל ממנו יישלחו ההזמנות (החלף לפרטים של העסק שלך)
+// ⚠️ שים לב: אם זה Gmail, חובה לייצר "App Password" בהגדרות האבטחה של גוגל, ולא להשתמש בסיסמה הרגילה.
+const mailTransporter = nodemailer.createTransport({
+    service: 'gmail', 
+    auth: {
+        user: 'mcgames1978@gmail.com', // <-- הכנס את האימייל האמיתי שלך כאן
+        pass: 'gkoo yhnp qbfz hnzl'     // <-- הכנס את הסיסמת אפליקציה כאן
+    }
+});
+
+// שליחת הזמנות מפוצלות מרובות + שילוח אוטומטי למייל הספק עם PDF
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
-        // orders הוא מערך שמכיל הזמנה לכל ספק נפרד: [{ supplierId, items: [...], totalAmount }, ...]
         
         for (let order of orders) {
-            await pool.query(`
+            // 1. שמירה במסד הנתונים וקבלת מזהה ההזמנה החדש
+            const result = await pool.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
-                VALUES ($1, $2, $3, $4, $5, 'sent')
+                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
+            
+            const newOrderId = result.rows[0].id;
+
+            // 2. שליפת פרטי הספק כדי לקבל את האימייל שלו
+            const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
+            const supplier = supplierRes.rows[0];
+
+            // 3. שילוח המייל (אם יש לספק כתובת מייל ואם הלקוח שלח PDF)
+            if (supplier && supplier.email && order.pdfBase64) {
+                const mailOptions = {
+                    from: '"מערכת רכש Oneflow" <mcgames1978@gmail.com>', // <-- אל תשכח לשנות גם כאן את כתובת המייל שלך
+                    to: supplier.email,
+                    subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
+                    html: `
+                        <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
+                            <h2>שלום רב לצוות ${supplier.name},</h2>
+                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
+                            <p>אנא עברו על ההזמנה המצורפת בקובץ ה-PDF ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                            <br>
+                            <p>בברכה,</p>
+                            <p><b>לקוח Oneflow BIZ</b></p>
+                        </div>
+                    `,
+                    attachments: [
+                        {
+                            filename: `Purchase_Order_${newOrderId}.pdf`,
+                            content: order.pdfBase64,
+                            encoding: 'base64'
+                        }
+                    ]
+                };
+
+                try {
+                    await mailTransporter.sendMail(mailOptions);
+                    console.log(`Email sent successfully to ${supplier.email}`);
+                } catch (mailErr) {
+                    console.error(`Failed to send email to ${supplier.email}:`, mailErr);
+                }
+            }
         }
         
         res.json({ success: true });
