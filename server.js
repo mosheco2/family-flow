@@ -145,7 +145,9 @@ async function sendSystemEmail(to, subject, htmlContent) {
     console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // משתמש בפורט מאובטח 465
             auth: { user: user, pass: pass }
         });
         
@@ -163,7 +165,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
-// נתיב בדיקה - Test Route למיילים דרך ג'ימייל
+
 app.get('/api/test-email', async (req, res) => {
     try {
         const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
@@ -175,26 +177,21 @@ app.get('/api/test-email', async (req, res) => {
 
         const transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com', 
-            port: 587, 
-            secure: false,
-            auth: { user, pass }, 
-            tls: { rejectUnauthorized: false },
-            pool: true,
-            connectionTimeout: 60000, 
-            greetingTimeout: 60000, 
-            socketTimeout: 60000
+            port: 465, 
+            secure: true,
+            auth: { user, pass }
         });
 
         await transporter.sendMail({
             from: `"Oneflow System Test" <${user}>`,
             to: user,
             subject: '✅ בדיקת מערכת המיילים - Oneflow',
-            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 587 ולשלוח מייל בהצלחה.</p></div>'
+            html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 465 ולשלוח מייל בהצלחה.</p></div>'
         });
 
         res.send('<h1 style="color:green; text-align:center; direction:rtl; margin-top:50px;">✅ המייל נשלח בהצלחה לתיבה שלך!</h1>');
     } catch (error) {
-        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ Render חוסמת גם את פורט 587. זו השגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div><p style="text-align:center; direction:rtl; font-weight:bold;">הגענו לשלב שחייבים לפנות לתמיכה של Render ולבקש לפתוח את הפורטים לשליחת מייל.</p>`);
+        res.send(`<h1 style="color:red; text-align:center; direction:rtl; margin-top:50px;">❌ שגיאה:</h1><div style="background:#f4f4f4; padding:20px; font-family:monospace; max-width:800px; margin:20px auto; border: 1px solid #ccc;">${error.message}</div>`);
     }
 });
 
@@ -2063,76 +2060,6 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
         res.json({ success: true, catalog: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// =========================================================
-// פונקציית מערכת המיילים לספקים (B2B Orders) - תקין ומאובטח
-// =========================================================
-app.post('/api/b2b/orders', async (req, res) => {
-    let dbClient;
-    try {
-        const { groupId, userId, orders } = req.body;
-        
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
-        
-        const user = process.env.SMTP_USER;
-        const pass = process.env.SMTP_PASS;
-        
-        let transporter = null;
-        if (user && pass) {
-            transporter = nodemailer.createTransport({
-                host: 'smtp.gmail.com',
-                port: 465,
-                secure: true,
-                auth: { user: user, pass: pass }
-            });
-        }
-        
-        for (let order of orders) {
-            const result = await dbClient.query(`
-                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
-                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
-            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
-            
-            const newOrderId = result.rows[0].id;
-            const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
-            const supplier = supplierRes.rows[0];
-
-            if (supplier && supplier.email && order.pdfBase64 && transporter) {
-                const mailOptions = {
-                    from: `"מערכת רכש Oneflow" <${user}>`, 
-                    to: supplier.email,
-                    subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
-                    html: `
-                        <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
-                            <h2>שלום רב לצוות ${supplier.name},</h2>
-                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
-                            <p>אנא עברו על ההזמנה המצורפת בקובץ ה-PDF ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
-                            <br>
-                            <p>בברכה,</p>
-                            <p><b>לקוח Oneflow BIZ</b></p>
-                        </div>
-                    `,
-                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64, encoding: 'base64' } ]
-                };
-
-                try {
-                    await transporter.sendMail(mailOptions);
-                } catch (mailErr) {
-                    console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
-                }
-            }
-        }
-        
-        await dbClient.query('COMMIT');
-        res.json({ success: true });
-    } catch(e) { 
-        if (dbClient) await dbClient.query('ROLLBACK');
-        console.error("Order Submit Error:", e);
-        res.status(500).json({ error: e.message }); 
-    } finally {
-        if (dbClient) dbClient.release();
-    }
-});
 
 app.get('/api/b2b/orders/:groupId', async (req, res) => {
     try {
@@ -2156,43 +2083,6 @@ app.put('/api/b2b/orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- FAMILY COMMUNITY ENDPOINTS ---
-app.post('/api/community/join', async (req, res) => {
-    try {
-        const { groupId, code } = req.body;
-        const commRes = await pool.query('SELECT * FROM communities WHERE code=$1', [code.toUpperCase().trim()]);
-        if(commRes.rows.length === 0) return res.json({success:false, error:'קוד קהילה אינו תקין או לא קיים'});
-        const comm = commRes.rows[0];
-        
-        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(e){}
-        await pool.query('UPDATE family_groups SET community_id=$1 WHERE id=$2', [comm.id, groupId]);
-        
-        res.json({success: true, community: comm});
-    } catch(e) { res.status(500).json({error: e.message}); }
-});
-
-app.get('/api/community/businesses/:groupId', async (req, res) => {
-    try {
-        const gRes = await pool.query('SELECT community_id FROM family_groups WHERE id=$1', [req.params.groupId]);
-        if(gRes.rows.length===0 || !gRes.rows[0].community_id) return res.json({success:true, community: null, businesses: []});
-        
-        const commId = gRes.rows[0].community_id;
-        const commNameRes = await pool.query('SELECT name FROM communities WHERE id=$1', [commId]);
-        const communityName = commNameRes.rows.length > 0 ? commNameRes.rows[0].name : '';
-
-        const result = await pool.query(`
-            SELECT b.id as business_id, b.name as business_name, b.group_code, s.logo_url, s.slogan, cb.discount_pct 
-            FROM community_businesses cb
-            JOIN family_groups b ON cb.business_id = b.id
-            LEFT JOIN store_settings s ON b.id = s.group_id
-            WHERE cb.community_id = $1 AND s.is_active = TRUE
-        `, [commId]);
-        
-        res.json({success: true, community: { id: commId, name: communityName }, businesses: result.rows});
-    } catch(e) { res.status(500).json({error: e.message}); }
-});
-
-// --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
 app.get('/api/sa/communities', async (req, res) => {
     try {
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(err) {}
@@ -2341,7 +2231,78 @@ app.get('/api/sa/businesses', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// האזנה לשרת
+// =========================================================
+// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת
+// =========================================================
+app.post('/api/b2b/orders', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, userId, orders } = req.body;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
+        
+        let transporter = null;
+        if (user && pass) {
+            transporter = nodemailer.createTransport({
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: { user: user, pass: pass }
+            });
+        }
+        
+        for (let order of orders) {
+            const result = await dbClient.query(`
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
+                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
+            
+            const newOrderId = result.rows[0].id;
+            const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
+            const supplier = supplierRes.rows[0];
+
+            if (supplier && supplier.email && order.pdfBase64 && transporter) {
+                const mailOptions = {
+                    from: `"מערכת רכש Oneflow" <${user}>`, 
+                    to: supplier.email,
+                    subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
+                    html: `
+                        <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
+                            <h2>שלום רב לצוות ${supplier.name},</h2>
+                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
+                            <p>אנא עברו על ההזמנה המצורפת בקובץ ה-PDF ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                            <br>
+                            <p>בברכה,</p>
+                            <p><b>לקוח Oneflow BIZ</b></p>
+                        </div>
+                    `,
+                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), encoding: 'base64' } ]
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                } catch (mailErr) {
+                    console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
+                }
+            }
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK');
+        console.error("Order Submit Error:", e);
+        res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// START SERVER
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
