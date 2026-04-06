@@ -1472,6 +1472,29 @@
                     </div>
             </div>
         </div>
+        <div id="b2b-checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-lg rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
+                    <h3 class="text-xl font-black text-slate-800">סיכום עגלת רכש ארגונית 🛒</h3>
+                    <button onclick="document.getElementById('b2b-checkout-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <p class="text-xs text-slate-500 mb-4 shrink-0 font-medium">המערכת מפצלת את ההזמנה שלך אוטומטית לפי ספקים, ומוודאת עמידה בתנאי הסחר (מינימום להזמנה).</p>
+                
+                <div id="b2b-checkout-suppliers-list" class="flex-1 overflow-y-auto modal-scroll space-y-4 pr-1 mb-4">
+                    </div>
+                
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shrink-0">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-600">סה"כ לתשלום (כלל הספקים):</span>
+                        <span id="b2b-checkout-grand-total" class="text-2xl font-black text-slate-900 dir-ltr">₪0.00</span>
+                    </div>
+                    <button id="btn-submit-b2b-orders" onclick="submitB2BOrders()" class="w-full mt-4 bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex justify-center items-center gap-2">
+                        שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
         <div id="rfq-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll slide-up">
                 <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
