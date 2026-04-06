@@ -4194,8 +4194,8 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.color = '#1e293b';
             container.style.width = '800px'; 
             container.style.position = 'absolute';
-            container.style.left = '-9999px';
             container.style.top = '0';
+            container.style.left = '-9999px'; // מחוץ למסך הגלוי
             
             let itemsHtml = orderInfo.items.map(i => `
                 <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -4234,28 +4234,29 @@ async function generateOrderPDFBase64(orderInfo) {
                 </div>
             `;
 
+            // חשוב: צירוף ל-DOM
             document.body.appendChild(container); 
 
             const opt = { 
                 margin: 10, 
                 filename: 'order.pdf', 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true }, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, logging: false }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
             };
             
             const timeoutId = setTimeout(() => {
-                document.body.removeChild(container);
+                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null);
             }, 8000);
 
             html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
                 clearTimeout(timeoutId);
-                document.body.removeChild(container);
+                if (document.body.contains(container)) document.body.removeChild(container);
                 if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]); else resolve(null);
             }).catch(err => { 
                 clearTimeout(timeoutId); 
-                document.body.removeChild(container);
+                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null); 
             });
         } catch(err) { resolve(null); }
