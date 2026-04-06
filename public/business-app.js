@@ -3895,17 +3895,19 @@ async function deleteSupplier(id) {
 // -----------------------------------------
 // קטלוג מוצרים ספציפי (במודאל מנהל)
 // -----------------------------------------
-async function openSupplierCatalog(supplierId, supplierName) {
-    getEl('catalog-supplier-id').value = supplierId; getEl('catalog-supplier-name').innerText = supplierName; resetCatalogForm(); getEl('supplier-catalog-modal').classList.remove('hidden');
-    getEl('supplier-products-list').innerHTML = '<div class="flex justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>';
-    try {
-        const res = await fetch(`${API}/suppliers/${supplierId}/products`); const data = await res.json();
-        if (data.success) { currentSupplierProducts = data.products || []; renderSupplierProducts(); }
-    } catch(e) { showToast('error', 'שגיאה בטעינת קטלוג'); }
+function resetCatalogForm() { 
+    const idEl = getEl('catalog-product-id'); if(idEl) idEl.value = ''; 
+    const nameEl = getEl('cat-prod-name'); if(nameEl) nameEl.value = ''; 
+    const priceEl = getEl('cat-prod-price'); if(priceEl) priceEl.value = ''; 
+    const unitEl = getEl('cat-prod-unit'); if(unitEl) unitEl.value = "יח'"; 
+    const uppEl = getEl('cat-prod-upp'); if(uppEl) uppEl.value = 1; 
+    const descEl = getEl('cat-prod-desc'); if(descEl) descEl.value = ''; 
+    const titleEl = getEl('catalog-form-title'); if(titleEl) titleEl.innerText = 'הוספת מוצר לקטלוג'; 
+    const btnEl = getEl('btn-submit-cat-prod'); if(btnEl) btnEl.innerText = 'הוסף מוצר'; 
 }
 
 function renderSupplierProducts() {
-    const list = getEl('supplier-products-list'); getEl('cat-prod-count').innerText = currentSupplierProducts.length;
+    const list = getEl('supplier-products-list'); const countEl = getEl('cat-prod-count'); if(countEl) countEl.innerText = currentSupplierProducts.length;
     if (currentSupplierProducts.length === 0) { list.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 text-sm">הקטלוג ריק.</p></div>'; return; }
     let html = '';
     currentSupplierProducts.forEach(p => {
@@ -3915,8 +3917,56 @@ function renderSupplierProducts() {
     }); list.innerHTML = html;
 }
 
-function resetCatalogForm() { getEl('catalog-product-id').value = ''; getEl('cat-prod-name').value = ''; getEl('cat-prod-price').value = ''; getEl('cat-prod-unit').value = "יח'"; getEl('cat-prod-upp').value = 1; getEl('cat-prod-desc').value = ''; getEl('catalog-form-title').innerText = 'הוספת מוצר לקטלוג'; getEl('btn-submit-cat-prod').innerText = 'הוסף מוצר'; }
-
+function openSupplierCatalog(supplierId, supplierName) {
+    if (!getEl('supplier-catalog-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="supplier-catalog-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-4xl rounded-[2rem] p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <button onclick="document.getElementById('supplier-catalog-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <div class="mb-4 pr-10 border-b border-slate-100 pb-3">
+                    <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-boxes-stacked text-indigo-500 ml-2"></i> קטלוג ספק: <span id="catalog-supplier-name" class="text-indigo-600"></span></h3>
+                </div>
+                <div class="flex flex-col md:flex-row gap-6 overflow-hidden flex-1 min-h-0">
+                    <div class="w-full md:w-1/3 bg-slate-50 p-4 rounded-2xl border border-slate-100 overflow-y-auto modal-scroll shrink-0">
+                        <h4 id="catalog-form-title" class="font-bold text-slate-700 text-sm mb-4">הוספת מוצר</h4>
+                        <input type="hidden" id="catalog-supplier-id">
+                        <input type="hidden" id="catalog-product-id">
+                        <div class="space-y-3">
+                            <div><label class="text-[10px] font-bold text-slate-500">שם מוצר:</label><input type="text" id="cat-prod-name" class="modern-input py-2 text-sm bg-white w-full"></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><label class="text-[10px] font-bold text-slate-500">מחיר (₪):</label><input type="number" step="0.1" id="cat-prod-price" class="modern-input py-2 text-sm bg-white dir-ltr text-right w-full"></div>
+                                <div><label class="text-[10px] font-bold text-slate-500">סוג יחידה:</label><input type="text" id="cat-prod-unit" value="יח'" class="modern-input py-2 text-sm bg-white text-center w-full"></div>
+                            </div>
+                            <div><label class="text-[10px] font-bold text-slate-500">כמות במארז:</label><input type="number" id="cat-prod-upp" value="1" class="modern-input py-2 text-sm bg-white text-center w-full"></div>
+                            <div><label class="text-[10px] font-bold text-slate-500">תיאור (אופציונלי):</label><textarea id="cat-prod-desc" class="modern-input py-2 text-sm bg-white h-16 w-full"></textarea></div>
+                            <button id="btn-submit-cat-prod" onclick="submitSupplierProduct()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-indigo-700 transition mt-2">הוסף לקטלוג</button>
+                            <button onclick="resetCatalogForm()" class="w-full bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition mt-2">נקה טופס</button>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-2/3 flex flex-col overflow-hidden min-h-[300px]">
+                        <div class="flex justify-between items-center mb-3 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">רשימת מוצרים (<span id="cat-prod-count">0</span>)</h4>
+                        </div>
+                        <div id="supplier-products-list" class="flex-1 overflow-y-auto space-y-2 pr-1 pb-4 modal-scroll"></div>
+                    </div>
+                </div>
+            </div>
+        </div>`);
+    }
+    
+    getEl('catalog-supplier-id').value = supplierId; 
+    getEl('catalog-supplier-name').innerText = supplierName; 
+    resetCatalogForm(); 
+    getEl('supplier-catalog-modal').classList.remove('hidden');
+    getEl('supplier-products-list').innerHTML = '<div class="flex justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>';
+    
+    fetch(`${API}/suppliers/${supplierId}/products`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) { currentSupplierProducts = data.products || []; renderSupplierProducts(); }
+        })
+        .catch(e => showToast('error', 'שגיאה בטעינת קטלוג'));
+}
 function editSupplierProduct(id) { const p = currentSupplierProducts.find(x => x.id === id); if (!p) return; getEl('catalog-product-id').value = p.id; getEl('cat-prod-name').value = p.name; getEl('cat-prod-price').value = p.price; getEl('cat-prod-unit').value = p.unit_type; getEl('cat-prod-upp').value = p.units_per_package || 1; getEl('cat-prod-desc').value = p.description || ''; getEl('catalog-form-title').innerText = 'עריכת מוצר'; getEl('btn-submit-cat-prod').innerText = 'שמור שינויים'; }
 
 async function submitSupplierProduct() {
@@ -4215,11 +4265,24 @@ async function generateOrderPDFBase64(orderInfo) {
     });
 }
 
-// פונקציה לייצור PDF עם שם הלקוח ומספר הלקוח
-async function generateOrderPDFBase64(orderInfo) {
+// טעינה דינמית של ספריית יצירת ה-PDF כדי שכפתורי ההורדה יעבדו ללא בעיות ב-HTML
+async function loadHtml2Pdf() {
+    if (window.html2pdf) return true;
     return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => { showToast('error', 'שגיאה בטעינת מערכת ה-PDF'); resolve(false); };
+        document.head.appendChild(script);
+    });
+}
+
+// פונקציה לייצור PDF עם שם הלקוח ומספר הלקוח (הורדה אוטומטית/ידנית)
+async function generateOrderPDFBase64(orderInfo) {
+    return new Promise(async (resolve) => {
         try {
-            if (typeof html2pdf === 'undefined') { resolve(null); return; }
+            const isLoaded = await loadHtml2Pdf();
+            if (!isLoaded) { resolve(null); return; }
 
             const container = document.createElement('div');
             container.style.direction = 'rtl';
@@ -4231,8 +4294,8 @@ async function generateOrderPDFBase64(orderInfo) {
                 <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="padding: 10px;">${safeStr(i.name)}</td>
                     <td style="padding: 10px; text-align: center;">${i.quantity} ${safeStr(i.unit)}</td>
-                    <td style="padding: 10px; text-align: left;" dir="ltr">₪${i.price_per_unit.toFixed(2)}</td>
-                    <td style="padding: 10px; font-weight: bold; text-align: left;" dir="ltr">₪${i.row_total.toFixed(2)}</td>
+                    <td style="padding: 10px; text-align: left;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
+                    <td style="padding: 10px; font-weight: bold; text-align: left;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
                 </tr>
             `).join('');
 
@@ -4275,7 +4338,6 @@ async function generateOrderPDFBase64(orderInfo) {
     });
 }
 
-// שדרוג submitB2BOrders כדי לכלול את מספר הלקוח ולתמוך בהודעת מייל אישית
 async function submitB2BOrders() {
     const splitOrders = [];
     Object.keys(b2bCart).forEach(id => {
@@ -4306,7 +4368,6 @@ async function submitB2BOrders() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
-// ייצור PDF ידני למסמך קיים (סעיף 2)
 async function downloadOrderPDFManual(orderId) {
     const order = b2bOrdersHistory.find(o => o.id === orderId); if(!order) return;
     const supData = suppliersList.find(s => s.id === order.supplier_id) || {};
@@ -4320,7 +4381,7 @@ async function downloadOrderPDFManual(orderId) {
     const pdfBase64 = await generateOrderPDFBase64(fakeOrderInfo);
     if(pdfBase64) {
         const link = document.createElement('a'); link.href = 'data:application/pdf;base64,' + pdfBase64; link.download = `Purchase_Order_${order.id}.pdf`; link.click();
-    } else showToast('error', 'שגיאה ביצירת מסמך PDF');
+    } else showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שיש אינטרנט רציף.');
 }
 }
 // -----------------------------------------
