@@ -2065,23 +2065,22 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
 });
 
 // =========================================================
-// פונקציית מערכת המיילים לספקים (B2B Orders)
+// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת
 // =========================================================
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
-        // משיכת המייל והסיסמה מתוך Render
-        const user = process.env.SMTP_USER;
-        const pass = process.env.SMTP_PASS;
-        let transporter = null;
+        // שימוש באותן הגדרות עובדות כמו ב- sendSystemEmail
+        const user = 'mcgames1978@gmail.com';
+        const pass = 'gkoo yhnp qbfz hnzl';
         
-        if (user && pass) {
-            transporter = nodemailer.createTransport({
-                service: 'gmail', 
-                auth: { user: user, pass: pass }
-            });
-        }
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: { user: user, pass: pass }
+        });
         
         for (let order of orders) {
             // 1. שמירה במסד הנתונים
@@ -2094,8 +2093,8 @@ app.post('/api/b2b/orders', async (req, res) => {
             const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
-            // 2. שילוח המייל (אם יש לספק אימייל, נתמך PDF והוגדרו משתני הסביבה)
-            if (supplier && supplier.email && order.pdfBase64 && transporter) {
+            // 2. שילוח המייל לספק עם קובץ ה-PDF
+            if (supplier && supplier.email && order.pdfBase64) {
                 const mailOptions = {
                     from: `"מערכת רכש Oneflow" <${user}>`, 
                     to: supplier.email,
