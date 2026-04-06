@@ -4114,66 +4114,94 @@ function openB2BCheckout() {
     getEl('b2b-checkout-modal').classList.remove('hidden');
 }
 
-// פונקציה לייצור PDF סמוי להזמנה והמרתו לקוד Base64
+// פונקציה לייצור PDF סמוי להזמנה והמרתו לקוד Base64 עם הגנת קריסה חכמה
 async function generateOrderPDFBase64(orderInfo) {
     return new Promise((resolve) => {
-        const container = document.createElement('div');
-        container.style.direction = 'rtl';
-        container.style.fontFamily = 'Arial, sans-serif';
-        container.style.padding = '30px';
-        container.style.color = '#1e293b';
-        
-        let itemsHtml = orderInfo.items.map(i => `
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 10px;">${safeStr(i.name)}</td>
-                <td style="padding: 10px; text-align: center;">${i.quantity} ${safeStr(i.unit)}</td>
-                <td style="padding: 10px; text-align: left;" dir="ltr">₪${i.price_per_unit.toFixed(2)}</td>
-                <td style="padding: 10px; font-weight: bold; text-align: left;" dir="ltr">₪${i.row_total.toFixed(2)}</td>
-            </tr>
-        `).join('');
+        try {
+            if (typeof html2pdf === 'undefined') {
+                console.warn("html2pdf is not loaded. Skipping PDF generation.");
+                resolve(null);
+                return;
+            }
 
-        container.innerHTML = `
-            <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
-                <h1 style="color: #4f46e5; margin: 0;">הזמנת רכש מרוכזת</h1>
-                <p style="margin: 5px 0 0 0; color: #64748b;">הופק ע"י מערכת Oneflow BIZ</p>
-            </div>
+            const container = document.createElement('div');
+            container.style.direction = 'rtl';
+            container.style.fontFamily = 'Arial, sans-serif';
+            container.style.padding = '30px';
+            container.style.color = '#1e293b';
             
-            <div style="margin-bottom: 30px; font-size: 14px;">
-                <p><strong>תאריך הפקה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
-                <p><strong>ספק היעד:</strong> ${safeStr(orderInfo.supplierName)}</p>
-            </div>
-            
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <thead>
-                    <tr style="background-color: #f1f5f9; text-align: right;">
-                        <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">תיאור פריט</th>
-                        <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">כמות</th>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">מחיר ליח'</th>
-                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">סה"כ שורה</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-            
-            <div style="margin-top: 30px; text-align: left; padding-top: 15px; border-top: 2px solid #e2e8f0;">
-                <h2 style="margin: 0; color: #0f172a;">סה"כ להזמנה: <span dir="ltr">₪${orderInfo.totalAmount.toFixed(2)}</span></h2>
-            </div>
-        `;
+            let itemsHtml = orderInfo.items.map(i => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px;">${safeStr(i.name)}</td>
+                    <td style="padding: 10px; text-align: center;">${i.quantity} ${safeStr(i.unit)}</td>
+                    <td style="padding: 10px; text-align: left;" dir="ltr">₪${i.price_per_unit.toFixed(2)}</td>
+                    <td style="padding: 10px; font-weight: bold; text-align: left;" dir="ltr">₪${i.row_total.toFixed(2)}</td>
+                </tr>
+            `).join('');
 
-        const opt = { 
-            margin: 10, 
-            filename: 'order.pdf', 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-        };
-        
-        html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
-            const cleanBase64 = base64Str.split('base64,')[1];
-            resolve(cleanBase64);
-        });
+            container.innerHTML = `
+                <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
+                    <h1 style="color: #4f46e5; margin: 0;">הזמנת רכש מרוכזת</h1>
+                    <p style="margin: 5px 0 0 0; color: #64748b;">הופק ע"י מערכת Oneflow BIZ</p>
+                </div>
+                
+                <div style="margin-bottom: 30px; font-size: 14px;">
+                    <p><strong>תאריך הפקה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
+                    <p><strong>ספק היעד:</strong> ${safeStr(orderInfo.supplierName)}</p>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; text-align: right;">
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">תיאור פריט</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">כמות</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">מחיר ליח'</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">סה"כ שורה</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 30px; text-align: left; padding-top: 15px; border-top: 2px solid #e2e8f0;">
+                    <h2 style="margin: 0; color: #0f172a;">סה"כ להזמנה: <span dir="ltr">₪${orderInfo.totalAmount.toFixed(2)}</span></h2>
+                </div>
+            `;
+
+            const opt = { 
+                margin: 10, 
+                filename: 'order.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            
+            // הוספת timeout כדי למנוע היתקעות נצחית
+            const timeoutId = setTimeout(() => {
+                console.warn("PDF generation timed out.");
+                resolve(null);
+            }, 8000); // 8 שניות גג
+
+            html2pdf().set(opt).from(container).outputPdf('datauristring')
+            .then(base64Str => {
+                clearTimeout(timeoutId);
+                if (base64Str && base64Str.includes('base64,')) {
+                    const cleanBase64 = base64Str.split('base64,')[1];
+                    resolve(cleanBase64);
+                } else {
+                    resolve(null);
+                }
+            })
+            .catch(err => {
+                clearTimeout(timeoutId);
+                console.error("PDF generation failed:", err);
+                resolve(null);
+            });
+        } catch(err) {
+            console.error("Critical error in PDF setup:", err);
+            resolve(null); // אל תפיל את התהליך הראשי!
+        }
     });
 }
 
@@ -4198,10 +4226,15 @@ async function submitB2BOrders() {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים ומשגר...';
 
     try {
-        // ייצור ה-PDF לכל ספק לפני השליחה לשרת
+        // ייצור ה-PDF לכל ספק - עם הגנה! (ימשיך הלאה גם אם ה-PDF נכשל)
         for (let order of splitOrders) {
-            const pdfBase64 = await generateOrderPDFBase64(order);
-            order.pdfBase64 = pdfBase64;
+            try {
+                const pdfBase64 = await generateOrderPDFBase64(order);
+                order.pdfBase64 = pdfBase64;
+            } catch(pdfErr) {
+                console.error("Skipping PDF for order due to error:", pdfErr);
+                order.pdfBase64 = null;
+            }
         }
 
         const res = await fetch(`${API}/b2b/orders`, {
@@ -4213,15 +4246,22 @@ async function submitB2BOrders() {
         
         if (data.success) {
             triggerConfetti();
-            showToast('success', 'ההזמנה שוגרה לספקים (כולל קובץ PDF במייל)!');
+            showToast('success', 'ההזמנה שוגרה לספקים בהצלחה!');
             getEl('b2b-checkout-modal').classList.add('hidden');
             b2bCart = {}; 
             updateB2BCartUI();
             renderB2BCatalog(); 
             switchProcurementTab('rfq'); 
-        } else { showToast('error', data.error || 'שגיאה בשיגור ההזמנות'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
+        } else { 
+            showToast('error', data.error || 'שגיאה בשיגור ההזמנות'); 
+            console.error("Server returned error:", data.error);
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת - אנא בדוק את החיבור שלך');
+        console.error("Network/Fetch error:", e);
+    } finally { 
+        btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; 
+    }
 }
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
