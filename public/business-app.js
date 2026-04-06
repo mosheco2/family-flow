@@ -3886,12 +3886,9 @@ async function submitSupplier() {
 }
 
 async function deleteSupplier(id) {
-
-async function deleteSupplier(id) {
-    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
-    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
+    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
+    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
 }
-
 // -----------------------------------------
 // קטלוג מוצרים ספציפי (במודאל מנהל)
 // -----------------------------------------
