@@ -2087,32 +2087,39 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// הגדרת המייל (אל תשכח להחליף לפרטים שלך לפני השמירה!)
+// =========================================================
+// פונקציית מערכת המיילים לספקים (B2B Orders)
+// =========================================================
 const b2bMailTransporter = nodemailer.createTransport({
     service: 'gmail', 
     auth: {
-        user: 'YOUR_EMAIL@gmail.com', // <-- הכנס את האימייל שלך
-        pass: 'YOUR_APP_PASSWORD'     // <-- הכנס את סיסמת האפליקציה שלך
+        user: 'mcgames1978@gmail.com', // המייל שלך כבר מוזן כאן!
+        pass: 'gkoo yhnp qbfz hnzl'    // הסיסמה (App Password) שלך כבר מוזנת!
     }
 });
 
+// שליחת הזמנות מפוצלות מרובות + שילוח אוטומטי למייל הספק עם PDF
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
         for (let order of orders) {
+            // 1. שמירה במסד הנתונים וקבלת מזהה ההזמנה החדש
             const result = await pool.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
                 VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
             
             const newOrderId = result.rows[0].id;
+
+            // 2. שליפת פרטי הספק כדי לקבל את האימייל שלו
             const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
+            // 3. שילוח המייל (אם יש לספק כתובת מייל ואם הלקוח שלח PDF)
             if (supplier && supplier.email && order.pdfBase64) {
                 const mailOptions = {
-                    from: '"מערכת Oneflow BIZ" <mcgames1978@gmail.com>', 
+                    from: '"מערכת רכש Oneflow" <mcgames1978@gmail.com>', // המייל שלך
                     to: supplier.email,
                     subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
                     html: `
@@ -2125,16 +2132,24 @@ app.post('/api/b2b/orders', async (req, res) => {
                             <p><b>לקוח Oneflow BIZ</b></p>
                         </div>
                     `,
-                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64, encoding: 'base64' } ]
+                    attachments: [
+                        {
+                            filename: `Purchase_Order_${newOrderId}.pdf`,
+                            content: order.pdfBase64,
+                            encoding: 'base64'
+                        }
+                    ]
                 };
+
                 try {
                     await b2bMailTransporter.sendMail(mailOptions);
-                    console.log(`Email sent successfully to ${supplier.email}`);
+                    console.log(`✅ Email sent successfully to ${supplier.email} for order #${newOrderId}`);
                 } catch (mailErr) {
-                    console.error(`Failed to send email to ${supplier.email}:`, mailErr);
+                    console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
                 }
             }
         }
+        
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
