@@ -2083,6 +2083,7 @@ app.put('/api/b2b/orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// קבלת סחורה: עדכון מלאי ויצירת הזמנת חוסרים אוטומטית לספק
 app.post('/api/b2b/orders/receive', async (req, res) => {
     let dbClient;
     try {
@@ -2093,7 +2094,7 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
         // עדכון סטטוס הזמנה לסופק
         await dbClient.query("UPDATE purchase_orders SET status = 'delivered' WHERE id = $1", [orderId]);
 
-        // הוספת פריטים למלאי הארגוני
+        // 1. הוספת מה שהתקבל למלאי (Pantry)
         for (let item of receivedItems) {
             const pRes = await dbClient.query(`SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
             if (pRes.rows.length > 0) {
@@ -2103,12 +2104,33 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
             }
         }
 
-        // יצירת דרישות רכש (חסרים)
-        for (let item of missingItems) {
-            await dbClient.query(`
-                INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, status) 
-                VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-            `, [groupId, userId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'", item.price || 0]);
+        // 2. יצירת הזמנת רכש חדשה עבור החוסרים מול אותו ספק!
+        if (missingItems && missingItems.length > 0) {
+            const origOrderRes = await dbClient.query('SELECT supplier_id FROM purchase_orders WHERE id = $1', [orderId]);
+            if (origOrderRes.rows.length > 0) {
+                const supplierId = origOrderRes.rows[0].supplier_id;
+                let missingTotal = 0;
+                
+                const mappedMissingItems = missingItems.map(item => {
+                    const price = parseFloat(item.price) || 0;
+                    const qty = parseFloat(item.qty) || 0;
+                    const rowTotal = price * qty;
+                    missingTotal += rowTotal;
+                    return { 
+                        id: `missing_${Date.now()}`, 
+                        name: item.name, 
+                        quantity: qty, 
+                        unit: item.unit || "יח'", 
+                        price_per_unit: price, 
+                        row_total: rowTotal 
+                    };
+                });
+
+                await dbClient.query(`
+                    INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status, notes)
+                    VALUES ($1, $2, $3, $4, $5, 'processing', $6)
+                `, [groupId, userId, supplierId, JSON.stringify(mappedMissingItems), missingTotal, `הזמנת השלמת חוסרים אוטומטית שנוצרה בעקבות חוסר מהזמנה #${orderId}`]);
+            }
         }
 
         await dbClient.query('COMMIT');
