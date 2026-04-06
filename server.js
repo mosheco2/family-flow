@@ -2078,6 +2078,41 @@ app.delete('/api/suppliers/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// --- ניהול קטלוג מוצרים של ספק ---
+// ==========================================
+app.get('/api/suppliers/:supplierId/products', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM supplier_products WHERE supplier_id = $1 ORDER BY name ASC', [req.params.supplierId]);
+        res.json({ success: true, products: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/suppliers/products', async (req, res) => {
+    try {
+        const { id, groupId, supplierId, name, description, price, unitType, unitsPerPackage, properties } = req.body;
+        let result;
+        if (id) {
+            result = await pool.query(
+                'UPDATE supplier_products SET name=$1, description=$2, price=$3, unit_type=$4, units_per_package=$5, properties=$6 WHERE id=$7 RETURNING *',
+                [name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{}), id]
+            );
+        } else {
+            result = await pool.query(
+                'INSERT INTO supplier_products (group_id, supplier_id, name, description, price, unit_type, units_per_package, properties) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+                [groupId, supplierId, name, description||'', price, unitType||"יח'", unitsPerPackage||1, JSON.stringify(properties||{})]
+            );
+        }
+        res.json({ success: true, product: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/suppliers/products/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM supplier_products WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // הוספת בקשת רכש חדשה (RFQ) ומחיקת הפריטים מרשימת הקניות הפתוחה
 app.post('/api/rfq', async (req, res) => {
     try {
