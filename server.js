@@ -1979,13 +1979,20 @@ app.put('/api/store/promotions/toggle/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ==========================================
-// --- מערכת ספקים ורכש (Procurement & Suppliers) ---
+// --- מערכת רכש B2B, קטלוגים וספקים ---
 // ==========================================
 
 app.get('/api/init-procurement', async (req, res) => {
     try {
+        // מחיקת טבלאות ישנות כדי לבנות את המבנה החדש והמורכב
+        await pool.query(`DROP TABLE IF EXISTS purchase_orders CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS purchase_requests CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS supplier_products CASCADE`);
+        await pool.query(`DROP TABLE IF EXISTS suppliers CASCADE`);
+
+        // 1. טבלת ספקים (כולל לוגיסטיקה ומינימום הזמנה)
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS suppliers (
+            CREATE TABLE suppliers (
                 id SERIAL PRIMARY KEY,
                 group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
                 name VARCHAR(100) NOT NULL,
@@ -1993,26 +2000,51 @@ app.get('/api/init-procurement', async (req, res) => {
                 phone VARCHAR(50),
                 email VARCHAR(100),
                 category VARCHAR(50),
+                min_order DECIMAL(10,2) DEFAULT 0,
+                delivery_days JSONB DEFAULT '[]', -- מערך ימים: [0, 2, 4] (ראשון, שלישי, חמישי)
+                cutoff_time TIME DEFAULT '12:00:00', -- שעת מקסימום להזמנה
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 2. טבלת קטלוג מוצרים לפי ספק
+        await pool.query(`
+            CREATE TABLE supplier_products (
+                id SERIAL PRIMARY KEY,
+                group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+                supplier_id INT REFERENCES suppliers(id) ON DELETE CASCADE,
+                name VARCHAR(150) NOT NULL,
+                description TEXT,
+                price DECIMAL(10,2) NOT NULL,
+                unit_type VARCHAR(50) DEFAULT 'יח''', -- ק"ג, קרטון, ליטר וכו'
+                units_per_package INT DEFAULT 1, -- כמה יחידות בתוך הקרטון למשל
+                properties JSONB, -- מאפיינים מיוחדים נוספים
+                is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
         
+        // 3. טבלת הזמנות רכש מפוצלות (כל שורה היא הזמנה לספק אחד ספציפי)
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS purchase_requests (
+            CREATE TABLE purchase_orders (
                 id SERIAL PRIMARY KEY,
                 group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
-                title VARCHAR(100),
+                created_by INT REFERENCES users(id) ON DELETE SET NULL, -- מי המשתמש שביצע
+                supplier_id INT REFERENCES suppliers(id) ON DELETE RESTRICT,
                 items JSONB NOT NULL,
-                status VARCHAR(50) DEFAULT 'draft', 
-                supplier_id INT REFERENCES suppliers(id) ON DELETE SET NULL,
-                total_amount DECIMAL(10,2),
+                total_amount DECIMAL(10,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending', -- pending, processing, shipped, delivered, cancelled
+                expected_delivery DATE, -- יחושב אוטומטית לפי ימי האספקה של הספק
+                notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
-        res.send('Procurement tables created successfully! You can close this tab.');
-    } catch(e) { res.status(500).send('Error creating tables: ' + e.message); }
+
+        res.send('B2B Procurement Engine (Suppliers, Catalogs, Orders) created successfully! You can close this tab.');
+    } catch(e) { res.status(500).send('Error creating B2B tables: ' + e.message); }
 });
 
+// שליפת ספקים
 app.get('/api/suppliers/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM suppliers WHERE group_id = $1 ORDER BY name ASC', [req.params.groupId]);
@@ -2020,13 +2052,22 @@ app.get('/api/suppliers/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שמירת/עדכון ספק (כולל הגדרות לוגיסטיקה)
 app.post('/api/suppliers', async (req, res) => {
     try {
-        const { groupId, name, contactPerson, phone, email, category } = req.body;
-        const result = await pool.query(
-            'INSERT INTO suppliers (group_id, name, contact_person, phone, email, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [groupId, name, contactPerson || '', phone || '', email || '', category || '']
-        );
+        const { id, groupId, name, contactPerson, phone, email, category, minOrder, deliveryDays, cutoffTime } = req.body;
+        let result;
+        if (id) {
+            result = await pool.query(
+                'UPDATE suppliers SET name=$1, contact_person=$2, phone=$3, email=$4, category=$5, min_order=$6, delivery_days=$7, cutoff_time=$8 WHERE id=$9 AND group_id=$10 RETURNING *',
+                [name, contactPerson||'', phone||'', email||'', category||'', minOrder||0, JSON.stringify(deliveryDays||[]), cutoffTime||'12:00:00', id, groupId]
+            );
+        } else {
+            result = await pool.query(
+                'INSERT INTO suppliers (group_id, name, contact_person, phone, email, category, min_order, delivery_days, cutoff_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+                [groupId, name, contactPerson||'', phone||'', email||'', category||'', minOrder||0, JSON.stringify(deliveryDays||[]), cutoffTime||'12:00:00']
+            );
+        }
         res.json({ success: true, supplier: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
