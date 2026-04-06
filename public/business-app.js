@@ -1266,18 +1266,23 @@ async function fetchData() {
         } catch(e) { allTransactions = []; }
 
         try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); } catch(e) {}
-        try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e) {}
-        
-        try {
-            const cashTab = document.getElementById('tab-cashflow'); 
-            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
-        } catch(e) {}
-        
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+        try { try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e) {}
+        
+        try {
+            const cashTab = document.getElementById('tab-cashflow'); 
+            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
+        } catch(e) {}
+        
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+        // טעינת נתוני רכש מראש כדי למנוע טאבים ריקים בפתיחה ראשונה
+        try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
+        try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
+        try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
+
+    } catch(e) {
+        console.error("Fetch data error:", e);
+    }
 }
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
@@ -4198,60 +4203,70 @@ async function generateOrderPDFBase64(orderInfo) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.top = '-9999px'; // מוחבא הרחק למעלה ולא נחתך ברוחב המסך
+            container.style.left = '0';
+            container.style.width = '800px';
+            container.style.backgroundColor = '#ffffff';
+            container.style.padding = '40px';
+            container.style.direction = 'rtl';
+            container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+            container.style.color = '#0f172a';
+            
             let itemsHtml = orderInfo.items.map((i, index) => `
-                <tr style="border-bottom: 1px solid #cbd5e1; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                    <td style="padding: 12px; text-align: right; border-right: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0;">${safeStr(i.name)}</td>
-                    <td style="padding: 12px; text-align: center; border-left: 1px solid #e2e8f0; font-weight: bold;">${i.quantity} ${safeStr(i.unit)}</td>
-                    <td style="padding: 12px; text-align: left; border-left: 1px solid #e2e8f0;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
-                    <td style="padding: 12px; font-weight: bold; text-align: left; border-left: 1px solid #e2e8f0;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
+                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                    <td style="padding: 12px; text-align: right; border: 1px solid #cbd5e1;">${safeStr(i.name)}</td>
+                    <td style="padding: 12px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold;">${i.quantity} ${safeStr(i.unit)}</td>
+                    <td style="padding: 12px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
+                    <td style="padding: 12px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
                 </tr>
             `).join('');
 
-            const customerNumStr = orderInfo.customerNumber ? `<p style="margin: 4px 0;"><strong>מספר לקוח שלנו אצלכם:</strong> <span style="background:#eef2ff; padding:2px 8px; border-radius:4px; color:#4f46e5;">${safeStr(orderInfo.customerNumber)}</span></p>` : '';
-            const branchStr = orderInfo.branchName ? `<p style="margin: 4px 0;"><strong>עבור סניף / מחלקה:</strong> ${safeStr(orderInfo.branchName)}</p>` : '';
+            const customerNumStr = orderInfo.customerNumber ? `<p style="margin: 5px 0;"><strong>מספר לקוח שלנו אצלכם:</strong> <span style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5;">${safeStr(orderInfo.customerNumber)}</span></p>` : '';
+            const branchStr = orderInfo.branchName ? `<p style="margin: 5px 0;"><strong>עבור סניף / מחלקה:</strong> ${safeStr(orderInfo.branchName)}</p>` : '';
 
-            // כאן אנחנו מעבירים את ה-HTML ישירות לספרייה במקום לנסות לרנדר מוסתר במסך (מונע קריסות ודפים לבנים)
-            const htmlString = `
-                <div style="direction: rtl; font-family: Arial, sans-serif; padding: 40px; color: #1e293b; width: 800px; background: white; margin: auto;">
-                    <div style="border-bottom: 4px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px; text-align: center;">
-                        <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">הזמנת רכש (Purchase Order)</h1>
-                        <p style="margin: 8px 0 0 0; color: #64748b; font-size: 16px;">הופק ע"י מערכת הרכש של: <b>${safeStr(currentGroup.name)}</b></p>
-                    </div>
-                    
-                    <div style="margin-bottom: 30px; font-size: 15px; line-height: 1.6; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                        <h3 style="margin-top: 0; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">פרטי ההזמנה:</h3>
-                        <p style="margin: 4px 0;"><strong>תאריך הפקה ושליחה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
-                        <p style="margin: 4px 0;"><strong>לכבוד הספק:</strong> ${safeStr(orderInfo.supplierName)}</p>
-                        ${branchStr}
-                        ${customerNumStr}
-                    </div>
+            container.innerHTML = `
+                <div style="border-bottom: 4px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px; text-align: right;">
+                    <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">הזמנת רכש (Purchase Order)</h1>
+                    <p style="margin: 8px 0 0 0; color: #64748b; font-size: 16px;">הופק ע"י מערכת הרכש של: <b>${safeStr(currentGroup.name)}</b></p>
+                </div>
+                
+                <div style="margin-bottom: 30px; font-size: 15px; line-height: 1.6; background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: right;">
+                    <h3 style="margin-top: 0; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">פרטי ההזמנה:</h3>
+                    <p style="margin: 5px 0;"><strong>תאריך הפקה ושליחה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
+                    <p style="margin: 5px 0;"><strong>לכבוד הספק:</strong> ${safeStr(orderInfo.supplierName)}</p>
+                    ${branchStr}
+                    ${customerNumStr}
+                </div>
 
-                    <div style="margin-bottom: 20px; font-size: 15px; color: #334155;">
-                        <p><strong>שלום רב,</strong></p>
-                        <p>מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.</p>
-                    </div>
-                    
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 30px; border: 1px solid #cbd5e1;">
-                        <thead>
-                            <tr style="background-color: #4f46e5; color: white; text-align: right;">
-                                <th style="padding: 12px; border: 1px solid #cbd5e1;">תיאור פריט</th>
-                                <th style="padding: 12px; text-align: center; border: 1px solid #cbd5e1;">כמות מוזמנת</th>
-                                <th style="padding: 12px; text-align: left; border: 1px solid #cbd5e1;">מחיר ליח' (משוער)</th>
-                                <th style="padding: 12px; text-align: left; border: 1px solid #cbd5e1;">סה"כ שורה (משוער)</th>
-                            </tr>
-                        </thead>
-                        <tbody>${itemsHtml}</tbody>
-                    </table>
-                    
-                    <div style="text-align: left; padding-top: 15px; border-top: 2px solid #cbd5e1;">
-                        <h2 style="margin: 0; color: #0f172a; font-size: 22px;">סה"כ לתשלום משוער: <span dir="ltr">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                        <p style="color: #64748b; font-size: 12px; margin-top: 5px;">* ייתכנו שינויים קלים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</p>
-                    </div>
+                <div style="margin-bottom: 20px; font-size: 15px; color: #334155; text-align: right;">
+                    <p style="margin: 5px 0;"><strong>שלום רב,</strong></p>
+                    <p style="margin: 5px 0;">מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.</p>
+                </div>
+                
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 30px; border: 1px solid #cbd5e1;">
+                    <thead>
+                        <tr style="background-color: #4f46e5; color: white;">
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">תיאור פריט</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">כמות מוזמנת</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">מחיר ליח' (משוער)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">סה"כ שורה (משוער)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                
+                <div style="text-align: left; padding-top: 15px; border-top: 2px solid #cbd5e1;">
+                    <h2 style="margin: 0; font-size: 20px;">סה"כ לתשלום משוער: <span dir="ltr">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                    <p style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים קלים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</p>
                 </div>
             `;
 
+            document.body.appendChild(container);
+
             const opt = { 
-                margin: 10, 
+                margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 2, useCORS: true, logging: false }, 
@@ -4259,14 +4274,17 @@ async function generateOrderPDFBase64(orderInfo) {
             };
             
             const timeoutId = setTimeout(() => {
+                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null);
             }, 10000);
 
-            html2pdf().set(opt).from(htmlString).outputPdf('datauristring').then(base64Str => {
+            html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
                 clearTimeout(timeoutId);
+                if (document.body.contains(container)) document.body.removeChild(container);
                 if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]); else resolve(null);
             }).catch(err => { 
                 clearTimeout(timeoutId); 
+                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null); 
             });
         } catch(err) { resolve(null); }
