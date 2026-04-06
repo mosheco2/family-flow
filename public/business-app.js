@@ -1876,8 +1876,8 @@ function renderShopList() {
 async function updateRow(id, type, value) {
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
     else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
+    else if (type === 'price_calc') { const item = shoppingListCache.find(i => String(i.id) === String(id)); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
+    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => String(i.id) === String(id)); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
     if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
 }
 
@@ -4369,20 +4369,34 @@ async function submitB2BOrders() {
 }
 
 async function downloadOrderPDFManual(orderId) {
-    const order = b2bOrdersHistory.find(o => o.id === orderId); if(!order) return;
-    const supData = suppliersList.find(s => s.id === order.supplier_id) || {};
-    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    showToast('info', 'מכין מסמך להורדה, אנא המתן...');
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
+    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
+    
+    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
+    let items = [];
+    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
     
     const fakeOrderInfo = {
-        supplierName: order.supplier_name, customerNumber: supData.customer_number || '',
-        items: items, totalAmount: parseFloat(order.total_amount)
+        supplierName: order.supplier_name || 'ספק כללי', 
+        customerNumber: supData.customer_number || '',
+        items: items, 
+        totalAmount: parseFloat(order.total_amount) || 0
     };
-    showToast('info', 'מכין מסמך להורדה...');
+    
     const pdfBase64 = await generateOrderPDFBase64(fakeOrderInfo);
+    
     if(pdfBase64) {
-        const link = document.createElement('a'); link.href = 'data:application/pdf;base64,' + pdfBase64; link.download = `Purchase_Order_${order.id}.pdf`; link.click();
-    } else showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שיש אינטרנט רציף.');
-}
+        const link = document.createElement('a'); 
+        link.href = 'data:application/pdf;base64,' + pdfBase64; 
+        link.download = `Purchase_Order_${order.id}.pdf`; 
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('success', 'הורדת המסמך החלה');
+    } else { 
+        showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שאתה מחובר לאינטרנט.'); 
+    }
 }
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
@@ -4512,18 +4526,21 @@ async function submitReceiveGoods() {
     const missingItems = [];
 
     items.forEach((item, idx) => {
-        const receivedQty = parseFloat(getEl(`receive-qty-${idx}`).value) || 0;
+        const inputEl = getEl(`receive-qty-${idx}`);
+        if (!inputEl) return; 
+        const receivedQty = parseFloat(inputEl.value) || 0;
+        
         if (receivedQty > 0) {
             receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit });
         }
         if (receivedQty < item.quantity) {
             const missingQty = item.quantity - receivedQty;
-            missingItems.push({ name: item.name, qty: missingQty, unit: item.unit, price: item.price_per_unit });
+            missingItems.push({ name: item.name, qty: missingQty, unit: item.unit, price: item.price_per_unit || 0 });
         }
     });
 
     const btn = getEl('btn-submit-receive');
-    btn.disabled = true; btn.innerText = 'מעדכן נתונים...';
+    if(btn) { btn.disabled = true; btn.innerText = 'מעדכן נתונים...'; }
 
     try {
         const res = await fetch(`${API}/b2b/orders/receive`, {
@@ -4534,14 +4551,18 @@ async function submitReceiveGoods() {
         if (data.success) {
             triggerConfetti();
             showToast('success', 'הסחורה התקבלה! המלאי עודכן וחוסרים עברו לדרישות רכש.');
-            getEl('receive-goods-modal').classList.add('hidden');
+            const modal = getEl('receive-goods-modal'); if(modal) modal.classList.add('hidden');
             fetchB2BOrders();
-            fetchData(); // מעדכן מלאי ורכש ברקע
-        } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); }
-    finally { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
+            fetchData(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת נתונים');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); 
+    } finally { 
+        if(btn) { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
+    }
 }
-
 // קריאת תעודת משלוח עם AI
 function scanDeliveryNoteAI() { getEl('delivery-note-upload').click(); }
 
