@@ -134,26 +134,15 @@ const handleAIError = (e, res, defaultMsg) => {
 // פונקציית מערכת המיילים מול ג'ימייל
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
-    const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
-    const pass = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s/g, '') : null;
+    // השתמשנו בפרטים הקבועים שלך כדי שהמערכת לא תדלג על שליחת המיילים!
+    const user = 'mcgames1978@gmail.com';
+    const pass = 'gkoo yhnp qbfz hnzl';
 
-    if (!user || !pass) {
-        console.log('⚠️ דילוג על שליחת מייל - לא הוגדרו משתני סביבה SMTP_USER ו- SMTP_PASS');
-        return false;
-    }
-    
-    console.log(`📧 מנסה לשלוח מייל אל: ${to} (דרך פורט 587)...`);
+    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            auth: { user: user, pass: pass },
-            tls: { rejectUnauthorized: false },
-            pool: true,
-            connectionTimeout: 60000,
-            greetingTimeout: 60000,
-            socketTimeout: 60000
+            service: 'gmail',
+            auth: { user: user, pass: pass }
         });
         
         await transporter.sendMail({
@@ -170,7 +159,6 @@ async function sendSystemEmail(to, subject, htmlContent) {
         return false;
     }
 }
-
 // נתיב בדיקה - Test Route למיילים דרך ג'ימייל
 app.get('/api/test-email', async (req, res) => {
     try {
@@ -2124,7 +2112,7 @@ app.post('/api/b2b/orders', async (req, res) => {
 
             if (supplier && supplier.email && order.pdfBase64) {
                 const mailOptions = {
-                    from: '"מערכת Oneflow BIZ" <YOUR_EMAIL@gmail.com>', // <-- אל תשכח לשנות גם כאן
+                    from: '"מערכת Oneflow BIZ" <mcgames1978@gmail.com>', 
                     to: supplier.email,
                     subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
                     html: `
