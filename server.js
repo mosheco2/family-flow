@@ -1984,13 +1984,11 @@ app.put('/api/store/promotions/toggle/:id', async (req, res) => {
 
 app.get('/api/init-procurement', async (req, res) => {
     try {
-        // מחיקת טבלאות ישנות כדי לבנות את המבנה החדש והמורכב
         await pool.query(`DROP TABLE IF EXISTS purchase_orders CASCADE`);
         await pool.query(`DROP TABLE IF EXISTS purchase_requests CASCADE`);
         await pool.query(`DROP TABLE IF EXISTS supplier_products CASCADE`);
         await pool.query(`DROP TABLE IF EXISTS suppliers CASCADE`);
 
-        // 1. טבלת ספקים (כולל לוגיסטיקה ומינימום הזמנה)
         await pool.query(`
             CREATE TABLE suppliers (
                 id SERIAL PRIMARY KEY,
@@ -2001,13 +1999,12 @@ app.get('/api/init-procurement', async (req, res) => {
                 email VARCHAR(100),
                 category VARCHAR(50),
                 min_order DECIMAL(10,2) DEFAULT 0,
-                delivery_days JSONB DEFAULT '[]', -- מערך ימים: [0, 2, 4] (ראשון, שלישי, חמישי)
-                cutoff_time TIME DEFAULT '12:00:00', -- שעת מקסימום להזמנה
+                delivery_days JSONB DEFAULT '[]',
+                cutoff_time TIME DEFAULT '12:00:00',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
-        // 2. טבלת קטלוג מוצרים לפי ספק
         await pool.query(`
             CREATE TABLE supplier_products (
                 id SERIAL PRIMARY KEY,
@@ -2016,25 +2013,24 @@ app.get('/api/init-procurement', async (req, res) => {
                 name VARCHAR(150) NOT NULL,
                 description TEXT,
                 price DECIMAL(10,2) NOT NULL,
-                unit_type VARCHAR(50) DEFAULT 'יח''', -- ק"ג, קרטון, ליטר וכו'
-                units_per_package INT DEFAULT 1, -- כמה יחידות בתוך הקרטון למשל
-                properties JSONB, -- מאפיינים מיוחדים נוספים
+                unit_type VARCHAR(50) DEFAULT 'יח''',
+                units_per_package INT DEFAULT 1,
+                properties JSONB,
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
         
-        // 3. טבלת הזמנות רכש מפוצלות (כל שורה היא הזמנה לספק אחד ספציפי)
         await pool.query(`
             CREATE TABLE purchase_orders (
                 id SERIAL PRIMARY KEY,
                 group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
-                created_by INT REFERENCES users(id) ON DELETE SET NULL, -- מי המשתמש שביצע
+                created_by INT REFERENCES users(id) ON DELETE SET NULL,
                 supplier_id INT REFERENCES suppliers(id) ON DELETE RESTRICT,
                 items JSONB NOT NULL,
                 total_amount DECIMAL(10,2) NOT NULL,
-                status VARCHAR(50) DEFAULT 'pending', -- pending, processing, shipped, delivered, cancelled
-                expected_delivery DATE, -- יחושב אוטומטית לפי ימי האספקה של הספק
+                status VARCHAR(50) DEFAULT 'pending',
+                expected_delivery DATE,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -2044,7 +2040,6 @@ app.get('/api/init-procurement', async (req, res) => {
     } catch(e) { res.status(500).send('Error creating B2B tables: ' + e.message); }
 });
 
-// שליפת ספקים
 app.get('/api/suppliers/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM suppliers WHERE group_id = $1 ORDER BY name ASC', [req.params.groupId]);
@@ -2052,7 +2047,6 @@ app.get('/api/suppliers/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שמירת/עדכון ספק (כולל הגדרות לוגיסטיקה)
 app.post('/api/suppliers', async (req, res) => {
     try {
         const { id, groupId, name, contactPerson, phone, email, category, minOrder, deliveryDays, cutoffTime } = req.body;
@@ -2078,9 +2072,7 @@ app.delete('/api/suppliers/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ==========================================
-// --- ניהול קטלוג מוצרים של ספק ---
-// ==========================================
+
 app.get('/api/suppliers/:supplierId/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM supplier_products WHERE supplier_id = $1 ORDER BY name ASC', [req.params.supplierId]);
@@ -2113,11 +2105,7 @@ app.delete('/api/suppliers/products/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ==========================================
-// --- B2B Marketplace & Orders (עגלה מפוצלת) ---
-// ==========================================
 
-// שליפת קטלוג B2B מלא (כל המוצרים של כל הספקים)
 app.get('/api/b2b/catalog/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -2131,40 +2119,32 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-const nodemailer = require('nodemailer');
-
-// הגדרת חשבון המייל ממנו יישלחו ההזמנות (החלף לפרטים של העסק שלך)
-// ⚠️ שים לב: אם זה Gmail, חובה לייצר "App Password" בהגדרות האבטחה של גוגל, ולא להשתמש בסיסמה הרגילה.
-const mailTransporter = nodemailer.createTransport({
+// הגדרת המייל (אל תשכח להחליף לפרטים שלך לפני השמירה!)
+const b2bMailTransporter = nodemailer.createTransport({
     service: 'gmail', 
     auth: {
-        user: 'mcgames1978@gmail.com', // <-- הכנס את האימייל האמיתי שלך כאן
-        pass: 'gkoo yhnp qbfz hnzl'     // <-- הכנס את הסיסמת אפליקציה כאן
+        user: 'YOUR_EMAIL@gmail.com', // <-- הכנס את האימייל שלך
+        pass: 'YOUR_APP_PASSWORD'     // <-- הכנס את סיסמת האפליקציה שלך
     }
 });
 
-// שליחת הזמנות מפוצלות מרובות + שילוח אוטומטי למייל הספק עם PDF
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
         for (let order of orders) {
-            // 1. שמירה במסד הנתונים וקבלת מזהה ההזמנה החדש
             const result = await pool.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
                 VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
             
             const newOrderId = result.rows[0].id;
-
-            // 2. שליפת פרטי הספק כדי לקבל את האימייל שלו
             const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
-            // 3. שילוח המייל (אם יש לספק כתובת מייל ואם הלקוח שלח PDF)
             if (supplier && supplier.email && order.pdfBase64) {
                 const mailOptions = {
-                    from: '"מערכת רכש Oneflow" <mcgames1978@gmail.com>', // <-- אל תשכח לשנות גם כאן את כתובת המייל שלך
+                    from: '"מערכת Oneflow BIZ" <YOUR_EMAIL@gmail.com>', // <-- אל תשכח לשנות גם כאן
                     to: supplier.email,
                     subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
                     html: `
@@ -2177,29 +2157,20 @@ app.post('/api/b2b/orders', async (req, res) => {
                             <p><b>לקוח Oneflow BIZ</b></p>
                         </div>
                     `,
-                    attachments: [
-                        {
-                            filename: `Purchase_Order_${newOrderId}.pdf`,
-                            content: order.pdfBase64,
-                            encoding: 'base64'
-                        }
-                    ]
+                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64, encoding: 'base64' } ]
                 };
-
                 try {
-                    await mailTransporter.sendMail(mailOptions);
+                    await b2bMailTransporter.sendMail(mailOptions);
                     console.log(`Email sent successfully to ${supplier.email}`);
                 } catch (mailErr) {
                     console.error(`Failed to send email to ${supplier.email}:`, mailErr);
                 }
             }
         }
-        
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליפת היסטוריית הזמנות רכש B2B
 app.get('/api/b2b/orders/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -2214,153 +2185,10 @@ app.get('/api/b2b/orders/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// עדכון סטטוס הזמנת רכש (למשל: סופק, בטיפול)
 app.put('/api/b2b/orders/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
         await pool.query('UPDATE purchase_orders SET status = $1 WHERE id = $2', [status, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-// הוספת בקשת רכש חדשה (RFQ) ומחיקת הפריטים מרשימת הקניות הפתוחה
-app.post('/api/rfq', async (req, res) => {
-    try {
-        const { groupId, supplierId, items, totalAmount } = req.body;
-        
-        // 1. יצירת בקשת הרכש
-        const result = await pool.query(
-            `INSERT INTO purchase_requests (group_id, supplier_id, items, total_amount, status) 
-             VALUES ($1, $2, $3, $4, 'sent') RETURNING *`,
-            [groupId, supplierId || null, JSON.stringify(items), totalAmount || 0]
-        );
-        
-        // 2. מחיקת הפריטים מסל הקניות השוטף (כי הם עברו להזמנה)
-        const itemIds = items.map(i => i.id);
-        if (itemIds.length > 0) {
-            await pool.query(`DELETE FROM shopping_list WHERE id = ANY($1::int[])`, [itemIds]);
-        }
-        
-        res.json({ success: true, rfq: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// שליפת כל בקשות הרכש של העסק (כולל פרטי הספק)
-app.get('/api/rfq/:groupId', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT pr.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone 
-            FROM purchase_requests pr 
-            LEFT JOIN suppliers s ON pr.supplier_id = s.id 
-            WHERE pr.group_id = $1 
-            ORDER BY pr.created_at DESC
-        `, [req.params.groupId]);
-        res.json({ success: true, rfqs: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/rfq/:id/status', async (req, res) => {
-    try {
-        const { status } = req.body;
-        await pool.query('UPDATE purchase_requests SET status = $1 WHERE id = $2', [status, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-app.post('/api/store/promotions', async (req, res) => {
-    try {
-        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
-        const result = await pool.query(
-            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor]
-        );
-        res.json({ success: true, promotion: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/promotions/:id', async (req, res) => {
-    try {
-        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
-        const result = await pool.query(
-            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10 WHERE id=$11 RETURNING *',
-            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, req.params.id]
-        );
-        res.json({ success: true, promotion: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/store/promotions/:id', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/promotions/toggle/:id', async (req, res) => {
-    try {
-        const { isActive } = req.body;
-        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/promotions', async (req, res) => {
-    try {
-        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate } = req.body;
-        const result = await pool.query(
-            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null]
-        );
-        res.json({ success: true, promotion: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/promotions/:id', async (req, res) => {
-    try {
-        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate } = req.body;
-        const result = await pool.query(
-            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7 WHERE id=$8 RETURNING *',
-            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, req.params.id]
-        );
-        res.json({ success: true, promotion: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/store/promotions/:id', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/promotions/toggle/:id', async (req, res) => {
-    try {
-        const { isActive } = req.body;
-        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/promotions', async (req, res) => {
-    try {
-        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate } = req.body;
-        const result = await pool.query(
-            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null]
-        );
-        res.json({ success: true, promotion: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/store/promotions/:id', async (req, res) => {
-    try {
-        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/store/promotions/toggle/:id', async (req, res) => {
-    try {
-        const { isActive } = req.body;
-        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
