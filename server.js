@@ -131,17 +131,21 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // =========================================================
-// פונקציית מערכת המיילים המרכזית
+// פונקציית מערכת המיילים המרכזית (מאובטחת)
 // =========================================================
 async function sendSystemEmail(to, subject, htmlContent) {
-    const user = 'mcgames1978@gmail.com';
-    const pass = 'gkoo yhnp qbfz hnzl';
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
 
+    if (!user || !pass) {
+        console.error('⚠️ לא הוגדרו משתני סביבה SMTP_USER ו-SMTP_PASS ב-Render. המייל לא נשלח.');
+        return false;
+    }
+
+    console.log(`📧 מנסה לשלוח מייל אל: ${to}...`);
     try {
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // משתמש בפורט מאובטח 465
+            service: 'gmail',
             auth: { user: user, pass: pass }
         });
         
@@ -152,10 +156,10 @@ async function sendSystemEmail(to, subject, htmlContent) {
             html: htmlContent
         });
         
-        console.log(`✅ מייל נשלח בהצלחה אל: ${to}`);
+        console.log(`✅ המייל נשלח בהצלחה אל: ${to}`);
         return true;
     } catch (e) {
-        console.error('❌ שגיאה בשליחת מייל:', e.message);
+        console.error('❌ שגיאה בשליחת המייל דרך Gmail:', e.message);
         return false;
     }
 }
@@ -2063,36 +2067,37 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
 // =========================================================
 // פונקציית מערכת המיילים לספקים (B2B Orders)
 // =========================================================
-const b2bMailTransporter = nodemailer.createTransport({
-    service: 'gmail', 
-    auth: {
-        user: 'mcgames1978@gmail.com', // המייל שלך כבר מוזן כאן!
-        pass: 'gkoo yhnp qbfz hnzl'    // הסיסמה (App Password) שלך כבר מוזנת!
-    }
-});
-
-// שליחת הזמנות מפוצלות מרובות + שילוח אוטומטי למייל הספק עם PDF
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
+        // משיכת המייל והסיסמה מתוך Render
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
+        let transporter = null;
+        
+        if (user && pass) {
+            transporter = nodemailer.createTransport({
+                service: 'gmail', 
+                auth: { user: user, pass: pass }
+            });
+        }
+        
         for (let order of orders) {
-            // 1. שמירה במסד הנתונים וקבלת מזהה ההזמנה החדש
+            // 1. שמירה במסד הנתונים
             const result = await pool.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
                 VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
             
             const newOrderId = result.rows[0].id;
-
-            // 2. שליפת פרטי הספק כדי לקבל את האימייל שלו
             const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
-            // 3. שילוח המייל (אם יש לספק כתובת מייל ואם הלקוח שלח PDF)
-            if (supplier && supplier.email && order.pdfBase64) {
+            // 2. שילוח המייל (אם יש לספק אימייל, נתמך PDF והוגדרו משתני הסביבה)
+            if (supplier && supplier.email && order.pdfBase64 && transporter) {
                 const mailOptions = {
-                    from: '"מערכת רכש Oneflow" <mcgames1978@gmail.com>', // המייל שלך
+                    from: `"מערכת רכש Oneflow" <${user}>`, 
                     to: supplier.email,
                     subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
                     html: `
@@ -2105,17 +2110,11 @@ app.post('/api/b2b/orders', async (req, res) => {
                             <p><b>לקוח Oneflow BIZ</b></p>
                         </div>
                     `,
-                    attachments: [
-                        {
-                            filename: `Purchase_Order_${newOrderId}.pdf`,
-                            content: order.pdfBase64,
-                            encoding: 'base64'
-                        }
-                    ]
+                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64, encoding: 'base64' } ]
                 };
 
                 try {
-                    await b2bMailTransporter.sendMail(mailOptions);
+                    await transporter.sendMail(mailOptions);
                     console.log(`✅ Email sent successfully to ${supplier.email} for order #${newOrderId}`);
                 } catch (mailErr) {
                     console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
