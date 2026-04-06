@@ -389,10 +389,8 @@ app.put('/api/sa/users/:id', async (req, res) => {
     try {
         const { nickname, password } = req.body;
         if (password && password.trim() !== '') {
-            // אם הוזנה סיסמה חדשה - נעדכן גם אותה
             await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
         } else {
-            // אם הושאר ריק - נעדכן רק את השם
             await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
         }
         res.json({ success: true });
@@ -515,7 +513,7 @@ app.post('/api/groups', async (req, res) => {
         try {
             const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
             
-            // 1. התראה ל-ADMIN העולמי (mcgames1978@gmail.com)
+            // 1. התראה ל-ADMIN העולמי
             const adminAlertHtml = `
                 <div style="direction: rtl; font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
                     <h2 style="color: #1e3a8a;">🎉 סביבה חדשה הוקמה במערכת!</h2>
@@ -563,7 +561,6 @@ app.post('/api/forgot-code', async (req, res) => {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
 
-        // שליפת הקוד והסיסמה של מנהל הסביבה בלבד
         const gRes = await pool.query(`
             SELECT f.name, f.group_code, f.type, u.password_hash, u.nickname 
             FROM family_groups f 
@@ -571,7 +568,7 @@ app.post('/api/forgot-code', async (req, res) => {
             WHERE LOWER(f.admin_email) = LOWER($1) AND u.role = 'ADMIN'
         `, [email]);
         
-        if (gRes.rows.length === 0) return res.json({ success: true }); // שתיקה אבטחתית אם המייל לא קיים
+        if (gRes.rows.length === 0) return res.json({ success: true });
 
         const group = gRes.rows[0];
         const sysType = group.type === 'BUSINESS' ? 'Oneflow Life BIZ' : 'Oneflow Life';
@@ -706,7 +703,6 @@ app.get('/api/data/:userId', async (req, res) => {
             weeklyStats = { spent: spentRes.rows[0].spent, limit: user.allowance_amount };
         }
         
-        // --- שינוי קהילות ---
         let community_updates = [];
         let community_businesses = [];
         
@@ -722,39 +718,32 @@ app.get('/api/data/:userId', async (req, res) => {
             community_businesses = commBizRes.rows; 
             
             if (group.type === 'FAMILY') {
-            commBizRes.rows.forEach(biz => {
-                community_updates.push({
-                    type: 'system',
-                    category: 'community',
-                    id: `biz_${biz.business_name}`,
-                    user_id: 0,
-                    user_name: 'קהילה',
-                    description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
-                    amount: 0,
-                    date: biz.created_at ? new Date(biz.created_at) : new Date()
+                commBizRes.rows.forEach(biz => {
+                    community_updates.push({
+                        type: 'system',
+                        category: 'community',
+                        id: `biz_${biz.business_name}`,
+                        user_id: 0,
+                        user_name: 'קהילה',
+                        description: `הטבה חדשה בקהילת ${biz.comm_name}: ${biz.business_name} (הנחה: ${biz.discount_pct}%) 🛍️`,
+                        amount: 0,
+                        date: biz.created_at ? new Date(biz.created_at) : new Date()
+                    });
                 });
-            });
-        }
+            }
         }
 
         res.json({ 
-            user, 
-            group, 
-            tasks: tasks.rows, 
-            pantry: pantry.rows, 
-            shopping_list: shoppingList.rows, 
-            goals: goals.rows, 
-            quiz_bundles: userBundles.rows, 
-            all_bundles: allBundles.rows, 
-            weekly_stats: weeklyStats, 
-            community_updates: community_updates,
-            community_businesses: community_businesses 
+            user, group, tasks: tasks.rows, pantry: pantry.rows, shopping_list: shoppingList.rows, 
+            goals: goals.rows, quiz_bundles: userBundles.rows, all_bundles: allBundles.rows, 
+            weekly_stats: weeklyStats, community_updates: community_updates, community_businesses: community_businesses 
         });
     } catch (e) { 
         console.error('Error in /api/data/:userId:', e);
         res.status(500).json({ error: e.message }); 
     }
 });
+
 // ============================================================
 // --- SHOPPING LIST ENDPOINTS ---
 // ============================================================
@@ -1038,21 +1027,17 @@ app.get('/api/group/members', async (req, res) => {
         const { groupId } = req.query;
         let users;
         try {
-            // ניסיון משיכה כולל עמודת ההרשאות
             users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         } catch(err) {
-            // מנגנון הגנה: אם העמודה טרם נוצרה, נשלוף בלי ההרשאות כדי שהמשתמשים לא ייעלמו
             users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         }
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// נתיב חדש: עדכון הרשאות וטאבים לעובד/משתמש
 app.put('/api/users/:id/permissions', async (req, res) => {
     try {
         const { tabs, role } = req.body;
-        // מוודאים שתמיד יש לפחות גישה לפיד הראשי
         if (!tabs.includes('feed')) tabs.push('feed');
         
         if (role) {
@@ -1607,7 +1592,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, welcome_message: '', phone: '', min_order: 0, slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
+        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1656,6 +1641,7 @@ app.post('/api/store/catalog', async (req, res) => {
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 app.put('/api/store/catalog/:id', async (req, res) => {
     try {
         const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription } = req.body;
@@ -1751,7 +1737,6 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         const cRes = await pool.query('SELECT * FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category, name', [groupId]);
 
-        // בדיקת שיוך לקהילה אם הלקוח הגיע מתוך הקהילה (communityId)
         let communityData = null;
         if (req.query.communityId) {
             const commRes = await pool.query(`
@@ -1769,6 +1754,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         res.json({ success: true, groupId, groupName, settings, catalog: cRes.rows, communityData });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 app.post('/api/store/ai-desc', async (req, res) => {
     try {
         const { productName, groupId } = req.body;
@@ -1808,7 +1794,6 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
 // --- COMMUNITIES & COUPONS ENDPOINTS ---
 // ============================================================
 
-// פונקציית אתחול לטבלאות הקהילה והשיווק (תרוץ אוטומטית)
 async function initCommunityTables() {
     const queries = [
         `CREATE TABLE IF NOT EXISTS communities (id SERIAL PRIMARY KEY, name VARCHAR(100), code VARCHAR(50) UNIQUE, manager_email VARCHAR(100), manager_password VARCHAR(100), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -1822,11 +1807,7 @@ async function initCommunityTables() {
     ];
     
     for (let q of queries) {
-        try { 
-            await pool.query(q); 
-        } catch(e) { 
-            console.error("DB Init Warning on query:", q, e.message); 
-        }
+        try { await pool.query(q); } catch(e) { console.error("DB Init Warning on query:", q, e.message); }
     }
 }
 initCommunityTables();
@@ -1835,7 +1816,6 @@ initCommunityTables();
 // --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק) ---
 // ============================================================
 
-// שליפת הקהילות שהעסק מחובר אליהן (או ממתין לאישור)
 app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -1850,7 +1830,6 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליפת כל הקהילות שהעסק עדיין לא מחובר אליהן
 app.get('/api/biz/communities/available/:bizId', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -1863,7 +1842,7 @@ app.get('/api/biz/communities/available/:bizId', async (req, res) => {
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// בקשת חיבור לקהילה מצד העסק
+
 app.post('/api/biz/communities/join', async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
@@ -1875,7 +1854,6 @@ app.post('/api/biz/communities/join', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ניתוק של העסק מהקהילה
 app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
     try {
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
@@ -1906,6 +1884,7 @@ app.delete('/api/store/coupons/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // ==========================================
 // --- מערכת מבצעים (Promotions) ---
 // ==========================================
@@ -1978,6 +1957,7 @@ app.put('/api/store/promotions/toggle/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // ==========================================
 // --- מערכת רכש B2B, קטלוגים וספקים ---
 // ==========================================
@@ -2192,16 +2172,15 @@ app.put('/api/b2b/orders/:id/status', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // --- FAMILY COMMUNITY ENDPOINTS ---
 app.post('/api/community/join', async (req, res) => {
     try {
         const { groupId, code } = req.body;
-        // חיפוש הקהילה לפי הקוד
         const commRes = await pool.query('SELECT * FROM communities WHERE code=$1', [code.toUpperCase().trim()]);
         if(commRes.rows.length === 0) return res.json({success:false, error:'קוד קהילה אינו תקין או לא קיים'});
         const comm = commRes.rows[0];
         
-        // הוספת עמודת שיוך קהילה לקבוצה אם לא קיימת, ועדכון
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`); } catch(e){}
         await pool.query('UPDATE family_groups SET community_id=$1 WHERE id=$2', [comm.id, groupId]);
         
@@ -2211,7 +2190,6 @@ app.post('/api/community/join', async (req, res) => {
 
 app.get('/api/community/businesses/:groupId', async (req, res) => {
     try {
-        // משיכת הקהילה של הקבוצה
         const gRes = await pool.query('SELECT community_id FROM family_groups WHERE id=$1', [req.params.groupId]);
         if(gRes.rows.length===0 || !gRes.rows[0].community_id) return res.json({success:true, community: null, businesses: []});
         
@@ -2219,7 +2197,6 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
         const commNameRes = await pool.query('SELECT name FROM communities WHERE id=$1', [commId]);
         const communityName = commNameRes.rows.length > 0 ? commNameRes.rows[0].name : '';
 
-        // משיכת העסקים המקושרים לקהילה זו שהחנות שלהם פעילה
         const result = await pool.query(`
             SELECT b.id as business_id, b.name as business_name, b.group_code, s.logo_url, s.slogan, cb.discount_pct 
             FROM community_businesses cb
@@ -2231,6 +2208,7 @@ app.get('/api/community/businesses/:groupId', async (req, res) => {
         res.json({success: true, community: { id: commId, name: communityName }, businesses: result.rows});
     } catch(e) { res.status(500).json({error: e.message}); }
 });
+
 // --- SUPER ADMIN: COMMUNITY MANAGEMENT ---
 app.get('/api/sa/communities', async (req, res) => {
     try {
@@ -2287,7 +2265,6 @@ app.put('/api/sa/communities/:id', async (req, res) => {
 
 app.delete('/api/sa/communities/:id', async (req, res) => {
     try {
-        // מנתק משפחות, מוחק קשרי עסקים, ואז מוחק קהילה
         await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
         await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
         await pool.query('DELETE FROM communities WHERE id = $1', [req.params.id]);
@@ -2297,11 +2274,9 @@ app.delete('/api/sa/communities/:id', async (req, res) => {
 
 app.get('/api/sa/communities/:id/details', async (req, res) => {
     try {
-        // שולפים את המשפחות כולל קוד הקבוצה
         const familiesRes = await pool.query('SELECT id, name, admin_email, group_code FROM family_groups WHERE community_id = $1 AND type = $2', [req.params.id, 'FAMILY']);
         const families = familiesRes.rows;
 
-        // אם יש משפחות, שולפים גם את כל המשתמשים שלהן ומשייכים לכל משפחה
         if (families.length > 0) {
             const familyIds = families.map(f => f.id);
             const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
@@ -2311,14 +2286,12 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
             });
         }
 
-        // שולפים גם את הסטטוס (ממתין לאישור או אושר)
         const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
         
         res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שליפת בקשות המתנה לעסקים ע"י ה-Admin הראשי (או מנהל קהילה בעתיד)
 app.get('/api/sa/communities/pending-businesses', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -2331,7 +2304,7 @@ app.get('/api/sa/communities/pending-businesses', async (req, res) => {
         res.json({ success: true, pending: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// שיוך ישיר של עסק לקהילה ע"י ה-Admin הראשי (מאושר אוטומטית)
+
 app.post('/api/sa/community-business', async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
@@ -2343,7 +2316,6 @@ app.post('/api/sa/community-business', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מסלול לשליפת העסקים המחוברים לקהילה מסוימת באדמין
 app.get('/api/sa/community-business/:commId', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -2356,14 +2328,13 @@ app.get('/api/sa/community-business/:commId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מסלול להסרת עסק מקהילה באדמין
 app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
     try {
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.commId, req.params.bizId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// מסלול לאישור עסק ע"י ה-Admin הראשי
+
 app.post('/api/sa/community-business/approve', async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
@@ -2372,7 +2343,6 @@ app.post('/api/sa/community-business/approve', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מסלול לסירוב בקשת חיבור
 app.post('/api/sa/community-business/reject', async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
