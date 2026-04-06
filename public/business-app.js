@@ -1839,20 +1839,20 @@ function renderShopList() {
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
 const footerEl = getEl('cart-footer');
-    if (footerEl && !getEl('close-cart-footer-btn')) {
-        footerEl.insertAdjacentHTML('beforeend', `<button id="close-cart-footer-btn" onclick="document.getElementById('cart-footer').classList.add('hidden')" style="position:absolute; top:-12px; right:12px; background:#ef4444; color:white; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); border:2px solid white; z-index:50;"><i class="fa-solid fa-times"></i></button>`);
-    }
+    if (footerEl) footerEl.style.display = 'none'; // השבתה מוחלטת של הפס הישן
 
     if(activeItems.length === 0) { 
         if(list) list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
-        if(footerEl) footerEl.classList.add('hidden'); 
         const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
         return; 
     }
     
-    if (isShopTabActive) { if(footerEl) footerEl.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
-    else { if(footerEl) footerEl.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
-    
+    const fc = getEl('fab-container');
+    if (isShopTabActive) { 
+        if(fc) fc.classList.add('fab-lifted'); 
+    } else { 
+        if(fc) fc.classList.remove('fab-lifted'); 
+    }
     const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
     let currentCat = ''; let shopHtml = '';
@@ -4094,12 +4094,23 @@ function updateB2BCartUI() {
         }
     });
 
+    const appBottom = getEl('app-banner-bottom');
+    let bottomOffset = 16; // ברירת מחדל 16px מהתחתית
+    if (appBottom && !appBottom.classList.contains('hidden')) {
+        bottomOffset += appBottom.offsetHeight || 60; // מרים מעל הבאנר
+    }
+    floating.style.bottom = `${bottomOffset}px`;
+
     if (count > 0) {
         const countEl = getEl('b2b-cart-count'); if(countEl) countEl.innerText = count;
         const totalEl = getEl('b2b-cart-total'); if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
         floating.classList.remove('translate-y-full');
+        floating.classList.add('opacity-100');
+        floating.style.visibility = 'visible';
     } else {
         floating.classList.add('translate-y-full');
+        floating.classList.remove('opacity-100');
+        setTimeout(() => { if (Object.keys(b2bCart).length === 0) floating.style.visibility = 'hidden'; }, 300);
     }
 }
 // -----------------------------------------
@@ -4461,7 +4472,7 @@ function openReceiveGoodsModal(orderId) {
     getEl('receive-goods-modal').classList.remove('hidden');
 }
 
-// שיגור הליקוט לשרת
+// שיגור הליקוט לשרת וחיפוש מוצרים חסרים בקטלוג
 async function submitReceiveGoods() {
     if (!currentReceiveOrder) return;
     const items = typeof currentReceiveOrder.items === 'string' ? JSON.parse(currentReceiveOrder.items) : currentReceiveOrder.items;
@@ -4469,6 +4480,11 @@ async function submitReceiveGoods() {
     const receivedItems = [];
     const missingItems = [];
     let hasMissing = false;
+
+    // לפני שאנחנו מעדכנים סל, נוודא שהקטלוג זמין בזיכרון
+    if (b2bCatalogCache.length === 0) {
+        await fetchB2BCatalog();
+    }
 
     items.forEach((item, idx) => {
         const inputEl = getEl(`receive-qty-${idx}`);
@@ -4481,8 +4497,16 @@ async function submitReceiveGoods() {
         if (receivedQty < item.quantity) {
             const missingQty = item.quantity - receivedQty;
             missingItems.push({ name: item.name, qty: missingQty, unit: item.unit, price: item.price_per_unit || 0 });
-            if(item.id) {
-                b2bCart[item.id] = (b2bCart[item.id] || 0) + missingQty;
+            
+            // חיפוש חכם של ה-ID האמיתי של המוצר מהקטלוג אם חסר
+            let realProductId = item.id;
+            if (!realProductId && item.name) {
+                const catalogItem = b2bCatalogCache.find(c => c.name === item.name);
+                if(catalogItem) realProductId = catalogItem.id;
+            }
+
+            if(realProductId) {
+                b2bCart[realProductId] = (b2bCart[realProductId] || 0) + missingQty;
                 hasMissing = true;
             }
         }
@@ -4505,10 +4529,9 @@ async function submitReceiveGoods() {
             
             if(hasMissing) {
                 showToast('success', 'הסחורה התקבלה! החוסרים הועברו לעגלת הרכש להזמנה מחדש.');
-                await fetchB2BCatalog(); // מרענן מיד את הקטלוג
                 updateB2BCartUI();
                 renderB2BCatalog();
-                switchProcurementTab('list'); // מעביר לסל
+                switchProcurementTab('list'); // העברה לטאב הקטלוג/עגלה
             } else {
                 showToast('success', 'הסחורה התקבלה במלואה והמלאי עודכן!');
             }
