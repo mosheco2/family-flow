@@ -1340,8 +1340,7 @@
                 <div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button id="btn-submit-shop" onclick="submitShopItem()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף לרשימה</button></div>
             </div>
         </div>
-
-    <div id="supplier-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+<div id="supplier-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
                     <h3 class="text-xl font-black text-slate-800">ניהול ספק ותנאי סחר 🚚</h3>
@@ -1364,9 +1363,19 @@
                             <label class="text-xs font-bold text-slate-600 block mb-1">טלפון/נייד:</label>
                             <input type="tel" id="supplier-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000">
                         </div>
-                        <div class="col-span-2">
-                            <label class="text-xs font-bold text-slate-600 block mb-1">כתובת אימייל (לשליחת הזמנות):</label>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">כתובת אימייל (להזמנות):</label>
                             <input type="email" id="supplier-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="orders@supplier.com">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <select id="supplier-category" class="modern-input py-2 text-sm bg-white font-bold">
+                                <option value="כללי">כללי</option>
+                                <option value="מזון ומשקאות">מזון ומשקאות</option>
+                                <option value="ציוד משרדי">ציוד משרדי</option>
+                                <option value="חומרי ניקוי">חומרי ניקוי</option>
+                                <option value="שירותים וקבלנים">שירותים וקבלנים</option>
+                            </select>
                         </div>
                     </div>
 
@@ -1401,7 +1410,6 @@
                 <button id="btn-submit-supplier" onclick="submitSupplier()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור פרטי ספק</button>
             </div>
         </div>
-
         <div id="supplier-catalog-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[75] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll flex flex-col">
                 <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
