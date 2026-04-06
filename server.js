@@ -2232,7 +2232,7 @@ app.get('/api/sa/businesses', async (req, res) => {
 });
 
 // =========================================================
-// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת
+// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת ועמידה!
 // =========================================================
 app.post('/api/b2b/orders', async (req, res) => {
     let dbClient;
@@ -2256,6 +2256,7 @@ app.post('/api/b2b/orders', async (req, res) => {
         }
         
         for (let order of orders) {
+            // 1. שמירה במסד הנתונים
             const result = await dbClient.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
                 VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
@@ -2265,7 +2266,12 @@ app.post('/api/b2b/orders', async (req, res) => {
             const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
-            if (supplier && supplier.email && order.pdfBase64 && transporter) {
+            // 2. שילוח מייל (גם אם ה-PDF חסר!)
+            if (supplier && supplier.email && transporter) {
+                
+                // מייצרים רשימת פריטים שתוצג בתוך גוף המייל
+                const itemsHtmlList = order.items.map(i => `<li>${i.name} - כמות: ${i.quantity}</li>`).join('');
+
                 const mailOptions = {
                     from: `"מערכת רכש Oneflow" <${user}>`, 
                     to: supplier.email,
@@ -2274,17 +2280,33 @@ app.post('/api/b2b/orders', async (req, res) => {
                         <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
                             <h2>שלום רב לצוות ${supplier.name},</h2>
                             <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
-                            <p>אנא עברו על ההזמנה המצורפת בקובץ ה-PDF ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                            
+                            <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #e2e8f0;">
+                                <h3 style="margin-top:0;">תקציר ההזמנה:</h3>
+                                <ul>${itemsHtmlList}</ul>
+                            </div>
+                            
+                            <p>אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
                             <br>
                             <p>בברכה,</p>
                             <p><b>לקוח Oneflow BIZ</b></p>
                         </div>
                     `,
-                    attachments: [ { filename: `Purchase_Order_${newOrderId}.pdf`, content: order.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), encoding: 'base64' } ]
+                    attachments: []
                 };
+
+                // מוסיפים את קובץ ה-PDF רק אם הוא עבר בהצלחה
+                if (order.pdfBase64) {
+                    mailOptions.attachments.push({ 
+                        filename: `Purchase_Order_${newOrderId}.pdf`, 
+                        content: order.pdfBase64.replace(/^data:application\/pdf;base64,/, ""), 
+                        encoding: 'base64' 
+                    });
+                }
 
                 try {
                     await transporter.sendMail(mailOptions);
+                    console.log(`✅ Email sent successfully to ${supplier.email}`);
                 } catch (mailErr) {
                     console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
                 }
@@ -2301,7 +2323,6 @@ app.post('/api/b2b/orders', async (req, res) => {
         if (dbClient) dbClient.release();
     }
 });
-
 // START SERVER
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
