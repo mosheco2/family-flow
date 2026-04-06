@@ -3852,9 +3852,174 @@ async function deleteSupplier(id) {
     } catch(e) {}
 }
 
+let currentRfqItems = [];
+let currentRfqTotal = 0;
+let rfqCache = [];
+
 function openRFQModal() {
-    showToast('success', 'אוסף את הפריטים... ממתין להקמת המודאל!');
-    // בשלב הבא נוסיף את הקוד שמייצר את מסמך ה-RFQ ומאפשר לשלוח אותו לספק.
+    currentRfqItems = [];
+    currentRfqTotal = 0;
+    
+    // איסוף כל הפריטים שסומנו ב-V בסל הקניות
+    document.querySelectorAll('.shop-row').forEach(row => {
+        const isChecked = row.querySelector('input[type="checkbox"]').checked;
+        const isMissing = row.classList.contains('missing');
+        
+        if (isChecked && !isMissing) {
+            const id = row.id.replace('row-', ''); 
+            const itemData = shoppingListCache.find(i => i.id == id);
+            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0;
+            const qty = itemData ? parseFloat(itemData.quantity) : 1;
+            
+            if (itemData) {
+                currentRfqItems.push({
+                    id: itemData.id,
+                    name: itemData.item_name,
+                    quantity: qty,
+                    unit: itemData.unit,
+                    price_est: unitPrice,
+                    total_est: unitPrice * qty
+                });
+                currentRfqTotal += (unitPrice * qty);
+            }
+        }
+    });
+
+    if (currentRfqItems.length === 0) {
+        return showToast('error', 'יש לסמן לפחות פריט אחד כדי להפיק הזמנת רכש');
+    }
+
+    getEl('rfq-item-count').innerText = currentRfqItems.length;
+    getEl('rfq-est-total').innerText = `₪${currentRfqTotal.toFixed(2)}`;
+
+    const supplierSelect = getEl('rfq-supplier-select');
+    supplierSelect.innerHTML = '<option value="">ספק כללי / ללא ספק</option>';
+    suppliersList.forEach(s => {
+        supplierSelect.innerHTML += `<option value="${s.id}">${safeStr(s.name)} ${s.category ? `(${s.category})` : ''}</option>`;
+    });
+
+    getEl('rfq-modal').classList.remove('hidden');
 }
 
+async function submitRFQ() {
+    const supplierId = val('rfq-supplier-select');
+    const btn = getEl('btn-submit-rfq');
+    
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מפיק...';
+    
+    try {
+        const res = await fetch(`${API}/rfq`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                supplierId: supplierId || null,
+                items: currentRfqItems,
+                totalAmount: currentRfqTotal
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'בקשת הרכש הופקה בהצלחה!');
+            getEl('rfq-modal').classList.add('hidden');
+            
+            // רענון הנתונים ומעבר ישירות לטאב בקשות הרכש!
+            await fetchData(); 
+            switchProcurementTab('rfq'); 
+        } else {
+            showToast('error', data.error || 'שגיאה בהפקת ההזמנה');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת רשת מול השרת');
+    } finally {
+        btn.disabled = false; 
+        btn.innerHTML = 'אישור והפקה <i class="fa-solid fa-check"></i>';
+    }
+}
+
+// שליפה והצגה של בקשות הרכש (טאב אמצעי במערכת הרכש)
+async function fetchRFQs() {
+    try {
+        const res = await fetch(`${API}/rfq/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            rfqCache = data.rfqs || [];
+            renderRFQs();
+        }
+    } catch(e) { console.error("Error fetching RFQs:", e); }
+}
+
+// נדרוס את הפונקציה הקודמת כדי שתוכל לטעון את ה-RFQs
+const origSwitchProcurementTab = switchProcurementTab;
+switchProcurementTab = function(tab) {
+    origSwitchProcurementTab(tab);
+    if (tab === 'rfq') fetchRFQs();
+};
+
+function renderRFQs() {
+    const list = getEl('rfq-list');
+    if (!list) return;
+    
+    if (rfqCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין בקשות הצעת מחיר פתוחות.</p>';
+        return;
+    }
+    
+    let html = '';
+    rfqCache.forEach(r => {
+        const items = typeof r.items === 'string' ? JSON.parse(r.items) : r.items;
+        const itemsCount = items ? items.length : 0;
+        const dateStr = new Date(r.created_at).toLocaleDateString('he-IL');
+        
+        let statusBadge = '';
+        if (r.status === 'sent') statusBadge = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">נשלח לספק</span>';
+        else if (r.status === 'approved') statusBadge = '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-200">הסחורה סופקה</span>';
+        else statusBadge = `<span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">${r.status}</span>`;
+
+        const supplierName = r.supplier_name ? safeStr(r.supplier_name) : 'ספק כללי (ללא שיוך)';
+        
+        let itemsHtml = '';
+        if (items) {
+            items.forEach(i => {
+                itemsHtml += `<div class="flex justify-between text-xs border-b border-slate-50 py-1.5 last:border-0"><span class="text-slate-600">${safeStr(i.name)} <span class="text-[10px] text-slate-400 ml-1">(x${i.quantity} ${safeStr(i.unit)})</span></span><span class="font-bold text-slate-700">₪${i.total_est.toFixed(2)}</span></div>`;
+            });
+        }
+
+        html += `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3 cursor-pointer" onclick="document.getElementById('rfq-items-${r.id}').classList.toggle('hidden')">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm">הזמנה עבור: ${supplierName}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr} • סה"כ ${itemsCount} פריטים</p>
+                </div>
+                <div class="flex flex-col items-end gap-1.5">
+                    <span class="font-black text-slate-800 dir-ltr">₪${parseFloat(r.total_amount).toFixed(2)}</span>
+                    ${statusBadge}
+                </div>
+            </div>
+            
+            <div id="rfq-items-${r.id}" class="hidden">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3 mt-1">
+                    ${itemsHtml}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="updateRFQStatus(${r.id}, 'approved')" class="flex-1 bg-green-50 text-green-600 hover:bg-green-100 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-green-100"><i class="fa-solid fa-check"></i> סמן כהתקבל</button>
+                    ${r.supplier_phone ? `<a href="https://wa.me/${r.supplier_phone.replace(/\D/g,'')}" target="_blank" class="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center hover:bg-green-600 transition shadow-sm"><i class="fa-brands fa-whatsapp text-lg"></i></a>` : ''}
+                </div>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+async function updateRFQStatus(id, status) {
+    if(!confirm('האם לאשר שסחורה זו סופקה? היא תעבור להיסטוריה.')) return;
+    try {
+        await fetch(`${API}/rfq/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status}) });
+        showToast('success', 'ההזמנה סומנה כהושלמה!');
+        fetchRFQs();
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
 // === סוף הקובץ ===
