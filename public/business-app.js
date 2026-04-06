@@ -3727,6 +3727,9 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
 // ==========================================
 let suppliersList = [];
 let currentSupplierProducts = [];
+let b2bCatalogCache = [];
+let b2bCart = {}; // מבנה: { productId: quantity }
+let b2bOrdersHistory = [];
 
 function switchProcurementTab(tab) {
     ['list', 'rfq', 'suppliers'].forEach(t => {
@@ -3748,9 +3751,13 @@ function switchProcurementTab(tab) {
     }
 
     if (tab === 'suppliers') fetchSuppliers();
-    // if (tab === 'rfq') fetchRFQs(); // יתווסף בפעימה 3
+    if (tab === 'list') fetchB2BCatalog();
+    if (tab === 'rfq') fetchB2BOrders();
 }
 
+// -----------------------------------------
+// ניהול ספקים
+// -----------------------------------------
 async function fetchSuppliers() {
     try {
         const res = await fetch(`${API}/suppliers/${currentGroup.id}`);
@@ -3797,7 +3804,7 @@ function renderSuppliers() {
                     ${s.phone ? `<p class="text-[10px] text-slate-600 flex items-center gap-2"><i class="fa-solid fa-phone w-3 text-slate-400"></i> <span class="dir-ltr font-medium">${s.phone}</span></p>` : ''}
                     <div class="grid grid-cols-2 gap-1 mt-2">
                         <p class="text-[9px] text-slate-500 bg-slate-50 p-1.5 rounded-lg border border-slate-100"><span class="font-bold block text-slate-700">מינימום הזמנה:</span> ${minOrderStr}</p>
-                        <p class="text-[9px] text-slate-500 bg-slate-50 p-1.5 rounded-lg border border-slate-100"><span class="font-bold block text-slate-700">שעת Cut-off:</span> ${cutoffStr}</p>
+                        <p class="text-[9px] text-slate-500 bg-slate-50 p-1.5 rounded-lg border border-slate-100"><span class="font-bold block text-slate-700">Cut-off:</span> ${cutoffStr}</p>
                     </div>
                     <div class="mt-2"><p class="text-[9px] font-bold text-slate-700 mb-1">ימי חלוקה:</p><div class="flex flex-wrap">${daysHtml}</div></div>
                 </div>
@@ -3820,15 +3827,12 @@ function openSupplierModal(id = null) {
         getEl('supplier-contact').value = s.contact_person || '';
         getEl('supplier-phone').value = s.phone || '';
         getEl('supplier-email').value = s.email || '';
-        
         getEl('supplier-min-order').value = s.min_order || 0;
         getEl('supplier-cutoff').value = s.cutoff_time ? s.cutoff_time.substring(0, 5) : '12:00';
         
-        // סימון ימי חלוקה
         let daysArr = [];
         try { daysArr = typeof s.delivery_days === 'string' ? JSON.parse(s.delivery_days) : s.delivery_days; } catch(e){}
-        const checkboxes = document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]');
-        checkboxes.forEach(cb => { cb.checked = daysArr && daysArr.includes(parseInt(cb.value)); });
+        document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]').forEach(cb => { cb.checked = daysArr && daysArr.includes(parseInt(cb.value)); });
     } else {
         getEl('supplier-id').value = '';
         getEl('supplier-name').value = '';
@@ -3847,175 +3851,388 @@ async function submitSupplier() {
     const name = val('supplier-name');
     if (!name) return showToast('error', 'חובה להזין שם ספק / חברה');
     
-    // איסוף ימי חלוקה
     const deliveryDays = [];
-    document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]:checked').forEach(cb => {
-        deliveryDays.push(parseInt(cb.value));
-    });
+    document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]:checked').forEach(cb => { deliveryDays.push(parseInt(cb.value)); });
     
     const payload = {
-        id: id || null,
-        groupId: currentGroup.id,
-        name: name,
-        contactPerson: val('supplier-contact'),
-        phone: val('supplier-phone'),
-        email: val('supplier-email'),
-        minOrder: parseFloat(val('supplier-min-order')) || 0,
-        cutoffTime: val('supplier-cutoff') || '12:00',
-        deliveryDays: deliveryDays
+        id: id || null, groupId: currentGroup.id, name: name, contactPerson: val('supplier-contact'), phone: val('supplier-phone'), email: val('supplier-email'),
+        minOrder: parseFloat(val('supplier-min-order')) || 0, cutoffTime: val('supplier-cutoff') || '12:00', deliveryDays: deliveryDays
     };
 
-    const btn = getEl('btn-submit-supplier');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...';
-    
+    const btn = getEl('btn-submit-supplier'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...';
     try {
-        const res = await fetch(`${API}/suppliers`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
+        const res = await fetch(`${API}/suppliers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) {
-            showToast('success', id ? 'עודכן בהצלחה!' : 'הספק נוסף בהצלחה למאגר!');
-            getEl('supplier-modal').classList.add('hidden');
-            fetchSuppliers(); 
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת ספק');
-        }
-    } catch (e) { showToast('error', 'שגיאת רשת בשמירת הספק'); } 
-    finally { btn.disabled = false; btn.innerText = 'שמור פרטי ספק'; }
+        if (data.success) { showToast('success', id ? 'עודכן בהצלחה!' : 'הספק נוסף בהצלחה למאגר!'); getEl('supplier-modal').classList.add('hidden'); fetchSuppliers(); } else { showToast('error', data.error); }
+    } catch (e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור פרטי ספק'; }
 }
 
 async function deleteSupplier(id) {
     if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
-    try {
-        await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' });
-        showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה');
-        fetchSuppliers();
-    } catch(e) {}
+    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
 }
 
 // -----------------------------------------
-// קטלוג מוצרים לכל ספק
+// קטלוג מוצרים ספציפי (במודאל מנהל)
 // -----------------------------------------
-
 async function openSupplierCatalog(supplierId, supplierName) {
-    getEl('catalog-supplier-id').value = supplierId;
-    getEl('catalog-supplier-name').innerText = supplierName;
-    resetCatalogForm();
-    getEl('supplier-catalog-modal').classList.remove('hidden');
-    
+    getEl('catalog-supplier-id').value = supplierId; getEl('catalog-supplier-name').innerText = supplierName; resetCatalogForm(); getEl('supplier-catalog-modal').classList.remove('hidden');
     getEl('supplier-products-list').innerHTML = '<div class="flex justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>';
-    
     try {
-        const res = await fetch(`${API}/suppliers/${supplierId}/products`);
-        const data = await res.json();
-        if (data.success) {
-            currentSupplierProducts = data.products || [];
-            renderSupplierProducts();
-        }
+        const res = await fetch(`${API}/suppliers/${supplierId}/products`); const data = await res.json();
+        if (data.success) { currentSupplierProducts = data.products || []; renderSupplierProducts(); }
     } catch(e) { showToast('error', 'שגיאה בטעינת קטלוג'); }
 }
 
 function renderSupplierProducts() {
-    const list = getEl('supplier-products-list');
-    getEl('cat-prod-count').innerText = currentSupplierProducts.length;
-    
-    if (currentSupplierProducts.length === 0) {
-        list.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 text-sm">הקטלוג ריק.</p><p class="text-[10px] text-slate-400 mt-1">הזן מוצרים ידנית משמאל, או סרוק הצעת מחיר חכמה!</p></div>';
-        return;
-    }
-    
+    const list = getEl('supplier-products-list'); getEl('cat-prod-count').innerText = currentSupplierProducts.length;
+    if (currentSupplierProducts.length === 0) { list.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 text-sm">הקטלוג ריק.</p></div>'; return; }
     let html = '';
     currentSupplierProducts.forEach(p => {
         const uppStr = p.units_per_package > 1 ? `<span class="bg-indigo-50 text-indigo-600 text-[9px] px-1.5 rounded font-bold ml-1">${p.units_per_package} יח' במארז</span>` : '';
         const descStr = p.description ? `<p class="text-[10px] text-slate-500 mt-0.5 truncate">${safeStr(p.description)}</p>` : '';
-        
+        html += `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:border-indigo-300 transition group"><div class="flex-1 pr-2 overflow-hidden"><h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppStr}</h5>${descStr}<div class="text-xs font-black text-slate-700 mt-1">₪${p.price} <span class="font-normal text-[10px] text-slate-400">ל-${safeStr(p.unit_type)}</span></div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="editSupplierProduct(${p.id})" class="text-slate-400 hover:text-blue-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="deleteSupplierProduct(${p.id})" class="text-slate-400 hover:text-red-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div></div>`;
+    }); list.innerHTML = html;
+}
+
+function resetCatalogForm() { getEl('catalog-product-id').value = ''; getEl('cat-prod-name').value = ''; getEl('cat-prod-price').value = ''; getEl('cat-prod-unit').value = "יח'"; getEl('cat-prod-upp').value = 1; getEl('cat-prod-desc').value = ''; getEl('catalog-form-title').innerText = 'הוספת מוצר לקטלוג'; getEl('btn-submit-cat-prod').innerText = 'הוסף מוצר'; }
+
+function editSupplierProduct(id) { const p = currentSupplierProducts.find(x => x.id === id); if (!p) return; getEl('catalog-product-id').value = p.id; getEl('cat-prod-name').value = p.name; getEl('cat-prod-price').value = p.price; getEl('cat-prod-unit').value = p.unit_type; getEl('cat-prod-upp').value = p.units_per_package || 1; getEl('cat-prod-desc').value = p.description || ''; getEl('catalog-form-title').innerText = 'עריכת מוצר'; getEl('btn-submit-cat-prod').innerText = 'שמור שינויים'; }
+
+async function submitSupplierProduct() {
+    const supplierId = val('catalog-supplier-id'); const id = val('catalog-product-id'); const name = val('cat-prod-name'); const price = val('cat-prod-price');
+    if(!name || !price) return showToast('error', 'שם מוצר ומחיר הם חובה');
+    const btn = getEl('btn-submit-cat-prod'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    try {
+        const payload = { id: id || null, groupId: currentGroup.id, supplierId: supplierId, name: name, price: parseFloat(price) || 0, unitType: val('cat-prod-unit'), unitsPerPackage: parseInt(val('cat-prod-upp')) || 1, description: val('cat-prod-desc') };
+        const res = await fetch(`${API}/suppliers/products`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); const data = await res.json();
+        if (data.success) { showToast('success', id ? 'מוצר עודכן' : 'מוצר נוסף'); resetCatalogForm(); openSupplierCatalog(supplierId, getEl('catalog-supplier-name').innerText); } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
+}
+
+async function deleteSupplierProduct(id) { if(!confirm('למחוק מוצר מהקטלוג?')) return; try { await fetch(`${API}/suppliers/products/${id}`, { method: 'DELETE' }); showToast('success', 'המוצר הוסר'); openSupplierCatalog(getEl('catalog-supplier-id').value, getEl('catalog-supplier-name').innerText); } catch(e) {} }
+
+function handleAICatalogUpload(event) { showToast('info', 'הסריקה החכמה תהיה זמינה בקרוב!'); event.target.value = ''; }
+
+// -----------------------------------------
+// מערכת המרקטפלייס B2B (עגלת קניות)
+// -----------------------------------------
+async function fetchB2BCatalog() {
+    try {
+        const res = await fetch(`${API}/b2b/catalog/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            b2bCatalogCache = data.catalog || [];
+            updateSupplierFilterDropdown();
+            renderB2BCatalog();
+        }
+    } catch(e) { console.error("Error fetching B2B catalog:", e); }
+}
+
+function updateSupplierFilterDropdown() {
+    const select = getEl('b2b-supplier-filter');
+    if (!select) return;
+    const uniqueSuppliers = [...new Set(b2bCatalogCache.map(p => p.supplier_id))];
+    select.innerHTML = '<option value="all">כל הספקים</option>';
+    uniqueSuppliers.forEach(id => {
+        const p = b2bCatalogCache.find(x => x.supplier_id === id);
+        if (p) select.innerHTML += `<option value="${p.supplier_id}">${safeStr(p.supplier_name)}</option>`;
+    });
+}
+
+function renderB2BCatalog() {
+    const list = getEl('b2b-catalog-list');
+    if (!list) return;
+    
+    const search = val('b2b-search').toLowerCase();
+    const supplierId = val('b2b-supplier-filter');
+    
+    let filtered = b2bCatalogCache;
+    if (supplierId !== 'all') filtered = filtered.filter(p => String(p.supplier_id) === String(supplierId));
+    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search) || (p.description && p.description.toLowerCase().includes(search)));
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-box-open text-4xl text-slate-300 mb-3"></i><p class="text-slate-500 font-bold">לא נמצאו מוצרים</p><p class="text-xs text-slate-400 mt-1">נסו לחפש משהו אחר או שנו את הספק</p></div>';
+        return;
+    }
+
+    let html = '';
+    let currentSupplier = '';
+
+    filtered.forEach(p => {
+        if (p.supplier_name !== currentSupplier) {
+            const minOrderHtml = p.min_order > 0 ? `<span class="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full shadow-sm">מינימום: ₪${p.min_order}</span>` : '';
+            html += `<h4 class="font-black text-slate-800 text-sm mt-5 mb-2 px-1 flex justify-between items-center"><span class="flex items-center gap-2"><i class="fa-solid fa-truck-fast text-indigo-500"></i> ${safeStr(p.supplier_name)}</span> ${minOrderHtml}</h4>`;
+            currentSupplier = p.supplier_name;
+        }
+
+        const qty = b2bCart[p.id] || 0;
+        let actionHtml = '';
+        if (qty > 0) {
+            actionHtml = `
+            <div class="flex items-center justify-between gap-1 bg-indigo-50 border border-indigo-100 rounded-lg p-1 w-24 shrink-0">
+                <button onclick="updateB2BCart(${p.id}, -1)" class="w-7 h-7 rounded bg-white shadow-sm flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition"><i class="fa-solid fa-minus text-[10px]"></i></button>
+                <span class="font-bold text-indigo-900 text-xs px-1">${qty}</span>
+                <button onclick="updateB2BCart(${p.id}, 1)" class="w-7 h-7 rounded bg-indigo-600 text-white shadow-sm flex items-center justify-center hover:bg-indigo-700 transition"><i class="fa-solid fa-plus text-[10px]"></i></button>
+            </div>`;
+        } else {
+            actionHtml = `<button onclick="updateB2BCart(${p.id}, 1)" class="bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold transition border border-slate-200 shadow-sm w-24 shrink-0"><i class="fa-solid fa-plus"></i> הוסף</button>`;
+        }
+
+        const descHtml = p.description ? `<p class="text-[10px] text-slate-500 truncate mt-0.5">${safeStr(p.description)}</p>` : '';
+        const uppHtml = p.units_per_package > 1 ? `<span class="bg-indigo-50 text-indigo-600 text-[9px] px-1.5 rounded font-bold ml-1 border border-indigo-100">${p.units_per_package} יח' במארז</span>` : '';
+
         html += `
-        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center hover:border-indigo-300 transition group">
-            <div class="flex-1 pr-2 overflow-hidden">
-                <h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppStr}</h5>
-                ${descStr}
+        <div class="bg-white p-3 rounded-2xl border ${qty>0 ? 'border-indigo-400 shadow-md' : 'border-slate-200 shadow-sm'} flex justify-between items-center mb-2 transition-all group">
+            <div class="flex-1 pr-1 overflow-hidden">
+                <h5 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.name)} ${uppHtml}</h5>
+                ${descHtml}
                 <div class="text-xs font-black text-slate-700 mt-1">₪${p.price} <span class="font-normal text-[10px] text-slate-400">ל-${safeStr(p.unit_type)}</span></div>
             </div>
-            <div class="flex flex-col gap-2 shrink-0">
-                <button onclick="editSupplierProduct(${p.id})" class="text-slate-400 hover:text-blue-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                <button onclick="deleteSupplierProduct(${p.id})" class="text-slate-400 hover:text-red-600 w-7 h-7 bg-slate-50 rounded flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+            ${actionHtml}
+        </div>`;
+    });
+    list.innerHTML = html;
+    updateB2BCartUI();
+}
+
+function updateB2BCart(productId, delta) {
+    b2bCart[productId] = (b2bCart[productId] || 0) + delta;
+    if (b2bCart[productId] <= 0) delete b2bCart[productId];
+    renderB2BCatalog(); 
+}
+
+function updateB2BCartUI() {
+    const floating = getEl('b2b-cart-floating');
+    if (!floating) return;
+    
+    let count = 0;
+    let total = 0;
+    Object.keys(b2bCart).forEach(id => {
+        const qty = b2bCart[id];
+        const p = b2bCatalogCache.find(x => String(x.id) === String(id));
+        if (p) {
+            count += qty;
+            total += (p.price * qty);
+        }
+    });
+
+    if (count > 0) {
+        getEl('b2b-cart-count').innerText = count;
+        getEl('b2b-cart-total').innerText = `₪${total.toFixed(2)}`;
+        floating.classList.remove('translate-y-full');
+    } else {
+        floating.classList.add('translate-y-full');
+    }
+}
+
+// -----------------------------------------
+// סיכום קופה ושיגור למספר ספקים במקביל
+// -----------------------------------------
+function openB2BCheckout() {
+    const splitOrders = {};
+    let grandTotal = 0;
+
+    Object.keys(b2bCart).forEach(id => {
+        const qty = b2bCart[id];
+        const p = b2bCatalogCache.find(x => String(x.id) === String(id));
+        if (p) {
+            if (!splitOrders[p.supplier_id]) {
+                splitOrders[p.supplier_id] = {
+                    supplierName: p.supplier_name,
+                    minOrder: parseFloat(p.min_order) || 0,
+                    items: [],
+                    total: 0
+                };
+            }
+            const rowTotal = p.price * qty;
+            splitOrders[p.supplier_id].items.push({ 
+                id: p.id, name: p.name, quantity: qty, unit: p.unit_type, price_per_unit: p.price, row_total: rowTotal 
+            });
+            splitOrders[p.supplier_id].total += rowTotal;
+            grandTotal += rowTotal;
+        }
+    });
+
+    const listEl = getEl('b2b-checkout-suppliers-list');
+    listEl.innerHTML = '';
+    let hasErrors = false;
+
+    Object.keys(splitOrders).forEach(supId => {
+        const order = splitOrders[supId];
+        const isBelowMin = order.minOrder > 0 && order.total < order.minOrder;
+        if (isBelowMin) hasErrors = true;
+
+        const headerColor = isBelowMin ? 'text-red-800 bg-red-50 border-red-200' : 'text-indigo-800 bg-indigo-50 border-indigo-100';
+        const alertHtml = isBelowMin ? `<div class="text-[10px] font-bold text-red-600 mt-1 bg-white inline-block px-2 py-0.5 rounded-full border border-red-100"><i class="fa-solid fa-triangle-exclamation"></i> לא הגעת למינימום הזמנה (₪${order.minOrder})</div>` : '';
+
+        let itemsHtml = order.items.map(i => `
+            <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100 last:border-0">
+                <span class="text-slate-700 font-medium">${safeStr(i.name)} <span class="text-indigo-600 bg-indigo-50 px-1.5 rounded-md font-bold text-[10px] ml-1">x${i.quantity} ${safeStr(i.unit)}</span></span>
+                <span class="font-bold text-slate-800 dir-ltr">₪${i.row_total.toFixed(2)}</span>
+            </div>
+        `).join('');
+
+        listEl.innerHTML += `
+        <div class="bg-white rounded-2xl border ${isBelowMin ? 'border-red-300 shadow-sm' : 'border-slate-200'} overflow-hidden mb-4">
+            <div class="${headerColor} p-3 border-b flex justify-between items-start">
+                <div>
+                    <h4 class="font-bold text-sm"><i class="fa-solid fa-box-open opacity-60 ml-1"></i> ספק: ${safeStr(order.supplierName)}</h4>
+                    ${alertHtml}
+                </div>
+                <span class="font-black text-lg dir-ltr">₪${order.total.toFixed(2)}</span>
+            </div>
+            <div class="p-3 bg-white">
+                ${itemsHtml}
+            </div>
+        </div>`;
+    });
+
+    getEl('b2b-checkout-grand-total').innerText = `₪${grandTotal.toFixed(2)}`;
+    
+    const btnSubmit = getEl('btn-submit-b2b-orders');
+    if (hasErrors) {
+        btnSubmit.disabled = true;
+        btnSubmit.className = "w-full mt-4 bg-slate-200 text-slate-500 py-3.5 rounded-xl font-bold flex justify-center items-center gap-2 cursor-not-allowed border border-slate-300";
+        btnSubmit.innerHTML = 'יש לתקן חריגות מינימום כדי להמשיך <i class="fa-solid fa-ban"></i>';
+    } else {
+        btnSubmit.disabled = false;
+        btnSubmit.className = "w-full mt-4 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2";
+        btnSubmit.innerHTML = 'שגר הזמנות מפוצלות <i class="fa-solid fa-paper-plane"></i>';
+    }
+
+    getEl('b2b-checkout-modal').classList.remove('hidden');
+}
+
+async function submitB2BOrders() {
+    const splitOrders = [];
+    Object.keys(b2bCart).forEach(id => {
+        const qty = b2bCart[id];
+        const p = b2bCatalogCache.find(x => String(x.id) === String(id));
+        if (p) {
+            let existing = splitOrders.find(o => o.supplierId === p.supplier_id);
+            if (!existing) {
+                existing = { supplierId: p.supplier_id, items: [], totalAmount: 0 };
+                splitOrders.push(existing);
+            }
+            const rowTotal = p.price * qty;
+            existing.items.push({ id: p.id, name: p.name, quantity: qty, unit: p.unit_type, price_per_unit: p.price, row_total: rowTotal });
+            existing.totalAmount += rowTotal;
+        }
+    });
+
+    const btn = getEl('btn-submit-b2b-orders');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר הזמנות...';
+
+    try {
+        const res = await fetch(`${API}/b2b/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders })
+        });
+        const data = await res.json();
+        if (data.success) {
+            triggerConfetti();
+            showToast('success', 'ההזמנה שוגרה ופוצלה אוטומטית לספקים!');
+            getEl('b2b-checkout-modal').classList.add('hidden');
+            b2bCart = {}; 
+            updateB2BCartUI();
+            renderB2BCatalog(); 
+            switchProcurementTab('rfq'); // פותח אוטומטית את היסטוריית ההזמנות!
+        } else { showToast('error', data.error || 'שגיאה בשיגור ההזמנות'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות מפוצלות <i class="fa-solid fa-paper-plane"></i>'; }
+}
+
+// -----------------------------------------
+// היסטוריית הזמנות רכש מפוצלות
+// -----------------------------------------
+async function fetchB2BOrders() {
+    try {
+        const res = await fetch(`${API}/b2b/orders/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            b2bOrdersHistory = data.orders || [];
+            renderB2BOrders();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderB2BOrders() {
+    const list = getEl('b2b-orders-list');
+    if (!list) return;
+    
+    if (b2bOrdersHistory.length === 0) {
+        list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין היסטוריית הזמנות במערכת.</p></div>';
+        return;
+    }
+    
+    let html = '';
+    const statusMap = {
+        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' },
+        'processing': { t: 'בטיפול', c: 'bg-orange-100 text-orange-700 border-orange-200' },
+        'shipped': { t: 'במשלוח', c: 'bg-purple-100 text-purple-700 border-purple-200' },
+        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 border-green-200' },
+        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' }
+    };
+
+    b2bOrdersHistory.forEach(o => {
+        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+        const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+        const st = statusMap[o.status] || { t: o.status, c: 'bg-slate-100 text-slate-600 border-slate-200' };
+        const creator = o.creator_name ? `<span class="text-[10px] text-slate-400 block mt-1"><i class="fa-regular fa-user"></i> הזמין: ${safeStr(o.creator_name)}</span>` : '';
+
+        let itemsHtml = items.map(i => `
+            <div class="flex justify-between text-xs border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition px-1">
+                <span class="text-slate-700">${safeStr(i.name)} <span class="text-[10px] font-bold text-slate-400 ml-1">x${i.quantity}</span></span>
+                <span class="font-bold text-slate-800">₪${i.row_total.toFixed(2)}</span>
+            </div>`).join('');
+
+        let actionsHtml = '';
+        if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
+            actionsHtml = `
+            <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                <button onclick="updateB2BOrderStatus(${o.id}, 'processing')" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100">סטטוס 'בטיפול'</button>
+                <button onclick="updateB2BOrderStatus(${o.id}, 'delivered')" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-check"></i> התקבל מלאי (סגור)</button>
+            </div>`;
+        }
+
+        html += `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                    ${creator}
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                    <span class="text-[10px] font-bold ${st.c} px-2.5 py-1 rounded-lg border shadow-sm">${st.t}</span>
+                </div>
+            </div>
+            
+            <div id="b2b-order-items-${o.id}" class="hidden">
+                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-3 mb-1">
+                    ${itemsHtml}
+                </div>
+                <div class="flex justify-end gap-2 mt-2 px-1">
+                    ${o.supplier_phone ? `<a href="https://wa.me/${o.supplier_phone.replace(/\D/g,'')}?text=בקשר להזמנה מ-${dateStr}" target="_blank" class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> דבר עם הספק</a>` : ''}
+                    ${o.supplier_email ? `<a href="mailto:${o.supplier_email}" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg hover:bg-blue-100 transition"><i class="fa-solid fa-envelope"></i> שלח במייל</a>` : ''}
+                </div>
+                ${actionsHtml}
             </div>
         </div>`;
     });
     list.innerHTML = html;
 }
 
-function resetCatalogForm() {
-    getEl('catalog-product-id').value = '';
-    getEl('cat-prod-name').value = '';
-    getEl('cat-prod-price').value = '';
-    getEl('cat-prod-unit').value = "יח'";
-    getEl('cat-prod-upp').value = 1;
-    getEl('cat-prod-desc').value = '';
-    getEl('catalog-form-title').innerText = 'הוספת מוצר לקטלוג';
-    getEl('btn-submit-cat-prod').innerText = 'הוסף מוצר';
-}
-
-function editSupplierProduct(id) {
-    const p = currentSupplierProducts.find(x => x.id === id);
-    if (!p) return;
-    getEl('catalog-product-id').value = p.id;
-    getEl('cat-prod-name').value = p.name;
-    getEl('cat-prod-price').value = p.price;
-    getEl('cat-prod-unit').value = p.unit_type;
-    getEl('cat-prod-upp').value = p.units_per_package || 1;
-    getEl('cat-prod-desc').value = p.description || '';
-    
-    getEl('catalog-form-title').innerText = 'עריכת מוצר';
-    getEl('btn-submit-cat-prod').innerText = 'שמור שינויים';
-}
-
-async function submitSupplierProduct() {
-    const supplierId = val('catalog-supplier-id');
-    const id = val('catalog-product-id');
-    const name = val('cat-prod-name');
-    const price = val('cat-prod-price');
-    
-    if(!name || !price) return showToast('error', 'שם מוצר ומחיר הם חובה');
-    
-    const btn = getEl('btn-submit-cat-prod');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
-    
+async function updateB2BOrderStatus(id, status) {
+    if (status === 'delivered') {
+        if(!confirm('האם לאשר קבלת סחורה? פעולה זו סוגרת את ההזמנה לחלוטין ולא ניתנת לביטול.')) return;
+    }
     try {
-        const payload = {
-            id: id || null,
-            groupId: currentGroup.id,
-            supplierId: supplierId,
-            name: name,
-            price: parseFloat(price) || 0,
-            unitType: val('cat-prod-unit'),
-            unitsPerPackage: parseInt(val('cat-prod-upp')) || 1,
-            description: val('cat-prod-desc')
-        };
-        
-        const res = await fetch(`${API}/suppliers/products`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', id ? 'מוצר עודכן' : 'מוצר נוסף לקטלוג הספק');
-            resetCatalogForm();
-            openSupplierCatalog(supplierId, getEl('catalog-supplier-name').innerText); // רענון מהשרת
-        } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
-}
-
-async function deleteSupplierProduct(id) {
-    if(!confirm('למחוק מוצר מהקטלוג?')) return;
-    try {
-        await fetch(`${API}/suppliers/products/${id}`, { method: 'DELETE' });
-        showToast('success', 'המוצר הוסר');
-        openSupplierCatalog(getEl('catalog-supplier-id').value, getEl('catalog-supplier-name').innerText); // רענון
-    } catch(e) {}
-}
-
-// קורא חשבוניות וסורק אוטומטי לקטלוג (יופעל בגרסה עתידית עם מנוע ה-Vision שלנו)
-function handleAICatalogUpload(event) {
-    showToast('info', 'הסריקה החכמה של החשבוניות תופעל מיד כנסיים את עגלת הקניות בפעימה הבאה!');
-    event.target.value = '';
+        await fetch(`${API}/b2b/orders/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status}) });
+        showToast('success', 'סטטוס ההזמנה התעדכן בהצלחה!');
+        if(status === 'delivered') triggerConfetti();
+        fetchB2BOrders();
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת בעדכון סטטוס'); }
 }
