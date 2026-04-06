@@ -3793,6 +3793,9 @@ function renderSuppliers() {
             } else { daysHtml = '<span class="text-[9px] text-slate-400">לא הוגדרו ימים</span>'; }
         }
 
+        // תיקון קריטי: העברת השם כ-data attribute למניעת שבירת ה-HTML
+        const cleanNameForHtml = (s.name || '').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
         html += `
         <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition">
             <div>
@@ -3810,7 +3813,7 @@ function renderSuppliers() {
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="openSupplierCatalog(${s.id}, '${safeStr(s.name)}')" class="flex-[2] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-100 shadow-sm"><i class="fa-solid fa-boxes-stacked"></i> קטלוג מוצרים</button>
+                <button onclick="openSupplierCatalog(${s.id}, this.getAttribute('data-name'))" data-name="${cleanNameForHtml}" class="flex-[2] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-100 shadow-sm"><i class="fa-solid fa-boxes-stacked"></i> קטלוג מוצרים</button>
                 <button onclick="deleteSupplier(${s.id})" class="flex-1 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 py-2 rounded-xl text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
             </div>
         </div>`;
@@ -4368,21 +4371,39 @@ async function submitB2BOrders() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
+// הורדת PDF ידנית מתוקנת (הכפתור יגיב כראוי)
+// הורדת PDF ידנית מתוקנת (הכפתור יגיב כראוי)
 async function downloadOrderPDFManual(orderId) {
-    const order = b2bOrdersHistory.find(o => o.id === orderId); if(!order) return;
-    const supData = suppliersList.find(s => s.id === order.supplier_id) || {};
-    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    console.log("Generating PDF for order:", orderId);
+    // שימוש בהשוואת מחרוזות למניעת פספוס של ה-ID
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
+    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
+    
+    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
+    let items = [];
+    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
     
     const fakeOrderInfo = {
-        supplierName: order.supplier_name, customerNumber: supData.customer_number || '',
-        items: items, totalAmount: parseFloat(order.total_amount)
+        supplierName: order.supplier_name || 'ספק כללי', 
+        customerNumber: supData.customer_number || '',
+        items: items, 
+        totalAmount: parseFloat(order.total_amount) || 0
     };
-    showToast('info', 'מכין מסמך להורדה...');
+    
+    showToast('info', 'מכין מסמך להורדה, אנא המתן...');
     const pdfBase64 = await generateOrderPDFBase64(fakeOrderInfo);
+    
     if(pdfBase64) {
-        const link = document.createElement('a'); link.href = 'data:application/pdf;base64,' + pdfBase64; link.download = `Purchase_Order_${order.id}.pdf`; link.click();
-    } else showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שיש אינטרנט רציף.');
-}
+        const link = document.createElement('a'); 
+        link.href = 'data:application/pdf;base64,' + pdfBase64; 
+        link.download = `Purchase_Order_${order.id}.pdf`; 
+        document.body.appendChild(link); // חייב להוסיף ל-DOM כדי שהלחיצה תעבוד בדפדפנים מודרניים
+        link.click();
+        document.body.removeChild(link);
+        showToast('success', 'הורדת המסמך החלה');
+    } else { 
+        showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שאתה מחובר לאינטרנט.'); 
+    }
 }
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
