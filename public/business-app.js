@@ -4198,16 +4198,6 @@ async function generateOrderPDFBase64(orderInfo) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
-            const container = document.createElement('div');
-            container.style.direction = 'rtl';
-            container.style.fontFamily = 'Arial, sans-serif';
-            container.style.padding = '30px';
-            container.style.color = '#1e293b';
-            container.style.width = '800px'; 
-            container.style.position = 'absolute';
-            container.style.top = '0';
-            container.style.left = '-9999px'; // מחוץ למסך הגלוי
-            
             let itemsHtml = orderInfo.items.map(i => `
                 <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="padding: 10px;">${safeStr(i.name)}</td>
@@ -4217,36 +4207,38 @@ async function generateOrderPDFBase64(orderInfo) {
                 </tr>
             `).join('');
 
-            const customerNumStr = orderInfo.customerNumber ? `<p><strong>מספר לקוח שלנו אצלכם:</strong> <span style="background:#eef2ff; padding:2px 8px; border-radius:4px; color:#4f46e5;">${safeStr(orderInfo.customerNumber)}</span></p>` : '';
+            const customerNumStr = orderInfo.customerNumber ? `<p><strong>מספר לקוח:</strong> <span style="background:#eef2ff; padding:2px 8px; border-radius:4px; color:#4f46e5;">${safeStr(orderInfo.customerNumber)}</span></p>` : '';
+            const branchStr = orderInfo.branchName ? `<p><strong>עבור סניף:</strong> ${safeStr(orderInfo.branchName)}</p>` : '';
 
-            container.innerHTML = `
-                <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
-                    <h1 style="color: #4f46e5; margin: 0;">הזמנת רכש מרוכזת</h1>
-                    <p style="margin: 5px 0 0 0; color: #64748b;">הופק ע"י: <b>${safeStr(currentGroup.name)}</b> (מערכת Oneflow BIZ)</p>
-                </div>
-                <div style="margin-bottom: 30px; font-size: 14px;">
-                    <p><strong>תאריך הפקה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
-                    <p><strong>עבור ספק:</strong> ${safeStr(orderInfo.supplierName)}</p>
-                    ${customerNumStr}
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                    <thead>
-                        <tr style="background-color: #f1f5f9; text-align: right;">
-                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">תיאור פריט</th>
-                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">כמות</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">מחיר ליח'</th>
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">סה"כ שורה</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <div style="margin-top: 30px; text-align: left; padding-top: 15px; border-top: 2px solid #e2e8f0;">
-                    <h2 style="margin: 0; color: #0f172a;">סה"כ לתשלום משוער: <span dir="ltr">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+            // שימוש ישיר ב-HTML String במקום הזרקה ל-DOM מונע קריסה ומבטיח שהמסמך מתמלא בנתונים
+            const htmlString = `
+                <div style="direction: rtl; font-family: Arial, sans-serif; padding: 30px; color: #1e293b; width: 800px; background: white;">
+                    <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
+                        <h1 style="color: #4f46e5; margin: 0;">הזמנת רכש מרוכזת</h1>
+                        <p style="margin: 5px 0 0 0; color: #64748b;">הופק ע"י: <b>${safeStr(currentGroup.name)}</b></p>
+                    </div>
+                    <div style="margin-bottom: 30px; font-size: 14px;">
+                        <p><strong>תאריך שליחה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
+                        <p><strong>עבור ספק:</strong> ${safeStr(orderInfo.supplierName)}</p>
+                        ${branchStr}
+                        ${customerNumStr}
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9; text-align: right;">
+                                <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">תיאור פריט</th>
+                                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">כמות</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">מחיר ליח'</th>
+                                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">סה"כ שורה</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                    <div style="margin-top: 30px; text-align: left; padding-top: 15px; border-top: 2px solid #e2e8f0;">
+                        <h2 style="margin: 0; color: #0f172a;">סה"כ לתשלום משוער: <span dir="ltr">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                    </div>
                 </div>
             `;
-
-            // חשוב: צירוף ל-DOM
-            document.body.appendChild(container); 
 
             const opt = { 
                 margin: 10, 
@@ -4257,17 +4249,14 @@ async function generateOrderPDFBase64(orderInfo) {
             };
             
             const timeoutId = setTimeout(() => {
-                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null);
-            }, 8000);
+            }, 10000);
 
-            html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
+            html2pdf().set(opt).from(htmlString).outputPdf('datauristring').then(base64Str => {
                 clearTimeout(timeoutId);
-                if (document.body.contains(container)) document.body.removeChild(container);
                 if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]); else resolve(null);
             }).catch(err => { 
                 clearTimeout(timeoutId); 
-                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null); 
             });
         } catch(err) { resolve(null); }
@@ -4287,6 +4276,7 @@ async function loadHtml2Pdf() {
 }
 
 async function submitB2BOrders() {
+    const branchNameVal = val('checkout-branch') || ''; // שואב את שם הסניף שהוקלד בטופס הסיום
     const splitOrders = [];
     Object.keys(b2bCart).forEach(id => {
         const qty = b2bCart[id]; const p = b2bCatalogCache.find(x => String(x.id) === String(id));
@@ -4294,7 +4284,7 @@ async function submitB2BOrders() {
             let existing = splitOrders.find(o => o.supplierId === p.supplier_id);
             if (!existing) {
                 const supData = suppliersList.find(s => s.id === p.supplier_id) || {};
-                existing = { supplierId: p.supplier_id, supplierName: p.supplier_name, customerNumber: supData.customer_number || '', items: [], totalAmount: 0 };
+                existing = { supplierId: p.supplier_id, supplierName: p.supplier_name, branchName: branchNameVal, customerNumber: supData.customer_number || '', items: [], totalAmount: 0 };
                 splitOrders.push(existing);
             }
             const rowTotal = p.price * qty;
@@ -4306,22 +4296,15 @@ async function submitB2BOrders() {
     const btn = getEl('btn-submit-b2b-orders'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים...';
 
     try {
-        for (let order of splitOrders) { 
-            try { 
-                order.pdfBase64 = await generateOrderPDFBase64(order); 
-            } catch(pdfErr) { 
-                order.pdfBase64 = null; 
-            } 
-        }
+        for (let order of splitOrders) { try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; } }
         const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
         const data = await res.json();
         if (data.success) {
-            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים (כולל PDF)!'); getEl('b2b-checkout-modal').classList.add('hidden');
+            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים (כולל מסמך ה-PDF)!'); getEl('b2b-checkout-modal').classList.add('hidden');
             b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq'); 
         } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
-
 async function downloadOrderPDFManual(orderId) {
     showToast('info', 'מכין מסמך להורדה, אנא המתן...');
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
@@ -4334,6 +4317,7 @@ async function downloadOrderPDFManual(orderId) {
     const fakeOrderInfo = {
         supplierName: order.supplier_name || 'ספק כללי', 
         customerNumber: supData.customer_number || '',
+        branchName: order.branch_name || '', // שולף את שם הסניף מההיסטוריה
         items: items, 
         totalAmount: parseFloat(order.total_amount) || 0
     };
@@ -4352,7 +4336,6 @@ async function downloadOrderPDFManual(orderId) {
         showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שאתה מחובר לאינטרנט.'); 
     }
 }
-
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
 // -----------------------------------------
