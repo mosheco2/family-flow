@@ -2065,22 +2065,27 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
 });
 
 // =========================================================
-// פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת
+// פונקציית מערכת המיילים לספקים (B2B Orders) - דרך משתני סביבה
 // =========================================================
 app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
-        // שימוש באותן הגדרות עובדות כמו ב- sendSystemEmail
-        const user = 'mcgames1978@gmail.com';
-        const pass = 'gkoo yhnp qbfz hnzl';
+        // שימוש במשתני הסביבה שהוגדרו ב-Render! ללא סיסמאות חשופות.
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
         
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: { user: user, pass: pass }
-        });
+        let transporter = null;
+        if (user && pass) {
+            transporter = nodemailer.createTransport({
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: { user: user, pass: pass }
+            });
+        } else {
+            console.error('⚠️ חסרים משתני סביבה SMTP_USER או SMTP_PASS ב-Render.');
+        }
         
         for (let order of orders) {
             // 1. שמירה במסד הנתונים
@@ -2094,7 +2099,7 @@ app.post('/api/b2b/orders', async (req, res) => {
             const supplier = supplierRes.rows[0];
 
             // 2. שילוח המייל לספק עם קובץ ה-PDF
-            if (supplier && supplier.email && order.pdfBase64) {
+            if (supplier && supplier.email && order.pdfBase64 && transporter) {
                 const mailOptions = {
                     from: `"מערכת רכש Oneflow" <${user}>`, 
                     to: supplier.email,
@@ -2122,9 +2127,11 @@ app.post('/api/b2b/orders', async (req, res) => {
         }
         
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error("Order Submit Error:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
-
 app.get('/api/b2b/orders/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
