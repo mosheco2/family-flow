@@ -2113,6 +2113,64 @@ app.delete('/api/suppliers/products/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// ==========================================
+// --- B2B Marketplace & Orders (עגלה מפוצלת) ---
+// ==========================================
+
+// שליפת קטלוג B2B מלא (כל המוצרים של כל הספקים)
+app.get('/api/b2b/catalog/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT sp.*, s.name as supplier_name, s.min_order, s.delivery_days, s.cutoff_time
+            FROM supplier_products sp
+            JOIN suppliers s ON sp.supplier_id = s.id
+            WHERE sp.group_id = $1 AND sp.is_active = TRUE
+            ORDER BY s.name ASC, sp.name ASC
+        `, [req.params.groupId]);
+        res.json({ success: true, catalog: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הזמנות מפוצלות מרובות (פיצול לספקים)
+app.post('/api/b2b/orders', async (req, res) => {
+    try {
+        const { groupId, userId, orders } = req.body;
+        // orders הוא מערך שמכיל הזמנה לכל ספק נפרד: [{ supplierId, items: [...], totalAmount }, ...]
+        
+        for (let order of orders) {
+            await pool.query(`
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
+                VALUES ($1, $2, $3, $4, $5, 'sent')
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
+        }
+        
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת היסטוריית הזמנות רכש B2B
+app.get('/api/b2b/orders/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT po.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone, u.nickname as creator_name
+            FROM purchase_orders po
+            JOIN suppliers s ON po.supplier_id = s.id
+            LEFT JOIN users u ON po.created_by = u.id
+            WHERE po.group_id = $1
+            ORDER BY po.created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, orders: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס הזמנת רכש (למשל: סופק, בטיפול)
+app.put('/api/b2b/orders/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        await pool.query('UPDATE purchase_orders SET status = $1 WHERE id = $2', [status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // הוספת בקשת רכש חדשה (RFQ) ומחיקת הפריטים מרשימת הקניות הפתוחה
 app.post('/api/rfq', async (req, res) => {
     try {
