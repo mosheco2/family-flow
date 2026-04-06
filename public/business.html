@@ -1378,6 +1378,34 @@
             </div>
         </div>
 
+        <div id="rfq-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll slide-up">
+                <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
+                    <h3 class="text-xl font-black text-slate-800">הפקת הזמנת רכש 📝</h3>
+                    <button onclick="document.getElementById('rfq-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="bg-blue-50 p-3 rounded-xl mb-4 border border-blue-100 flex items-center justify-between">
+                    <span class="text-sm font-bold text-blue-800">פריטים נבחרים לרכש:</span>
+                    <span id="rfq-item-count" class="bg-blue-600 text-white px-2 py-0.5 rounded-md text-xs font-black">0</span>
+                </div>
+
+                <div class="mb-6">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">לאיזה ספק לשייך את ההזמנה?</label>
+                    <select id="rfq-supplier-select" class="modern-input py-3 text-sm bg-slate-50 border-slate-200 text-slate-800 font-bold focus:bg-white"></select>
+                </div>
+                
+                <div class="flex justify-between items-center mb-6 px-1">
+                    <span class="text-sm font-bold text-slate-500">עלות משוערת:</span>
+                    <span id="rfq-est-total" class="text-xl font-black text-slate-800 dir-ltr">₪0.00</span>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('rfq-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-rfq" onclick="submitRFQ()" class="flex-[2] bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">אישור והפקה <i class="fa-solid fa-check"></i></button>
+                </div>
+            </div>
+        </div>
         <div id="paste-list-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <h3 class="text-lg font-bold mb-2 text-center text-slate-800">ייבוא רשימת דרישות 📋</h3>
