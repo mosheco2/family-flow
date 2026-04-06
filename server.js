@@ -2071,7 +2071,7 @@ app.post('/api/b2b/orders', async (req, res) => {
     try {
         const { groupId, userId, orders } = req.body;
         
-        // שימוש במשתני הסביבה שהוגדרו ב-Render! ללא סיסמאות חשופות.
+        // משיכת המייל והסיסמה מתוך משתני הסביבה של Render (ללא סיסמאות חשופות!)
         const user = process.env.SMTP_USER;
         const pass = process.env.SMTP_PASS;
         
