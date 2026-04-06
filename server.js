@@ -2063,15 +2063,17 @@ app.get('/api/b2b/catalog/:groupId', async (req, res) => {
         res.json({ success: true, catalog: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 // =========================================================
-// פונקציית מערכת המיילים לספקים (B2B Orders) - דרך משתני סביבה
+// פונקציית מערכת המיילים לספקים (B2B Orders) - תקין ומאובטח
 // =========================================================
 app.post('/api/b2b/orders', async (req, res) => {
+    let dbClient;
     try {
         const { groupId, userId, orders } = req.body;
         
-        // משיכת המייל והסיסמה מתוך משתני הסביבה של Render (ללא סיסמאות חשופות!)
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
         const user = process.env.SMTP_USER;
         const pass = process.env.SMTP_PASS;
         
@@ -2083,22 +2085,18 @@ app.post('/api/b2b/orders', async (req, res) => {
                 secure: true,
                 auth: { user: user, pass: pass }
             });
-        } else {
-            console.error('⚠️ חסרים משתני סביבה SMTP_USER או SMTP_PASS ב-Render.');
         }
         
         for (let order of orders) {
-            // 1. שמירה במסד הנתונים
-            const result = await pool.query(`
+            const result = await dbClient.query(`
                 INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
                 VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
             `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
             
             const newOrderId = result.rows[0].id;
-            const supplierRes = await pool.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
+            const supplierRes = await dbClient.query('SELECT name, email FROM suppliers WHERE id = $1', [order.supplierId]);
             const supplier = supplierRes.rows[0];
 
-            // 2. שילוח המייל לספק עם קובץ ה-PDF
             if (supplier && supplier.email && order.pdfBase64 && transporter) {
                 const mailOptions = {
                     from: `"מערכת רכש Oneflow" <${user}>`, 
@@ -2119,19 +2117,23 @@ app.post('/api/b2b/orders', async (req, res) => {
 
                 try {
                     await transporter.sendMail(mailOptions);
-                    console.log(`✅ Email sent successfully to ${supplier.email} for order #${newOrderId}`);
                 } catch (mailErr) {
                     console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
                 }
             }
         }
         
+        await dbClient.query('COMMIT');
         res.json({ success: true });
     } catch(e) { 
+        if (dbClient) await dbClient.query('ROLLBACK');
         console.error("Order Submit Error:", e);
         res.status(500).json({ error: e.message }); 
+    } finally {
+        if (dbClient) dbClient.release();
     }
 });
+
 app.get('/api/b2b/orders/:groupId', async (req, res) => {
     try {
         const result = await pool.query(`
