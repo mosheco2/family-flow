@@ -766,32 +766,37 @@
                                 <button id="btn-proc-suppliers" onclick="switchProcurementTab('suppliers')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">מאגר ספקים</button>
                             </div>
 
-                            <div id="proc-view-list" class="space-y-4">
-                                <div class="flex gap-2">
-                                    <button onclick="startBarcodeScan('shop')" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition shadow-sm"><i class="fa-solid fa-barcode"></i> סרוק</button>
-                                    <button onclick="openShopModal()" class="flex-1 bg-pink-500 text-white py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-pink-600 transition"><i class="fa-solid fa-plus"></i> הוסף פריט</button>
-                                    <button onclick="openPasteListModal()" class="flex-1 bg-blue-50 text-blue-600 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition border border-blue-100"><i class="fa-solid fa-paste"></i> הדבק</button>
+   <div id="proc-view-list" class="space-y-4">
+                                <div class="flex gap-2 mb-2">
+                                    <div class="relative flex-1">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="b2b-search" onkeyup="renderB2BCatalog()" placeholder="חיפוש מוצר בחנות הספקים..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pr-9 pl-3 text-sm outline-none focus:border-indigo-500 transition font-bold text-slate-700">
+                                    </div>
+                                    <select id="b2b-supplier-filter" onchange="renderB2BCatalog()" class="bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm outline-none focus:border-indigo-500 transition w-1/3 font-bold text-slate-600 truncate">
+                                        <option value="all">כל הספקים</option>
+                                    </select>
                                 </div>
-                                <div class="flex justify-between items-center px-1 mt-2" id="admin-shop-tools">
-                                    <button onclick="toggleSelectAll()" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">בחר הכל</button>
-                                    <button onclick="clearEntireCart()" class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"><i class="fa-solid fa-trash-can"></i> נקה רשימה</button>
-                                </div>
-                                <div id="shop-requests-container" class="hidden mb-4 bg-orange-50 p-3 rounded-2xl border border-orange-100 shadow-sm">
-                                    <h4 id="req-title" class="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> ממתינים לאישור</h4>
-                                    <div id="shop-requests-list" class="space-y-2"></div>
-                                </div>
-                                <div id="shop-list" class="space-y-3 min-h-[150px]"></div>
                                 
-                                <div class="border-t border-slate-100 pt-4 mt-4">
-                                    <button onclick="openRFQModal()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex justify-center items-center gap-2">
-                                        <i class="fa-solid fa-file-invoice"></i> הפק בקשת הצעת מחיר (RFQ) מהנבחרים
+                                <div id="b2b-catalog-list" class="space-y-3 min-h-[300px] pb-24">
+                                    </div>
+                                
+                                <div class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center z-50 transition-transform duration-300 transform translate-y-full" id="b2b-cart-floating">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-indigo-500 w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shadow-inner" id="b2b-cart-count">0</div>
+                                        <div>
+                                            <p class="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-0.5">סה"כ בעגלה</p>
+                                            <p class="font-black text-xl leading-none dir-ltr text-left" id="b2b-cart-total">₪0.00</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="openB2BCheckout()" class="bg-white text-slate-900 px-5 py-2.5 rounded-xl font-bold shadow hover:bg-slate-100 transition active:scale-95 flex items-center gap-2">
+                                        סיום הזמנה <i class="fa-solid fa-arrow-left"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            <div id="proc-view-rfq" class="hidden space-y-4">
-                                <div id="rfq-list" class="space-y-3 min-h-[150px]">
-                                    <p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין בקשות הצעת מחיר פתוחות.</p>
+                            <div id="proc-view-rfq" class="hidden space-y-4 pb-12">
+                                <div id="b2b-orders-list" class="space-y-3 min-h-[150px]">
+                                    <p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות רכש פעילות.</p>
                                 </div>
                             </div>
 
