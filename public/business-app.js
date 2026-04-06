@@ -3819,6 +3819,11 @@ function renderSuppliers() {
 }
 
 function openSupplierModal(id = null) {
+    if (!getEl('supplier-customer-number')) {
+        const minOrderDiv = getEl('supplier-min-order').parentNode;
+        minOrderDiv.insertAdjacentHTML('afterend', `<div><label class="text-xs font-bold text-slate-500 block mb-1.5">מספר לקוח (אצל הספק):</label><input type="text" id="supplier-customer-number" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="למשל: 102938"></div>`);
+    }
+
     if (id) {
         const s = suppliersList.find(x => x.id === id);
         if (!s) return;
@@ -3830,6 +3835,7 @@ function openSupplierModal(id = null) {
         getEl('supplier-category').value = s.category || 'כללי';
         getEl('supplier-min-order').value = s.min_order || 0;
         getEl('supplier-cutoff').value = s.cutoff_time ? s.cutoff_time.substring(0, 5) : '12:00';
+        getEl('supplier-customer-number').value = s.customer_number || '';
         
         let daysArr = [];
         try { daysArr = typeof s.delivery_days === 'string' ? JSON.parse(s.delivery_days) : s.delivery_days; } catch(e){}
@@ -3843,6 +3849,7 @@ function openSupplierModal(id = null) {
         getEl('supplier-category').value = 'כללי';
         getEl('supplier-min-order').value = 0;
         getEl('supplier-cutoff').value = '12:00';
+        getEl('supplier-customer-number').value = '';
         document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]').forEach(cb => cb.checked = false);
     }
     getEl('supplier-modal').classList.remove('hidden');
@@ -3866,7 +3873,8 @@ async function submitSupplier() {
         category: val('supplier-category'),
         minOrder: parseFloat(val('supplier-min-order')) || 0, 
         cutoffTime: val('supplier-cutoff') || '12:00', 
-        deliveryDays: deliveryDays
+        deliveryDays: deliveryDays,
+        customerNumber: val('supplier-customer-number')
     };
 
     const btn = getEl('btn-submit-supplier'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...';
@@ -3876,6 +3884,8 @@ async function submitSupplier() {
         if (data.success) { showToast('success', id ? 'עודכן בהצלחה!' : 'הספק נוסף בהצלחה למאגר!'); getEl('supplier-modal').classList.add('hidden'); fetchSuppliers(); } else { showToast('error', data.error); }
     } catch (e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור פרטי ספק'; }
 }
+
+async function deleteSupplier(id) {
 
 async function deleteSupplier(id) {
     if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
@@ -4205,15 +4215,76 @@ async function generateOrderPDFBase64(orderInfo) {
     });
 }
 
+// פונקציה לייצור PDF עם שם הלקוח ומספר הלקוח
+async function generateOrderPDFBase64(orderInfo) {
+    return new Promise((resolve) => {
+        try {
+            if (typeof html2pdf === 'undefined') { resolve(null); return; }
+
+            const container = document.createElement('div');
+            container.style.direction = 'rtl';
+            container.style.fontFamily = 'Arial, sans-serif';
+            container.style.padding = '30px';
+            container.style.color = '#1e293b';
+            
+            let itemsHtml = orderInfo.items.map(i => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px;">${safeStr(i.name)}</td>
+                    <td style="padding: 10px; text-align: center;">${i.quantity} ${safeStr(i.unit)}</td>
+                    <td style="padding: 10px; text-align: left;" dir="ltr">₪${i.price_per_unit.toFixed(2)}</td>
+                    <td style="padding: 10px; font-weight: bold; text-align: left;" dir="ltr">₪${i.row_total.toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            const customerNumStr = orderInfo.customerNumber ? `<p><strong>מספר לקוח שלנו אצלכם:</strong> <span style="background:#eef2ff; padding:2px 8px; border-radius:4px; color:#4f46e5;">${safeStr(orderInfo.customerNumber)}</span></p>` : '';
+
+            container.innerHTML = `
+                <div style="border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
+                    <h1 style="color: #4f46e5; margin: 0;">הזמנת רכש מרוכזת</h1>
+                    <p style="margin: 5px 0 0 0; color: #64748b;">הופק ע"י: <b>${safeStr(currentGroup.name)}</b> (מערכת Oneflow BIZ)</p>
+                </div>
+                <div style="margin-bottom: 30px; font-size: 14px;">
+                    <p><strong>תאריך הפקה:</strong> ${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p>
+                    <p><strong>עבור ספק:</strong> ${safeStr(orderInfo.supplierName)}</p>
+                    ${customerNumStr}
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; text-align: right;">
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">תיאור פריט</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid #cbd5e1;">כמות</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">מחיר ליח'</th>
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid #cbd5e1;">סה"כ שורה</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div style="margin-top: 30px; text-align: left; padding-top: 15px; border-top: 2px solid #e2e8f0;">
+                    <h2 style="margin: 0; color: #0f172a;">סה"כ לתשלום משוער: <span dir="ltr">₪${orderInfo.totalAmount.toFixed(2)}</span></h2>
+                </div>
+            `;
+
+            const opt = { margin: 10, filename: 'order.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            
+            const timeoutId = setTimeout(() => resolve(null), 8000);
+            html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
+                clearTimeout(timeoutId);
+                if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]); else resolve(null);
+            }).catch(err => { clearTimeout(timeoutId); resolve(null); });
+        } catch(err) { resolve(null); }
+    });
+}
+
+// שדרוג submitB2BOrders כדי לכלול את מספר הלקוח ולתמוך בהודעת מייל אישית
 async function submitB2BOrders() {
     const splitOrders = [];
     Object.keys(b2bCart).forEach(id => {
-        const qty = b2bCart[id];
-        const p = b2bCatalogCache.find(x => String(x.id) === String(id));
+        const qty = b2bCart[id]; const p = b2bCatalogCache.find(x => String(x.id) === String(id));
         if (p) {
             let existing = splitOrders.find(o => o.supplierId === p.supplier_id);
             if (!existing) {
-                existing = { supplierId: p.supplier_id, supplierName: p.supplier_name, items: [], totalAmount: 0 };
+                const supData = suppliersList.find(s => s.id === p.supplier_id) || {};
+                existing = { supplierId: p.supplier_id, supplierName: p.supplier_name, customerNumber: supData.customer_number || '', items: [], totalAmount: 0 };
                 splitOrders.push(existing);
             }
             const rowTotal = p.price * qty;
@@ -4222,46 +4293,35 @@ async function submitB2BOrders() {
         }
     });
 
-    const btn = getEl('btn-submit-b2b-orders');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים ומשגר...';
+    const btn = getEl('btn-submit-b2b-orders'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים...';
 
     try {
-        // ייצור ה-PDF לכל ספק - עם הגנה! (ימשיך הלאה גם אם ה-PDF נכשל)
-        for (let order of splitOrders) {
-            try {
-                const pdfBase64 = await generateOrderPDFBase64(order);
-                order.pdfBase64 = pdfBase64;
-            } catch(pdfErr) {
-                console.error("Skipping PDF for order due to error:", pdfErr);
-                order.pdfBase64 = null;
-            }
-        }
-
-        const res = await fetch(`${API}/b2b/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders })
-        });
-        
+        for (let order of splitOrders) { try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; } }
+        const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
         const data = await res.json();
-        
         if (data.success) {
-            triggerConfetti();
-            showToast('success', 'ההזמנה שוגרה לספקים בהצלחה!');
-            getEl('b2b-checkout-modal').classList.add('hidden');
-            b2bCart = {}; 
-            updateB2BCartUI();
-            renderB2BCatalog(); 
-            switchProcurementTab('rfq'); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בשיגור ההזמנות'); 
-            console.error("Server returned error:", data.error);
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת רשת - אנא בדוק את החיבור שלך');
-        console.error("Network/Fetch error:", e);
-    } finally { 
-        btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; 
-    }
+            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה!'); getEl('b2b-checkout-modal').classList.add('hidden');
+            b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq'); 
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
+}
+
+// ייצור PDF ידני למסמך קיים (סעיף 2)
+async function downloadOrderPDFManual(orderId) {
+    const order = b2bOrdersHistory.find(o => o.id === orderId); if(!order) return;
+    const supData = suppliersList.find(s => s.id === order.supplier_id) || {};
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    
+    const fakeOrderInfo = {
+        supplierName: order.supplier_name, customerNumber: supData.customer_number || '',
+        items: items, totalAmount: parseFloat(order.total_amount)
+    };
+    showToast('info', 'מכין מסמך להורדה...');
+    const pdfBase64 = await generateOrderPDFBase64(fakeOrderInfo);
+    if(pdfBase64) {
+        const link = document.createElement('a'); link.href = 'data:application/pdf;base64,' + pdfBase64; link.download = `Purchase_Order_${order.id}.pdf`; link.click();
+    } else showToast('error', 'שגיאה ביצירת מסמך PDF');
+}
 }
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
@@ -4278,81 +4338,171 @@ async function fetchB2BOrders() {
 }
 
 function renderB2BOrders() {
-    const list = getEl('b2b-orders-list');
-    if (!list) return;
+    const list = getEl('b2b-orders-list'); if (!list) return;
     
-    if (b2bOrdersHistory.length === 0) {
-        list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין היסטוריית הזמנות במערכת.</p></div>';
-        return;
+    // הוספת סרגל הסינונים (אם לא קיים)
+    if (!getEl('b2b-orders-filters-bar')) {
+        let supOpts = '<option value="all">כל הספקים</option>';
+        suppliersList.forEach(s => supOpts += `<option value="${s.id}">${safeStr(s.name)}</option>`);
+        list.insertAdjacentHTML('beforebegin', `
+            <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
+                <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
+                <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
+                    <option value="all">כל הסטטוסים</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option>
+                </select>
+                <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
+                    <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
+                </select>
+            </div>
+        `);
     }
+
+    const fSup = val('filter-order-sup') || 'all'; const fStat = val('filter-order-status') || 'all'; const fDate = val('filter-order-date') || 'all';
+    
+    let filteredOrders = b2bOrdersHistory;
+    if(fSup !== 'all') filteredOrders = filteredOrders.filter(o => String(o.supplier_id) === fSup);
+    if(fStat !== 'all') filteredOrders = filteredOrders.filter(o => o.status === fStat);
+    if(fDate !== 'all') { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(fDate)); filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); }
+
+    if (filteredOrders.length === 0) { list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; return; }
     
     let html = '';
-    const statusMap = {
-        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' },
-        'processing': { t: 'בטיפול', c: 'bg-orange-100 text-orange-700 border-orange-200' },
-        'shipped': { t: 'במשלוח', c: 'bg-purple-100 text-purple-700 border-purple-200' },
-        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 border-green-200' },
-        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' }
-    };
+    const statusMap = { 'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 'processing': { t: 'בטיפול', c: 'bg-orange-100 text-orange-700' }, 'shipped': { t: 'במשלוח', c: 'bg-purple-100 text-purple-700' }, 'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } };
 
-    b2bOrdersHistory.forEach(o => {
+    filteredOrders.forEach(o => {
         const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
         const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
-        const st = statusMap[o.status] || { t: o.status, c: 'bg-slate-100 text-slate-600 border-slate-200' };
-        const creator = o.creator_name ? `<span class="text-[10px] text-slate-400 block mt-1"><i class="fa-regular fa-user"></i> הזמין: ${safeStr(o.creator_name)}</span>` : '';
+        const st = statusMap[o.status] || { t: o.status, c: 'bg-slate-100 text-slate-600' };
 
-        let itemsHtml = items.map(i => `
-            <div class="flex justify-between text-xs border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition px-1">
-                <span class="text-slate-700">${safeStr(i.name)} <span class="text-[10px] font-bold text-slate-400 ml-1">x${i.quantity}</span></span>
-                <span class="font-bold text-slate-800">₪${i.row_total.toFixed(2)}</span>
-            </div>`).join('');
+        let itemsHtml = items.map(i => `<div class="flex justify-between text-xs border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition px-1"><span class="text-slate-700">${safeStr(i.name)} <span class="text-[10px] font-bold text-slate-400 ml-1">x${i.quantity}</span></span><span class="font-bold text-slate-800">₪${i.row_total.toFixed(2)}</span></div>`).join('');
 
-        let actionsHtml = '';
+        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100"><button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-download"></i> הורד PDF</button>`;
         if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
-            actionsHtml = `
-            <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-                <button onclick="updateB2BOrderStatus(${o.id}, 'processing')" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100">סטטוס 'בטיפול'</button>
-                <button onclick="updateB2BOrderStatus(${o.id}, 'delivered')" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-check"></i> התקבל מלאי (סגור)</button>
-            </div>`;
+            actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
         }
+        actionsHtml += `</div>`;
 
-        html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
+        html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
             <div class="flex justify-between items-start mb-2 cursor-pointer" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
-                <div class="flex-1">
-                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
-                    ${creator}
-                </div>
-                <div class="flex flex-col items-end gap-2">
-                    <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[10px] font-bold ${st.c} px-2.5 py-1 rounded-lg border shadow-sm">${st.t}</span>
-                </div>
+                <div class="flex-1"><h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4><p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p></div>
+                <div class="flex flex-col items-end gap-2"><span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span><span class="text-[10px] font-bold ${st.c} px-2.5 py-1 rounded-lg border shadow-sm">${st.t}</span></div>
             </div>
-            
-            <div id="b2b-order-items-${o.id}" class="hidden">
-                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-3 mb-1">
-                    ${itemsHtml}
-                </div>
-                <div class="flex justify-end gap-2 mt-2 px-1">
-                    ${o.supplier_phone ? `<a href="https://wa.me/${o.supplier_phone.replace(/\D/g,'')}?text=בקשר להזמנה מ-${dateStr}" target="_blank" class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg hover:bg-green-100 transition"><i class="fa-brands fa-whatsapp"></i> דבר עם הספק</a>` : ''}
-                    ${o.supplier_email ? `<a href="mailto:${o.supplier_email}" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg hover:bg-blue-100 transition"><i class="fa-solid fa-envelope"></i> שלח במייל</a>` : ''}
-                </div>
-                ${actionsHtml}
-            </div>
+            <div id="b2b-order-items-${o.id}" class="hidden"><div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-3 mb-1">${itemsHtml}</div>${actionsHtml}</div>
         </div>`;
     });
     list.innerHTML = html;
 }
 
-async function updateB2BOrderStatus(id, status) {
-    if (status === 'delivered') {
-        if(!confirm('האם לאשר קבלת סחורה? פעולה זו סוגרת את ההזמנה לחלוטין ולא ניתנת לביטול.')) return;
+// מודאל ולוגיקת קבלת סחורה מורחבת (מלאי + חוסרים)
+let currentReceiveOrder = null;
+function openReceiveGoodsModal(orderId) {
+    currentReceiveOrder = b2bOrdersHistory.find(o => o.id === orderId);
+    if (!currentReceiveOrder) return;
+    
+    const items = typeof currentReceiveOrder.items === 'string' ? JSON.parse(currentReceiveOrder.items) : currentReceiveOrder.items;
+    
+    // יצירת המודאל דינמית אם לא קיים ב-HTML
+    if (!getEl('receive-goods-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="receive-goods-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative overflow-hidden modal-scroll max-h-[90vh] overflow-y-auto">
+                <button onclick="document.getElementById('receive-goods-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-bold mb-1 text-slate-800 text-center"><i class="fa-solid fa-dolly text-indigo-500"></i> קבלת סחורה (ליקוט)</h3>
+                <p class="text-xs text-slate-500 text-center mb-4">סמן את הכמויות שהתקבלו בפועל. פריטים חסרים יעברו אוטומטית להזמנה חדשה.</p>
+                
+                <div class="bg-indigo-50 p-3 rounded-xl mb-4 border border-indigo-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-indigo-800" id="receive-modal-title"></span>
+                    <button onclick="scanDeliveryNoteAI()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> סרוק תעודה ב-AI</button>
+                    <input type="file" id="delivery-note-upload" accept="image/*" capture="environment" class="hidden" onchange="processDeliveryNoteAI(event)">
+                </div>
+
+                <div id="receive-goods-list" class="space-y-2 mb-6"></div>
+
+                <button id="btn-submit-receive" onclick="submitReceiveGoods()" class="w-full bg-green-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-green-600 transition flex justify-center items-center gap-2">אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i></button>
+            </div>
+        </div>`);
     }
+
+    getEl('receive-modal-title').innerText = `הזמנה #${currentReceiveOrder.id} - ${safeStr(currentReceiveOrder.supplier_name)}`;
+    const actualListEl = document.getElementById('receive-goods-list');
+    
+    actualListEl.innerHTML = items.map((i, idx) => `
+        <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <div class="flex-1 pr-2">
+                <span class="text-sm font-bold text-slate-700 block">${safeStr(i.name)}</span>
+                <span class="text-[10px] text-slate-400">הוזמן: ${i.quantity} ${safeStr(i.unit)}</span>
+            </div>
+            <div class="flex items-center gap-2 pl-2">
+                <label class="text-[10px] font-bold text-slate-500">התקבל:</label>
+                <input type="number" id="receive-qty-${idx}" value="${i.quantity}" max="${i.quantity}" min="0" class="modern-input w-16 py-1 text-center font-bold text-slate-800 border-indigo-200 focus:border-indigo-500">
+            </div>
+        </div>
+    `).join('');
+
+    getEl('receive-goods-modal').classList.remove('hidden');
+}
+
+// שיגור הליקוט לשרת
+async function submitReceiveGoods() {
+    if (!currentReceiveOrder) return;
+    const items = typeof currentReceiveOrder.items === 'string' ? JSON.parse(currentReceiveOrder.items) : currentReceiveOrder.items;
+    
+    const receivedItems = [];
+    const missingItems = [];
+
+    items.forEach((item, idx) => {
+        const receivedQty = parseFloat(getEl(`receive-qty-${idx}`).value) || 0;
+        if (receivedQty > 0) {
+            receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit });
+        }
+        if (receivedQty < item.quantity) {
+            const missingQty = item.quantity - receivedQty;
+            missingItems.push({ name: item.name, qty: missingQty, unit: item.unit, price: item.price_per_unit });
+        }
+    });
+
+    const btn = getEl('btn-submit-receive');
+    btn.disabled = true; btn.innerText = 'מעדכן נתונים...';
+
     try {
-        await fetch(`${API}/b2b/orders/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status}) });
-        showToast('success', 'סטטוס ההזמנה התעדכן בהצלחה!');
-        if(status === 'delivered') triggerConfetti();
-        fetchB2BOrders();
-    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת בעדכון סטטוס'); }
+        const res = await fetch(`${API}/b2b/orders/receive`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ orderId: currentReceiveOrder.id, groupId: currentGroup.id, userId: currentUser.id, receivedItems, missingItems })
+        });
+        const data = await res.json();
+        if (data.success) {
+            triggerConfetti();
+            showToast('success', 'הסחורה התקבלה! המלאי עודכן וחוסרים עברו לדרישות רכש.');
+            getEl('receive-goods-modal').classList.add('hidden');
+            fetchB2BOrders();
+            fetchData(); // מעדכן מלאי ורכש ברקע
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); }
+    finally { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
+}
+
+// קריאת תעודת משלוח עם AI
+function scanDeliveryNoteAI() { getEl('delivery-note-upload').click(); }
+
+function processDeliveryNoteAI(event) {
+    const file = event.target.files[0]; if(!file || !currentReceiveOrder) return;
+    executeWithAIWarning(() => {
+        showAIModal('בודק רכש אוטומטי', null); getEl('familai-loading-text').innerText = 'סורק ומפענח את תעודת המשלוח...';
+        compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
+            const base64 = compressedDataUrl.split(',')[1];
+            try {
+                // אנחנו נשתמש בראוט scan-receipt הקיים
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) });
+                const data = await res.json();
+                
+                if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
+                
+                if(data.success && data.count > 0) {
+                    showToast('success', 'סריקה הושלמה! אנא ודא שהכמויות מדויקות.');
+                    showAIModal('בקרת AI', 'סרקתי את התעודה! כרגע המערכת דורשת מעבר ידני על הכמויות כדי לוודא שאין חוסרים שלא הבחנתי בהם. התאמה אוטומטית תצא בקרוב.');
+                } else { showToast('error', 'לא הצלחתי לקרוא כמויות ברורות מהתעודה.'); getEl('familai-advisor-modal').classList.add('hidden'); }
+            } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת.'); }
+            event.target.value = '';
+        });
+    });
 }
