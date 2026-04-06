@@ -1266,23 +1266,23 @@ async function fetchData() {
         } catch(e) { allTransactions = []; }
 
         try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); } catch(e) {}
-        try { try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e) {}
-        
-        try {
-            const cashTab = document.getElementById('tab-cashflow'); 
-            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
-        } catch(e) {}
-        
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
-
+        try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catch(e) {}
+        
+        try {
+            const cashTab = document.getElementById('tab-cashflow'); 
+            if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow();
+        } catch(e) {}
+        
+        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+        
         // טעינת נתוני רכש מראש כדי למנוע טאבים ריקים בפתיחה ראשונה
         try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
         try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
         try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+    } catch(e) {
+        console.error("Fetch data error:", e);
+    }
 }
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
