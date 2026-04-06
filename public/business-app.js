@@ -3827,6 +3827,7 @@ function openSupplierModal(id = null) {
         getEl('supplier-contact').value = s.contact_person || '';
         getEl('supplier-phone').value = s.phone || '';
         getEl('supplier-email').value = s.email || '';
+        getEl('supplier-category').value = s.category || 'כללי';
         getEl('supplier-min-order').value = s.min_order || 0;
         getEl('supplier-cutoff').value = s.cutoff_time ? s.cutoff_time.substring(0, 5) : '12:00';
         
@@ -3839,6 +3840,7 @@ function openSupplierModal(id = null) {
         getEl('supplier-contact').value = '';
         getEl('supplier-phone').value = '';
         getEl('supplier-email').value = '';
+        getEl('supplier-category').value = 'כללי';
         getEl('supplier-min-order').value = 0;
         getEl('supplier-cutoff').value = '12:00';
         document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]').forEach(cb => cb.checked = false);
@@ -3855,8 +3857,16 @@ async function submitSupplier() {
     document.querySelectorAll('#supplier-delivery-days input[type="checkbox"]:checked').forEach(cb => { deliveryDays.push(parseInt(cb.value)); });
     
     const payload = {
-        id: id || null, groupId: currentGroup.id, name: name, contactPerson: val('supplier-contact'), phone: val('supplier-phone'), email: val('supplier-email'),
-        minOrder: parseFloat(val('supplier-min-order')) || 0, cutoffTime: val('supplier-cutoff') || '12:00', deliveryDays: deliveryDays
+        id: id || null, 
+        groupId: currentGroup.id, 
+        name: name, 
+        contactPerson: val('supplier-contact'), 
+        phone: val('supplier-phone'), 
+        email: val('supplier-email'),
+        category: val('supplier-category'),
+        minOrder: parseFloat(val('supplier-min-order')) || 0, 
+        cutoffTime: val('supplier-cutoff') || '12:00', 
+        deliveryDays: deliveryDays
     };
 
     const btn = getEl('btn-submit-supplier'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...';
