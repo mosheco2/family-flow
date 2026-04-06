@@ -137,33 +137,32 @@ function applyBannersToDOM(banners) {
                 html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover z-0">`; 
             }
             if(text) {
-                html += `<div class="absolute inset-0 bg-black/20 z-0"></div>`; // רקע עדין לטקסט כדי שיהיה קריא
+                html += `<div class="absolute inset-0 bg-black/20 z-0"></div>`; 
                 html += `<span class="relative z-10 py-3 px-4 block w-full text-center drop-shadow-md text-white font-bold">${text}</span>`; 
             }
-            el.innerHTML = html; 
-            el.href = link || '#'; 
-            
-            if(!link) { 
-                el.removeAttribute('target'); 
-                el.style.cursor = 'default'; 
-            } else { 
-                el.target = '_blank'; 
-                el.style.cursor = 'pointer'; 
-            } 
-            
-            el.classList.remove('hidden'); 
-            el.classList.add('flex');
-            el.style.width = '100%'; 
+            el.innerHTML = html; el.href = link || '#'; 
+            if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
+            el.classList.remove('hidden'); el.classList.add('flex'); el.style.width = '100%'; 
+
+            if (el.id === 'app-banner-bottom') {
+                setTimeout(() => {
+                    const h = el.offsetHeight || 60;
+                    const cf = getEl('cart-footer'); if(cf) cf.style.bottom = h + 'px';
+                    const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = h + 'px';
+                }, 100);
+            }
         } else { 
-            el.classList.add('hidden'); 
-            el.classList.remove('flex'); 
+            el.classList.add('hidden'); el.classList.remove('flex'); 
+            if (el.id === 'app-banner-bottom') {
+                const cf = getEl('cart-footer'); if(cf) cf.style.bottom = '0px';
+                const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = '0px';
+            }
         }
     };
 
     const topText = banners.biz_banner_text_top || banners.bizBannerTextTop || banners.biz_banner_top_text || banners.banner_top_text;
     const topLink = banners.biz_banner_link_top || banners.bizBannerLinkTop || banners.biz_banner_top_link || banners.banner_top_link;
     const topImg = banners.biz_banner_img_top || banners.bizBannerImgTop || banners.biz_banner_top_img || banners.banner_top_img;
-
     const bottomText = banners.biz_banner_text_bottom || banners.bizBannerTextBottom || banners.biz_banner_bottom_text || banners.banner_bottom_text;
     const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
     const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
@@ -1839,15 +1838,20 @@ function renderShopList() {
 
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
+const footerEl = getEl('cart-footer');
+    if (footerEl && !getEl('close-cart-footer-btn')) {
+        footerEl.insertAdjacentHTML('beforeend', `<button id="close-cart-footer-btn" onclick="document.getElementById('cart-footer').classList.add('hidden')" style="position:absolute; top:-12px; right:12px; background:#ef4444; color:white; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); border:2px solid white; z-index:50;"><i class="fa-solid fa-times"></i></button>`);
+    }
+
     if(activeItems.length === 0) { 
         if(list) list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">רשימת ההזמנות ריקה</p>'; 
-        const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
+        if(footerEl) footerEl.classList.add('hidden'); 
         const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
         return; 
     }
     
-    if (isShopTabActive) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
-    else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
+    if (isShopTabActive) { if(footerEl) footerEl.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); } 
+    else { if(footerEl) footerEl.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
     const getCatScore = (name) => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(name)) return cat; } return 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name).localeCompare(getCatScore(b.item_name)));
@@ -4073,6 +4077,10 @@ function updateB2BCartUI() {
     const floating = getEl('b2b-cart-floating');
     if (!floating) return;
     
+    if (!getEl('close-b2b-cart-btn')) {
+        floating.insertAdjacentHTML('beforeend', `<button id="close-b2b-cart-btn" onclick="b2bCart={}; updateB2BCartUI(); renderB2BCatalog();" style="position:absolute; top:-10px; right:10px; background:#ef4444; color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2); border:2px solid white; z-index:50;" title="מחק סל"><i class="fa-solid fa-times"></i></button>`);
+    }
+    
     let count = 0;
     let total = 0;
     Object.keys(b2bCart).forEach(id => {
@@ -4081,18 +4089,19 @@ function updateB2BCartUI() {
         if (p) {
             count += qty;
             total += (p.price * qty);
+        } else {
+            count += qty;
         }
     });
 
     if (count > 0) {
-        getEl('b2b-cart-count').innerText = count;
-        getEl('b2b-cart-total').innerText = `₪${total.toFixed(2)}`;
+        const countEl = getEl('b2b-cart-count'); if(countEl) countEl.innerText = count;
+        const totalEl = getEl('b2b-cart-total'); if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
         floating.classList.remove('translate-y-full');
     } else {
         floating.classList.add('translate-y-full');
     }
 }
-
 // -----------------------------------------
 // סיכום קופה ושיגור למספר ספקים במקביל
 // -----------------------------------------
@@ -4495,9 +4504,10 @@ async function submitReceiveGoods() {
             
             if(hasMissing) {
                 showToast('success', 'הסחורה התקבלה! החוסרים הועברו לעגלת הרכש להזמנה מחדש.');
+                await fetchB2BCatalog(); // מרענן מיד את הקטלוג
                 updateB2BCartUI();
                 renderB2BCatalog();
-                switchProcurementTab('list'); // העברה לטאב הקטלוג/עגלה
+                switchProcurementTab('list'); // מעביר לסל
             } else {
                 showToast('success', 'הסחורה התקבלה במלואה והמלאי עודכן!');
             }
@@ -4511,7 +4521,6 @@ async function submitReceiveGoods() {
         if(btn) { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
     }
 }
-
 // קריאת תעודת משלוח עם AI
 function scanDeliveryNoteAI() { getEl('delivery-note-upload').click(); }
 
