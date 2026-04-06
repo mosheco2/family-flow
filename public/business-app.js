@@ -1819,21 +1819,7 @@ async function clearEntireCart() {
     try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
-function toggleSelectAll() { 
-    const allItems = shoppingListCache; 
-    const anyPending = allItems.some(i => i.status === 'pending'); 
-    const targetStatus = anyPending; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        if(row.classList.contains('missing')) return; 
-        const cb = row.querySelector('input[type="checkbox"]'); 
-        const inp = row.querySelector('.price-input'); 
-        cb.checked = targetStatus; 
-        row.classList.toggle('in-cart', targetStatus); 
-        inp.disabled = !targetStatus; 
-    }); 
-    calcRunningTotal(); 
-    allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); 
-}
+function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
 
 function renderShopList() {
     if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
@@ -1843,7 +1829,7 @@ function renderShopList() {
     
     let reqHtml = '';
     if (requestedItems.length > 0) {
-        if(reqContainer) reqContainer.classList.remove('hidden');
+        if(reqContainer) reqContainer.classList.remove('hidden'); // הגנה קריטית
         requestedItems.forEach(i => {
             const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להנהלה</span>`;
             reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">דרישה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
@@ -1890,8 +1876,8 @@ function renderShopList() {
 async function updateRow(id, type, value) {
     if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
     else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
-    else if (type === 'price_calc') { const item = shoppingListCache.find(i => String(i.id) === String(id)); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => String(i.id) === String(id)); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
+    else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
+    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
     if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
 }
 
@@ -1902,7 +1888,7 @@ function calcRunningTotal() {
     document.querySelectorAll('.shop-row').forEach(row => { 
         const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); 
         if (isChecked && !isMissing) { 
-            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id)); 
+            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
             const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; 
             total += (unitPrice * qty); 
         } 
@@ -1915,7 +1901,7 @@ function openCheckoutSummary() {
     document.querySelectorAll('.shop-row').forEach(row => { 
         if (row.classList.contains('missing')) missing++; 
         else if (row.querySelector('input[type="checkbox"]').checked) { 
-            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id)); 
+            count++; const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
             const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; total += (unitPrice * qty); 
         } 
     }); 
@@ -1926,7 +1912,7 @@ function openCheckoutSummary() {
 async function submitFinalCheckout() {
     const store = val('checkout-store') || 'ספק כללי'; const branch = val('checkout-branch'); let total = 0; const boughtItems = []; const missingItems = [];
     document.querySelectorAll('.shop-row').forEach(row => {
-        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => String(i.id) === String(id));
+        const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
         if (row.classList.contains('missing')) { missingItems.push({ id }); } 
         else if (row.querySelector('input[type="checkbox"]').checked) {
             const unitPrice = parseFloat(getEl(`price-${id}`).value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; const rowTotal = unitPrice * qty; total += rowTotal;
@@ -3807,9 +3793,6 @@ function renderSuppliers() {
             } else { daysHtml = '<span class="text-[9px] text-slate-400">לא הוגדרו ימים</span>'; }
         }
 
-        // תיקון קריטי: העברת השם כ-data attribute למניעת שבירת ה-HTML
-        const cleanNameForHtml = (s.name || '').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-
         html += `
         <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition">
             <div>
@@ -3827,7 +3810,7 @@ function renderSuppliers() {
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="openSupplierCatalog(${s.id}, this.getAttribute('data-name'))" data-name="${cleanNameForHtml}" class="flex-[2] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-100 shadow-sm"><i class="fa-solid fa-boxes-stacked"></i> קטלוג מוצרים</button>
+                <button onclick="openSupplierCatalog(${s.id}, '${safeStr(s.name)}')" class="flex-[2] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-100 shadow-sm"><i class="fa-solid fa-boxes-stacked"></i> קטלוג מוצרים</button>
                 <button onclick="deleteSupplier(${s.id})" class="flex-1 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 py-2 rounded-xl text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
             </div>
         </div>`;
@@ -4385,39 +4368,21 @@ async function submitB2BOrders() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
-// הורדת PDF ידנית מתוקנת (הכפתור יגיב כראוי)
-// הורדת PDF ידנית מתוקנת (הכפתור יגיב כראוי)
 async function downloadOrderPDFManual(orderId) {
-    console.log("Generating PDF for order:", orderId);
-    // שימוש בהשוואת מחרוזות למניעת פספוס של ה-ID
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
-    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
-    
-    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
-    let items = [];
-    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
+    const order = b2bOrdersHistory.find(o => o.id === orderId); if(!order) return;
+    const supData = suppliersList.find(s => s.id === order.supplier_id) || {};
+    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
     
     const fakeOrderInfo = {
-        supplierName: order.supplier_name || 'ספק כללי', 
-        customerNumber: supData.customer_number || '',
-        items: items, 
-        totalAmount: parseFloat(order.total_amount) || 0
+        supplierName: order.supplier_name, customerNumber: supData.customer_number || '',
+        items: items, totalAmount: parseFloat(order.total_amount)
     };
-    
-    showToast('info', 'מכין מסמך להורדה, אנא המתן...');
+    showToast('info', 'מכין מסמך להורדה...');
     const pdfBase64 = await generateOrderPDFBase64(fakeOrderInfo);
-    
     if(pdfBase64) {
-        const link = document.createElement('a'); 
-        link.href = 'data:application/pdf;base64,' + pdfBase64; 
-        link.download = `Purchase_Order_${order.id}.pdf`; 
-        document.body.appendChild(link); // חייב להוסיף ל-DOM כדי שהלחיצה תעבוד בדפדפנים מודרניים
-        link.click();
-        document.body.removeChild(link);
-        showToast('success', 'הורדת המסמך החלה');
-    } else { 
-        showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שאתה מחובר לאינטרנט.'); 
-    }
+        const link = document.createElement('a'); link.href = 'data:application/pdf;base64,' + pdfBase64; link.download = `Purchase_Order_${order.id}.pdf`; link.click();
+    } else showToast('error', 'שגיאה ביצירת מסמך PDF. ודא שיש אינטרנט רציף.');
+}
 }
 // -----------------------------------------
 // היסטוריית הזמנות רכש מפוצלות
@@ -4537,6 +4502,7 @@ function openReceiveGoodsModal(orderId) {
 
     getEl('receive-goods-modal').classList.remove('hidden');
 }
+
 // שיגור הליקוט לשרת
 async function submitReceiveGoods() {
     if (!currentReceiveOrder) return;
@@ -4546,10 +4512,7 @@ async function submitReceiveGoods() {
     const missingItems = [];
 
     items.forEach((item, idx) => {
-        const inputEl = getEl(`receive-qty-${idx}`);
-        if (!inputEl) return;
-        const receivedQty = parseFloat(inputEl.value) || 0;
-        
+        const receivedQty = parseFloat(getEl(`receive-qty-${idx}`).value) || 0;
         if (receivedQty > 0) {
             receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit });
         }
@@ -4560,7 +4523,7 @@ async function submitReceiveGoods() {
     });
 
     const btn = getEl('btn-submit-receive');
-    if(btn) { btn.disabled = true; btn.innerText = 'מעדכן נתונים...'; }
+    btn.disabled = true; btn.innerText = 'מעדכן נתונים...';
 
     try {
         const res = await fetch(`${API}/b2b/orders/receive`, {
@@ -4571,17 +4534,12 @@ async function submitReceiveGoods() {
         if (data.success) {
             triggerConfetti();
             showToast('success', 'הסחורה התקבלה! המלאי עודכן וחוסרים עברו לדרישות רכש.');
-            const modal = getEl('receive-goods-modal'); if(modal) modal.classList.add('hidden');
+            getEl('receive-goods-modal').classList.add('hidden');
             fetchB2BOrders();
-            fetchData();
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת נתונים');
-        }
-    } catch(e) { 
-        showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); 
-    } finally { 
-        if(btn) { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
-    }
+            fetchData(); // מעדכן מלאי ורכש ברקע
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירת קבלת סחורה'); }
+    finally { btn.disabled = false; btn.innerHTML = 'אשר קבלה ועדכן מלאי <i class="fa-solid fa-check-double"></i>'; }
 }
 
 // קריאת תעודת משלוח עם AI
