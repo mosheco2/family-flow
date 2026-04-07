@@ -4196,18 +4196,6 @@ function openB2BCheckout() {
     getEl('b2b-checkout-modal').classList.remove('hidden');
 }
 
-// טעינה דינמית של ספריית יצירת ה-PDF כדי שכפתורי ההורדה יעבדו ללא בעיות ב-HTML
-async function loadHtml2Pdf() {
-    if (window.html2pdf) return true;
-    return new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => resolve(true);
-        script.onerror = () => { showToast('error', 'שגיאה בטעינת מערכת ה-PDF'); resolve(false); };
-        document.head.appendChild(script);
-    });
-}
-
 // טעינה דינמית של ספריית יצירת ה-PDF
 async function loadHtml2Pdf() {
     if (window.html2pdf) return true;
@@ -4293,14 +4281,6 @@ async function generateOrderPDFBase64(orderInfo) {
                 </div>
             `;
 
-            // הזרקה נסתרת שמונעת דף לבן לחלוטין (מוזזת הרחק שמאלה מחוץ למסך)
-            const container = document.createElement('div');
-            container.innerHTML = htmlContent;
-            container.style.position = 'fixed';
-            container.style.top = '0';
-            container.style.right = '200vw'; // מחוץ למסך
-            document.body.appendChild(container);
-
             const opt = { 
                 margin: 10, 
                 filename: 'order.pdf', 
@@ -4309,22 +4289,14 @@ async function generateOrderPDFBase64(orderInfo) {
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
             };
 
-            const timeoutId = setTimeout(() => {
-                if (document.body.contains(container)) document.body.removeChild(container);
-                resolve(null);
-            }, 8000);
-
-            html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
-                clearTimeout(timeoutId);
-                if (document.body.contains(container)) document.body.removeChild(container);
+            // העברת מחרוזת ה-HTML ישירות לספרייה. הספרייה תייצר את ה-iframe בעצמה ותמנע דף לבן.
+            html2pdf().set(opt).from(htmlContent).outputPdf('datauristring').then(base64Str => {
                 if (base64Str && base64Str.includes('base64,')) {
                     resolve(base64Str.split('base64,')[1]);
                 } else {
                     resolve(null);
                 }
             }).catch(err => { 
-                clearTimeout(timeoutId);
-                if (document.body.contains(container)) document.body.removeChild(container);
                 resolve(null); 
             });
 
