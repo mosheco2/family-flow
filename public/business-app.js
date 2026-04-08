@@ -4207,435 +4207,411 @@ function openB2BCheckout() {
 
     getEl('b2b-checkout-modal').classList.remove('hidden');
 }
+
 // -----------------------------------------
 // פונקציות ליצירת PDF (תצוגה מקדימה והורדה)
 // -----------------------------------------
 
 // טעינה דינמית של ספריית יצירת ה-PDF
 async function loadHtml2Pdf() {
-    if (window.html2pdf) return true;
-    return new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => resolve(true);
-        script.onerror = () => { showToast('error', 'שגיאה בטעינת מערכת ה-PDF'); resolve(false); };
-        document.head.appendChild(script);
-    });
+    if (window.html2pdf) return true;
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => { showToast('error', 'שגיאה בטעינת מערכת ה-PDF'); resolve(false); };
+        document.head.appendChild(script);
+    });
 }
 
-// תבנית ה-HTML ל-PDF - נבנתה מחדש עם טבלאות קשיחות למניעת קפיצת סימני פיסוק, ריווחים וגלישות עמוד
+// תבנית ה-HTML ל-PDF - ללא מסגרת, מותאמת להדפסה לרוחב (Landscape), כולל מק"ט וסידור RTL מלא
 function getOrderHtmlTemplate(orderInfo) {
-    let itemsArr = [];
-    try {
-        if (Array.isArray(orderInfo.items)) itemsArr = orderInfo.items;
-        else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
-    } catch(e) { itemsArr = []; }
+    let itemsArr = [];
+    try {
+        if (Array.isArray(orderInfo.items)) itemsArr = orderInfo.items;
+        else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
+    } catch(e) { itemsArr = []; }
 
-    let itemsHtml = '';
-    if (itemsArr.length === 0) {
-         itemsHtml = '<tr><td colspan="5" style="text-align:right; padding:10px;">אין&nbsp;פריטים&nbsp;להצגה</td></tr>';
-    } else {
-         itemsHtml = itemsArr.map((i, index) => `
-            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 8px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;">${safeStr(i.name).split(' ').join('&nbsp;')}</td>
-                <td style="padding: 8px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;">${i.quantity}&nbsp;${safeStr(i.unit).split(' ').join('&nbsp;')}</td>
-                <td style="padding: 8px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
-                <td style="padding: 8px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
-            </tr>
-        `).join('');
-    }
+    let itemsHtml = '';
+    if (itemsArr.length === 0) {
+         itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">אין פריטים להצגה</td></tr>';
+    } else {
+         itemsHtml = itemsArr.map((i, index) => `
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
+                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl"><bdi>${safeStr(i.name)}</bdi></td>
+                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${safeStr(i.unit)}</td>
+                <td style="padding: 10px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
+                <td style="padding: 10px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
+            </tr>
+        `).join('');
+    }
 
-    return `
-        <div style="font-family: Arial, sans-serif; color: #1e293b; background: white; width: 800px; margin: 0 auto; padding: 30px; direction: rtl;" dir="rtl">
-            
-                        <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 2px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px;" dir="rtl">
-                <tr>
-                    <td style="width: 50%; text-align: right; vertical-align: middle;">
-                        <img src="/logo.png" style="height: 30px; vertical-align: middle; margin-left: 10px;" onerror="this.style.display='none'">
-                        <span style="font-size: 24px; font-weight: 900; color: #4f46e5; vertical-align: middle;">
-                            ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
-                        </span>
-                    </td>
-                    <td style="width: 50%; text-align: left; vertical-align: middle;">
-                        <div style="font-size: 20px; font-weight: bold; color: #334155; margin-bottom: 4px;">הזמנת&nbsp;רכש</div>
-                        <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Purchase Order</div>
-                        <div style="font-size: 13px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px;">
-                            <span style="font-weight: bold;">מספר&nbsp;הזמנה:</span>&nbsp;<span dir="ltr" style="color: #4f46e5; font-weight: bold;">#${orderInfo.orderId || 'חדש'}</span>
-                        </div>
-                    </td>
-                </tr>
-            </table>
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">מספר לקוח:&nbsp;</span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">עבור סניף/מחלקה:&nbsp;</span><bdi>${safeStr(orderInfo.branchName)}</bdi></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">טלפון:&nbsp;</span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">דוא"ל:&nbsp;</span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
 
-                        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;" dir="rtl">
-                <tr>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; vertical-align: top;">
-                        <div style="color: #4f46e5; font-size: 14px; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">פרטי הלקוח (המזמין)</div>
-                        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 13px;" dir="rtl">
-                            <tr><td style="font-weight: bold; padding-bottom: 6px; width: 80px;">שם&nbsp;העסק:</td><td style="padding-bottom: 6px;">${safeStr(currentGroup.name).split(' ').join('&nbsp;')}</td></tr>
-                            <tr><td style="font-weight: bold; padding-bottom: 6px;">איש&nbsp;קשר:</td><td style="padding-bottom: 6px;">${safeStr(currentUser.nickname).split(' ').join('&nbsp;')}</td></tr>
-                            ${orderInfo.branchName ? `<tr><td style="font-weight: bold; padding-bottom: 6px;">עבור&nbsp;סניף:</td><td style="padding-bottom: 6px;">${safeStr(orderInfo.branchName).split(' ').join('&nbsp;')}</td></tr>` : ''}
-                            ${orderInfo.customerNumber ? `<tr><td style="font-weight: bold; padding-bottom: 6px;">מס'&nbsp;לקוח:</td><td style="padding-bottom: 6px;"><span dir="ltr">${safeStr(orderInfo.customerNumber)}</span></td></tr>` : ''}
-                            <tr><td style="font-weight: bold; padding-top: 6px; color: #64748b; border-top: 1px solid #e2e8f0;">הופק&nbsp;ב:</td><td style="padding-top: 6px; color: #64748b; border-top: 1px solid #e2e8f0;" dir="ltr">${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</td></tr>
-                        </table>
-                    </td>
-                    <td style="width: 4%;"></td>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; vertical-align: top;">
-                        <div style="color: #0f172a; font-size: 14px; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">פרטי הספק</div>
-                        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 13px;" dir="rtl">
-                            <tr><td style="font-weight: bold; padding-bottom: 6px; width: 60px;">לכבוד:</td><td style="padding-bottom: 6px;">${safeStr(orderInfo.supplierName).split(' ').join('&nbsp;')}</td></tr>
-                            ${orderInfo.supplierPhone ? `<tr><td style="font-weight: bold; padding-bottom: 6px;">טלפון:</td><td style="padding-bottom: 6px;" dir="ltr">${safeStr(orderInfo.supplierPhone)}</td></tr>` : ''}
-                            ${orderInfo.supplierEmail ? `<tr><td style="font-weight: bold; padding-bottom: 6px;">דוא"ל:</td><td style="padding-bottom: 6px;" dir="ltr">${safeStr(orderInfo.supplierEmail)}</td></tr>` : ''}
-                        </table>
-                    </td>
-                </tr>
-            </table>
+    return `
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px;" dir="rtl">
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px; page-break-inside: avoid;" dir="rtl">
+                <tr>
+                    <td style="vertical-align: middle; text-align: right; width: 50%;" dir="rtl">
+                        <img src="/logo.png" style="height: 40px; vertical-align: middle; margin-left: 10px;" onerror="this.style.display='none'">
+                        <span style="font-size: 28px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif; vertical-align: middle;">
+                            ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
+                        </span>
+                    </td>
+                    <td style="vertical-align: middle; text-align: left; width: 50%;" dir="rtl">
+                        <h2 style="margin: 0; font-size: 24px; color: #334155;">הזמנת רכש&nbsp;<span dir="ltr" style="font-size: 16px; color:#64748b;">(Purchase Order)</span></h2>
+                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">מספר הזמנה:&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
+                    </td>
+                </tr>
+            </table>
 
-            <div style="margin-bottom: 15px; font-size: 13px; line-height: 1.5; color: #334155; text-align: right;">
-                <b style="display:block; margin-bottom:4px;">שלום רב,</b>
-                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
-            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; page-break-inside: avoid;" dir="rtl">
+                <tr>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הלקוח (המזמין):</h3>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>שם העסק:&nbsp;</b><bdi>${safeStr(currentGroup.name)}</bdi></div>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>איש קשר:&nbsp;</b><bdi>${safeStr(currentUser.nickname)}</bdi></div>
+                        ${branchHtml}
+                        ${customerNumHtml}
+                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;" dir="rtl"><b>הופק ב:&nbsp;</b><span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הספק:</h3>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>לכבוד:&nbsp;</b><bdi>${safeStr(orderInfo.supplierName)}</bdi></div>
+                        ${phoneHtml}
+                        ${emailHtml}
+                    </td>
+                </tr>
+            </table>
 
-                        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
-                <thead>
-                    <tr style="background-color: #4f46e5; color: white;">
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 15%;">מק"ט</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 40%;">תיאור&nbsp;פריט</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">כמות</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר&nbsp;יח'</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">סה"כ&nbsp;שורה</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-            
-                        <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 2px solid #cbd5e1; padding-top: 15px;" dir="rtl">
-                <tr>
-                    <td style="text-align: right; vertical-align: top; padding-top: 5px;">
-                        <div style="color: #64748b; font-size: 11px;">* ייתכנו שינויים קלים במחיר הסופי בהתאם לשקילה ולמחירון העדכני.</div>
-                    </td>
-                    <td style="text-align: left; vertical-align: top;">
-                        <table cellpadding="0" cellspacing="0" align="left" dir="rtl">
-                            <tr>
-                                <td style="font-size: 18px; font-weight: bold; color: #0f172a; padding-left: 10px;">סה"כ&nbsp;לתשלום&nbsp;משוער:</td>
-                                <td style="font-size: 18px; font-weight: bold; color: #4f46e5;" dir="ltr">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #334155; page-break-inside: avoid; text-align: right;" dir="rtl">
+                <strong>שלום רב,&rlm;</strong><br>
+                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&nbsp;נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;
+            </div>
 
-        </div>
-    `;
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
+                <thead>
+                    <tr style="background-color: #4f46e5; color: white;">
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; width: 45%;">תיאור פריט</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 13%;">כמות</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר יח'</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">סה"כ שורה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+            
+            <div style="border-top: 2px solid #cbd5e1; padding-top: 15px; page-break-inside: avoid; text-align: right;" dir="rtl">
+                <h2 style="margin: 0; font-size: 20px; color: #0f172a;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
+            </div>
+        </div>
+    `;
 }
 
-// יצירת PDF לשליחה במייל (מוסתר) 
+// יצירת PDF לשליחה במייל (מוסתר) בפריסה לרוחב (Landscape) 
 async function generateOrderPDFBase64(orderInfo) {
-    return new Promise(async (resolve) => {
-        try {
-            const isLoaded = await loadHtml2Pdf();
-            if (!isLoaded) { resolve(null); return; }
+    return new Promise(async (resolve) => {
+        try {
+            const isLoaded = await loadHtml2Pdf();
+            if (!isLoaded) { resolve(null); return; }
 
-            const htmlContent = getOrderHtmlTemplate(orderInfo);
-            
-            const container = document.createElement('div');
-            container.innerHTML = htmlContent;
-            container.style.position = 'absolute';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.width = '800px';
-            container.style.zIndex = '-9999';
-            document.body.appendChild(container);
+            const htmlContent = getOrderHtmlTemplate(orderInfo);
+            
+            const container = document.createElement('div');
+            container.innerHTML = htmlContent;
+            
+            container.style.position = 'absolute';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '1040px'; // רוחב המותאם לדף שוכב
+            container.style.zIndex = '-100'; // מוסתר מאחורי ה-UI
+            container.style.opacity = '0.99';
+            container.style.backgroundColor = '#ffffff';
+            document.body.appendChild(container);
 
-            const opt = { 
-                margin: [10, 10, 10, 10], 
-                filename: 'order.pdf', 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-            };
+            const opt = { 
+                margin: [10, 10, 10, 10], 
+                filename: 'order.pdf', 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, // הדפסה לרוחב
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
+            };
 
-            setTimeout(() => {
-                html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
-                    if(document.body.contains(container)) document.body.removeChild(container);
-                    if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
-                    else resolve(null);
-                }).catch(err => { 
-                    if(document.body.contains(container)) document.body.removeChild(container);
-                    resolve(null); 
-                });
-            }, 400); 
-        } catch(err) { resolve(null); }
-    });
+            setTimeout(() => {
+                html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
+                    if(document.body.contains(container)) document.body.removeChild(container);
+                    if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
+                    else resolve(null);
+                }).catch(err => { 
+                    if(document.body.contains(container)) document.body.removeChild(container);
+                    resolve(null); 
+                });
+            }, 500); 
+        } catch(err) { resolve(null); }
+    });
 }
 
-// שיגור הזמנה מפוצלת (עבור עגלת הקניות) - מייצר PDF סמוי לשליחה במייל
+// שיגור הזמנה מפוצלת לספקים
 async function submitB2BOrders() {
-    const branchNameVal = val('checkout-branch') || ''; 
-    const splitOrders = [];
-    
-    Object.keys(b2bCart).forEach(id => {
-        const qty = b2bCart[id]; const p = b2bCatalogCache.find(x => String(x.id) === String(id));
-        if (p) {
-            let existing = splitOrders.find(o => o.supplierId === p.supplier_id);
-            if (!existing) {
-                const supData = suppliersList.find(s => s.id === p.supplier_id) || {};
-                existing = { 
-                    orderId: 'חדש',
-                    supplierId: p.supplier_id, 
-                    supplierName: p.supplier_name, 
-                    supplierPhone: supData.phone || '',
-                    supplierEmail: supData.email || '',
-                    branchName: branchNameVal, 
-                    customerNumber: supData.customer_number || '', 
-                    items: [], 
-                    totalAmount: 0 
-                };
-                splitOrders.push(existing);
-            }
-            const rowTotal = p.price * qty;
-            
-            let sku = '';
-            try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
-            
-            existing.items.push({ id: p.id, sku: sku, name: p.name, quantity: qty, unit: p.unit_type, price_per_unit: p.price, row_total: rowTotal });
-            existing.totalAmount += rowTotal;
-        }
-    });
+    const branchNameVal = val('checkout-branch') || ''; 
+    const splitOrders = [];
+    
+    Object.keys(b2bCart).forEach(id => {
+        const qty = b2bCart[id]; const p = b2bCatalogCache.find(x => String(x.id) === String(id));
+        if (p) {
+            let existing = splitOrders.find(o => o.supplierId === p.supplier_id);
+            if (!existing) {
+                const supData = suppliersList.find(s => s.id === p.supplier_id) || {};
+                existing = { 
+                    orderId: 'חדש',
+                    supplierId: p.supplier_id, 
+                    supplierName: p.supplier_name, 
+                    supplierPhone: supData.phone || '',
+                    supplierEmail: supData.email || '',
+                    branchName: branchNameVal, 
+                    customerNumber: supData.customer_number || '', 
+                    items: [], 
+                    totalAmount: 0 
+                };
+                splitOrders.push(existing);
+            }
+            const rowTotal = p.price * qty;
+            
+            let sku = '';
+            try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
+            
+            existing.items.push({ id: p.id, sku: sku, name: p.name, quantity: qty, unit: p.unit_type, price_per_unit: p.price, row_total: rowTotal });
+            existing.totalAmount += rowTotal;
+        }
+    });
 
-    const btn = getEl('btn-submit-b2b-orders'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים...';
+    const btn = getEl('btn-submit-b2b-orders'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמכים...';
 
-    try {
-        for (let order of splitOrders) { 
-            try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; } 
-        }
-        
-        const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
-        const data = await res.json();
-        
-        if (data.success) {
-            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!'); getEl('b2b-checkout-modal').classList.add('hidden');
-            b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq'); 
-        } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
+    try {
+        for (let order of splitOrders) { 
+            try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; } 
+        }
+        
+        const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
+        const data = await res.json();
+        
+        if (data.success) {
+            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!'); getEl('b2b-checkout-modal').classList.add('hidden');
+            b2bCart = {}; updateB2BCartUI(); renderB2BCatalog(); switchProcurementTab('rfq'); 
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
 // היסטוריית הזמנות רכש מפוצלות
 async function fetchB2BOrders() {
-    try {
-        const res = await fetch(`${API}/b2b/orders/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            b2bOrdersHistory = data.orders || [];
-            renderB2BOrders();
-        }
-    } catch(e) { console.error(e); }
+    try {
+        const res = await fetch(`${API}/b2b/orders/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            b2bOrdersHistory = data.orders || [];
+            renderB2BOrders();
+        }
+    } catch(e) { console.error(e); }
 }
 
 function renderB2BOrders() {
-    const list = getEl('b2b-orders-list'); if (!list) return;
-    
-    if (!getEl('b2b-orders-filters-bar')) {
-        let supOpts = '<option value="all">כל הספקים</option>';
-        suppliersList.forEach(s => supOpts += `<option value="${s.id}">${safeStr(s.name)}</option>`);
-        list.insertAdjacentHTML('beforebegin', `
-            <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
-                <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
-                <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
-                    <option value="all">כל הסטטוסים</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
-                </select>
-                <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
-                    <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
-                </select>
-            </div>
-        `);
-    }
+    const list = getEl('b2b-orders-list'); if (!list) return;
+    
+    if (!getEl('b2b-orders-filters-bar')) {
+        let supOpts = '<option value="all">כל הספקים</option>';
+        suppliersList.forEach(s => supOpts += `<option value="${s.id}">${safeStr(s.name)}</option>`);
+        list.insertAdjacentHTML('beforebegin', `
+            <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
+                <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
+                <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
+                    <option value="all">כל הסטטוסים</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
+                </select>
+                <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
+                    <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
+                </select>
+            </div>
+        `);
+    }
 
-    const fSup = val('filter-order-sup') || 'all'; const fStat = val('filter-order-status') || 'all'; const fDate = val('filter-order-date') || 'all';
-    
-    let filteredOrders = b2bOrdersHistory;
-    if(fSup !== 'all') filteredOrders = filteredOrders.filter(o => String(o.supplier_id) === fSup);
-    if(fStat !== 'all') filteredOrders = filteredOrders.filter(o => o.status === fStat);
-    if(fDate !== 'all') { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(fDate)); filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); }
+    const fSup = val('filter-order-sup') || 'all'; const fStat = val('filter-order-status') || 'all'; const fDate = val('filter-order-date') || 'all';
+    
+    let filteredOrders = b2bOrdersHistory;
+    if(fSup !== 'all') filteredOrders = filteredOrders.filter(o => String(o.supplier_id) === fSup);
+    if(fStat !== 'all') filteredOrders = filteredOrders.filter(o => o.status === fStat);
+    if(fDate !== 'all') { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(fDate)); filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); }
 
-    if (filteredOrders.length === 0) { list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; return; }
-    
-    let html = '';
-    const statusMap = { 'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } };
+    if (filteredOrders.length === 0) { list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; return; }
+    
+    let html = '';
+    const statusMap = { 'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } };
 
-    filteredOrders.forEach(o => {
-        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-        const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
-        const st = statusMap[o.status] || { t: o.status, c: 'bg-slate-100 text-slate-600' };
-        const supData = suppliersList.find(s => String(s.id) === String(o.supplier_id)) || {};
+    filteredOrders.forEach(o => {
+        const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+        const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+        const st = statusMap[o.status] || { t: o.status, c: 'bg-slate-100 text-slate-600' };
+        const supData = suppliersList.find(s => String(s.id) === String(o.supplier_id)) || {};
 
-        let itemsHtml = items.map(i => {
-            const skuStr = i.sku ? `<span class="text-[9px] bg-slate-200 px-1 rounded ml-1 dir-ltr text-slate-500">${i.sku}</span>` : '';
-            return `<div class="flex justify-between text-xs border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition px-1"><span class="text-slate-700">${safeStr(i.name)} ${skuStr} <span class="text-[10px] font-bold text-slate-400 ml-1">x${i.quantity}</span></span><span class="font-bold text-slate-800">₪${parseFloat(i.row_total||0).toFixed(2)}</span></div>`;
-        }).join('');
+        let itemsHtml = items.map(i => {
+            const skuStr = i.sku ? `<span class="text-[9px] bg-slate-200 px-1 rounded ml-1 dir-ltr text-slate-500">${i.sku}</span>` : '';
+            return `<div class="flex justify-between text-xs border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition px-1"><span class="text-slate-700">${safeStr(i.name)} ${skuStr} <span class="text-[10px] font-bold text-slate-400 ml-1">x${i.quantity}</span></span><span class="font-bold text-slate-800">₪${parseFloat(i.row_total||0).toFixed(2)}</span></div>`;
+        }).join('');
 
-        let contactHtml = '';
-        if (supData.phone) {
-            let cleanPhone = supData.phone.replace(/\D/g,'');
-            if (cleanPhone.startsWith('0')) cleanPhone = '972' + cleanPhone.substring(1);
-            contactHtml = `
-            <div class="flex gap-2 mb-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                <a href="https://wa.me/${cleanPhone}" target="_blank" class="flex-1 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"><i class="fa-brands fa-whatsapp"></i> וואטסאפ</a>
-                <a href="tel:${supData.phone}" class="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"><i class="fa-solid fa-phone"></i> חייג לספק</a>
-            </div>`;
-        }
+        let contactHtml = '';
+        if (supData.phone) {
+            let cleanPhone = supData.phone.replace(/\D/g,'');
+            if (cleanPhone.startsWith('0')) cleanPhone = '972' + cleanPhone.substring(1);
+            contactHtml = `
+            <div class="flex gap-2 mb-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                <a href="https://wa.me/${cleanPhone}" target="_blank" class="flex-1 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"><i class="fa-brands fa-whatsapp"></i> וואטסאפ</a>
+                <a href="tel:${supData.phone}" class="flex-1 bg-blue-50 text-blue-600 hover:bg-blue-100 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"><i class="fa-solid fa-phone"></i> חייג לספק</a>
+            </div>`;
+        }
 
-        let statusSelectHtml = '';
-        if (currentUser.role === 'ADMIN') {
-            const statuses = [
-                {val: 'sent', label: 'נשלח לספק'},
-                {val: 'processing', label: 'בטיפול אצל הספק'},
-                {val: 'shipped', label: 'בדרך אלינו'},
-                {val: 'delivered', label: 'סופק במלואו'},
-                {val: 'cancelled', label: 'בוטל'}
-            ];
-            let opts = statuses.map(s => `<option value="${s.val}" ${o.status === s.val ? 'selected' : ''}>${s.label}</option>`).join('');
-            statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
-        }
+        let statusSelectHtml = '';
+        if (currentUser.role === 'ADMIN') {
+            const statuses = [
+                {val: 'sent', label: 'נשלח לספק'},
+                {val: 'processing', label: 'בטיפול אצל הספק'},
+                {val: 'shipped', label: 'בדרך אלינו'},
+                {val: 'delivered', label: 'סופק במלואו'},
+                {val: 'cancelled', label: 'בוטל'}
+            ];
+            let opts = statuses.map(s => `<option value="${s.val}" ${o.status === s.val ? 'selected' : ''}>${s.label}</option>`).join('');
+            statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
+        }
 
-        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100"><button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
-        if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
-            actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
-        }
-        actionsHtml += `</div>`;
+        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100"><button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
+        if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
+            actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
+        }
+        actionsHtml += `</div>`;
 
-        // התוספת לבקשתך: הוספת הכפתור "לחץ לפרטים"
-        html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-2">
-                <div class="flex-1 cursor-pointer pr-2" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
-                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
-                        <span><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</span>
-                        <span class="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full shadow-sm hover:bg-indigo-100 transition animate-pulse"><i class="fa-solid fa-hand-pointer mr-1"></i> לחץ לפרטים</span>
-                    </h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
-                </div>
-                <div class="flex flex-col items-end gap-1 w-[120px] shrink-0">
-                    <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
-                    ${statusSelectHtml}
-                </div>
-            </div>
-            <div id="b2b-order-items-${o.id}" class="hidden">
-                ${contactHtml}
-                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-1 mb-1">${itemsHtml}</div>
-                ${actionsHtml}
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
+        html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1 cursor-pointer pr-2" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
+                    <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
+                </div>
+                <div class="flex flex-col items-end gap-1 w-[120px] shrink-0">
+                    <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
+                    ${statusSelectHtml}
+                </div>
+            </div>
+            <div id="b2b-order-items-${o.id}" class="hidden">
+                ${contactHtml}
+                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-1 mb-1">${itemsHtml}</div>
+                ${actionsHtml}
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
 }
 
 async function updateB2BOrderStatus(orderId, status) {
-    try {
-        const res = await fetch(`${API}/b2b/orders/status`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ orderId, status })
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'סטטוס הזמנה עודכן בהצלחה');
-            fetchB2BOrders();
-        } else {
-            showToast('error', data.error || 'שגיאה בעדכון סטטוס');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+    try {
+        const res = await fetch(`${API}/b2b/orders/status`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ orderId, status })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'סטטוס הזמנה עודכן בהצלחה');
+            fetchB2BOrders();
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון סטטוס');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-// הורדת PDF ידנית מהתצוגה המקדימה
+// הורדת PDF ידנית מהתצוגה המקדימה 
 async function downloadOrderPDFManual(orderId) {
-    showToast('info', 'טוען תצוגה מקדימה...');
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
-    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
-    
-    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
-    let items = [];
-    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
-    
-    const orderInfo = {
-        orderId: order.id,
-        supplierName: order.supplier_name || 'ספק כללי', 
-        supplierPhone: supData.phone || '',
-        supplierEmail: supData.email || '',
-        customerNumber: supData.customer_number || '',
-        branchName: order.branch_name || '', 
-        items: items, 
-        totalAmount: parseFloat(order.total_amount) || 0
-    };
-    
-    if (!document.getElementById('pdf-preview-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="pdf-preview-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-2 sm:p-4">
-            <div class="bg-slate-100 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden border border-slate-200">
-                <div class="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
-                    <h3 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pdf text-red-500"></i> צפייה והורדת הזמנה</h3>
-                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: ltr; background-color: #f1f5f9;">
-                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[800px] mx-auto origin-top transition-all" style="padding: 0;">
-                    </div>
-                </div>
-                <div class="p-4 sm:p-5 border-t border-slate-200 bg-white flex gap-3 justify-end items-center shrink-0" style="direction: rtl;">
-                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="px-4 sm:px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition text-sm sm:text-base">ביטול</button>
-                    <button id="btn-actual-download-pdf" class="px-5 sm:px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2 text-sm sm:text-base">הורד מסמך <i class="fa-solid fa-download"></i></button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
+    showToast('info', 'טוען תצוגה מקדימה...');
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
+    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
+    
+    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
+    let items = [];
+    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
+    
+    const orderInfo = {
+        orderId: order.id,
+        supplierName: order.supplier_name || 'ספק כללי', 
+        supplierPhone: supData.phone || '',
+        supplierEmail: supData.email || '',
+        customerNumber: supData.customer_number || '',
+        branchName: order.branch_name || '', 
+        items: items, 
+        totalAmount: parseFloat(order.total_amount) || 0
+    };
+    
+    if (!document.getElementById('pdf-preview-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="pdf-preview-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-2 sm:p-4">
+            <div class="bg-slate-100 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden border border-slate-200">
+                <div class="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                    <h3 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pdf text-red-500"></i> צפייה והורדת הזמנה</h3>
+                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: ltr; background-color: #f1f5f9;">
+                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[1040px] mx-auto origin-top transition-all" style="padding: 20px;">
+                    </div>
+                </div>
+                <div class="p-4 sm:p-5 border-t border-slate-200 bg-white flex gap-3 justify-end items-center shrink-0" style="direction: rtl;">
+                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="px-4 sm:px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition text-sm sm:text-base">ביטול</button>
+                    <button id="btn-actual-download-pdf" class="px-5 sm:px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2 text-sm sm:text-base">הורד מסמך <i class="fa-solid fa-download"></i></button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
 
-    const contentDiv = document.getElementById('pdf-preview-content');
-    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
-    
-    document.getElementById('pdf-preview-modal').classList.remove('hidden');
+    const contentDiv = document.getElementById('pdf-preview-content');
+    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
+    
+    document.getElementById('pdf-preview-modal').classList.remove('hidden');
 
-    const btnDownload = document.getElementById('btn-actual-download-pdf');
-    btnDownload.onclick = async () => {
-        btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
-        btnDownload.disabled = true;
-        
-        try {
-            const isLoaded = await loadHtml2Pdf();
-            if (!isLoaded) throw new Error('PDF library failed to load');
+    const btnDownload = document.getElementById('btn-actual-download-pdf');
+    btnDownload.onclick = async () => {
+        btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
+        btnDownload.disabled = true;
+        
+        try {
+            const isLoaded = await loadHtml2Pdf();
+            if (!isLoaded) throw new Error('PDF library failed to load');
 
-            const downloadContainer = document.createElement('div');
-            downloadContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            downloadContainer.style.position = 'fixed';
-            downloadContainer.style.top = '0';
-            downloadContainer.style.left = '0';
-            downloadContainer.style.zIndex = '-9999';
-            document.body.appendChild(downloadContainer);
+            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
+            
+            const opt = { 
+                margin: [5, 5, 5, 5], 
+                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
 
-            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
-            
-            const opt = { 
-                margin: [10, 10, 10, 10], 
-                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            setTimeout(async () => {
-                await html2pdf().set(opt).from(downloadContainer).save();
-                if(document.body.contains(downloadContainer)) document.body.removeChild(downloadContainer);
-                showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
-                document.getElementById('pdf-preview-modal').classList.add('hidden');
-            }, 300);
-
-        } catch(e) {
-            showToast('error', 'שגיאה ביצירת מסמך PDF.');
-        } finally {
-            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-            btnDownload.disabled = false;
-        }
-    };
+            await html2pdf().set(opt).from(contentDiv).save();
+            showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
+            document.getElementById('pdf-preview-modal').classList.add('hidden');
+        } catch(e) {
+            showToast('error', 'שגיאה ביצירת מסמך PDF.');
+        } finally {
+            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+            btnDownload.disabled = false;
+        }
+    };
 }
