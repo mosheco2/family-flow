@@ -4224,7 +4224,7 @@ async function loadHtml2Pdf() {
     });
 }
 
-// תבנית ה-HTML ל-PDF - ללא מסגרת, מותאמת להדפסה לרוחב וכוללת מק"ט
+// תבנית ה-HTML ל-PDF - ללא מסגרת, מותאמת להדפסה לרוחב (Landscape), כולל מק"ט וסידור RTL מלא
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4234,74 +4234,74 @@ function getOrderHtmlTemplate(orderInfo) {
 
     let itemsHtml = '';
     if (itemsArr.length === 0) {
-         itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:15px;">אין פריטים להצגה</td></tr>';
+         itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">אין פריטים להצגה</td></tr>';
     } else {
          itemsHtml = itemsArr.map((i, index) => `
-            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;">
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
                 <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;">${safeStr(i.name)}</td>
-                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;">${i.quantity} ${safeStr(i.unit)}</td>
+                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl"><bdi>${safeStr(i.name)}</bdi></td>
+                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${safeStr(i.unit)}</td>
                 <td style="padding: 10px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
                 <td style="padding: 10px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
             </tr>
         `).join('');
     }
 
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px;"><span style="font-weight: bold; color: #334155;">מספר לקוח: </span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px;"><span style="font-weight: bold; color: #334155;">עבור סניף/מחלקה: </span><bdi>${safeStr(orderInfo.branchName)}</bdi></div>` : '';
-    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px;"><span style="font-weight: bold; color: #334155;">טלפון: </span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
-    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px;"><span style="font-weight: bold; color: #334155;">דוא"ל: </span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">מספר לקוח:&nbsp;</span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">עבור סניף/מחלקה:&nbsp;</span><bdi>${safeStr(orderInfo.branchName)}</bdi></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">טלפון:&nbsp;</span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">דוא"ל:&nbsp;</span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px;">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px;" dir="rtl">
             
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px; page-break-inside: avoid;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px; page-break-inside: avoid;" dir="rtl">
                 <tr>
-                    <td style="vertical-align: middle; text-align: right; width: 50%;">
+                    <td style="vertical-align: middle; text-align: right; width: 50%;" dir="rtl">
                         <img src="/logo.png" style="height: 40px; vertical-align: middle; margin-left: 10px;" onerror="this.style.display='none'">
                         <span style="font-size: 28px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif; vertical-align: middle;">
                             ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
                         </span>
                     </td>
-                    <td style="vertical-align: middle; text-align: left; width: 50%;">
-                        <h2 style="margin: 0; font-size: 24px; color: #334155;">הזמנת רכש <span dir="ltr" style="font-size: 16px; color:#64748b;">Purchase Order</span></h2>
-                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">מספר הזמנה: <b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
+                    <td style="vertical-align: middle; text-align: left; width: 50%;" dir="rtl">
+                        <h2 style="margin: 0; font-size: 24px; color: #334155;">הזמנת רכש&nbsp;<span dir="ltr" style="font-size: 16px; color:#64748b;">(Purchase Order)</span></h2>
+                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">מספר הזמנה:&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
                     </td>
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; page-break-inside: avoid;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; page-break-inside: avoid;" dir="rtl">
                 <tr>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;">
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
                         <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הלקוח (המזמין):</h3>
-                        <div style="margin-bottom: 6px;"><b>שם העסק:</b> <bdi>${safeStr(currentGroup.name)}</bdi></div>
-                        <div style="margin-bottom: 6px;"><b>איש קשר:</b> <bdi>${safeStr(currentUser.nickname)}</bdi></div>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>שם העסק:&nbsp;</b><bdi>${safeStr(currentGroup.name)}</bdi></div>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>איש קשר:&nbsp;</b><bdi>${safeStr(currentUser.nickname)}</bdi></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;"><b>הופק ב:</b> <span dir="ltr">${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;" dir="rtl"><b>הופק ב:&nbsp;</b><span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
-                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;">
+                    <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
                         <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הספק:</h3>
-                        <div style="margin-bottom: 6px;"><b>לכבוד:</b> <bdi>${safeStr(orderInfo.supplierName)}</bdi></div>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>לכבוד:&nbsp;</b><bdi>${safeStr(orderInfo.supplierName)}</bdi></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
                 </tr>
             </table>
 
-            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #334155; page-break-inside: avoid;">
+            <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #334155; page-break-inside: avoid; text-align: right;" dir="rtl">
                 <strong>שלום רב,&rlm;</strong><br>
-                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
+                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&nbsp;נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;
             </div>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
                         <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
                         <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; width: 45%;">תיאור פריט</th>
                         <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 13%;">כמות</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר יח' משוער</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר יח'</th>
                         <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">סה"כ שורה</th>
                     </tr>
                 </thead>
@@ -4310,9 +4310,9 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
             
-            <div style="border-top: 2px solid #cbd5e1; padding-top: 15px; page-break-inside: avoid;">
-                <h2 style="margin: 0; font-size: 20px; color: #0f172a;">סה"כ לתשלום משוער: <span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
+            <div style="border-top: 2px solid #cbd5e1; padding-top: 15px; page-break-inside: avoid; text-align: right;" dir="rtl">
+                <h2 style="margin: 0; font-size: 20px; color: #0f172a;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
             </div>
         </div>
     `;
@@ -4330,7 +4330,6 @@ async function generateOrderPDFBase64(orderInfo) {
             const container = document.createElement('div');
             container.innerHTML = htmlContent;
             
-            // שינוי קריטי: לא משתמשים במיקומים שיגרמו לדף להחתך, אלא ממקמים בראש המסך מאחורי הכל
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
@@ -4345,7 +4344,7 @@ async function generateOrderPDFBase64(orderInfo) {
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, // הדפסה לרוחב!
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, // הדפסה לרוחב
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
             };
 
@@ -4389,7 +4388,6 @@ async function submitB2BOrders() {
             }
             const rowTotal = p.price * qty;
             
-            // שליפת המק"ט מהמוצר בעגלה לצורך השליחה לספק
             let sku = '';
             try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
             
@@ -4537,7 +4535,7 @@ async function updateB2BOrderStatus(orderId, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-// הורדת PDF ידנית מהתצוגה המקדימה - פותר את בעיית ה-PDF הריק והחיתוך
+// הורדת PDF ידנית מהתצוגה המקדימה 
 async function downloadOrderPDFManual(orderId) {
     showToast('info', 'טוען תצוגה מקדימה...');
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
@@ -4593,7 +4591,6 @@ async function downloadOrderPDFManual(orderId) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) throw new Error('PDF library failed to load');
 
-            // הפתרון לדף הריק: צילום האלמנט שגלוי למשתמש ושמירה כ-Landscape מותאם!
             const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
@@ -4618,3 +4615,4 @@ async function downloadOrderPDFManual(orderId) {
         }
     };
 }
+
