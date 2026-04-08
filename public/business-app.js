@@ -4244,7 +4244,7 @@ function getOrderHtmlTemplate(orderInfo) {
             <div style="text-align: center; border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 15px; page-break-inside: avoid;">
                 <table style="margin: auto; border: none; width: 100%;">
                     <tr>
-                        <td style="vertical-align: middle; text-align: center;">
+                                                <td style="vertical-align: middle; text-align: center;">
                             <img src="/logo.png" alt="Logo" style="height: 35px; vertical-align: middle; margin-left: 10px;" onerror="this.style.display='none'" />
                             <span style="font-size: 26px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif; vertical-align: middle;">
                                 ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span>
@@ -4344,7 +4344,7 @@ async function generateOrderPDFBase64(orderInfo) {
     });
 }
 
-// שיגור הזמנה מפוצלת (עבור עגלת הקניות)
+// שיגור הזמנה מפוצלת (עבור עגלת הקניות) - מייצר PDF סמוי לשליחה במייל
 async function submitB2BOrders() {
     const branchNameVal = val('checkout-branch') || ''; 
     const splitOrders = [];
@@ -4391,7 +4391,7 @@ async function submitB2BOrders() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'שגר הזמנות לספקים <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
-// הורדת PDF ידנית + פתיחת תצוגה מקדימה מוקפדת (הורדה מתוך התצוגה כדי למנוע דף ריק)
+// הורדת PDF ידנית + פתיחת תצוגה מקדימה מוקפדת - הפתרון לדף הריק
 async function downloadOrderPDFManual(orderId) {
     showToast('info', 'טוען תצוגה מקדימה...');
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
@@ -4421,7 +4421,7 @@ async function downloadOrderPDFManual(orderId) {
                     <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: ltr; background-color: #f1f5f9;">
-                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[800px] mx-auto origin-top transition-all" style="padding: 40px;">
+                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[800px] mx-auto origin-top transition-all" style="padding: 20px;">
                     </div>
                 </div>
                 <div class="p-4 sm:p-5 border-t border-slate-200 bg-white flex gap-3 justify-end items-center shrink-0" style="direction: rtl;">
@@ -4447,16 +4447,17 @@ async function downloadOrderPDFManual(orderId) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) throw new Error('PDF library failed to load');
 
-            // התיקון הקריטי למניעת דף ריק - צילום האלמנט שגלוי למשתמש!
+            // התיקון ל-PDF יורד ריק: אנחנו מצלמים ישירות את התוכן הקיים וגלוי בחלון התצוגה המקדימה!
+            // מכיוון שהוא מרונדר וגלוי, הדפדפן לעולם לא יחזיר עמוד לבן.
             const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
             const opt = { 
-                margin: 0, 
+                margin: [10, 10, 10, 10], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
+                html2canvas: { scale: 2, useCORS: true }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
             };
 
