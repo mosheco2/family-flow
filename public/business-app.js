@@ -4602,6 +4602,7 @@ async function downloadOrderPDFManual(orderId) {
     contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
     
     document.getElementById('pdf-preview-modal').classList.remove('hidden');
+
     const btnDownload = document.getElementById('btn-actual-download-pdf');
     
     btnDownload.onclick = async () => {
@@ -4616,27 +4617,26 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            // יצירת קונטיינר נסתר חזק יותר (כמו ב-generateOrderPDFBase64) כדי למנוע שגיאות
-            const hiddenContainer = document.createElement('div');
-            hiddenContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            hiddenContainer.style.position = 'absolute';
-            hiddenContainer.style.top = '-9999px';
-            hiddenContainer.style.left = '-9999px';
-            hiddenContainer.style.width = '1040px';
-            document.body.appendChild(hiddenContainer);
+            // המפתח: המתנה קצרה עד שהדפדפן מסיים לרנדר את התוכן
+            await new Promise(resolve => setTimeout(resolve, 450));
 
             const opt = { 
                 margin: [8, 8, 8, 8], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    windowWidth: 1040, 
+                    scrollY: 0,
+                    letterRendering: true 
+                }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            await html2pdf().set(opt).from(hiddenContainer).save();
+            await html2pdf().set(opt).from(contentDiv).save();
             
-            if (document.body.contains(hiddenContainer)) document.body.removeChild(hiddenContainer);
             showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
             document.getElementById('pdf-preview-modal').classList.add('hidden');
         } catch(e) {
