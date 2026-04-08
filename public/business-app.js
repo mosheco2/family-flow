@@ -4222,52 +4222,38 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-
 // תבנית ה-HTML ל-PDF - ללא מסגרת, מותאמת להדפסה לרוחב (Landscape), כולל מק"ט וסידור RTL מלא
-// התווסף פרמטר isForPdf כדי להפעיל תיקוני RTL אגרסיביים רק בעת יצירת הקובץ, מבלי לפגוע בתצוגה המקדימה במסך
-function getOrderHtmlTemplate(orderInfo, isForPdf = false) {
+function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
         if (Array.isArray(orderInfo.items)) itemsArr = orderInfo.items;
         else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
     } catch(e) { itemsArr = []; }
 
-    // פונקציות עזר קריטיות לתיקון ה-PDF (פועלות רק אם isForPdf = true)
-    const formatText = (str) => {
-        if (!str) return '';
-        let s = safeStr(str);
-        if (isForPdf) return '&rlm;' + s.replace(/ /g, '&nbsp;') + '&rlm;';
-        return s;
-    };
-    
-    const formatLabel = (str) => {
-        if (!str) return '';
-        if (isForPdf) return '&rlm;' + str.replace(/ /g, '&nbsp;') + '&rlm;';
-        return str;
-    };
-
     let itemsHtml = '';
     if (itemsArr.length === 0) {
-         itemsHtml = `<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">${formatText('אין פריטים להצגה')}</td></tr>`;
+        itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">אין פריטים להצגה</td></tr>';
     } else {
-         itemsHtml = itemsArr.map((i, index) => `
+        itemsHtml = itemsArr.map((i, index) => `
             <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
                 <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl"><bdi>${formatText(i.name)}</bdi></td>
-                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${formatText(i.unit)}</td>
-                <td style="padding: 10px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">&rlm;₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
-                <td style="padding: 10px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">&rlm;₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
+                <td style="padding: 10px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; direction: rtl; unicode-bidi: isolate;" dir="rtl">
+                    <bdi>${safeStr(i.name).replace(/ /g, '&nbsp;')}</bdi>
+                </td>
+                <td style="padding: 10px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${safeStr(i.unit)}</td>
+                <td style="padding: 10px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
+                <td style="padding: 10px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
             </tr>
         `).join('');
     }
 
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('מספר לקוח:')}&nbsp;</span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('עבור סניף/מחלקה:')}&nbsp;</span><bdi>${formatText(orderInfo.branchName)}</bdi></div>` : '';
-    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('טלפון:')}&nbsp;</span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
-    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px; text-align: right;" dir="rtl"><span style="font-weight: bold; color: #334155;">${formatLabel('דוא"ל:')}&nbsp;</span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">מספר לקוח:&nbsp;</span><span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 4px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">עבור סניף/מחלקה:&nbsp;</span><bdi>${safeStr(orderInfo.branchName)}</bdi></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">טלפון:&nbsp;</span><bdi dir="ltr">${safeStr(orderInfo.supplierPhone)}</bdi></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 6px;" dir="rtl"><span style="font-weight: bold; color: #334155;">דוא"ל:&nbsp;</span><bdi>${safeStr(orderInfo.supplierEmail)}</bdi></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px; text-align: right;" dir="rtl">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 20px;" dir="rtl">
             
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 20px; padding-bottom: 10px; page-break-inside: avoid;" dir="rtl">
                 <tr>
@@ -4278,45 +4264,42 @@ function getOrderHtmlTemplate(orderInfo, isForPdf = false) {
                         </span>
                     </td>
                     <td style="vertical-align: middle; text-align: left; width: 50%;" dir="rtl">
-                        <h2 style="margin: 0; font-size: 24px; color: #334155;">${formatLabel('הזמנת רכש')}&nbsp;<span dir="ltr" style="font-size: 16px; color:#64748b;">(Purchase Order)</span></h2>
-                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">${formatLabel('מספר הזמנה:')}&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
+                        <h2 style="margin: 0; font-size: 24px; color: #334155;">הזמנת רכש&nbsp;<span dir="ltr" style="font-size: 16px; color:#64748b;">(Purchase Order)</span></h2>
+                        <div style="margin-top: 5px; font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">מספר הזמנה:&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
                     </td>
                 </tr>
             </table>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; page-break-inside: avoid;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">${formatLabel('פרטי הלקוח (המזמין):')}</h3>
-                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('שם העסק:')}&nbsp;</b><bdi>${formatText(currentGroup.name)}</bdi></div>
-                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('איש קשר:')}&nbsp;</b><bdi>${formatText(currentUser.nickname)}</bdi></div>
+                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הלקוח (המזמין):</h3>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>שם העסק:&nbsp;</b><bdi>${safeStr(currentGroup.name)}</bdi></div>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>איש קשר:&nbsp;</b><bdi>${safeStr(currentUser.nickname)}</bdi></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 10px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl"><b>${formatLabel('הופק ב:')}&nbsp;</b><span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 10px; font-size: 12px; color: #64748b;" dir="rtl"><b>הופק ב:&nbsp;</b><span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">${formatLabel('פרטי הספק:')}</h3>
-                        <div style="margin-bottom: 6px; text-align: right;" dir="rtl"><b>${formatLabel('לכבוד:')}&nbsp;</b><bdi>${formatText(orderInfo.supplierName)}</bdi></div>
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;">פרטי הספק:</h3>
+                        <div style="margin-bottom: 6px;" dir="rtl"><b>לכבוד:&nbsp;</b><bdi>${safeStr(orderInfo.supplierName)}</bdi></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
                 </tr>
             </table>
-
             <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.5; color: #334155; page-break-inside: avoid; text-align: right;" dir="rtl">
-                <strong>${formatLabel('שלום רב,')}</strong><br>
-                ${formatLabel('מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.')}
+                <strong>שלום רב,&rlm;</strong><br>
+                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&rlm;&nbsp;נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;
             </div>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">${formatLabel('מק"ט')}</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; width: 45%;">${formatLabel('תיאור פריט')}</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 13%;">${formatLabel('כמות')}</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${formatLabel("מחיר יח'")}</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${formatLabel('סה"כ שורה')}</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; width: 45%;">תיאור פריט</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; width: 13%;">כמות</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר יח'</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">סה"כ שורה</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4325,8 +4308,8 @@ function getOrderHtmlTemplate(orderInfo, isForPdf = false) {
             </table>
             
             <div style="border-top: 2px solid #cbd5e1; padding-top: 15px; page-break-inside: avoid; text-align: right;" dir="rtl">
-                <h2 style="margin: 0; font-size: 20px; color: #0f172a; text-align: right;">${formatLabel('סה"כ לתשלום משוער:')}&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px; text-align: right;">${formatLabel('* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.')}</div>
+                <h2 style="margin: 0; font-size: 20px; color: #0f172a;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
             </div>
         </div>
     `;
@@ -4459,17 +4442,32 @@ function renderB2BOrders() {
         `);
     }
 
-    const fSup = val('filter-order-sup') || 'all'; const fStat = val('filter-order-status') || 'all'; const fDate = val('filter-order-date') || 'all';
+    const fSup = val('filter-order-sup') || 'all'; 
+    const fStat = val('filter-order-status') || 'all'; 
+    const fDate = val('filter-order-date') || 'all';
     
     let filteredOrders = b2bOrdersHistory;
     if(fSup !== 'all') filteredOrders = filteredOrders.filter(o => String(o.supplier_id) === fSup);
     if(fStat !== 'all') filteredOrders = filteredOrders.filter(o => o.status === fStat);
-    if(fDate !== 'all') { const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - parseInt(fDate)); filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); }
+    if(fDate !== 'all') { 
+        const cutoff = new Date(); 
+        cutoff.setDate(cutoff.getDate() - parseInt(fDate)); 
+        filteredOrders = filteredOrders.filter(o => new Date(o.created_at) >= cutoff); 
+    }
 
-    if (filteredOrders.length === 0) { list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; return; }
+    if (filteredOrders.length === 0) { 
+        list.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-receipt text-4xl text-slate-200 mb-3"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות התואמות לסינון.</p></div>'; 
+        return; 
+    }
     
     let html = '';
-    const statusMap = { 'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } };
+    const statusMap = { 
+        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 
+        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 
+        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 
+        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 
+        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } 
+    };
 
     filteredOrders.forEach(o => {
         const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
@@ -4514,26 +4512,28 @@ function renderB2BOrders() {
 
         html += `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 hover:shadow-md transition">
             <div class="flex justify-between items-start mb-2">
-                <div class="flex-1 cursor-pointer pr-2" onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden')">
+                <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1 mb-2"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
-                    <div class="inline-block bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm">
-                        לחץ לפרטים <i class="fa-solid fa-chevron-down mr-1"></i>
-                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[120px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
                     <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
                     ${statusSelectHtml}
                 </div>
+                <button onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');" 
+                        class="ml-3 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1 transition shadow-sm border border-indigo-100">
+                    לחץ לפרטים <i class="fa-solid fa-chevron-down"></i>
+                </button>
             </div>
             <div id="b2b-order-items-${o.id}" class="hidden">
                 ${contactHtml}
-                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-3 mb-1">${itemsHtml}</div>
+                <div class="bg-slate-50/50 p-2 rounded-xl border border-slate-100 mt-1 mb-1">${itemsHtml}</div>
                 ${actionsHtml}
             </div>
         </div>`;
     });
+    
     list.innerHTML = html;
 }
 
