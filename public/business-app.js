@@ -4606,41 +4606,47 @@ async function downloadOrderPDFManual(orderId) {
         btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
         btnDownload.disabled = true;
         
-        // יוצרים קונטיינר מוסתר ועצמאי במיוחד רק להורדת ה-PDF עם isForPdf = true
+        // יוצרים קונטיינר מוסתר (אך בתוך המסך) במיוחד רק להורדת ה-PDF עם isForPdf = true
         const pdfContainer = document.createElement('div');
         pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo, true);
-        pdfContainer.style.width = '1040px'; 
         pdfContainer.style.position = 'absolute';
-        pdfContainer.style.top = '-9999px';
-        pdfContainer.style.background = 'white';
+        pdfContainer.style.top = '0';
+        pdfContainer.style.left = '0';
+        pdfContainer.style.width = '1040px'; 
+        pdfContainer.style.zIndex = '-100'; // מוסתר מאחורי ה-UI ולא מחוץ למסך
+        pdfContainer.style.opacity = '0.99';
+        pdfContainer.style.backgroundColor = '#ffffff';
         document.body.appendChild(pdfContainer);
 
-        try {
-            const isLoaded = await loadHtml2Pdf();
-            if (!isLoaded) throw new Error('PDF library failed to load');
+        // שימוש בהשהייה כדי לתת לדפדפן זמן לרנדר את הקונטיינר לפני שהספרייה מצלמת אותו
+        setTimeout(async () => {
+            try {
+                const isLoaded = await loadHtml2Pdf();
+                if (!isLoaded) throw new Error('PDF library failed to load');
 
-            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
-            
-            const opt = { 
-                margin: [5, 5, 5, 5], 
-                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
+                const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+                const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+                const dateStr = new Date().toLocaleDateString('he-IL').replace(/\\//g, '-');
+                
+                const opt = { 
+                    margin: [5, 5, 5, 5], 
+                    filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
+                    image: { type: 'jpeg', quality: 1 }, 
+                    html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                };
 
-            await html2pdf().set(opt).from(pdfContainer).save();
-            showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
-            document.getElementById('pdf-preview-modal').classList.add('hidden');
-        } catch(e) {
-            showToast('error', 'שגיאה ביצירת מסמך PDF.');
-        } finally {
-            if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-            btnDownload.disabled = false;
-        }
+                await html2pdf().set(opt).from(pdfContainer).save();
+                showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
+                document.getElementById('pdf-preview-modal').classList.add('hidden');
+            } catch(e) {
+                showToast('error', 'שגיאה ביצירת מסמך PDF.');
+            } finally {
+                if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+                btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+                btnDownload.disabled = false;
+            }
+        }, 500); // 500 מילישניות המתנה לרינדור
     };
 }
