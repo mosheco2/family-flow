@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה סופית עם כל התיקונים שביקשת
+// תבנית ה-HTML ל-PDF - גרסה סופית ומתוקנת לפי כל ההערות האחרונות
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4255,11 +4255,16 @@ function getOrderHtmlTemplate(orderInfo) {
     return `
         <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1100px; box-sizing: border-box; padding: 25px 35px; text-align: right; margin: 0 auto;" dir="rtl">
             
-            <!-- כותרת ראשית - תיקון 1: מעל מספר ההזמנה -->
-            <div style="text-align: right; margin-bottom: 8px;">
-                <h1 style="margin: 0; font-size: 29px; color: #334155;">הזמנת רכש <span dir="ltr" style="font-size: 19px; color:#64748b;">(Purchase Order)</span></h1>
-            </div>
-            
+            <!-- Header - תיקון 2: כותרת בצד ימין, מעל מספר ההזמנה -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px; page-break-inside: avoid;" dir="rtl">
+                <tr>
+                    <td style="vertical-align: middle; text-align: right; width: 55%;" dir="rtl">
+                        <h1 style="margin: 0; font-size: 29px; color: #334155;">הזמנת רכש <span dir="ltr" style="font-size: 19px; color:#64748b;">(Purchase Order)</span></h1>
+                    </td>
+                    <td style="vertical-align: middle; text-align: left; width: 45%;" dir="rtl"></td>
+                </tr>
+            </table>
+
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; page-break-inside: avoid;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 50%;" dir="rtl">
@@ -4530,9 +4535,11 @@ function renderB2BOrders() {
                     <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
                     ${statusSelectHtml}
                 </div>
-                <!-- כפתור "לחץ לפרטים" - עכשיו בצד ימין -->
+            </div>
+            <!-- כפתור "לחץ לפרטים" - עכשיו בצד ימין, מתחת לטקסט (תיקון 1) -->
+            <div class="flex justify-end mt-3">
                 <button onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');" 
-                        class="ml-auto px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm border border-indigo-100 self-start">
+                        class="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm border border-indigo-100">
                     לחץ לפרטים <i class="fa-solid fa-chevron-down"></i>
                 </button>
             </div>
