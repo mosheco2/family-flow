@@ -4516,13 +4516,16 @@ function renderB2BOrders() {
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name)}</h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
                 </div>
-                <div class="flex flex-col items-end gap-1 w-[120px] shrink-0">
+                <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
                     <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
                     ${statusSelectHtml}
                 </div>
+            </div>
+            <!-- כפתור "לחץ לפרטים" - עכשיו בצד ימין, מתחת לתאריך -->
+            <div class="flex justify-end mt-2">
                 <button onclick="document.getElementById('b2b-order-items-${o.id}').classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-up');" 
-                        class="ml-3 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1 transition shadow-sm border border-indigo-100">
+                        class="px-5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm border border-indigo-100">
                     לחץ לפרטים <i class="fa-solid fa-chevron-down"></i>
                 </button>
             </div>
@@ -4582,7 +4585,7 @@ async function downloadOrderPDFManual(orderId) {
                     <h3 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pdf text-red-500"></i> צפייה והורדת הזמנה</h3>
                     <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: ltr; background-color: #f1f5f9;">
+                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: rtl; background-color: #f1f5f9;">
                     <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[1040px] mx-auto origin-top transition-all" style="padding: 20px;">
                     </div>
                 </div>
@@ -4596,57 +4599,52 @@ async function downloadOrderPDFManual(orderId) {
     }
 
     const contentDiv = document.getElementById('pdf-preview-content');
-    // מעבירים isForPdf = false לתצוגה המקדימה כדי שתישאר יפה ונקייה כמו שהיא היום
-    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo, false);
+    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
     
     document.getElementById('pdf-preview-modal').classList.remove('hidden');
-
     const btnDownload = document.getElementById('btn-actual-download-pdf');
+    
     btnDownload.onclick = async () => {
         btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
         btnDownload.disabled = true;
         
-        // יוצרים קונטיינר מוסתר (אך בתוך המסך) במיוחד רק להורדת ה-PDF עם isForPdf = true
-        const pdfContainer = document.createElement('div');
-        pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo, true);
-        pdfContainer.style.position = 'absolute';
-        pdfContainer.style.top = '0';
-        pdfContainer.style.left = '0';
-        pdfContainer.style.width = '1040px'; 
-        pdfContainer.style.zIndex = '-100'; // מוסתר מאחורי ה-UI ולא מחוץ למסך
-        pdfContainer.style.opacity = '0.99';
-        pdfContainer.style.backgroundColor = '#ffffff';
-        document.body.appendChild(pdfContainer);
+        try {
+            const isLoaded = await loadHtml2Pdf();
+            if (!isLoaded) throw new Error('PDF library failed to load');
 
-        // שימוש בהשהייה כדי לתת לדפדפן זמן לרנדר את הקונטיינר לפני שהספרייה מצלמת אותו
-        setTimeout(async () => {
-            try {
-                const isLoaded = await loadHtml2Pdf();
-                if (!isLoaded) throw new Error('PDF library failed to load');
+            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
+            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
+            
+            // יצירת קונטיינר נסתר חזק יותר (כמו ב-generateOrderPDFBase64) כדי למנוע שגיאות
+            const hiddenContainer = document.createElement('div');
+            hiddenContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
+            hiddenContainer.style.position = 'absolute';
+            hiddenContainer.style.top = '-9999px';
+            hiddenContainer.style.left = '-9999px';
+            hiddenContainer.style.width = '1040px';
+            document.body.appendChild(hiddenContainer);
 
-                const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-                const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-                const dateStr = new Date().toLocaleDateString('he-IL').replace(/\\//g, '-');
-                
-                const opt = { 
-                    margin: [5, 5, 5, 5], 
-                    filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
-                    image: { type: 'jpeg', quality: 1 }, 
-                    html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
+            const opt = { 
+                margin: [8, 8, 8, 8], 
+                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
+                image: { type: 'jpeg', quality: 1 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
 
-                await html2pdf().set(opt).from(pdfContainer).save();
-                showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
-                document.getElementById('pdf-preview-modal').classList.add('hidden');
-            } catch(e) {
-                showToast('error', 'שגיאה ביצירת מסמך PDF.');
-            } finally {
-                if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-                btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-                btnDownload.disabled = false;
-            }
-        }, 500); // 500 מילישניות המתנה לרינדור
+            await html2pdf().set(opt).from(hiddenContainer).save();
+            
+            if (document.body.contains(hiddenContainer)) document.body.removeChild(hiddenContainer);
+            showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
+            document.getElementById('pdf-preview-modal').classList.add('hidden');
+        } catch(e) {
+            console.error('PDF Error:', e);
+            showToast('error', 'שגיאה ביצירת מסמך PDF. נסה שוב.');
+        } finally {
+            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+            btnDownload.disabled = false;
+        }
     };
 }
