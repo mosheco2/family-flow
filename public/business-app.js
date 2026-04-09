@@ -4928,7 +4928,7 @@ function showOnboardingWizard() {
                     <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
                         <label class="text-xs font-bold text-indigo-800 block mb-2">✨ בניה אוטומטית בעזרת AI</label>
                         <div class="flex gap-2">
-                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תאר את העסק (למשל: פיצריה שכונתית, מוסך)">
+                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תאר את העסק (למשל: פיצריה שכונתית)">
                             <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">בנה תפריט</button>
                         </div>
                     </div>
@@ -5055,7 +5055,7 @@ function updateWizardUI() {
 async function nextWizardStep() {
     const btnNext = getEl('wizard-btn-next');
     
-    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
+    if (currentWizardStep === 1) {
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         try {
             await fetch(`${API}/store/settings`, {
@@ -5065,7 +5065,7 @@ async function nextWizardStep() {
         } catch(e) {}
     }
     
-    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
+    else if (currentWizardStep === 2) {
         const budget = parseFloat(val('wizard-initial-budget')) || 0;
         if (budget > 0) {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -5078,7 +5078,7 @@ async function nextWizardStep() {
         }
     }
     
-    else if (currentWizardStep === 3) { // יצירת קטלוג מרוכזת
+    else if (currentWizardStep === 3) {
         if (wizardProducts.length > 0) {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה מוצרים...';
             try {
@@ -5092,12 +5092,12 @@ async function nextWizardStep() {
         }
     }
     
-   else if (currentWizardStep === 4) { // סיום
+    else if (currentWizardStep === 4) {
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
         try {
             await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון שמונע קפיצה ברענון!
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             getEl('onboarding-wizard-modal').classList.add('hidden');
             triggerConfetti(); fetchData(); fetchStoreCatalog(); fetchStoreSettings();
         } catch(e) {}
@@ -5113,7 +5113,7 @@ function prevWizardStep() {
 }
 
 function skipWizardStep() {
-    if (currentWizardStep === 4) nextWizardStep(); // סיום
+    if (currentWizardStep === 4) nextWizardStep();
     else { currentWizardStep++; updateWizardUI(); }
 }
 
@@ -5122,7 +5122,7 @@ function skipWizardStep() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.5 (אשף הקמה חכם לעסקים + מניעת קריסת PDF)';
+        badge.innerHTML = 'גרסה 2.1.6 (אשף הקמה לעסקים + יציבות)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
