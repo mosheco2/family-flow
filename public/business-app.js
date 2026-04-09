@@ -4370,7 +4370,7 @@ async function generateOrderPDFBase64(orderInfo) {
                     if(document.body.contains(container)) document.body.removeChild(container);
                     resolve(null); 
                 });
-            }, 300); 
+            }, 500); 
         } catch(err) { resolve(null); }
     });
 }
@@ -4631,6 +4631,7 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
+            // יצירת קונטיינר מנותק לטובת צילום ה-PDF בלבד
             const pdfContainer = document.createElement('div');
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
             pdfContainer.style.position = 'absolute';
@@ -4673,3 +4674,14 @@ async function downloadOrderPDFManual(orderId) {
         }
     };
 }
+
+// הוספת מזהה גרסה בתחתית המסך
+(function addVersionBadge() {
+    if (!document.getElementById('oneflow-version-badge')) {
+        const badge = document.createElement('div');
+        badge.id = 'oneflow-version-badge';
+        badge.innerHTML = 'גרסה 1.0.6 (תיקון PDF)';
+        badge.className = 'fixed bottom-2 right-2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg z-[99999] opacity-75 pointer-events-none';
+        document.body.appendChild(badge);
+    }
+})();
