@@ -2260,6 +2260,8 @@ async function submitForgotCode() {
 // --- מודול הקהילה והעסקים המקומיים ---
 // ============================================================
 
+let myInitiativesCache = [];
+
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
@@ -2267,18 +2269,141 @@ async function fetchCommunityData() {
         const data = await res.json();
         
         if (data.success && data.community) {
-            // מחוברים לקהילה
             getEl('community-join-section').classList.add('hidden');
             getEl('community-businesses-section').classList.remove('hidden');
             getEl('community-name-display').innerText = data.community.name;
             renderCommunityBusinesses(data.businesses);
         } else {
-            // לא מחוברים
             getEl('community-join-section').classList.remove('hidden');
             getEl('community-businesses-section').classList.add('hidden');
         }
+        
+        // משיכת היוזמות הקהילתיות של המשתמש
+        await fetchMyInitiatives();
     } catch(e) { console.error('Error fetching community data', e); }
 }
+
+// משיכת קהילות שיזמתי בעצמי
+async function fetchMyInitiatives() {
+    try {
+        const res = await fetch(`${API}/community/my-initiatives/${currentGroup.id}`);
+        const data = await res.json();
+        if(data.success) {
+            myInitiativesCache = data.initiatives || [];
+            renderMyInitiatives();
+        }
+    } catch(e) { console.error('Error fetching initiatives', e); }
+}
+
+function openCreateCommunityModal() {
+    if (!document.getElementById('create-community-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="create-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-seedling text-green-500"></i> יזמות קהילתית</h3>
+                    <button onclick="document.getElementById('create-community-modal').classList.add('hidden')" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <p class="text-sm text-slate-500 mb-6">פתחו קהילה חדשה באזור שלכם, הזמינו 30 משפחות, והקהילה תופעל באופן רשמי לקבלת הנחות מעסקים!</p>
+                <div class="space-y-3 mb-6">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">שם הקהילה:</label>
+                        <input type="text" id="init-comm-name" class="modern-input py-2.5 text-sm" placeholder="למשל: קהילת שכונת הפארק">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">עיר / יישוב:</label>
+                        <input type="text" id="init-comm-city" class="modern-input py-2.5 text-sm" placeholder="למשל: רעננה">
+                    </div>
+                </div>
+                <button id="btn-submit-init-comm" onclick="submitNewInitiative()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-black transition">צור קהילה</button>
+            </div>
+        </div>
+        `);
+    }
+    getEl('init-comm-name').value = '';
+    getEl('init-comm-city').value = '';
+    getEl('create-community-modal').classList.remove('hidden');
+}
+
+async function submitNewInitiative() {
+    const name = val('init-comm-name');
+    const city = val('init-comm-city');
+    if(!name || !city) return showToast('error', 'יש למלא שם ועיר לקהילה');
+    
+    const btn = getEl('btn-submit-init-comm');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> פותח קהילה...';
+    try {
+        const res = await fetch(`${API}/community/user-create`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name, city, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'הקהילה נפתחה כטיוטה! הזמינו חברים כדי להפעיל אותה.');
+            getEl('create-community-modal').classList.add('hidden');
+            fetchMyInitiatives();
+        } else { showToast('error', data.error || 'שגיאה ביצירת קהילה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerText = 'צור קהילה'; }
+}
+
+function renderMyInitiatives() {
+    const container = document.getElementById('my-initiatives-container');
+    if (!container) return;
+
+    if (myInitiativesCache.length === 0) {
+        container.innerHTML = `
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 text-center mt-6">
+            <h3 class="font-bold text-indigo-900 mb-2">אין לכם קהילה באזור? פתחו אחת!</h3>
+            <p class="text-xs text-indigo-700 mb-4 opacity-80">קחו יוזמה, פתחו קהילה מקומית דרכנו, צרפו 30 משפחות והקהילה שלכם תופעל לעסקים.</p>
+            <button onclick="openCreateCommunityModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition"><i class="fa-solid fa-plus"></i> פתח קהילה חדשה</button>
+        </div>`;
+        return;
+    }
+
+    let html = `<h3 class="font-bold text-slate-800 text-sm mt-6 mb-3 border-t border-slate-200 pt-4"><i class="fa-solid fa-seedling text-green-500"></i> הקהילות שיזמתי:</h3>`;
+    
+    myInitiativesCache.forEach(c => {
+        const famCount = parseInt(c.family_count) || 0;
+        const target = 30;
+        const pct = Math.min(100, (famCount / target) * 100);
+        const isReady = famCount >= target || c.status === 'active';
+        const color = isReady ? 'green' : 'indigo';
+        const statusText = isReady ? 'פעילה' : 'בגיוס חברים';
+        
+        // יצירת לינק הפניה ששותל את קוד הקהילה בטופס ההרשמה של משתמשים חדשים
+        const referralLink = `${window.location.origin}/?inviteCommunityCode=${c.code}`;
+        const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-Oneflow: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
+
+        html += `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <h4 class="font-bold text-slate-800">${safeStr(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded">${safeStr(c.city)}</span></h4>
+                    <p class="text-[10px] text-${color}-600 font-bold bg-${color}-50 px-2 py-0.5 rounded-lg border border-${color}-100 inline-block mt-1">סטטוס: ${statusText}</p>
+                </div>
+                <button onclick="window.open('https://wa.me/?text=${waText}', '_blank')" class="bg-[#25D366] text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#1ebd58] transition shadow-sm" title="שלח הזמנה לחברים בוואטסאפ"><i class="fa-brands fa-whatsapp"></i></button>
+            </div>
+            
+            <div class="mt-3">
+                <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                    <span>${famCount} הצטרפו</span>
+                    <span>יעד: ${target}</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner border border-slate-200">
+                    <div class="bg-${color}-500 h-2 rounded-full transition-all duration-1000" style="width: ${pct}%"></div>
+                </div>
+                ${!isReady ? `<p class="text-[9px] text-slate-400 mt-1.5 text-center">חסרות ${target - famCount} משפחות להפעלת הקהילה</p>` : ''}
+            </div>
+        </div>
+        `;
+    });
+    
+    html += `<button onclick="openCreateCommunityModal()" class="w-full mt-2 bg-slate-50 text-slate-600 py-3 rounded-xl text-xs font-bold hover:bg-slate-100 transition border border-dashed border-slate-300"><i class="fa-solid fa-plus"></i> יוזמה נוספת</button>`;
+    
+    container.innerHTML = html;
+}
+
 function renderFamilyCommunities(businesses) {
     const container = document.getElementById('community-list-container');
     if (!container) return;
@@ -2288,10 +2413,11 @@ function renderFamilyCommunities(businesses) {
             <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6">
                 <div class="relative z-10">
                     <h3 class="font-bold text-indigo-900 mb-1">הקהילה שלי</h3>
-                    <p class="text-xs text-indigo-700 opacity-80">בקשו ממנהל הסביבה (האדמין הראשי) לחבר אתכם לקהילה מקומית כדי לקבל כאן הטבות שוות!</p>
+                    <p class="text-xs text-indigo-700 opacity-80">כדי לראות מבצעים ועסקים מקומיים, הזינו קוד קהילה בתיבה למעלה.</p>
                 </div>
                 <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-7xl text-indigo-200 opacity-30 rotate-12"></i>
             </div>
+            <div id="my-initiatives-container"></div>
         `;
         return;
     }
@@ -2305,6 +2431,7 @@ function renderFamilyCommunities(businesses) {
                 <h3 class="font-bold text-slate-800 mb-1">הקהילה שלכם מתגבשת</h3>
                 <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
             </div>
+            <div id="my-initiatives-container"></div>
         `;
         return;
     }
@@ -2334,14 +2461,14 @@ function renderFamilyCommunities(businesses) {
                     </p>
                 </div>
             </div>
-            <a href="storefront.html?code=${biz.group_code}&communityId=${currentGroup.community_id}" 
+            <a href="storefront.html?store=${biz.group_code}&communityId=${currentGroup.community_id}" 
                class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm">
                 לחנות
             </a>
         </div>`;
     });
 
-    html += `</div></div>`;
+    html += `</div></div><div id="my-initiatives-container"></div>`;
     container.innerHTML = html;
 }
 function renderCommunityBusinesses(businesses) {
