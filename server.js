@@ -2553,7 +2553,11 @@ app.post('/api/ai/generate-catalog', async (req, res) => {
         }
 
         const result = await model.generateContent(sysPrompt);
-        const items = JSON.parse(result.response.text());
+        let rawText = result.response.text().trim();
+        const jsonStart = rawText.indexOf('[');
+        const jsonEnd = rawText.lastIndexOf(']');
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error('תגובת ה-AI לא הכילה רשימת פריטים תקינה');
+        const items = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
         res.json({ success: true, items: items });
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הקטלוג האוטומטי'); }
 });
