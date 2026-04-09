@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - תיקון למניעת הידבקות מילים, סידור עמודת יחידות, ומניעת דף ריק
+// תבנית ה-HTML ל-PDF - תיקון עמודים ריקים ושבירת עמודים תקינה
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4249,7 +4249,6 @@ function getOrderHtmlTemplate(orderInfo) {
         `).join('');
     }
 
-    // פונקציה לטיפול בטקסטים סטטיים - החלפת כל רווח לרווח קשיח כדי ש-PDF לא יבלע מילים בעברית
     const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${label.replace(/ /g, '&nbsp;')}</span>`;
 
     const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 8px; text-align: right;" dir="rtl">${fixLabel('מספר לקוח:&rlm;')} <span dir="ltr" style="background-color: #eef2ff; padding: 4px 10px; border-radius: 6px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
@@ -4258,7 +4257,7 @@ function getOrderHtmlTemplate(orderInfo) {
     const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 8px; text-align: right;" dir="rtl">${fixLabel('דוא"ל:&rlm;')} <bdi>${safeStr(orderInfo.supplierEmail).replace(/ /g, '&nbsp;')}</bdi></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 25px; text-align: right; overflow: hidden;" dir="rtl">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 25px; text-align: right;" dir="rtl">
             
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px; page-break-inside: avoid;" dir="rtl">
                 <tr>
@@ -4354,14 +4353,13 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.backgroundColor = '#ffffff';
             document.body.appendChild(container);
 
-            // תיקון 3: מניעת דף ריק על ידי הקטנת שוליים ושימוש ב-avoid-all בלבד
             const opt = { 
                 margin: [5, 5, 5, 5], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: 'avoid-all' } 
+                pagebreak: { mode: ['css', 'legacy'] } 
             };
 
             setTimeout(() => {
@@ -4441,7 +4439,6 @@ async function downloadOrderPDFManual(orderId) {
             
             await new Promise(resolve => setTimeout(resolve, 450));
 
-            // גם כאן - הקטנת שוליים ושימוש ב-avoid-all
             const opt = { 
                 margin: [5, 5, 5, 5], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
@@ -4454,7 +4451,7 @@ async function downloadOrderPDFManual(orderId) {
                     letterRendering: true 
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: 'avoid-all' }
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             await html2pdf().set(opt).from(contentDiv).save();
@@ -4470,7 +4467,6 @@ async function downloadOrderPDFManual(orderId) {
         }
     };
 }
-
 // יצירת PDF לשליחה במייל (מוסתר) בפריסה לרוחב (Landscape) 
 async function generateOrderPDFBase64(orderInfo) {
     return new Promise(async (resolve) => {
