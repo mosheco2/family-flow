@@ -4616,7 +4616,7 @@ async function downloadOrderPDFManual(orderId) {
 
     const btnDownload = document.getElementById('btn-actual-download-pdf');
     
-      btnDownload.onclick = async () => {
+    btnDownload.onclick = async () => {
         btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
         btnDownload.disabled = true;
         
@@ -4629,12 +4629,14 @@ async function downloadOrderPDFManual(orderId) {
             
             const pdfContainer = document.createElement('div');
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            
-            pdfContainer.style.position = 'fixed';
-            pdfContainer.style.top = '0';
-            pdfContainer.style.left = '-10000px';
-            pdfContainer.style.width = '1040px';
-            pdfContainer.style.backgroundColor = '#ffffff';
+            pdfContainer.style.cssText = `
+                position: absolute;
+                top: ${window.scrollY}px;
+                left: 0;
+                width: 1040px;
+                background: white;
+                z-index: 99999;
+            `;
             document.body.appendChild(pdfContainer);
 
             const opt = { 
@@ -4643,12 +4645,14 @@ async function downloadOrderPDFManual(orderId) {
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { 
                     scale: 2, 
-                    useCORS: true, 
-                    windowWidth: 1040, 
-                    scrollY: 0 
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: -window.scrollY,
+                    windowWidth: 1040
                 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] } 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] }
             };
 
             setTimeout(() => {
