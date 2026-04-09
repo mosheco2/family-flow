@@ -500,7 +500,7 @@ function renderCatalog() {
             getEl('mod-total-display').innerText = `(₪${grandTotal.toFixed(2)})`;
         }
 
-        function openProductModal(itemId) {
+function openProductModal(itemId) {
             const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
             currentModifierProduct = item; 
             currentModifierBasePrice = parseFloat(item.price) || 0;
@@ -512,85 +512,122 @@ function renderCatalog() {
             getEl('prod-modal-qty').innerText = currentModalQty;
 
             const longDesc = getEl('prod-modal-long-desc');
-            if (item.long_description) {
-                longDesc.innerText = item.long_description;
-                longDesc.classList.remove('hidden');
-            } else {
-                longDesc.classList.add('hidden');
-            }
+            if (item.long_description) { longDesc.innerText = item.long_description; longDesc.classList.remove('hidden'); } 
+            else { longDesc.classList.add('hidden'); }
 
             const imgPreview = getEl('prod-modal-image');
             const placeholder = getEl('prod-modal-placeholder');
-            if (item.image_url) {
-                imgPreview.src = item.image_url;
-                imgPreview.classList.remove('hidden');
-                placeholder.classList.add('hidden');
-            } else {
-                imgPreview.classList.add('hidden');
-                placeholder.classList.remove('hidden');
-            }
+            if (item.image_url) { imgPreview.src = item.image_url; imgPreview.classList.remove('hidden'); placeholder.classList.add('hidden'); } 
+            else { imgPreview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
 
             const pType = item.product_type || 'retail';
-            let btnText = 'הוסף לסל';
-            if (pType === 'service') btnText = 'הזמן שירות';
-            if (pType === 'apparel') btnText = 'בחר מידה והוסף';
-            getEl('prod-btn-text').innerText = btnText;
+            getEl('prod-btn-text').innerText = pType === 'bundle' ? 'הוסף מארז לסל' : 'הוסף לסל';
 
             let options = [];
-            try { options = JSON.parse(item.options_text); } catch(e) { }
+            try { options = JSON.parse(item.options_text); } catch(e) { options = []; }
             
             let html = '';
-            options.forEach((optGroup, idx) => {
-                const isSingle = optGroup.type === 'single';
-                const inputType = isSingle ? 'radio' : 'checkbox';
-                const requiredAsterisk = isSingle ? '<span class="text-red-500">*</span>' : '';
-                
-                html += `<div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100"><h4 class="font-bold text-slate-800 text-sm mb-3">${safeStr(optGroup.name)} ${requiredAsterisk} <span class="text-[10px] font-normal text-slate-500 ml-1">(${isSingle ? 'בחר 1' : 'אפשר לבחור כמה'})</span></h4><div class="space-y-2">`;
-                
-                optGroup.options.forEach((valOpt, vIdx) => {
-                    const priceBadge = valOpt.price > 0 ? `<span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">+₪${valOpt.price}</span>` : '';
-                    html += `
-                    <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-900 transition group">
-                        <div class="flex items-center gap-3">
-                            <input type="${inputType}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="calculateModTotal()" ${isSingle ? 'required' : ''}>
-                            <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900">${safeStr(valOpt.name)}</span>
-                        </div>
-                        ${priceBadge}
-                    </label>`;
+
+            // --- לוגיקה למארז (Bundle) ---
+            if (pType === 'bundle' && options.isBundle) {
+                options.steps.forEach((step, sIdx) => {
+                    const stepQty = step.qty || 1;
+                    html += `<div class="mb-6 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                                <h4 class="font-bold text-indigo-900 text-sm mb-3 flex justify-between">
+                                    <span>${safeStr(step.name)}</span>
+                                    <span class="text-[10px] bg-white px-2 py-0.5 rounded-full border border-indigo-200">בחר/י ${stepQty}</span>
+                                </h4>
+                                <div class="grid grid-cols-1 gap-2">`;
+                    
+                    let itemsInStep = [];
+                    if (step.selectionType === 'category') {
+                        itemsInStep = storeData.catalog.filter(p => p.category === step.category && p.product_type !== 'bundle');
+                    } else {
+                        itemsInStep = storeData.catalog.filter(p => (step.items || []).includes(p.id));
+                    }
+
+                    itemsInStep.forEach(subItem => {
+                        html += `
+                        <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 transition group relative overflow-hidden">
+                            <div class="flex items-center gap-3">
+                                <input type="${stepQty === 1 ? 'radio' : 'checkbox'}" name="bundle_step_${sIdx}" value="${safeStr(subItem.name)}" data-id="${subItem.id}" class="bundle-input w-5 h-5 accent-indigo-600" onchange="checkBundleSelection(${sIdx}, ${stepQty}, this)">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-slate-700">${safeStr(subItem.name)}</span>
+                                    <span class="text-[10px] text-slate-400">${safeStr(subItem.description || '')}</span>
+                                </div>
+                            </div>
+                        </label>`;
+                    });
+                    html += `</div></div>`;
                 });
-                html += `</div></div>`;
-            });
+            } 
+            // --- לוגיקה למוצר רגיל עם תוספות (Modifiers) ---
+            else {
+                const mods = Array.isArray(options) ? options : [];
+                mods.forEach((optGroup, idx) => {
+                    const isSingle = optGroup.type === 'single';
+                    html += `<div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100"><h4 class="font-bold text-slate-800 text-sm mb-3">${safeStr(optGroup.name)}</h4><div class="space-y-2">`;
+                    optGroup.options.forEach((valOpt, vIdx) => {
+                        const priceBadge = valOpt.price > 0 ? `<span class="text-xs font-bold text-emerald-600">+₪${valOpt.price}</span>` : '';
+                        html += `
+                        <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-900 transition group">
+                            <div class="flex items-center gap-3">
+                                <input type="${isSingle ? 'radio' : 'checkbox'}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="calculateModTotal()">
+                                <span class="text-sm font-medium text-slate-700">${safeStr(valOpt.name)}</span>
+                            </div>
+                            ${priceBadge}
+                        </label>`;
+                    });
+                    html += `</div></div>`;
+                });
+            }
 
             getEl('mod-options-container').innerHTML = html;
             calculateModTotal();
             
             getEl('btn-add-with-mod').onclick = () => {
-                let selectedModifiers = []; let totalModPrice = 0;
-                
-                for(let i=0; i<options.length; i++) {
-                    if(options[i].type === 'single') {
-                        const checked = document.querySelector(`input[name="mod_group_${i}"]:checked`);
-                        if(!checked) return showToast('error', `חובה לבחור אפשרות מתוך: ${options[i].name}`);
-                        selectedModifiers.push(checked.value);
-                        totalModPrice += parseFloat(checked.dataset.price) || 0;
-                    } else {
-                        document.querySelectorAll(`input[name="mod_group_${i}"]:checked`).forEach(checked => {
-                            selectedModifiers.push(checked.value);
-                            totalModPrice += parseFloat(checked.dataset.price) || 0;
+                let selections = [];
+                let totalPrice = currentModifierBasePrice;
+
+                if (pType === 'bundle' && options.isBundle) {
+                    let isValid = true;
+                    options.steps.forEach((step, sIdx) => {
+                        const checked = document.querySelectorAll(`input[name="bundle_step_${sIdx}"]:checked`);
+                        if (checked.length !== step.qty) {
+                            showToast('error', `בשלב "${step.name}" חובה לבחור בדיוק ${step.qty} פריטים`);
+                            isValid = false;
+                        }
+                        checked.forEach(c => selections.push(c.value));
+                    });
+                    if (!isValid) return;
+                } else {
+                    const mods = Array.isArray(options) ? options : [];
+                    mods.forEach((g, i) => {
+                        const checked = document.querySelectorAll(`input[name="mod_group_${i}"]:checked`);
+                        checked.forEach(c => {
+                            selections.push(c.value);
+                            totalPrice += parseFloat(c.dataset.price) || 0;
                         });
-                    }
+                    });
                 }
                 
-                const finalName = selectedModifiers.length > 0 ? `${item.name} (${selectedModifiers.join(', ')})` : item.name;
-                const finalPrice = currentModifierBasePrice + totalModPrice;
-                const cartKey = `${item.id}_${selectedModifiers.join('-')}`; 
-                
-                updateCart(cartKey, currentModalQty, finalName, finalPrice, item.id);
-                closeProductModal(); showToast('success', 'נוסף לסל בהצלחה!');
+                const finalName = selections.length > 0 ? `${item.name} (${selections.join(', ')})` : item.name;
+                updateCart(`${item.id}_${selections.join('-')}`, currentModalQty, finalName, totalPrice, item.id);
+                closeProductModal(); 
+                showToast('success', 'התווסף לסל! 🛒');
             };
             
             getEl('product-modal').classList.remove('hidden');
         }
+
+        // פונקציית עזר להגבלת בחירה בבאנדלים
+        window.checkBundleSelection = function(stepIdx, max, input) {
+            const checked = document.querySelectorAll(`input[name="bundle_step_${stepIdx}"]:checked`);
+            if (checked.length > max) {
+                input.checked = false;
+                showToast('info', `ניתן לבחור עד ${max} פריטים בשלב זה`);
+            }
+        };
 
         function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
 
