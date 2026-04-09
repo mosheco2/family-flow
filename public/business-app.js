@@ -3173,8 +3173,32 @@ function removeModifierOption(gIndex, optIndex) { currentModifiersUI[gIndex].opt
 function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; }
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 
+let currentBundleStepsUI = [];
+
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
+    currentBundleStepsUI = [];
+    
+    // הזרקת הממשק להרכבת באנדל (אם לא קיים ב-HTML)
+    let bundleContainer = getEl('bundle-builder-container');
+    if (!bundleContainer) {
+        const modContainer = getEl('modifiers-builder-container');
+        if (modContainer) {
+            bundleContainer = document.createElement('div');
+            bundleContainer.id = 'bundle-builder-container';
+            bundleContainer.className = 'mt-4 border-t border-slate-100 pt-4';
+            modContainer.parentNode.insertBefore(bundleContainer, modContainer.nextSibling);
+            
+            const pTypeEl = getEl('sp-product-type');
+            if (pTypeEl) {
+                if (!pTypeEl.querySelector('option[value="bundle"]')) {
+                    pTypeEl.insertAdjacentHTML('beforeend', '<option value="bundle">📦 מארז / קומבו (Bundle)</option>');
+                }
+                pTypeEl.addEventListener('change', (e) => toggleProductTypeUI(e.target.value));
+            }
+        }
+    }
+
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); if(!p) return;
         getEl('sp-id').value = p.id; 
@@ -3183,7 +3207,6 @@ function openStoreProductModal(id = null) {
         getEl('sp-category').value = p.category || ''; 
         getEl('sp-desc').value = p.description || ''; 
         
-        // טעינת שדות חדשים: סוג מוצר ותיאור מורחב
         if(getEl('sp-product-type')) getEl('sp-product-type').value = p.product_type || 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = p.long_description || '';
         
@@ -3195,58 +3218,171 @@ function openStoreProductModal(id = null) {
         if (p.image_url) { getEl('sp-image-preview').src = p.image_url; getEl('sp-image-preview').classList.remove('hidden'); getEl('sp-image-placeholder').classList.add('hidden'); } else { getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden'); }
         
         if (p.options_text) {
-            try { currentModifiersUI = JSON.parse(p.options_text); } catch(e) { currentModifiersUI = []; }
+            try { 
+                const parsed = JSON.parse(p.options_text); 
+                if (parsed && parsed.isBundle) {
+                    currentBundleStepsUI = parsed.steps || [];
+                } else {
+                    currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
+                }
+            } catch(e) { }
         }
     } else {
-        getEl('sp-id').value = ''; 
-        getEl('sp-name').value = ''; 
-        getEl('sp-price').value = ''; 
-        getEl('sp-category').value = ''; 
-        getEl('sp-desc').value = ''; 
-        
-        // איפוס השדות החדשים
+        getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
         if(getEl('sp-product-type')) getEl('sp-product-type').value = 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = '';
 
         getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
-        
-        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; 
-        if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
+        if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
     }
-    renderModifiersUI(); getEl('store-product-modal').classList.remove('hidden');
+    
+    toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
+    renderModifiersUI(); 
+    renderBundleBuilderUI();
+    getEl('store-product-modal').classList.remove('hidden');
+}
+
+function toggleProductTypeUI(type) {
+    const modContainer = getEl('modifiers-builder-container');
+    const bundleContainer = getEl('bundle-builder-container');
+    const presetContainer = getEl('preset-selector') ? getEl('preset-selector').parentNode : null;
+    
+    if (type === 'bundle') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (presetContainer) presetContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.remove('hidden');
+    } else {
+        if (modContainer) modContainer.classList.remove('hidden');
+        if (presetContainer) presetContainer.classList.remove('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+    }
+}
+
+function addBundleStep() {
+    currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
+    renderBundleBuilderUI();
+}
+
+function removeBundleStep(idx) {
+    currentBundleStepsUI.splice(idx, 1);
+    renderBundleBuilderUI();
+}
+
+function renderBundleBuilderUI() {
+    const container = getEl('bundle-builder-container');
+    if (!container) return;
+
+    let html = '<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2 fade-in">';
+    html += '<h4 class="font-bold text-indigo-900 text-sm mb-2"><i class="fa-solid fa-boxes-packing"></i> הרכבת המארז (Bundle)</h4>';
+    html += '<p class="text-[11px] text-indigo-700 mb-4 opacity-90">הגדירו מאילו קטגוריות או מוצרים יוכל הלקוח להרכיב את החבילה.</p>';
+
+    if (currentBundleStepsUI.length === 0) {
+        html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
+    } else {
+        // משיכת קטגוריות ייחודיות מתוך הקטלוג עבור תיבת הבחירה
+        const cats = [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))];
+        let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
+        cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
+
+        // משיכת כלל המוצרים הרגילים עבור תיבת הסימון הספציפית
+        const prods = storeCatalogCache.filter(p => p.product_type !== 'bundle');
+        
+        currentBundleStepsUI.forEach((step, idx) => {
+            const isCat = step.selectionType === 'category';
+            
+            let prodOptionsHtml = '';
+            prods.forEach(p => {
+                const selected = step.items.includes(p.id) ? 'checked' : '';
+                prodOptionsHtml += `<label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"><div class="flex items-center gap-2"><input type="checkbox" value="${p.id}" onchange="updateBundleStepItems(${idx}, this)" ${selected} class="w-3.5 h-3.5 accent-indigo-600"> <span class="font-medium text-slate-700 truncate w-32">${safeStr(p.name)}</span></div><span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded truncate max-w-[80px]">${safeStr(p.category)}</span></label>`;
+            });
+
+            html += `
+            <div class="bg-white p-3.5 rounded-xl border border-indigo-200 shadow-sm mb-3 relative group">
+                <button onclick="removeBundleStep(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-slate-50 rounded shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                
+                <div class="grid grid-cols-3 gap-2 mb-3 pr-6">
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת עיקרית):</label>
+                        <input type="text" class="modern-input py-1.5 text-xs" value="${safeStr(step.name)}" onchange="currentBundleStepsUI[${idx}].name = this.value">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות בחירה:</label>
+                        <input type="number" min="1" class="modern-input py-1.5 text-xs text-center dir-ltr" value="${step.qty}" onchange="currentBundleStepsUI[${idx}].qty = parseInt(this.value) || 1">
+                    </div>
+                </div>
+                
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">הלקוח יבחר פריטים מתוך:</label>
+                    <select class="modern-input py-1.5 text-xs mb-2 text-indigo-700 font-bold bg-white" onchange="currentBundleStepsUI[${idx}].selectionType = this.value; renderBundleBuilderUI();">
+                        <option value="category" ${isCat ? 'selected' : ''}>קטגוריה שלמה מהקטלוג</option>
+                        <option value="items" ${!isCat ? 'selected' : ''}>רשימת מוצרים ספציפית שאגדיר</option>
+                    </select>
+
+                    ${isCat ? `
+                    <div class="fade-in">
+                        <select class="modern-input py-1.5 text-xs bg-white" onchange="currentBundleStepsUI[${idx}].category = this.value">
+                            ${catOptions.replace(`value="${step.category}"`, `value="${step.category}" selected`)}
+                        </select>
+                    </div>
+                    ` : `
+                    <div class="h-28 overflow-y-auto bg-white border border-slate-200 rounded-md p-1 modal-scroll fade-in">
+                        ${prodOptionsHtml || '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים זמינים בקטלוג.</p>'}
+                    </div>
+                    `}
+                </div>
+            </div>
+            `;
+        });
+    }
+    
+    html += `<button onclick="addBundleStep()" class="w-full bg-white text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition border border-indigo-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוספת שלב בחירה למארז</button>`;
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+function updateBundleStepItems(stepIdx, cb) {
+    const id = parseInt(cb.value);
+    if (cb.checked) {
+        if (!currentBundleStepsUI[stepIdx].items.includes(id)) currentBundleStepsUI[stepIdx].items.push(id);
+    } else {
+        currentBundleStepsUI[stepIdx].items = currentBundleStepsUI[stepIdx].items.filter(i => i !== id);
+    }
 }
 
 async function submitStoreProduct() {
     const id = val('sp-id'); const name = val('sp-name'); const price = val('sp-price');
+    const pType = val('sp-product-type') || 'retail';
     if(!name || !price) return showToast('error', 'שם ומחיר הם שדות חובה');
     
-    let validOptions = [];
-    currentModifiersUI.forEach(mod => { 
-        if (mod.name.trim()) {
-            const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
-            if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
-        }
-    });
-    const finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
+    let finalOptionsText = '';
+
+    if (pType === 'bundle') {
+        const validSteps = currentBundleStepsUI.filter(s => s.name.trim() !== '');
+        if(validSteps.length === 0) return showToast('error', 'מארז (Bundle) חייב להכיל לפחות שלב בחירה אחד עבור הלקוח.');
+        finalOptionsText = JSON.stringify({ isBundle: true, steps: validSteps });
+    } else {
+        let validOptions = [];
+        currentModifiersUI.forEach(mod => { 
+            if (mod.name.trim()) {
+                const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
+                if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
+            }
+        });
+        finalOptionsText = validOptions.length > 0 ? JSON.stringify(validOptions) : '';
+    }
     
     const btn = getEl('btn-submit-sp'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
         const payload = { 
-            groupId: currentGroup.id, 
-            name, 
-            price, 
-            category: val('sp-category'), 
-            description: val('sp-desc'), 
-            optionsText: finalOptionsText, 
-            imageUrl: val('sp-image-base64') || null,
-            badgeText: val('sp-badge-text') || '', 
-            badgeColor: val('sp-badge-color') || 'red',
-            productType: val('sp-product-type') || 'retail', 
-            longDescription: val('sp-long-desc') || ''
+            groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'), 
+            optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
+            badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red',
+            productType: pType, longDescription: val('sp-long-desc') || ''
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
-        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+        if (data.success) { showToast('success', id ? 'המוצר התעדכן!' : 'המוצר/מארז נוסף לקטלוג!'); getEl('store-product-modal').classList.add('hidden'); fetchStoreCatalog(); } 
+        else { showToast('error', data.error || 'שגיאה בשמירה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
