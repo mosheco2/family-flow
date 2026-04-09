@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - תיקון עמודים ריקים ושבירת עמודים תקינה
+// תבנית ה-HTML ל-PDF - תיקון מלא למניעת עמודים ריקים, כולל ניתוק גלילה בהורדה
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4257,9 +4257,9 @@ function getOrderHtmlTemplate(orderInfo) {
     const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 8px; text-align: right;" dir="rtl">${fixLabel('דוא"ל:&rlm;')} <bdi>${safeStr(orderInfo.supplierEmail).replace(/ /g, '&nbsp;')}</bdi></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 25px; text-align: right;" dir="rtl">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 20px; text-align: right;" dir="rtl">
             
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
                         <h1 style="margin: 0 0 10px 0; font-size: 30px; color: #334155;">הזמנת&nbsp;רכש <span dir="ltr" style="font-size: 18px; color:#64748b;">(Purchase Order)</span></h1>
@@ -4284,7 +4284,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; vertical-align: top; text-align: right;" dir="rtl">
                         <h3 style="margin: 0 0 14px 0; color: #4f46e5; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&rlm;</h3>
@@ -4304,7 +4304,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; page-break-inside: avoid; text-align: right;" dir="rtl">
+            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right;" dir="rtl">
                 <strong style="display: block; margin-bottom: 5px;">שלום&nbsp;רב,&rlm;</strong>
                 מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
             </div>
@@ -4348,13 +4348,12 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.top = '0';
             container.style.left = '0';
             container.style.width = '1040px'; 
-            container.style.zIndex = '-100'; 
-            container.style.opacity = '0.99';
+            container.style.zIndex = '-9999'; 
             container.style.backgroundColor = '#ffffff';
             document.body.appendChild(container);
 
             const opt = { 
-                margin: [5, 5, 5, 5], 
+                margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
@@ -4371,7 +4370,7 @@ async function generateOrderPDFBase64(orderInfo) {
                     if(document.body.contains(container)) document.body.removeChild(container);
                     resolve(null); 
                 });
-            }, 500); 
+            }, 300); 
         } catch(err) { resolve(null); }
     });
 }
@@ -4418,6 +4417,7 @@ async function downloadOrderPDFManual(orderId) {
         `);
     }
 
+    // תצוגה מקדימה במודאל (לעולם לא נגזרת ל-PDF כדי למנוע את באג הגלילה)
     const contentDiv = document.getElementById('pdf-preview-content');
     contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
     
@@ -4437,10 +4437,21 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            await new Promise(resolve => setTimeout(resolve, 450));
+            // יצירת קונטיינר מנותק לטובת צילום ה-PDF בלבד (פותר את העמוד הראשון הריק לחלוטין)
+            const pdfContainer = document.createElement('div');
+            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
+            pdfContainer.style.position = 'absolute';
+            pdfContainer.style.top = '0';
+            pdfContainer.style.left = '0';
+            pdfContainer.style.width = '1040px'; 
+            pdfContainer.style.zIndex = '-9999'; 
+            pdfContainer.style.backgroundColor = '#ffffff';
+            document.body.appendChild(pdfContainer);
+
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             const opt = { 
-                margin: [5, 5, 5, 5], 
+                margin: [10, 10, 10, 10], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { 
@@ -4454,7 +4465,10 @@ async function downloadOrderPDFManual(orderId) {
                 pagebreak: { mode: ['css', 'legacy'] }
             };
 
-            await html2pdf().set(opt).from(contentDiv).save();
+            await html2pdf().set(opt).from(pdfContainer).save();
+            
+            // ניקוי הקונטיינר הזמני
+            if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
             
             showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
             document.getElementById('pdf-preview-modal').classList.add('hidden');
