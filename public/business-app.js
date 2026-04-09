@@ -402,7 +402,18 @@ function injectBusinessUI() {
             `);
         }
     }
-    
+        if(!getEl('sales-view-quotes')) {
+        const ordersView = getEl('sales-view-orders');
+        if(ordersView) ordersView.insertAdjacentHTML('afterend', `
+        <div id="sales-view-quotes" class="hidden space-y-4">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
+                <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> הצעה חדשה</button>
+            </div>
+            <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+        </div>`);
+    }
+
     if(!getEl('quote-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
