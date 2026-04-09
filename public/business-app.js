@@ -250,287 +250,6 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
-function injectBusinessUI() {
-    if(!getEl('content-shifts')) {
-        const contentFeed = getEl('content-feed');
-        if(contentFeed) {
-            contentFeed.insertAdjacentHTML('afterend', `
-            <div id="content-shifts" class="hidden">
-                <div class="flex justify-between items-center mb-4 px-2 mt-2">
-                    <h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3>
-                    <button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button>
-                </div>
-                <div id="shifts-list" class="space-y-3 pb-20"></div>
-            </div>
-            `);
-        }
-    }
-
-    if(!getEl('content-sales')) {
-        const contentShifts = getEl('content-shifts') || getEl('content-feed');
-        if(contentShifts) {
-            contentShifts.insertAdjacentHTML('afterend', `
-            <div id="content-sales" class="hidden">
-                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
-                    
-                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
-                        <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                        <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
-                        <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג</button>
-                        <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק</button>
-                        <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
-                    </div>
-
-                    <div id="sales-view-orders" class="space-y-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
-                                <option value="all">כל ההזמנות</option>
-                                <option value="new">חדשות</option>
-                                <option value="processing">בהכנה</option>
-                                <option value="ready">מוכנות</option>
-                                <option value="shipped">במשלוח</option>
-                                <option value="completed">הושלמו</option>
-                            </select>
-                        </div>
-                        <div id="store-orders-list" class="space-y-3 pb-8"></div>
-                    </div>
-
-                    <div id="sales-view-quotes" class="hidden space-y-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
-                            <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> הצעה חדשה</button>
-                        </div>
-                        <div id="store-quotes-list" class="space-y-3 pb-8"></div>
-                    </div>
-
-                    <div id="sales-view-catalog" class="hidden space-y-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
-                            <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
-                        </div>
-                        <div id="store-catalog-list" class="space-y-3 pb-8"></div>
-                    </div>
-
-                    <div id="sales-view-marketing" class="hidden space-y-6">
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <h4 class="font-bold text-slate-700 text-sm mb-3">יצירת קופון חדש</h4>
-                            <div class="grid grid-cols-2 gap-3 mb-3">
-                                <div>
-                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">קוד קופון:</label>
-                                    <input type="text" id="coupon-code" class="modern-input py-2 text-sm font-mono uppercase text-left dir-ltr" placeholder="SUMMER20">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-slate-500 block mb-1">אחוז הנחה (%):</label>
-                                    <input type="number" id="coupon-discount" class="modern-input py-2 text-sm text-center" placeholder="10">
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף (אופציונלי):</label>
-                                <input type="date" id="coupon-date" class="modern-input py-2 text-sm bg-white">
-                            </div>
-                            <button onclick="createStoreCoupon()" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold shadow-sm hover:bg-indigo-700 transition">צור קופון</button>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-slate-700 text-sm mb-3">קופונים פעילים</h4>
-                            <div id="store-coupons-list" class="space-y-2 pb-8"></div>
-                        </div>
-                    </div>
-
-                    <div id="sales-view-settings" class="hidden space-y-5 pb-8">
-                        <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                            <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600">
-                            <label class="font-bold text-indigo-800 text-sm cursor-pointer" for="store-is-active">חנות פעילה ופתוחה להזמנות</label>
-                        </div>
-                        
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
-                            <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm bg-white"><option value="retail">קמעונאות / מוצרים</option><option value="food">מסעדה / מזון</option><option value="services">שירותים</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
-                        </div>
-                        
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1.5">סלוגן / תיאור קצר:</label>
-                            <input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="המוצרים הכי טובים בעיר">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">טלפון לעסק:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000"></div>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">וואטסאפ להזמנות:</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="972500000000"></div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm bg-white"></div>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm bg-white"></div>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1.5">לוגו העסק:</label>
-                            <div class="flex items-center gap-3">
-                                <div id="store-logo-preview-container" class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300">
-                                    <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
-                                    <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
-                                </div>
-                                <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition border border-slate-200"><i class="fa-solid fa-camera mr-1"></i> העלה לוגו</button>
-                                <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
-                                <input type="hidden" id="store-logo-base64">
-                            </div>
-                        </div>
-
-                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                            <label class="text-xs font-bold text-blue-800 block mb-1.5">קישור לחנות הציבורית שלכם:</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="store-public-link" class="modern-input py-2 text-xs font-mono text-left dir-ltr flex-1 bg-white text-slate-500" readonly>
-                                <button onclick="copyStoreLink()" class="bg-blue-600 text-white px-4 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm text-sm"><i class="fa-regular fa-copy"></i></button>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-list-check"></i> תבניות תוספות (Modifiers):</label>
-                            <select id="preset-selector" onchange="loadPreset(this.value)" class="modern-input py-2 text-sm bg-white mb-2 hidden"></select>
-                        </div>
-
-                        <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
-                    </div>
-                </div>
-            </div>
-            `);
-        }
-    }
-    
-    if(!getEl('quote-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                <div class="bg-indigo-50 p-6 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                    <h3 class="text-xl font-black text-indigo-900">הצעת מחיר חדשה</h3>
-                    <button onclick="getEl('quote-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="p-6 overflow-y-auto modal-scroll space-y-4 flex-1">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח:</label>
-                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm" placeholder="שם מלא / חברה">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון הלקוח:</label>
-                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000">
-                        </div>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-list-check"></i> בחירת פריטים לקטלוג:</label>
-                        <div id="quote-items-selector" class="space-y-2 max-h-40 overflow-y-auto pr-1 modal-scroll"></div>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות להצעה (יופיעו ב-PDF):</label>
-                        <textarea id="quote-notes" class="modern-input py-2 text-sm h-20" placeholder="למשל: תקף ל-14 יום. המחיר כולל מע״מ..."></textarea>
-                    </div>
-                </div>
-                <div class="p-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
-                    <div>
-                        <span class="text-[10px] text-slate-400 font-bold block">סה"כ הצעה</span>
-                        <span id="quote-total-display" class="text-2xl font-black text-slate-900">₪0</span>
-                    </div>
-                    <button id="btn-generate-quote" onclick="submitNewQuote()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
-                        שמור והפק <i class="fa-solid fa-paper-plane"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-
-    if(!getEl('tab-shifts')) {
-        const tabPantry = getEl('tab-pantry');
-        if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
-    }
-    if(!getEl('tab-sales')) {
-        const tabBank = getEl('tab-bank');
-        if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-    }
-
-    if(!getEl('shift-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
-                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
-                    <button onclick="getEl('shift-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">פרטי משמרת</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד/ת:</label><select id="shift-user" class="modern-input py-3 text-sm bg-white"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="shift-date" class="modern-input py-3 text-sm"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">משעה:</label><input type="time" id="shift-start" class="modern-input py-3 text-sm"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">עד שעה:</label><input type="time" id="shift-end" class="modern-input py-3 text-sm"></div>
-                    </div>
-                    <div class="flex gap-3 mt-4">
-                        <button onclick="getEl('shift-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-submit-shift" onclick="submitShift()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור משמרת</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-
-    if(!getEl('manual-punch-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="manual-punch-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl modal-scroll max-h-[90vh] overflow-y-auto">
-                <div class="bg-indigo-50 p-6 text-center relative border-b border-indigo-100">
-                    <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="text-xl font-black text-slate-800 mt-2">דיווח נוכחות ידני</h3>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div><label class="text-xs font-bold text-slate-500">עובד:</label><select id="mp-user" class="modern-input py-3 text-sm bg-white"></select></div>
-                    <div><label class="text-xs font-bold text-slate-500">תאריך:</label><input type="date" id="mp-date" class="modern-input py-3 text-sm"></div>
-                    <div class="flex gap-2">
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">כניסה:</label><input type="time" id="mp-start" class="modern-input py-3 text-sm"></div>
-                        <div class="flex-1"><label class="text-xs font-bold text-slate-500">יציאה:</label><input type="time" id="mp-end" class="modern-input py-3 text-sm"></div>
-                    </div>
-                    <div class="flex gap-3 mt-4">
-                        <button onclick="getEl('manual-punch-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-600 rounded-xl py-3.5 font-bold hover:bg-slate-200 transition">ביטול</button>
-                        <button id="btn-submit-mp" onclick="submitManualPunch()" class="flex-1 bg-indigo-600 text-white rounded-xl py-3.5 font-bold shadow-md hover:bg-indigo-700 transition">שמור דיווח</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-
-    if(!getEl('permissions-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="permissions-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
-                <h3 class="text-xl font-bold mb-2 text-center text-slate-800">סיווג וגישה למערכת 🔐</h3>
-                <p id="perm-user-name" class="text-center text-slate-500 mb-4 text-sm"></p>
-                <input type="hidden" id="perm-user-id">
-                <div class="mb-4">
-                    <label class="text-xs font-bold text-slate-500 block mb-2">סיווג העובד/ת (משנה תבנית אוטומטית):</label>
-                    <select id="perm-role-select" onchange="applyRoleDefaults(this.value)" class="modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold">
-                        <option value="MEMBER">עובד רגיל / איש צוות</option>
-                        <option value="SENIOR">עובד בכיר / אחראי</option>
-                        <option value="MANAGER">מנהל משמרת (אחמ"ש)</option>
-                        <option value="ADMIN">בעלים / מנהל ראשי (הרשאה מלאה)</option>
-                    </select>
-                </div>
-                <label class="text-xs font-bold text-slate-500 block mb-2">טאבים מורשים למשתמש (התאמה אישית):</label>
-                <div id="perm-tabs-container" class="grid grid-cols-2 gap-2 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100"></div>
-                <div class="flex gap-3">
-                    <button onclick="document.getElementById('permissions-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                    <button id="btn-submit-permissions" onclick="submitPermissions()" class="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הרשאות</button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-}
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
@@ -2657,6 +2376,141 @@ async function fetchStoreQuotes() {
             list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
             return;
         }
+
+        storeQuotesCache = data.quotes;
+        list.innerHTML = data.quotes.map(q => `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3 hover:shadow-md transition">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">הצעה #${q.id} - ${safeStr(q.customer_name)}</h4>
+                    <p class="text-lg font-black text-indigo-600 dir-ltr mt-0.5 text-right">₪${parseFloat(q.total_amount).toFixed(2)}</p>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="shareQuoteWhatsApp(${q.id}, '${safeStr(q.customer_phone)}')" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                    <button onclick="downloadQuotePDF(${q.id})" class="bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {}
+}
+
+let selectedQuoteItems = {};
+
+function openNewQuoteModal() {
+    selectedQuoteItems = {};
+    const selector = getEl('quote-items-selector');
+    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם תחת "קטלוג מוצרים".');
+
+    selector.innerHTML = storeCatalogCache.map(p => `
+        <div class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-indigo-100 transition">
+            <div class="flex flex-col pr-1">
+                <span class="text-sm font-bold text-slate-700">${safeStr(p.name)}</span>
+                <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded w-fit mt-0.5">₪${p.price}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="number" min="0" id="quote-qty-${p.id}" oninput="updateQuoteItem(${p.id}, this.value, '${safeStr(p.name)}', ${p.price})" class="modern-input py-1.5 text-sm text-center w-16 bg-slate-50" placeholder="0">
+            </div>
+        </div>
+    `).join('');
+    
+    getEl('quote-cust-name').value = '';
+    getEl('quote-cust-phone').value = '';
+    getEl('quote-notes').value = '';
+    getEl('quote-total-display').innerText = '₪0';
+    getEl('quote-modal').classList.remove('hidden');
+}
+
+function updateQuoteItem(id, qty, name, price) {
+    if (parseInt(qty) > 0) selectedQuoteItems[id] = { id, name, price_at_order: price, quantity: parseInt(qty) };
+    else delete selectedQuoteItems[id];
+    
+    let total = 0;
+    Object.values(selectedQuoteItems).forEach(i => total += (i.quantity * i.price_at_order));
+    getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
+}
+
+async function submitNewQuote() {
+    const name = val('quote-cust-name');
+    const phone = val('quote-cust-phone');
+    if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
+
+    const btn = getEl('btn-generate-quote');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר...';
+
+    const items = Object.values(selectedQuoteItems);
+    let total = 0; items.forEach(i => total += (i.quantity * i.price_at_order));
+
+    try {
+        const res = await fetch(`${API}/store/quotes`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items, totalAmount: total, notes: val('quote-notes') })
+        });
+        const data = await res.json();
+        if(data.success) {
+            triggerConfetti();
+            showToast('success', 'הצעת המחיר נוצרה!');
+            getEl('quote-modal').classList.add('hidden');
+            fetchStoreQuotes();
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
+}
+
+function shareQuoteWhatsApp(id, phone) {
+    const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
+    window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
+}
+
+async function downloadQuotePDF(id) {
+    const quote = storeQuotesCache.find(q => q.id === id);
+    if (!quote) return;
+    
+    const orderInfo = {
+        orderId: quote.id,
+        supplierName: currentGroup.name, 
+        supplierPhone: currentGroup.phone || '',
+        customerName: quote.customer_name,
+        customerNumber: quote.customer_phone || '',
+        totalAmount: quote.total_amount,
+        items: quote.items
+    };
+    
+    const isLoaded = await loadHtml2Pdf();
+    if(!isLoaded) return;
+    showToast('info', 'מפיק קובץ PDF...');
+    
+    let htmlContent = getOrderHtmlTemplate(orderInfo);
+    htmlContent = htmlContent.replace('הזמנת&nbsp;רכש&#x200F;', 'הצעת&nbsp;מחיר&#x200F;').replace('(Purchase Order)', '(Price Quote)');
+    if(quote.notes) {
+        htmlContent += `<div style="margin-top: 20px; padding: 15px; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: right;" dir="rtl"><b>הערות:</b><br>${safeStr(quote.notes).replace(/\n/g, '<br>')}</div>`;
+    }
+
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    container.style.position = 'absolute'; container.style.top = '0'; container.style.left = '0';
+    container.style.width = '1040px'; container.style.zIndex = '-100'; container.style.backgroundColor = '#ffffff';
+    document.body.appendChild(container);
+
+    const opt = { 
+        margin: [10, 10, 10, 10], filename: `Quote_${id}.pdf`, image: { type: 'jpeg', quality: 1 }, 
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+    };
+
+    setTimeout(() => {
+        html2pdf().set(opt).from(container).save().then(() => {
+            if(document.body.contains(container)) document.body.removeChild(container);
+            showToast('success', 'הורד בהצלחה!');
+        });
+    }, 500);
+}
+
+// === Marketing (Promotions & Coupons) ===
+let storePromotionsCache = [];
+
+async function fetchStoreMarketing() {
+    fetchStoreCoupons();
+    fetchStorePromotions();
+}
 
         storeQuotesCache = data.quotes;
         list.innerHTML = data.quotes.map(q => `
