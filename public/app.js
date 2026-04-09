@@ -2260,22 +2260,20 @@ async function submitForgotCode() {
 // --- מודול הקהילה והעסקים המקומיים ---
 // ============================================================
 
+let myConnectedCommunitiesCache = [];
+let myCommunityBusinessesCache = [];
 let myInitiativesCache = [];
 
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
-        const res = await fetch(`${API}/community/businesses/${currentGroup.id}`);
+        const res = await fetch(`${API}/community/info/${currentGroup.id}`);
         const data = await res.json();
         
-        if (data.success && data.community) {
-            getEl('community-join-section').classList.add('hidden');
-            getEl('community-businesses-section').classList.remove('hidden');
-            getEl('community-name-display').innerText = data.community.name;
-            renderCommunityBusinesses(data.businesses);
-        } else {
-            getEl('community-join-section').classList.remove('hidden');
-            getEl('community-businesses-section').classList.add('hidden');
+        if (data.success) {
+            myConnectedCommunitiesCache = data.communities || [];
+            myCommunityBusinessesCache = data.businesses || [];
+            renderFamilyCommunities();
         }
         
         // משיכת היוזמות הקהילתיות של המשתמש
@@ -2283,7 +2281,6 @@ async function fetchCommunityData() {
     } catch(e) { console.error('Error fetching community data', e); }
 }
 
-// משיכת קהילות שיזמתי בעצמי
 async function fetchMyInitiatives() {
     try {
         const res = await fetch(`${API}/community/my-initiatives/${currentGroup.id}`);
@@ -2371,7 +2368,6 @@ function renderMyInitiatives() {
         const color = isReady ? 'green' : 'indigo';
         const statusText = isReady ? 'פעילה' : 'בגיוס חברים';
         
-        // יצירת לינק הפניה ששותל את קוד הקהילה בטופס ההרשמה של משתמשים חדשים
         const referralLink = `${window.location.origin}/?inviteCommunityCode=${c.code}`;
         const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-Oneflow: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
 
@@ -2404,100 +2400,109 @@ function renderMyInitiatives() {
     container.innerHTML = html;
 }
 
-function renderFamilyCommunities(businesses) {
+function renderFamilyCommunities() {
     const container = document.getElementById('community-list-container');
     if (!container) return;
 
-    if (!currentGroup || !currentGroup.community_id) {
-        container.innerHTML = `
+    let html = '';
+
+    // הצגת הקהילות המחוברות (עד 5)
+    if (myConnectedCommunitiesCache.length > 0) {
+        html += `<div class="mb-6">
+                    <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
+                    <div class="space-y-2">`;
+        myConnectedCommunitiesCache.forEach(c => {
+            html += `
+            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm">
+                <div>
+                    <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
+                    <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
+                </div>
+                <button onclick="leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
+            </div>`;
+        });
+        html += `</div>`;
+        
+        if (myConnectedCommunitiesCache.length < 5) {
+            html += `<button onclick="document.getElementById('community-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition"><i class="fa-solid fa-plus"></i> הוספת קהילה נוספת</button>`;
+        }
+        html += `</div>`;
+    } else {
+        html += `
             <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6">
                 <div class="relative z-10">
-                    <h3 class="font-bold text-indigo-900 mb-1">הקהילה שלי</h3>
-                    <p class="text-xs text-indigo-700 opacity-80">כדי לראות מבצעים ועסקים מקומיים, הזינו קוד קהילה בתיבה למעלה.</p>
+                    <h3 class="font-bold text-indigo-900 mb-1">הקהילות שלי</h3>
+                    <p class="text-xs text-indigo-700 opacity-80">הזינו קוד קהילה בתיבה למטה או פתחו קהילה חדשה באזורכם!</p>
                 </div>
                 <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-7xl text-indigo-200 opacity-30 rotate-12"></i>
             </div>
-            <div id="my-initiatives-container"></div>
         `;
-        return;
     }
 
-    if (!businesses || businesses.length === 0) {
-        container.innerHTML = `
-            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center mb-6">
-                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
-                    <i class="fa-solid fa-shop text-2xl"></i>
-                </div>
-                <h3 class="font-bold text-slate-800 mb-1">הקהילה שלכם מתגבשת</h3>
-                <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
-            </div>
-            <div id="my-initiatives-container"></div>
-        `;
-        return;
-    }
-
-    let html = `
-    <div class="mb-6">
-        <div class="flex items-center justify-between mb-4 px-1">
-            <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                <i class="fa-solid fa-users-rays text-indigo-500"></i>
-                עסקי הקהילה שלנו
-            </h2>
+    // טופס ההצטרפות
+    const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
+    html += `
+    <div id="community-join-section" class="${hideJoin} mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+        <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid fa-handshake"></i></div>
+        <h3 class="font-bold text-slate-800 text-sm mb-1">הצטרפות לקהילה (עד 5 קהילות)</h3>
+        <p class="text-xs text-slate-500 mb-4">הזינו את הקוד כדי להצטרף לקהילה המקומית ולקבל הנחות והטבות מעסקים בסביבה.</p>
+        <div class="flex gap-2">
+            <input type="text" id="community-code-input" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
+            <button id="btn-join-community" onclick="joinCommunity()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
         </div>
-        <div class="space-y-3">
-    `;
+    </div>`;
 
-    businesses.forEach(biz => {
+    // רשימת עסקים משולבת
+    if (myCommunityBusinessesCache.length > 0) {
         html += `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-indigo-100 transition-colors">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-inner">
-                    <i class="fa-solid fa-shop"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(biz.business_name)}</h4>
-                    <p class="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                        ${biz.discount_pct}% הנחת קהילה
-                    </p>
-                </div>
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-4 px-1">
+                <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-shop text-emerald-500"></i>
+                    עסקים בקהילות שלנו
+                </h2>
             </div>
-            <a href="storefront.html?store=${biz.group_code}&communityId=${currentGroup.community_id}" 
-               class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm">
-                לחנות
-            </a>
+            <div class="space-y-3">
+        `;
+        myCommunityBusinessesCache.forEach(biz => {
+            const storeLink = `${window.location.origin}/storefront.html?store=${biz.group_code}&communityId=${biz.community_id}`;
+            html += `
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-center justify-between hover:border-emerald-100 transition-colors">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl shadow-inner shrink-0">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(biz.business_name)}</h4>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            <span class="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+                                ${biz.discount_pct}% הנחה
+                            </span>
+                            <span class="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">
+                                מקהילת ${safeStr(biz.comm_name)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <a href="${storeLink}" target="_blank" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">
+                    לחנות
+                </a>
+            </div>`;
+        });
+        html += `</div></div>`;
+    } else if (myConnectedCommunitiesCache.length > 0) {
+        html += `
+        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center mb-6">
+            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
+                <i class="fa-solid fa-shop text-2xl"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 mb-1">הקהילות שלכם מתגבשות</h3>
+            <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
         </div>`;
-    });
-
-    html += `</div></div><div id="my-initiatives-container"></div>`;
-    container.innerHTML = html;
-}
-function renderCommunityBusinesses(businesses) {
-    const list = getEl('community-businesses-list');
-    if (!businesses || businesses.length === 0) {
-        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200">טרם צורפו עסקים לקהילה זו.</p>';
-        return;
     }
-    
-    let html = '';
-    businesses.forEach(b => {
-        const imgHtml = b.logo_url ? `<img src="${b.logo_url}" class="w-14 h-14 rounded-xl object-cover shadow-sm shrink-0 border border-slate-100">` : `<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shadow-sm shrink-0 border border-slate-100"><i class="fa-solid fa-store text-xl"></i></div>`;
-        const discountBadge = b.discount_pct > 0 ? `<div class="bg-green-100 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-md mt-1 inline-block border border-green-200">הנחת קהילה: ${b.discount_pct}%</div>` : '';
-        
-        // התיקון כאן: שליחת הפרמטר המדויק שהחנות מחפשת (communityId)
-        const storeLink = `${window.location.origin}/storefront.html?store=${b.group_code}&communityId=${currentGroup.community_id}`;
 
-        html += `
-        <a href="${storeLink}" target="_blank" class="block bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex items-center gap-3 fade-in group">
-            ${imgHtml}
-            <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition">${safeStr(b.business_name)}</h4>
-                <p class="text-[10px] text-slate-500 truncate">${safeStr(b.slogan || 'היכנסו לחנות המקומית')}</p>
-                ${discountBadge}
-            </div>
-            <i class="fa-solid fa-chevron-left text-slate-300 group-hover:text-indigo-400 transition text-sm ml-2"></i>
-        </a>`;
-    });
-    list.innerHTML = html;
+    html += `<div id="my-initiatives-container"></div>`;
+    container.innerHTML = html;
 }
 
 async function joinCommunity() {
@@ -2512,55 +2517,23 @@ async function joinCommunity() {
         });
         const data = await res.json();
         if(data.success) {
-            showToast('success', `התחברתם בהצלחה לקהילת: ${data.community.name}`);
+            showToast('success', `הצטרפתם בהצלחה לקהילת: ${data.community.name}`);
             fetchCommunityData();
-        } else { showToast('error', data.error || 'שגיאה בחיבור'); }
+        } else { showToast('error', data.error || 'שגיאה. ודאו שהקוד נכון וטרם הגעתם למקסימום 5 קהילות.'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
     finally { btn.disabled = false; btn.innerHTML = 'התחבר'; }
 }
 
-// עדכון פונקציית מעבר הטאבים באפליקציית המשפחה כדי שתטען את הקהילה
-const familyOriginalSwitchTab = window.switchTab;
-if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
-    window.switchTab = function(tabId) {
-        familyOriginalSwitchTab(tabId);
-        if (tabId === 'community') fetchCommunityData();
-    };
-    window.familySwitchTabOverridden = true;
-}
-// --- התנתקות מקהילה (משפחות) ---
-async function leaveCommunity() {
-    if(!confirm('האם אתם בטוחים שברצונכם להתנתק מהקהילה? לא תוכלו להנות יותר מההטבות המקומיות.')) return;
-    
+async function leaveCommunity(commId, commName) {
+    if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}?`)) return;
     try {
-        // שולחים בקשה לשרת לעדכן את קוד הקהילה לריק (ניתוק)
-        const res = await fetch(`${API}/groups/${currentGroup.id}/community`, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': token 
-            },
-            body: JSON.stringify({ communityCode: null }) 
-        });
-        
+        const res = await fetch(`${API}/community/leave/${currentGroup.id}/${commId}`, { method: 'DELETE' });
         const data = await res.json();
-        
         if(data.success) {
-            showToast('success', 'התנתקתם מהקהילה בהצלחה');
-            currentGroup.community_id = null; // עדכון הסטייט המקומי
-            
-            // עדכון הממשק
-            getEl('community-businesses-section').classList.add('hidden');
-            getEl('community-join-section').classList.remove('hidden');
-            getEl('community-code-input').value = '';
-            getEl('community-businesses-list').innerHTML = '';
-        } else {
-            showToast('error', data.error || 'אירעה שגיאה בניתוק מהקהילה');
-        }
-    } catch (e) {
-        console.error("Error leaving community:", e);
-        showToast('error', 'שגיאת תקשורת מול השרת');
-    }
+            showToast('success', `התנתקתם מקהילת ${commName}`);
+            fetchCommunityData();
+        } else { showToast('error', data.error || 'אירעה שגיאה בניתוק מהקהילה'); }
+    } catch (e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 // ============================================================
