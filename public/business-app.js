@@ -1200,16 +1200,22 @@ async function fetchData() {
             currentUser.balance = data.user.balance || 0; 
         }
         
-        if(data && data.group) {
+        if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
+            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
             const profileUp = document.getElementById('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
+            
+            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל
+            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-biz')) {
+                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
+            }
         }
-
         if (currentUser.role === 'ADMIN') {
             const balEl = document.getElementById('user-balance'); 
             if(balEl) {
@@ -4943,11 +4949,12 @@ async function nextWizardStep() {
         }
     }
     
-    else if (currentWizardStep === 4) { // סיום
+   else if (currentWizardStep === 4) { // סיום
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
         try {
             await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון שמונע קפיצה ברענון!
             getEl('onboarding-wizard-modal').classList.add('hidden');
             triggerConfetti(); fetchData(); fetchStoreCatalog(); fetchStoreSettings();
         } catch(e) {}
