@@ -4222,6 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
+
 // תבנית ה-HTML ל-PDF - תיקון מלא למניעת עמודים ריקים, כולל ניתוק גלילה בהורדה
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
@@ -4259,7 +4260,7 @@ function getOrderHtmlTemplate(orderInfo) {
     return `
         <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 20px; text-align: right;" dir="rtl">
             
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px;" dir="rtl">
+            <table class="avoid-break" width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px; page-break-inside: avoid;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
                         <h1 style="margin: 0 0 10px 0; font-size: 30px; color: #334155;">הזמנת&nbsp;רכש <span dir="ltr" style="font-size: 18px; color:#64748b;">(Purchase Order)</span></h1>
@@ -4284,7 +4285,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;" dir="rtl">
+            <table class="avoid-break" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; page-break-inside: avoid;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; vertical-align: top; text-align: right;" dir="rtl">
                         <h3 style="margin: 0 0 14px 0; color: #4f46e5; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&rlm;</h3>
@@ -4304,14 +4305,14 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right;" dir="rtl">
+            <div class="avoid-break" style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right; page-break-inside: avoid;" dir="rtl">
                 <strong style="display: block; margin-bottom: 5px;">שלום&nbsp;רב,&rlm;</strong>
                 מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
             </div>
 
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 30px; font-size: 14px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
-                    <tr style="background-color: #4f46e5; color: white;">
+                    <tr class="avoid-break" style="background-color: #4f46e5; color: white; page-break-inside: avoid;">
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: center; width: 15%;">כמות</th>
@@ -4324,7 +4325,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
             
-            <div style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; text-align: right;" dir="rtl">
+            <div class="avoid-break" style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; text-align: right;" dir="rtl">
                 <h2 style="margin: 0; font-size: 22px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&rlm; <span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
                 <div style="color: #64748b; font-size: 12px; margin-top: 8px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
             </div>
@@ -4332,31 +4333,57 @@ function getOrderHtmlTemplate(orderInfo) {
     `;
 }
 
-// יצירת PDF לשליחה במייל - ללא הסתמכות על הדפדפן שמונע עמודים ריקים
+// יצירת PDF לשליחה במייל (מוסתר) בפריסה לרוחב (Landscape) 
 async function generateOrderPDFBase64(orderInfo) {
     return new Promise(async (resolve) => {
         try {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
-            // שימוש במחרוזת במקום ב-DOM אלמנט מונע באגים של אלמנטים מוסתרים לחלוטין!
-            const htmlString = getOrderHtmlTemplate(orderInfo);
+            const htmlContent = getOrderHtmlTemplate(orderInfo);
+            
+            const container = document.createElement('div');
+            container.innerHTML = htmlContent;
+            
+            container.style.position = 'absolute';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '1040px'; 
+            container.style.zIndex = '-9999'; 
+            container.style.backgroundColor = '#ffffff';
+            document.body.appendChild(container);
+
+            // איפוס גלילה למניעת שטח ריק למעלה וביטול הסתרת גלישה (Overflow)
+            const originalScrollY = window.scrollY;
+            const originalScrollX = window.scrollX;
+            const origOverflow = document.body.style.overflow;
+            window.scrollTo(0, 0);
+            document.body.style.overflow = 'visible';
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: ['css', 'legacy'] } 
+                pagebreak: { mode: 'css', avoid: ['.avoid-break', 'tr'] } 
             };
 
-            html2pdf().set(opt).from(htmlString).outputPdf('datauristring').then(base64Str => {
-                if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
-                else resolve(null);
-            }).catch(err => { 
-                resolve(null); 
-            });
+            setTimeout(() => {
+                html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
+                    if(document.body.contains(container)) document.body.removeChild(container);
+                    window.scrollTo(originalScrollX, originalScrollY);
+                    document.body.style.overflow = origOverflow;
+                    
+                    if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
+                    else resolve(null);
+                }).catch(err => { 
+                    if(document.body.contains(container)) document.body.removeChild(container);
+                    window.scrollTo(originalScrollX, originalScrollY);
+                    document.body.style.overflow = origOverflow;
+                    resolve(null); 
+                });
+            }, 400); 
         } catch(err) { resolve(null); }
     });
 }
@@ -4617,8 +4644,24 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            // יצירה ממחרוזת טקסט מונעת את בעיית הדף הראשון הריק (ניתוק גלילת דפדפן לחלוטין)
-            const htmlString = getOrderHtmlTemplate(orderInfo);
+            const pdfContainer = document.createElement('div');
+            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
+            pdfContainer.style.position = 'absolute';
+            pdfContainer.style.top = '0';
+            pdfContainer.style.left = '0';
+            pdfContainer.style.width = '1040px'; 
+            pdfContainer.style.zIndex = '-9999'; 
+            pdfContainer.style.backgroundColor = '#ffffff';
+            document.body.appendChild(pdfContainer);
+
+            // איפוס גלילה למניעת שטח ריק למעלה וביטול הסתרת גלישה (Overflow)
+            const originalScrollY = window.scrollY;
+            const originalScrollX = window.scrollX;
+            const origOverflow = document.body.style.overflow;
+            window.scrollTo(0, 0);
+            document.body.style.overflow = 'visible';
+
+            await new Promise(resolve => setTimeout(resolve, 450));
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
@@ -4627,13 +4670,19 @@ async function downloadOrderPDFManual(orderId) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
+                    windowWidth: 1040, 
+                    scrollY: 0,
                     letterRendering: true 
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                pagebreak: { mode: 'css', avoid: ['.avoid-break', 'tr'] }
             };
 
-            await html2pdf().set(opt).from(htmlString).save();
+            await html2pdf().set(opt).from(pdfContainer).save();
+            
+            if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+            window.scrollTo(originalScrollX, originalScrollY);
+            document.body.style.overflow = origOverflow;
             
             showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
             document.getElementById('pdf-preview-modal').classList.add('hidden');
