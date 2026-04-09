@@ -2257,7 +2257,7 @@ async function submitForgotCode() {
     }
 }
 // ============================================================
-// --- מודול הקהילה והעסקים המקומיים (כולל רב-קהילתיות ויזמות) ---
+// --- מודול הקהילה והעסקים המקומיים (רב קהילתי + יזמות מתוקן) ---
 // ============================================================
 
 let myConnectedCommunitiesCache = [];
@@ -2276,7 +2276,6 @@ async function fetchCommunityData() {
             renderFamilyCommunities();
         }
         
-        // משיכת היוזמות הקהילתיות של המשתמש
         await fetchMyInitiatives();
     } catch(e) { console.error('Error fetching community data', e); }
 }
@@ -2350,10 +2349,11 @@ function renderMyInitiatives() {
 
     if (myInitiativesCache.length === 0) {
         container.innerHTML = `
-        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 text-center mt-6">
-            <h3 class="font-bold text-indigo-900 mb-2">אין לכם קהילה באזור? פתחו אחת!</h3>
-            <p class="text-xs text-indigo-700 mb-4 opacity-80">קחו יוזמה, פתחו קהילה מקומית דרכנו, צרפו 30 משפחות והקהילה שלכם תופעל לעסקים.</p>
-            <button onclick="openCreateCommunityModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition"><i class="fa-solid fa-plus"></i> פתח קהילה חדשה</button>
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 text-center mt-2 shadow-sm fade-in">
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center text-xl mx-auto mb-3 shadow-inner"><i class="fa-solid fa-seedling"></i></div>
+            <h3 class="font-bold text-slate-800 mb-2">אין קהילה קיימת באזורכם?</h3>
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed">קחו יוזמה ופתחו קהילה מקומית דרכנו! צרפו 30 משפחות והקהילה שלכם תופעל לעסקים מקומיים.</p>
+            <button onclick="openCreateCommunityModal()" class="w-full bg-indigo-50 text-indigo-700 border border-indigo-100 px-5 py-3 rounded-xl text-sm font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus mr-1"></i> פתיחת קהילה חדשה</button>
         </div>`;
         return;
     }
@@ -2368,12 +2368,11 @@ function renderMyInitiatives() {
         const color = isReady ? 'green' : 'indigo';
         const statusText = isReady ? 'פעילה' : 'בגיוס חברים';
         
-        // יצירת לינק הפניה ששותל את קוד הקהילה בטופס ההרשמה של משתמשים חדשים
         const referralLink = `${window.location.origin}/?inviteCommunityCode=${c.code}`;
         const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-Oneflow: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
 
         html += `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 fade-in">
             <div class="flex justify-between items-start mb-2">
                 <div>
                     <h4 class="font-bold text-slate-800">${safeStr(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded">${safeStr(c.city)}</span></h4>
@@ -2405,7 +2404,7 @@ function renderFamilyCommunities() {
     const tabContent = getEl('content-community');
     if (!tabContent) return;
 
-    // הסתרת אלמנטים ישנים מה-HTML הסטטי אם קיימים
+    // מנקה אלמנטים ישנים של הממשק הקודם מה-DOM במידה וקיימים
     const oldJoin = getEl('community-join-section');
     const oldBiz = getEl('community-businesses-section');
     if (oldJoin) oldJoin.style.display = 'none';
@@ -2415,7 +2414,6 @@ function renderFamilyCommunities() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'multi-comm-dynamic-container';
-        // הוספת הדיב בראש הטאב
         const topBanner = tabContent.querySelector('.bg-gradient-to-r');
         if (topBanner) {
             topBanner.insertAdjacentElement('afterend', container);
@@ -2426,14 +2424,14 @@ function renderFamilyCommunities() {
 
     let html = '';
 
-    // 1. הקהילות שלי
+    // 1. הקהילות שלי (או הבאנר הראשי המאוחד במידה ואין קהילות)
     if (myConnectedCommunitiesCache.length > 0) {
         html += `<div class="mb-6">
                     <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
                     <div class="space-y-2">`;
         myConnectedCommunitiesCache.forEach(c => {
             html += `
-            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm">
+            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm fade-in">
                 <div>
                     <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
                     <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
@@ -2444,38 +2442,39 @@ function renderFamilyCommunities() {
         html += `</div>`;
         
         if (myConnectedCommunitiesCache.length < 5) {
-            html += `<button onclick="document.getElementById('dynamic-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>`;
+            html += `<button onclick="document.getElementById('dynamic-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition fade-in"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>`;
         }
         html += `</div>`;
     } else {
         html += `
-            <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6 mt-4">
-                <div class="relative z-10">
-                    <h3 class="font-bold text-indigo-900 mb-1">הקהילות שלי</h3>
-                    <p class="text-xs text-indigo-700 opacity-80">הזינו קוד קהילה בתיבה למטה או פתחו קהילה חדשה באזורכם!</p>
+            <div class="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl p-6 border border-indigo-100 mb-6 mt-4 text-center shadow-sm fade-in">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-indigo-500 text-3xl">
+                    <i class="fa-solid fa-users-rays"></i>
                 </div>
-                <i class="fa-solid fa-users-rays absolute -left-4 -bottom-4 text-7xl text-indigo-200 opacity-30 rotate-12"></i>
+                <h3 class="font-black text-indigo-900 text-lg mb-2">הכוח של הקהילה בידיים שלכם</h3>
+                <p class="text-xs text-indigo-700 font-medium max-w-[250px] mx-auto leading-relaxed">
+                    התחברו לקהילות קיימות באזורכם או צרו קהילה חדשה בעצמכם כדי לקבל מידע חשוב, הטבות והנחות מעסקים מקומיים!
+                </p>
             </div>
         `;
     }
 
-    // 2. טופס הצטרפות
+    // 2. טופס הצטרפות קבוע ויפה
     const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
     html += `
-    <div id="dynamic-join-section" class="${hideJoin} mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
-        <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid fa-handshake"></i></div>
-        <h3 class="font-bold text-slate-800 text-sm mb-1">הצטרפות לקהילה (עד 5)</h3>
-        <p class="text-xs text-slate-500 mb-4">הזינו את הקוד כדי להתחבר לקהילה המקומית ולקבל הנחות בסביבה.</p>
+    <div id="dynamic-join-section" class="${hideJoin} mb-6 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+        <h3 class="font-bold text-slate-800 text-sm mb-1"><i class="fa-solid fa-plug text-slate-400 mr-1"></i> התחברות לקהילה קיימת</h3>
+        <p class="text-[11px] text-slate-500 mb-4">הזינו את קוד הקהילה שקיבלתם מחבר כדי להצטרף אליה.</p>
         <div class="flex gap-2">
             <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
-            <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm"><i class="fa-solid fa-plug"></i></button>
+            <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
         </div>
     </div>`;
 
-    // 3. עסקים בקהילות
+    // 3. עסקים בקהילות שלנו
     if (myCommunityBusinessesCache.length > 0) {
         html += `
-        <div class="mb-6">
+        <div class="mb-6 fade-in">
             <div class="flex items-center justify-between mb-4 px-1">
                 <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-shop text-emerald-500"></i>
@@ -2510,19 +2509,15 @@ function renderFamilyCommunities() {
             </div>`;
         });
         html += `</div></div>`;
-    } else if (myConnectedCommunitiesCache.length > 0) {
-        html += `
-        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center mb-6">
-            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
-                <i class="fa-solid fa-shop text-2xl"></i>
-            </div>
-            <h3 class="font-bold text-slate-800 mb-1">הקהילות שלכם מתגבשות</h3>
-            <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו לקהילות שלכם, תוכלו לראות אותם כאן.</p>
-        </div>`;
     }
 
+    // 4. מיכל שבו נצייר את מודול "יזמות קהילתית" שלנו
     html += `<div id="my-initiatives-container"></div>`;
+    
     container.innerHTML = html;
+
+    // קריאה קריטית לרינדור יוזמות כדי שלא ימחקו לעולם!
+    renderMyInitiatives();
 }
 
 async function joinCommunityDyn() {
