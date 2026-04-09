@@ -418,38 +418,32 @@ function injectBusinessUI() {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                <div class="bg-indigo-50 p-6 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                    <h3 class="text-xl font-black text-indigo-900">הצעת מחיר חדשה</h3>
+                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center shrink-0">
+                    <h3 class="text-lg font-black text-indigo-900">הצעת מחיר חדשה</h3>
                     <button onclick="getEl('quote-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="p-6 overflow-y-auto modal-scroll space-y-4 flex-1">
+                <div class="p-5 overflow-y-auto modal-scroll space-y-4 flex-1">
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח:</label>
-                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm" placeholder="שם מלא / חברה">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון הלקוח:</label>
-                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000">
-                        </div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח:</label><input type="text" id="quote-cust-name" class="modern-input py-2 text-sm" placeholder="שם מלא / חברה"></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000"></div>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-list-check"></i> בחירת פריטים לקטלוג:</label>
-                        <div id="quote-items-selector" class="space-y-2 max-h-40 overflow-y-auto pr-1 modal-scroll"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (ניתן לעריכה):</label><textarea id="quote-intro-text" class="modern-input py-2 text-sm h-16" placeholder="להלן הצעת המחיר שלנו עבורכם..."></textarea></div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-list-check"></i> פריטים ומחירים (ניתן לשנות):</label>
+                        <div id="quote-items-selector" class="space-y-2 max-h-48 overflow-y-auto pr-1 modal-scroll"></div>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות להצעה (יופיעו ב-PDF):</label>
-                        <textarea id="quote-notes" class="modern-input py-2 text-sm h-20" placeholder="למשל: תקף ל-14 יום. המחיר כולל מע״מ..."></textarea>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כללית (%):</label><input type="number" min="0" max="100" id="quote-discount" oninput="calcQuoteTotal()" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label><input type="text" id="quote-validity" class="modern-input py-2 text-sm" placeholder="14 יום"></div>
                     </div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות נוספות:</label><textarea id="quote-notes" class="modern-input py-2 text-sm h-14" placeholder="תנאי תשלום, הערות משלוח..."></textarea></div>
                 </div>
                 <div class="p-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
                     <div>
-                        <span class="text-[10px] text-slate-400 font-bold block">סה"כ הצעה</span>
+                        <span id="quote-before-discount" class="text-[10px] text-slate-400 font-bold block"></span>
                         <span id="quote-total-display" class="text-2xl font-black text-slate-900">₪0</span>
                     </div>
-                    <button id="btn-generate-quote" onclick="submitNewQuote()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
-                        שמור והפק <i class="fa-solid fa-paper-plane"></i>
-                    </button>
+                    <button id="btn-generate-quote" onclick="submitNewQuote()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
@@ -2690,69 +2684,74 @@ let selectedQuoteItems = {};
 
 async function openNewQuoteModal() {
     selectedQuoteItems = {};
-    const selector = getEl('quote-items-selector');
     if(!storeCatalogCache || storeCatalogCache.length === 0) {
-        try {
-            const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
-            storeCatalogCache = await res.json();
-        } catch(e) {}
+        try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); } catch(e) {}
     }
-    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם תחת "קטלוג מוצרים".');
-
+    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם.');
+    const selector = getEl('quote-items-selector');
     selector.innerHTML = storeCatalogCache.map(p => `
-        <div class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-indigo-100 transition">
-            <div class="flex flex-col pr-1">
-                <span class="text-sm font-bold text-slate-700">${safeStr(p.name)}</span>
-                <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded w-fit mt-0.5">₪${p.price} / ${safeStr(p.unit_type)}</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <input type="number" min="0" id="quote-qty-${p.id}" oninput="updateQuoteItem(${p.id}, this.value, '${safeStr(p.name)}', ${p.price})" class="modern-input py-1.5 text-sm text-center w-16 bg-slate-50" placeholder="0">
+        <div class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm mb-2">
+            <span class="text-sm font-bold text-slate-700 flex-1 truncate pl-2">${safeStr(p.name)}</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <div class="text-center"><span class="text-[9px] text-slate-400 block">כמות</span><input type="number" min="0" id="quote-qty-${p.id}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}')" class="modern-input py-1 text-sm text-center w-14 bg-slate-50" placeholder="0"></div>
+                <div class="text-center"><span class="text-[9px] text-slate-400 block">מחיר ₪</span><input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${p.price}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}')" class="modern-input py-1 text-sm text-center w-20 bg-indigo-50 text-indigo-700 font-bold"></div>
             </div>
         </div>
     `).join('');
-    
     getEl('quote-cust-name').value = '';
     getEl('quote-cust-phone').value = '';
     getEl('quote-notes').value = '';
+    getEl('quote-discount').value = '';
+    getEl('quote-validity').value = '14 יום';
+    getEl('quote-intro-text').value = 'להלן הצעת המחיר שלנו עבורכם.\nנשמח לעמוד לשירותכם בכל שאלה.';
     getEl('quote-total-display').innerText = '₪0';
+    getEl('quote-before-discount').innerText = '';
     getEl('quote-modal').classList.remove('hidden');
 }
 
-function updateQuoteItem(id, qty, name, price) {
-    if (parseInt(qty) > 0) selectedQuoteItems[id] = { id, name, price_at_order: price, quantity: parseInt(qty) };
+
+function updateQuoteItem(id, name) {
+    const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
+    const price = parseFloat(getEl(`quote-price-${id}`)?.value) || 0;
+    if (qty > 0) selectedQuoteItems[id] = { id, name, price_at_order: price, quantity: qty };
     else delete selectedQuoteItems[id];
-    
-    let total = 0;
-    Object.values(selectedQuoteItems).forEach(i => total += (i.quantity * i.price_at_order));
+    calcQuoteTotal();
+}
+
+function calcQuoteTotal() {
+    let subtotal = 0;
+    Object.values(selectedQuoteItems).forEach(i => subtotal += (i.quantity * i.price_at_order));
+    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
+    const total = subtotal * (1 - discount / 100);
+    const beforeEl = getEl('quote-before-discount');
+    if(beforeEl) beforeEl.innerText = discount > 0 ? `לפני הנחה: ₪${subtotal.toFixed(2)}` : '';
     getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
 }
 
 async function submitNewQuote() {
     const name = val('quote-cust-name');
-    const phone = val('quote-cust-phone');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
-
     const btn = getEl('btn-generate-quote');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר...';
-
     const items = Object.values(selectedQuoteItems);
-    let total = 0; items.forEach(i => total += (i.quantity * i.price_at_order));
-
+    let subtotal = 0; items.forEach(i => subtotal += (i.quantity * i.price_at_order));
+    const discount = parseFloat(getEl('quote-discount')?.value) || 0;
+    const total = subtotal * (1 - discount / 100);
+    const notesData = JSON.stringify({ notes: val('quote-notes'), introText: val('quote-intro-text'), validity: val('quote-validity'), discount });
     try {
-        const res = await fetch(`${API}/store/quotes`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items, totalAmount: total, notes: val('quote-notes') })
-        });
+        const res = await fetch(`${API}/store/quotes`, { method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items, totalAmount: total, notes: notesData }) });
         const data = await res.json();
         if(data.success) {
-            triggerConfetti();
-            showToast('success', 'הצעת המחיר נוצרה!');
+            try { triggerConfetti(); } catch(e) {}
+            showToast('success', 'הצעת המחיר נוצרה בהצלחה!');
             getEl('quote-modal').classList.add('hidden');
             fetchStoreQuotes();
-        }
-    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+        } else { showToast('error', data.error || 'שגיאה בשמירת ההצעה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
     finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
 }
+
 
 function shareQuoteWhatsApp(id, phone) {
     const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
