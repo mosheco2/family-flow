@@ -4621,8 +4621,7 @@ async function downloadOrderPDFManual(orderId) {
         btnDownload.disabled = true;
         
         try {
-            const isLoaded = await loadHtml2Pdf();
-            if (!isLoaded) throw new Error('PDF library failed to load');
+            if (typeof html2pdf === 'undefined') throw new Error('PDF library not loaded');
 
             const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
