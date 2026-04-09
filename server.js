@@ -56,9 +56,10 @@ pool.connect()
       } catch(e) {}
       
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
-      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
 
-      // טבלאות החנות הוירטואלית (E-commerce)
+      // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       
       // עדכון שדות חדשים למסד נתונים קיים
@@ -519,8 +520,16 @@ app.post('/api/groups', async (req, res) => {
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
-app.post('/api/forgot-code', async (req, res) => {
+app.post('/api/groups/onboard', async (req, res) => {
     try {
+        const { groupId } = req.body;
+        await pool.query('UPDATE family_groups SET is_onboarded = TRUE WHERE id = $1', [groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/forgot-code', async (req, res) => {
+try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'אנא הזן כתובת מייל' });
 
