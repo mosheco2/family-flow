@@ -2537,6 +2537,107 @@ app.post('/api/ai/generate-catalog', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הקטלוג האוטומטי'); }
 });
 // START SERVER
+// =========================================================
+// --- MULTI-COMMUNITY SUPPORT (FAMILIES UP TO 5) ---
+// =========================================================
+
+// 1. יצירת טבלת החיבורים מרובי הקהילות
+pool.query(`
+    CREATE TABLE IF NOT EXISTS family_communities (
+        group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, 
+        community_id INT REFERENCES communities(id) ON DELETE CASCADE, 
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        PRIMARY KEY (group_id, community_id)
+    )
+`).catch(e => console.log(e));
+
+// 2. נתיב חכם למשיכת נתוני כל הקהילות שהמשפחה מחוברת אליהן והעסקים שלהן
+app.get('/api/community/info/:groupId', async (req, res) => {
+    try {
+        const commsRes = await pool.query(`
+            SELECT c.id, c.name, c.city, c.image_url, c.code
+            FROM family_communities fc
+            JOIN communities c ON fc.community_id = c.id
+            WHERE fc.group_id = $1 AND c.status = 'active'
+        `, [req.params.groupId]);
+        
+        if(commsRes.rows.length === 0) return res.json({ success: true, communities: [], businesses: [] });
+        
+        const commIds = commsRes.rows.map(c => c.id);
+        const bizRes = await pool.query(`
+            SELECT cb.community_id, cb.discount_pct, b.name as business_name, b.group_code, c.name as comm_name
+            FROM community_businesses cb
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN communities c ON cb.community_id = c.id
+            WHERE cb.community_id = ANY($1) AND cb.status = 'approved'
+        `, [commIds]);
+        
+        res.json({ success: true, communities: commsRes.rows, businesses: bizRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// 3. הצטרפות לקהילה (בדיקת מגבלת 5 קהילות)
+app.post('/api/community/join', async (req, res) => {
+    try {
+        const { groupId, code } = req.body;
+        const commRes = await pool.query("SELECT id, name FROM communities WHERE code = $1 AND status = 'active'", [code.toUpperCase().trim()]);
+        if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה טרם הופעלה על ידי היזם.'});
+        
+        const commId = commRes.rows[0].id;
+        
+        // בדיקת המגבלה
+        const countRes = await pool.query('SELECT COUNT(*) FROM family_communities WHERE group_id = $1', [groupId]);
+        if (parseInt(countRes.rows[0].count) >= 5) return res.status(400).json({error: 'ניתן להצטרף לעד 5 קהילות במקביל.'});
+        
+        await pool.query('INSERT INTO family_communities (group_id, community_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [groupId, commId]);
+        res.json({success: true, community: commRes.rows[0]});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// 4. ניתוק מקהילה ספציפית
+app.delete('/api/community/leave/:groupId/:communityId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM family_communities WHERE group_id = $1 AND community_id = $2', [req.params.groupId, req.params.communityId]);
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// 5. דריסת השאילתות של הסופר-אדמין לספירת משפחות מתוך הטבלה החדשה
+app.get('/api/sa/communities', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, 
+                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id) as users_count,
+                (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
+            FROM communities c
+            ORDER BY c.created_at DESC
+        `);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/communities/:id/details', async (req, res) => {
+    try {
+        const familiesRes = await pool.query(`
+            SELECT f.id, f.name, f.admin_email, f.group_code 
+            FROM family_communities fc
+            JOIN family_groups f ON fc.group_id = f.id
+            WHERE fc.community_id = $1 AND f.type = 'FAMILY'
+        `, [req.params.id]);
+        const families = familiesRes.rows;
+
+        if (families.length > 0) {
+            const familyIds = families.map(f => f.id);
+            const usersRes = await pool.query('SELECT id, group_id, nickname, role FROM users WHERE group_id = ANY($1)', [familyIds]);
+            families.forEach(f => { f.users = usersRes.rows.filter(u => u.group_id === f.id); });
+        }
+
+        const businessesRes = await pool.query('SELECT b.id, b.name, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
+        
+        res.json({ success: true, families: families, businesses: businessesRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
