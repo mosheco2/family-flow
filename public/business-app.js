@@ -445,7 +445,6 @@ function injectBusinessUI() {
         `);
     }
 
-    // הוספת כפתורי ניווט (טאבים עליונים) אם חסרים
     if(!getEl('tab-shifts')) {
         const tabPantry = getEl('tab-pantry');
         if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
@@ -455,7 +454,6 @@ function injectBusinessUI() {
         if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
     }
 
-    // 4. הזרקת חלונות הפופ-אפ החסרים (כדי שההרשאות לא יקרסו)
     if(!getEl('shift-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
