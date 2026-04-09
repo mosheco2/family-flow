@@ -2473,6 +2473,30 @@ app.post('/api/b2b/orders', async (req, res) => {
         if (dbClient) dbClient.release();
     }
 });
+// --- AI CATALOG / PANTRY GENERATOR (WIZARD) ---
+app.post('/api/ai/generate-catalog', async (req, res) => {
+    try {
+        const { promptText, type, groupId } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        let sysPrompt = "";
+        
+        if (type === 'BUSINESS') {
+            sysPrompt = `You are a business consultant. The user has a business described as "${promptText}". Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew. 
+            Return strictly a JSON array of objects: [{"name": "product name", "category": "category name", "price": 15.5, "description": "short description"}]. Make prices realistic in ILS.`;
+        } else {
+            sysPrompt = `You are a home management expert. The user wants to populate their pantry/shopping list. Family type: "${promptText}". Generate a realistic starter pantry list with 8-12 common grocery/household items in Hebrew.
+            Return strictly a JSON array of objects: [{"name": "item name", "category": "category name", "price": 0, "description": ""}].`;
+        }
+
+        const result = await model.generateContent(sysPrompt);
+        const items = JSON.parse(result.response.text());
+        res.json({ success: true, items: items });
+    } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הקטלוג האוטומטי'); }
+});
 // START SERVER
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
