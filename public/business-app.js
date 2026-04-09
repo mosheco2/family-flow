@@ -4348,7 +4348,8 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.top = '0';
             container.style.left = '0';
             container.style.width = '1040px'; 
-            container.style.zIndex = '-9999'; 
+            container.style.zIndex = '-100'; 
+            container.style.opacity = '0.99';
             container.style.backgroundColor = '#ffffff';
             document.body.appendChild(container);
 
@@ -4356,8 +4357,9 @@ async function generateOrderPDFBase64(orderInfo) {
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
+                // שינוי יחיד מהגרסה התקינה: הוסרה המילה 'avoid-all' כדי למנוע עמודים ריקים
                 pagebreak: { mode: ['css', 'legacy'] } 
             };
 
@@ -4631,57 +4633,59 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            // יצירת קונטיינר מנותק לטובת צילום ה-PDF בלבד
             const pdfContainer = document.createElement('div');
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
             pdfContainer.style.position = 'absolute';
             pdfContainer.style.top = '0';
             pdfContainer.style.left = '0';
             pdfContainer.style.width = '1040px'; 
-            pdfContainer.style.zIndex = '-9999'; 
+            pdfContainer.style.zIndex = '-100'; 
+            pdfContainer.style.opacity = '0.99';
             pdfContainer.style.backgroundColor = '#ffffff';
             document.body.appendChild(pdfContainer);
 
-            await new Promise(resolve => setTimeout(resolve, 450));
-
             const opt = { 
-                margin: [8, 8, 8, 8], 
+                margin: [10, 10, 10, 10], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    windowWidth: 1040, 
-                    scrollY: 0,
-                    letterRendering: true 
-                }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                // שינוי יחיד: הוסרה המילה 'avoid-all' כדי למנוע עמודים ריקים
+                pagebreak: { mode: ['css', 'legacy'] } 
             };
 
-            await html2pdf().set(opt).from(pdfContainer).save();
+            setTimeout(() => {
+                html2pdf().set(opt).from(pdfContainer).save().then(() => {
+                    if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+                    showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
+                    document.getElementById('pdf-preview-modal').classList.add('hidden');
+                    btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+                    btnDownload.disabled = false;
+                }).catch(err => {
+                    if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+                    showToast('error', 'שגיאה ביצירת מסמך PDF. נסה שוב.');
+                    btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
+                    btnDownload.disabled = false;
+                });
+            }, 500);
             
-            if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-            
-            showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
-            document.getElementById('pdf-preview-modal').classList.add('hidden');
         } catch(e) {
             console.error('PDF Error:', e);
-            showToast('error', 'שגיאה ביצירת מסמך PDF. נסה שוב.');
-        } finally {
+            showToast('error', 'שגיאה כללית בהפקה.');
             btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
             btnDownload.disabled = false;
         }
     };
 }
 
-// הוספת מזהה גרסה בתחתית המסך
+// פונקציה להוספת תגית גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 1.0.6 (תיקון PDF)';
-        badge.className = 'fixed bottom-2 right-2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded shadow-lg z-[99999] opacity-75 pointer-events-none';
+        badge.innerHTML = 'גרסה 1.0.7 (תיקון PDF)';
+        // ממוקם בתחתית המרכז (bottom-2, left-1/2, transform -translate-x-1/2) מחוץ למסגרת
+        badge.className = 'fixed bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-3 py-1 rounded-full shadow-lg z-[99999] opacity-75 pointer-events-none';
         document.body.appendChild(badge);
     }
 })();
