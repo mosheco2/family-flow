@@ -1650,7 +1650,28 @@ app.post('/api/store/catalog/toggle', async (req, res) => {
 app.delete('/api/store/catalog/:id', async (req, res) => {
     try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// --- הצעות מחיר (Quotes) ---
+app.post('/api/store/quotes', async (req, res) => {
+    try {
+        const { groupId, customerName, customerPhone, items, totalAmount, notes } = req.body;
+        const result = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items) 
+             VALUES ($1, $2, $3, $4, 'quote', $5, $6) RETURNING id`,
+            [groupId, customerName, customerPhone, totalAmount, notes, JSON.stringify(items)]
+        );
+        res.json({ success: true, quoteId: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
+app.get('/api/store/quotes/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM store_orders WHERE group_id = $1 AND status = 'quote' ORDER BY created_at DESC`, 
+            [req.params.groupId]
+        );
+        res.json({ success: true, quotes: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
         const orders = await pool.query('SELECT * FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
