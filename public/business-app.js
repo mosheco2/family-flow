@@ -4616,7 +4616,7 @@ async function downloadOrderPDFManual(orderId) {
 
     const btnDownload = document.getElementById('btn-actual-download-pdf');
     
-    btnDownload.onclick = async () => {
+      btnDownload.onclick = async () => {
         btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
         btnDownload.disabled = true;
         
@@ -4630,12 +4630,10 @@ async function downloadOrderPDFManual(orderId) {
             const pdfContainer = document.createElement('div');
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
             
-            pdfContainer.style.position = 'absolute';
+            pdfContainer.style.position = 'fixed';
             pdfContainer.style.top = '0';
-            pdfContainer.style.left = '0';
-            pdfContainer.style.width = '1040px'; 
-            pdfContainer.style.zIndex = '-100'; 
-            pdfContainer.style.opacity = '0.99';
+            pdfContainer.style.left = '-10000px';
+            pdfContainer.style.width = '1040px';
             pdfContainer.style.backgroundColor = '#ffffff';
             document.body.appendChild(pdfContainer);
 
@@ -4666,7 +4664,7 @@ async function downloadOrderPDFManual(orderId) {
                     btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
                     btnDownload.disabled = false;
                 });
-            }, 500);
+            }, 800);
             
         } catch(e) {
             console.error('PDF Error:', e);
