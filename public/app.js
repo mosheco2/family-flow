@@ -2307,8 +2307,8 @@ function openCreateCommunityModal() {
                         <input type="text" id="init-comm-name" class="modern-input py-2.5 text-sm" placeholder="למשל: קהילת שכונת הפארק">
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">עיר / יישוב:</label>
-                        <input type="text" id="init-comm-city" class="modern-input py-2.5 text-sm" placeholder="למשל: רעננה">
+                        <label class="text-xs font-bold text-slate-500 block mb-1">אזורים (ניתן להפריד בפסיק לכמה ערים/שכונות):</label>
+                        <input type="text" id="init-comm-city" class="modern-input py-2.5 text-sm" placeholder="למשל: רעננה, הרצליה, כפר סבא">
                     </div>
                 </div>
                 <button id="btn-submit-init-comm" onclick="submitNewInitiative()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-black transition">צור קהילה</button>
@@ -2324,7 +2324,7 @@ function openCreateCommunityModal() {
 async function submitNewInitiative() {
     const name = val('init-comm-name');
     const city = val('init-comm-city');
-    if(!name || !city) return showToast('error', 'יש למלא שם ועיר לקהילה');
+    if(!name || !city) return showToast('error', 'יש למלא שם וערים לקהילה');
     
     const btn = getEl('btn-submit-init-comm');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> פותח קהילה...';
@@ -2375,7 +2375,7 @@ function renderMyInitiatives() {
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 fade-in">
             <div class="flex justify-between items-start mb-2">
                 <div>
-                    <h4 class="font-bold text-slate-800">${safeStr(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded">${safeStr(c.city)}</span></h4>
+                    <h4 class="font-bold text-slate-800">${safeStr(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded max-w-[150px] inline-block truncate align-bottom">${safeStr(c.city)}</span></h4>
                     <p class="text-[10px] text-${color}-600 font-bold bg-${color}-50 px-2 py-0.5 rounded-lg border border-${color}-100 inline-block mt-1">סטטוס: ${statusText}</p>
                 </div>
                 <button onclick="window.open('https://wa.me/?text=${waText}', '_blank')" class="bg-[#25D366] text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#1ebd58] transition shadow-sm" title="שלח הזמנה לחברים בוואטסאפ"><i class="fa-brands fa-whatsapp"></i></button>
@@ -2395,7 +2395,7 @@ function renderMyInitiatives() {
         `;
     });
     
-    html += `<button onclick="openCreateCommunityModal()" class="w-full mt-2 bg-slate-50 text-slate-600 py-3 rounded-xl text-xs font-bold hover:bg-slate-100 transition border border-dashed border-slate-300"><i class="fa-solid fa-plus"></i> יוזמה נוספת</button>`;
+    html += `<button onclick="openCreateCommunityModal()" class="w-full mt-2 bg-slate-50 text-slate-600 py-3 rounded-xl text-xs font-bold hover:bg-slate-100 transition border border-dashed border-slate-300"><i class="fa-solid fa-plus"></i> הקם קהילה נוספת</button>`;
     
     container.innerHTML = html;
 }
@@ -2446,15 +2446,18 @@ function renderFamilyCommunities() {
         }
         html += `</div>`;
     } else {
+        // הבאנר הקומפקטי שביקשת
         html += `
-            <div class="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl p-6 border border-indigo-100 mb-6 mt-4 text-center shadow-sm fade-in">
-                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-indigo-500 text-3xl">
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 mb-6 mt-2 shadow-sm fade-in flex items-center gap-4 text-right">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-500 text-2xl shrink-0">
                     <i class="fa-solid fa-users-rays"></i>
                 </div>
-                <h3 class="font-black text-indigo-900 text-lg mb-2">הכוח של הקהילה בידיים שלכם</h3>
-                <p class="text-xs text-indigo-700 font-medium max-w-[250px] mx-auto leading-relaxed">
-                    התחברו לקהילות קיימות באזורכם או צרו קהילה חדשה בעצמכם כדי לקבל מידע חשוב, הטבות והנחות מעסקים מקומיים!
-                </p>
+                <div>
+                    <h3 class="font-bold text-indigo-900 text-sm mb-0.5">הכוח של הקהילה בידיים שלכם</h3>
+                    <p class="text-[10px] text-indigo-700 font-medium leading-tight">
+                        התחברו לקהילות קיימות באזורכם או צרו קהילה חדשה בעצמכם כדי לקבל מידע חשוב, הטבות והנחות מעסקים מקומיים ועסקים אחרים!
+                    </p>
+                </div>
             </div>
         `;
     }
