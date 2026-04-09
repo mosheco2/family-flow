@@ -740,14 +740,20 @@ async function fetchData() {
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
-        if(data.group) {
+       if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; currentGroup.is_premium = data.group.is_premium; updateBatteryUI();
+            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
             const profileUp = getEl('profile-upgrade-section');
             if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
             // עדכון המזהה למקרה שהקהילה השתנתה
             currentGroup.community_id = data.group.community_id;
+            
+            // הזרקת כפתור "פתח אשף הקמה" לפרופיל של המנהל/הורה
+            if (profileUp && currentUser.role === 'ADMIN' && !document.getElementById('btn-reopen-wizard-fam')) {
+                profileUp.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-fam" onclick="showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
+            }
         }
-
         if (currentUser.role === 'ADMIN') {
             const balEl = getEl('user-balance'); 
             if(balEl) {
@@ -3395,17 +3401,17 @@ async function nextWizardStep() {
         }
     }
     
-    else if (currentWizardStep === 4) { // סיום
+   else if (currentWizardStep === 4) { // סיום
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
         try {
             await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
+            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון למניעת קפיצה!
             getEl('onboarding-wizard-modal').classList.add('hidden');
             triggerConfetti(); fetchData();
         } catch(e) {}
         return;
     }
-
     currentWizardStep++;
     updateWizardUI();
 }
