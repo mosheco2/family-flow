@@ -4260,7 +4260,7 @@ function getOrderHtmlTemplate(orderInfo) {
     return `
         <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 20px; text-align: right;" dir="rtl">
             
-            <table class="avoid-break" width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
                         <h1 style="margin: 0 0 10px 0; font-size: 30px; color: #334155;">הזמנת&nbsp;רכש <span dir="ltr" style="font-size: 18px; color:#64748b;">(Purchase Order)</span></h1>
@@ -4285,7 +4285,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <table class="avoid-break" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; vertical-align: top; text-align: right;" dir="rtl">
                         <h3 style="margin: 0 0 14px 0; color: #4f46e5; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&rlm;</h3>
@@ -4305,14 +4305,14 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <div class="avoid-break" style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right; page-break-inside: avoid;" dir="rtl">
+            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right;" dir="rtl">
                 <strong style="display: block; margin-bottom: 5px;">שלום&nbsp;רב,&rlm;</strong>
                 מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
             </div>
 
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 30px; font-size: 14px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
-                    <tr class="avoid-break" style="background-color: #4f46e5; color: white; page-break-inside: avoid;">
+                    <tr style="background-color: #4f46e5; color: white;">
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: center; width: 15%;">כמות</th>
@@ -4325,7 +4325,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
             
-            <div class="avoid-break" style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; text-align: right;" dir="rtl">
+            <div style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; text-align: right;" dir="rtl">
                 <h2 style="margin: 0; font-size: 22px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&rlm; <span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
                 <div style="color: #64748b; font-size: 12px; margin-top: 8px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
             </div>
@@ -4344,7 +4344,6 @@ async function generateOrderPDFBase64(orderInfo) {
             
             const container = document.createElement('div');
             container.innerHTML = htmlContent;
-            
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
@@ -4353,37 +4352,32 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.backgroundColor = '#ffffff';
             document.body.appendChild(container);
 
-            // איפוס גלילה למניעת שטח ריק למעלה וביטול הסתרת גלישה (Overflow)
-            const originalScrollY = window.scrollY;
-            const originalScrollX = window.scrollX;
-            const origOverflow = document.body.style.overflow;
-            window.scrollTo(0, 0);
-            document.body.style.overflow = 'visible';
-
             const opt = { 
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    windowWidth: 1040, 
+                    y: 0, 
+                    scrollY: 0, 
+                    letterRendering: true 
+                }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: 'css', avoid: ['.avoid-break', 'tr'] } 
+                pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } 
             };
 
             setTimeout(() => {
                 html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
                     if(document.body.contains(container)) document.body.removeChild(container);
-                    window.scrollTo(originalScrollX, originalScrollY);
-                    document.body.style.overflow = origOverflow;
-                    
                     if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
                     else resolve(null);
                 }).catch(err => { 
                     if(document.body.contains(container)) document.body.removeChild(container);
-                    window.scrollTo(originalScrollX, originalScrollY);
-                    document.body.style.overflow = origOverflow;
                     resolve(null); 
                 });
-            }, 400); 
+            }, 500); 
         } catch(err) { resolve(null); }
     });
 }
@@ -4654,14 +4648,7 @@ async function downloadOrderPDFManual(orderId) {
             pdfContainer.style.backgroundColor = '#ffffff';
             document.body.appendChild(pdfContainer);
 
-            // איפוס גלילה למניעת שטח ריק למעלה וביטול הסתרת גלישה (Overflow)
-            const originalScrollY = window.scrollY;
-            const originalScrollX = window.scrollX;
-            const origOverflow = document.body.style.overflow;
-            window.scrollTo(0, 0);
-            document.body.style.overflow = 'visible';
-
-            await new Promise(resolve => setTimeout(resolve, 450));
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
@@ -4671,18 +4658,17 @@ async function downloadOrderPDFManual(orderId) {
                     scale: 2, 
                     useCORS: true, 
                     windowWidth: 1040, 
-                    scrollY: 0,
+                    y: 0, 
+                    scrollY: 0, 
                     letterRendering: true 
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: 'css', avoid: ['.avoid-break', 'tr'] }
+                pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
             };
 
             await html2pdf().set(opt).from(pdfContainer).save();
             
             if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-            window.scrollTo(originalScrollX, originalScrollY);
-            document.body.style.overflow = origOverflow;
             
             showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
             document.getElementById('pdf-preview-modal').classList.add('hidden');
