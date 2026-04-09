@@ -2257,7 +2257,7 @@ async function submitForgotCode() {
     }
 }
 // ============================================================
-// --- מודול הקהילה והעסקים המקומיים ---
+// --- מודול הקהילה והעסקים המקומיים (כולל רב-קהילתיות ויזמות) ---
 // ============================================================
 
 let myConnectedCommunitiesCache = [];
@@ -2368,6 +2368,7 @@ function renderMyInitiatives() {
         const color = isReady ? 'green' : 'indigo';
         const statusText = isReady ? 'פעילה' : 'בגיוס חברים';
         
+        // יצירת לינק הפניה ששותל את קוד הקהילה בטופס ההרשמה של משתמשים חדשים
         const referralLink = `${window.location.origin}/?inviteCommunityCode=${c.code}`;
         const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-Oneflow: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
 
@@ -2401,12 +2402,31 @@ function renderMyInitiatives() {
 }
 
 function renderFamilyCommunities() {
-    const container = document.getElementById('community-list-container');
-    if (!container) return;
+    const tabContent = getEl('content-community');
+    if (!tabContent) return;
+
+    // הסתרת אלמנטים ישנים מה-HTML הסטטי אם קיימים
+    const oldJoin = getEl('community-join-section');
+    const oldBiz = getEl('community-businesses-section');
+    if (oldJoin) oldJoin.style.display = 'none';
+    if (oldBiz) oldBiz.style.display = 'none';
+
+    let container = getEl('multi-comm-dynamic-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'multi-comm-dynamic-container';
+        // הוספת הדיב בראש הטאב
+        const topBanner = tabContent.querySelector('.bg-gradient-to-r');
+        if (topBanner) {
+            topBanner.insertAdjacentElement('afterend', container);
+        } else {
+            tabContent.prepend(container);
+        }
+    }
 
     let html = '';
 
-    // הצגת הקהילות המחוברות (עד 5)
+    // 1. הקהילות שלי
     if (myConnectedCommunitiesCache.length > 0) {
         html += `<div class="mb-6">
                     <h3 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-house-flag text-indigo-500"></i> הקהילות שלי (${myConnectedCommunitiesCache.length}/5)</h3>
@@ -2424,12 +2444,12 @@ function renderFamilyCommunities() {
         html += `</div>`;
         
         if (myConnectedCommunitiesCache.length < 5) {
-            html += `<button onclick="document.getElementById('community-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition"><i class="fa-solid fa-plus"></i> הוספת קהילה נוספת</button>`;
+            html += `<button onclick="document.getElementById('dynamic-join-section').classList.toggle('hidden')" class="w-full mt-3 bg-white border border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition"><i class="fa-solid fa-plus"></i> הצטרפות לקהילה נוספת</button>`;
         }
         html += `</div>`;
     } else {
         html += `
-            <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6">
+            <div class="bg-indigo-50 rounded-3xl p-6 border border-indigo-100 relative overflow-hidden mb-6 mt-4">
                 <div class="relative z-10">
                     <h3 class="font-bold text-indigo-900 mb-1">הקהילות שלי</h3>
                     <p class="text-xs text-indigo-700 opacity-80">הזינו קוד קהילה בתיבה למטה או פתחו קהילה חדשה באזורכם!</p>
@@ -2439,20 +2459,20 @@ function renderFamilyCommunities() {
         `;
     }
 
-    // טופס ההצטרפות
+    // 2. טופס הצטרפות
     const hideJoin = myConnectedCommunitiesCache.length > 0 ? 'hidden' : '';
     html += `
-    <div id="community-join-section" class="${hideJoin} mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
+    <div id="dynamic-join-section" class="${hideJoin} mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 text-center fade-in">
         <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid fa-handshake"></i></div>
-        <h3 class="font-bold text-slate-800 text-sm mb-1">הצטרפות לקהילה (עד 5 קהילות)</h3>
-        <p class="text-xs text-slate-500 mb-4">הזינו את הקוד כדי להצטרף לקהילה המקומית ולקבל הנחות והטבות מעסקים בסביבה.</p>
+        <h3 class="font-bold text-slate-800 text-sm mb-1">הצטרפות לקהילה (עד 5)</h3>
+        <p class="text-xs text-slate-500 mb-4">הזינו את הקוד כדי להתחבר לקהילה המקומית ולקבל הנחות בסביבה.</p>
         <div class="flex gap-2">
-            <input type="text" id="community-code-input" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
-            <button id="btn-join-community" onclick="joinCommunity()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm">התחבר</button>
+            <input type="text" id="community-code-input-dyn" class="modern-input py-2 text-sm text-center font-mono uppercase tracking-widest flex-1" placeholder="למשל: C-XYZ123">
+            <button onclick="joinCommunityDyn()" class="bg-slate-900 text-white px-5 rounded-xl font-bold shadow-md hover:bg-black transition text-sm"><i class="fa-solid fa-plug"></i></button>
         </div>
     </div>`;
 
-    // רשימת עסקים משולבת
+    // 3. עסקים בקהילות
     if (myCommunityBusinessesCache.length > 0) {
         html += `
         <div class="mb-6">
@@ -2497,7 +2517,7 @@ function renderFamilyCommunities() {
                 <i class="fa-solid fa-shop text-2xl"></i>
             </div>
             <h3 class="font-bold text-slate-800 mb-1">הקהילות שלכם מתגבשות</h3>
-            <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו, תוכלו לראות אותם כאן.</p>
+            <p class="text-xs text-slate-500 max-w-[200px] mx-auto">ברגע שעסקים מקומיים יצטרפו ויאושרו לקהילות שלכם, תוכלו לראות אותם כאן.</p>
         </div>`;
     }
 
@@ -2505,11 +2525,10 @@ function renderFamilyCommunities() {
     container.innerHTML = html;
 }
 
-async function joinCommunity() {
-    const code = getEl('community-code-input').value;
+async function joinCommunityDyn() {
+    const code = getEl('community-code-input-dyn').value;
     if(!code) return showToast('error', 'יש להזין קוד קהילה');
     
-    const btn = getEl('btn-join-community'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     try {
         const res = await fetch(`${API}/community/join`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -2519,13 +2538,12 @@ async function joinCommunity() {
         if(data.success) {
             showToast('success', `הצטרפתם בהצלחה לקהילת: ${data.community.name}`);
             fetchCommunityData();
-        } else { showToast('error', data.error || 'שגיאה. ודאו שהקוד נכון וטרם הגעתם למקסימום 5 קהילות.'); }
+        } else { showToast('error', data.error || 'שגיאה. ודאו שהקוד נכון וטרם הגעתם ל-5 קהילות.'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { btn.disabled = false; btn.innerHTML = 'התחבר'; }
 }
 
 async function leaveCommunity(commId, commName) {
-    if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}?`)) return;
+    if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}? לא תוכלו לקבל הנחות מעסקים בקהילה זו.`)) return;
     try {
         const res = await fetch(`${API}/community/leave/${currentGroup.id}/${commId}`, { method: 'DELETE' });
         const data = await res.json();
@@ -2536,6 +2554,14 @@ async function leaveCommunity(commId, commName) {
     } catch (e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
+const familyOriginalSwitchTab = window.switchTab;
+if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
+    window.switchTab = function(tabId) {
+        familyOriginalSwitchTab(tabId);
+        if (tabId === 'community') fetchCommunityData();
+    };
+    window.familySwitchTabOverridden = true;
+}
 // ============================================================
 // --- ניהול קהילות דרך ממשק אדמין ראשי (Super Admin) ---
 // ============================================================
