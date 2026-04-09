@@ -4230,16 +4230,19 @@ function getOrderHtmlTemplate(orderInfo) {
         else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
     } catch(e) { itemsArr = []; }
 
+    // מחליף רווחים רגילים ב-&nbsp; כדי למנוע אכילת רווחים ב-Canvas של html2canvas עבור טקסט RTL עברי
+    const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
+
     let itemsHtml = '';
     if (itemsArr.length === 0) {
-        itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:10px;" dir="rtl">אין פריטים להצגה</td></tr>';
+        itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:10px;" dir="rtl">אין\u00A0פריטים\u00A0להצגה</td></tr>';
     } else {
         itemsHtml = itemsArr.map((i, index) => `
             <tr class="avoid-break" style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
                 <td style="padding: 8px 6px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 8px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl">${safeStr(i.name)}</td>
+                <td style="padding: 8px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl">${nb(safeStr(i.name))}</td>
                 <td style="padding: 8px 6px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">
-                    <span>${i.quantity}</span>&nbsp;<span>${safeStr(i.unit)}</span>
+                    <span>${i.quantity}</span>&nbsp;<span>${nb(safeStr(i.unit))}</span>
                 </td>
                 <td style="padding: 8px 6px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">&#x20AA;${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
                 <td style="padding: 8px 6px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">&#x20AA;${parseFloat(i.row_total || 0).toFixed(2)}</td>
@@ -4247,10 +4250,10 @@ function getOrderHtmlTemplate(orderInfo) {
         `).join('');
     }
 
-    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155; white-space: pre-wrap;">${label}&#x200F;</span>`;
+    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${nb(label)}&#x200F;</span>`;
 
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('מספר לקוח:')} <span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 6px; color: #4f46e5; font-weight: bold; display: inline-block;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('עבור סניף/מחלקה:')} <span style="display: inline-block;">${safeStr(orderInfo.branchName)}</span></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('מספר\u00A0לקוח:')} <span dir="ltr" style="background-color: #eef2ff; padding: 2px 8px; border-radius: 6px; color: #4f46e5; font-weight: bold; display: inline-block;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('עבור\u00A0סניף/מחלקה:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.branchName))}</span></div>` : '';
     const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('טלפון:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
     const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('דוא"ל:')} <span dir="ltr" style="display: inline-block;">${safeStr(orderInfo.supplierEmail)}</span></div>` : '';
 
@@ -4260,9 +4263,9 @@ function getOrderHtmlTemplate(orderInfo) {
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 12px; padding-bottom: 10px;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
-                        <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #334155; white-space: pre-wrap;">הזמנת רכש&#x200F; <span dir="ltr" style="font-size: 15px; color:#64748b;">(Purchase Order)</span></h1>
+                        <h1 style="margin: 0 0 6px 0; font-size: 24px; color: #334155;">הזמנת&nbsp;רכש&#x200F; <span dir="ltr" style="font-size: 15px; color:#64748b;">(Purchase Order)</span></h1>
                         <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            ${fixLabel('מספר הזמנה:')} <b dir="ltr" style="color: #4f46e5; display: inline-block;">#${orderInfo.orderId || 'חדש'}</b>
+                            ${fixLabel('מספר\u00A0הזמנה:')} <b dir="ltr" style="color: #4f46e5; display: inline-block;">#${orderInfo.orderId || 'חדש'}</b>
                         </div>
                     </td>
                     <td style="vertical-align: middle; text-align: left; width: 40%;" dir="ltr">
@@ -4285,17 +4288,17 @@ function getOrderHtmlTemplate(orderInfo) {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #4f46e5; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right; white-space: pre-wrap;">פרטי הלקוח (המזמין):&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('שם העסק:')} <span style="display: inline-block;">${safeStr(currentGroup.name)}</span></div>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('איש קשר:')} <span style="display: inline-block;">${safeStr(currentUser.nickname)}</span></div>
+                        <h3 style="margin: 0 0 8px 0; color: #4f46e5; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הלקוח&nbsp;(המזמין):&#x200F;</h3>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('שם\u00A0העסק:')} <span style="display: inline-block;">${nb(safeStr(currentGroup.name))}</span></div>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('איש\u00A0קשר:')} <span style="display: inline-block;">${nb(safeStr(currentUser.nickname))}</span></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 8px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl">${fixLabel('הופק ב:')} <span dir="ltr" style="display: inline-block;">${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #64748b; text-align: right;" dir="rtl">${fixLabel('הופק\u00A0ב:')} <span dir="ltr" style="display: inline-block;">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right; white-space: pre-wrap;">פרטי הספק:&#x200F;</h3>
-                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('לכבוד:')} <span style="display: inline-block;">${safeStr(orderInfo.supplierName)}</span></div>
+                        <h3 style="margin: 0 0 8px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; text-align: right;">פרטי&nbsp;הספק:&#x200F;</h3>
+                        <div style="margin-bottom: 5px; text-align: right;" dir="rtl">${fixLabel('לכבוד:')} <span style="display: inline-block;">${nb(safeStr(orderInfo.supplierName))}</span></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
@@ -4303,19 +4306,19 @@ function getOrderHtmlTemplate(orderInfo) {
             </table>
 
             <div style="margin-bottom: 10px; font-size: 13px; line-height: 1.5; color: #334155; text-align: right;" dir="rtl">
-                <span style="font-weight: bold; white-space: pre-wrap;">שלום רב,&#x200F;</span>
-                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.
-                נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&#x200F;
+                <b>שלום&nbsp;רב,&#x200F;</b>&nbsp;
+                מצ"ב&nbsp;פירוט&nbsp;הזמנת&nbsp;רכש&nbsp;מאושרת&nbsp;ממערכת&nbsp;ההזמנות&nbsp;שלנו.
+                נא&nbsp;לספק&nbsp;את&nbsp;הסחורה&nbsp;המפורטת&nbsp;מטה&nbsp;בהקדם&nbsp;האפשרי&nbsp;ולפי&nbsp;תנאי&nbsp;הסחר&nbsp;והמחירון&nbsp;שסוכמו.&#x200F;
             </div>
 
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 12px; font-size: 13px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
                         <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 12%;">מק"ט</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: right; width: 42%;">תיאור פריט</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: right; width: 42%;">תיאור&nbsp;פריט</th>
                         <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: center; width: 15%;">כמות</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 15%;">מחיר יח'</th>
-                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 16%;">סה"כ שורה</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 15%;">מחיר&nbsp;יח'</th>
+                        <th style="padding: 10px 8px; border: 1px solid #6366f1; text-align: left; width: 16%;">סה"כ&nbsp;שורה</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4324,12 +4327,13 @@ function getOrderHtmlTemplate(orderInfo) {
             </table>
 
             <div class="avoid-break" style="border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: right;" dir="rtl">
-                <h2 style="margin: 0; font-size: 18px; color: #0f172a; white-space: pre-wrap;">סה"כ לתשלום משוער:&#x200F; <span dir="ltr" style="color: #4f46e5; display: inline-block;">&#x20AA;${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px; white-space: pre-wrap;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&#x200F;</div>
+                <h2 style="margin: 0; font-size: 18px; color: #0f172a;">סה"כ&nbsp;לתשלום&nbsp;משוער:&#x200F; <span dir="ltr" style="color: #4f46e5; display: inline-block;">&#x20AA;${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">*&nbsp;ייתכנו&nbsp;שינויים&nbsp;במחיר&nbsp;הסופי&nbsp;בהתאם&nbsp;לשקילה&nbsp;ולמחירון&nbsp;העדכני&nbsp;בעת&nbsp;האספקה.&#x200F;</div>
             </div>
         </div>
     `;
 }
+
 // יצירת PDF לשליחה במייל (מוסתר) בפריסה לרוחב (Landscape) 
 async function generateOrderPDFBase64(orderInfo) {
     return new Promise(async (resolve) => {
