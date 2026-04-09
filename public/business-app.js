@@ -2677,9 +2677,15 @@ async function fetchStoreQuotes() {
 
 let selectedQuoteItems = {};
 
-function openNewQuoteModal() {
+async function openNewQuoteModal() {
     selectedQuoteItems = {};
     const selector = getEl('quote-items-selector');
+    if(!storeCatalogCache || storeCatalogCache.length === 0) {
+        try {
+            const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
+            storeCatalogCache = await res.json();
+        } catch(e) {}
+    }
     if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם תחת "קטלוג מוצרים".');
 
     selector.innerHTML = storeCatalogCache.map(p => `
