@@ -549,14 +549,13 @@
                                 <div class="flex gap-2">
                                     <button onclick="openManualPunchModal()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm"><i class="fa-solid fa-plus"></i> דיווח ידני</button>
                                     <button onclick="exportTimeclockPDF()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition shadow-sm"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-
-                                    </div>
+                                </div>
                             </div>
                             <div class="flex gap-2 px-2">
                                 <select id="tc-user-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white flex-1 font-bold shadow-sm border-slate-200 outline-none"></select>
                                 <input type="month" id="tc-month-filter" onchange="fetchTimeclockReport()" class="modern-input py-2 text-sm bg-white flex-1 font-bold shadow-sm border-slate-200 outline-none">
                             </div>
-                            
+
                             <div class="grid grid-cols-2 gap-3 mt-4 px-2">
                                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
                                     <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">סה"כ שעות</p>
@@ -565,6 +564,19 @@
                                 <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm">
                                     <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">שכר משוער</p>
                                     <p id="tc-summary-wage" class="text-2xl font-black text-emerald-900">₪0</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 px-2">
+                                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-location-dot text-blue-500"></i>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-700">מיקום עסק לאימות GPS</p>
+                                            <p id="tc-location-status" class="text-[10px] text-slate-400">לא הוגדר — עובדים יוכלו להחתים מכל מקום</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="setBusinessLocation()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition shadow-sm"><i class="fa-solid fa-crosshairs"></i> הגדר</button>
                                 </div>
                             </div>
                         </div>
@@ -581,8 +593,6 @@
                                         <i class="fa-solid fa-circle text-[8px] text-red-500 animate-pulse mr-1"></i> משמרת פעילה מ- <span id="tc-start-time" class="text-blue-600">--:--</span>
                                     </p>
                                 </div>
-                                <button onclick="setBusinessLocation()" class="absolute top-4 right-4 text-slate-400 hover:text-blue-500 transition" title="הגדר מיקום עסק (מנהל)"><i class="fa-solid fa-location-dot"></i></button>
-                                
                                 <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-60"></div>
                                 <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-60"></div>
                             </div>
@@ -591,29 +601,29 @@
                         <h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">פירוט שעות</h3>
                         <div id="timeclock-report-list" class="space-y-3 pb-24"></div>
                     </div>
-                    <div id="content-bank" class="hidden">
+                                <div id="content-bank" class="hidden">
                         <div id="bank-admin-view" class="hidden space-y-6">
                             <div class="bg-emerald-50 rounded-[2rem] p-6 border border-emerald-100 text-center relative overflow-hidden shadow-sm">
-                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">יום תשלום 🤑</h3><p class="text-sm text-emerald-600 mb-6 px-4">חלוקת דמי כיס וחישוב ריבית לכל הילדים בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע PayDay</button></div>
+                                <div class="relative z-10"><h3 class="font-bold text-emerald-800 text-xl mb-2">תשלום שכר ומענקים 💰</h3><p class="text-sm text-emerald-600 mb-6 px-4">ביצוע תשלום שכר ובונוסים לכל חברי הצוות בלחיצה אחת</p><button onclick="triggerPayday()" class="btn-payday w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-200 transition"><i class="fa-solid fa-money-bill-wave"></i> בצע תשלום שכר</button></div>
                                 <i class="fa-solid fa-coins absolute -left-6 -bottom-6 text-9xl text-emerald-500/10 rotate-12"></i>
                             </div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">חשבונות ילדים</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
+                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ארנקי צוות 👥</h3><div id="bank-accounts-list" class="space-y-3"></div></div>
                             <div id="admin-loans-panel" class="hidden bg-orange-50 rounded-[2rem] p-5 border border-orange-100 shadow-sm">
-                                <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות הלוואה ממתינות</h3>
+                                <h3 class="font-bold text-orange-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-orange-500"></i> בקשות מקדמה ממתינות</h3>
                                 <div id="admin-loans-list" class="space-y-2"></div>
                             </div>
-                            <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדי חיסכון במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
+                            <div><div class="flex justify-between items-center mb-3 px-2"><h3 class="font-bold text-slate-700 text-lg">יעדים ופרויקטים במעקב</h3></div><div id="admin-goals-list" class="space-y-3 pb-20"></div></div>
                         </div>
                         <div id="bank-child-view" class="hidden space-y-6">
                             <div class="credit-card p-6 text-white shadow-xl shadow-slate-300 transform transition hover:scale-[1.02]">
-                                <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">FAMILY CARD</span></div>
-                                <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">דמי כיס</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">ריבית</span></div></div></div>
-                                <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>בזבוזים השבוע (מגבלת 20%)</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת ריבית!</p></div>
+                                <div class="flex justify-between items-start mb-8"><i class="fa-solid fa-wifi text-2xl opacity-50"></i><span class="font-mono text-sm opacity-70">BIZ CARD</span></div>
+                                <div class="mb-6"><p class="text-xs opacity-60 mb-1">תנאי החשבון שלי</p><div class="flex gap-6"><div><span class="block text-xl font-bold" id="card-allowance">₪0</span><span class="text-[10px] opacity-70">שכר / תגמול</span></div><div><span class="block text-xl font-bold text-green-400" id="card-interest">0%</span><span class="text-[10px] opacity-70">בונוס</span></div></div></div>
+                                <div class="mt-4 pt-3 border-t border-white/10"><div class="flex justify-between text-[10px] opacity-80 mb-1"><span>פעולות השבוע</span><span id="card-spend-status">0 / 0</span></div><div class="w-full bg-white/20 rounded-full h-1.5 overflow-hidden"><div id="card-spend-bar" class="bg-green-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div></div><p id="card-spend-msg" class="text-[9px] mt-1 opacity-60 text-right">שמור על ירוק לקבלת בונוס!</p></div>
                                 <div class="flex justify-between items-end mt-4"><span class="font-mono tracking-widest text-lg" id="card-name">NAME</span><div class="w-8 h-8 rounded-full bg-white/20"></div></div>
                             </div>
-                            <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש הלוואה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד חיסכון</span></button></div>
+                            <div class="grid grid-cols-2 gap-3"><button onclick="openLoanModal()" class="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg shadow-indigo-200 flex flex-col items-center justify-center gap-2 hover:bg-indigo-700 transition"><i class="fa-solid fa-hand-holding-dollar text-2xl"></i><span class="font-bold text-sm">בקש מקדמה</span></button><button onclick="openGoalModal()" class="bg-cyan-500 text-white p-4 rounded-2xl shadow-lg shadow-cyan-200 flex flex-col items-center justify-center gap-2 hover:bg-cyan-600 transition"><i class="fa-solid fa-bullseye text-2xl"></i><span class="font-bold text-sm">יעד / קרן</span></button></div>
                             <div id="my-goals-container" class="hidden"><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">היעדים שלי 🎯</h3><div id="my-goals-list" class="space-y-3"></div></div>
-                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">ההלוואות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
+                            <div><h3 class="font-bold text-slate-700 mb-3 px-2 text-lg">הבקשות שלי</h3><div id="my-loans-list" class="space-y-3"></div></div>
                         </div>
                     </div>
 
@@ -1033,8 +1043,8 @@
                         
                         <div class="p-4 bg-white border-t border-slate-100 flex justify-center">
                             <button onclick="open360Report(currentGroup.id)" class="w-full sm:w-auto bg-indigo-50 text-indigo-600 border border-indigo-100 py-2.5 px-6 rounded-xl font-bold hover:bg-indigo-100 transition shadow-sm flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360) למשפחה
-                            </button>
+                                <i class="fa-solid fa-chart-pie"></i> הפק דוח תמונת מצב (360)
+               </button>
                         </div>
                         
                         <div id="admin-members-tools" class="hidden">
@@ -2128,5 +2138,66 @@
             });
         }
     </script>
+                    <!-- מודל דוח תמונת מצב 360 -->
+        <div id="report-360-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-500"></i> דוח תמונת מצב 360°</h3>
+                    <button onclick="getEl('report-360-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="report-360-content" class="flex-1 overflow-y-auto p-5 space-y-5 modal-scroll" style="direction:rtl; font-family: sans-serif;">
+                    <style>.report-badge{background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:bold;}</style>
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                        <h4 class="font-black text-indigo-800 text-base mb-2" id="report-360-group-name">-</h4>
+                        <div class="flex flex-wrap gap-3 text-xs text-slate-600">
+                            <span><b>סוג:</b> <span id="report-360-group-type">-</span></span>
+                            <span><b>קוד:</b> <span id="report-360-group-code" class="font-mono">-</span></span>
+                            <span><b>מנהל:</b> <span id="report-360-group-email">-</span></span>
+                            <span class="mr-auto text-slate-400" id="report-360-date">-</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">חברי הצוות ויתרות</h4>
+                        <table class="w-full text-sm border-collapse">
+                            <thead><tr class="bg-slate-100 text-slate-600"><th class="p-2 text-right font-bold">שם</th><th class="p-2 text-right font-bold">תפקיד</th><th class="p-2 text-right font-bold">יתרה</th></tr></thead>
+                            <tbody id="report-360-users-list"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">תנועות פיננסיות (30 יום אחרונים)</h4>
+                        <table class="w-full text-sm border-collapse">
+                            <thead><tr class="bg-slate-100 text-slate-600"><th class="p-2 text-right font-bold">תאריך</th><th class="p-2 text-right font-bold">עובד</th><th class="p-2 text-right font-bold">תיאור</th><th class="p-2 text-left font-bold">סכום</th></tr></thead>
+                            <tbody id="report-360-tx-list"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2 text-sm">סיכום משימות ופרויקטים</h4>
+                        <ul id="report-360-tasks-list" class="list-disc list-inside space-y-1 text-sm text-slate-600"></ul>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                    <button onclick="getEl('report-360-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition">סגור</button>
+                    <button onclick="download360PDF()" class="px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow hover:bg-indigo-700 transition"><i class="fa-solid fa-file-pdf"></i> הורד PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- מודל קבלת סחורה -->
+        <div id="receive-goods-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-box-open text-green-500"></i> קבלת סחורה</h3>
+                    <button onclick="getEl('receive-goods-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5 modal-scroll" style="direction:rtl;">
+                    <p class="text-xs text-slate-500 bg-blue-50 p-3 rounded-xl border border-blue-100 mb-4"><i class="fa-solid fa-circle-info text-blue-400"></i> עבור כל פריט: הזן כמות שהתקבלה בפועל. פריטים חסרים יישלחו אוטומטית לדרישות שוטפות.</p>
+                    <div id="receive-goods-items" class="space-y-3"></div>
+                </div>
+                <div class="p-4 border-t border-slate-100 flex gap-3 justify-end shrink-0">
+                    <button onclick="getEl('receive-goods-modal').classList.add('hidden')" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitReceiveGoods()" class="px-5 py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm shadow hover:bg-green-700 transition"><i class="fa-solid fa-check"></i> אשר קבלת סחורה</button>
+                </div>
+            </div>
+        </div>
 </body>
 </html>
