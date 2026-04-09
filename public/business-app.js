@@ -4222,47 +4222,70 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה 1.0.9 (תיקון כיווניות עברית מלא ופריסה)
-function getOrderHtmlTemplate(orderInfo) {
+// תבנית ה-HTML ל-PDF - גרסה 1.1.0 (הפרדה מלאה בין תצוגת מסך להפקת PDF בעברית)
+function getOrderHtmlTemplate(orderInfo, isForPdf = false) {
     let itemsArr = [];
     try {
         if (Array.isArray(orderInfo.items)) itemsArr = orderInfo.items;
         else if (typeof orderInfo.items === 'string') itemsArr = JSON.parse(orderInfo.items);
     } catch(e) { itemsArr = []; }
 
+    // פונקציות עזר שמטפלות בטקסט רק בעת יצירת PDF כדי לא להרוס את תצוגת המסך שעובדת טוב
+    const fixLabelPdf = (label) => {
+        if (!isForPdf) return `<span style="font-weight: bold; color: #334155;">${label}</span>`;
+        // כופה על הנקודתיים להיות בצד שמאל של המילה ב-PDF
+        return `<span style="font-weight: bold; color: #334155; direction: rtl; unicode-bidi: bidi-override;">${label.replace(/ /g, '&nbsp;')}</span>`;
+    };
+
+    const fixValuePdf = (val) => {
+        if (!isForPdf) return safeStr(val);
+        // עוטף את הערך כדי שלא יקפוץ
+        return `&rlm;<span style="direction: rtl; unicode-bidi: isolate;">${safeStr(val).replace(/ /g, '&nbsp;')}</span>&rlm;`;
+    };
+
     let itemsHtml = '';
     if (itemsArr.length === 0) {
         itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:12px;" dir="rtl">אין פריטים להצגה</td></tr>';
     } else {
-        itemsHtml = itemsArr.map((i, index) => `
+        itemsHtml = itemsArr.map((i, index) => {
+            // הטיפול הקריטי בעמודת "כמות ויחידה" ל-PDF
+            let qtyDisplay = '';
+            if (isForPdf) {
+                // ל-PDF: הפרדה מוחלטת עם תווי כיווניות כדי שהמספר יהיה ראשון (ימין) והטקסט שני (שמאל)
+                qtyDisplay = `<div style="direction: rtl; text-align: center;">&rlm;<span>${i.quantity}</span>&nbsp;<span>${safeStr(i.unit)}</span>&rlm;</div>`;
+            } else {
+                // למסך: רגיל (עובד לך טוב)
+                qtyDisplay = `<span style="unicode-bidi: isolate;">${i.quantity}</span>&nbsp;<span style="unicode-bidi: isolate;">${safeStr(i.unit)}</span>`;
+            }
+
+            return `
             <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
                 <td style="padding: 9px 6px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
-                <td style="padding: 9px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
-                    ${safeStr(i.name).replace(/ /g, '&nbsp;')}
+                <td style="padding: 9px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; direction: rtl; unicode-bidi: ${isForPdf ? 'bidi-override' : 'isolate'};" dir="rtl">
+                    ${isForPdf ? fixValuePdf(i.name) : `<bdi>${safeStr(i.name)}</bdi>`}
                 </td>
-                <td style="padding: 9px 6px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${safeStr(i.unit)}</td>
+                <td style="padding: 9px 6px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">
+                    ${qtyDisplay}
+                </td>
                 <td style="padding: 9px 6px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
                 <td style="padding: 9px 6px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
-    // פונקציית עזר מתוקנת לסידור הנקודתיים בעברית - עוטפת את כל בלוק המידע ב-RTL קשיח
-    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${label.replace(/ /g, '&nbsp;')}</span>`;
-
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('מספר לקוח:')}&nbsp;<span dir="ltr" style="background-color: #eef2ff; padding: 3px 9px; border-radius: 5px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('עבור סניף/מחלקה:')}&nbsp;<span>${safeStr(orderInfo.branchName).replace(/ /g, '&nbsp;')}</span></div>` : '';
-    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('טלפון:')}&nbsp;<span dir="ltr">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
-    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('דוא"ל:')}&nbsp;<span>${safeStr(orderInfo.supplierEmail).replace(/ /g, '&nbsp;')}</span></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl;">${fixLabelPdf('מספר לקוח:')}&nbsp;<span dir="ltr" style="background-color: #eef2ff; padding: 3px 9px; border-radius: 5px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl;">${fixLabelPdf('עבור סניף/מחלקה:')}&nbsp;<span>${fixValuePdf(orderInfo.branchName)}</span></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl;">${fixLabelPdf('טלפון:')}&nbsp;<span dir="ltr">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl;">${fixLabelPdf('דוא"ל:')}&nbsp;<span>${fixValuePdf(orderInfo.supplierEmail)}</span></div>` : '';
 
     return `
-        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 18px 22px; text-align: right; margin: 0 auto; unicode-bidi: bidi-override;" dir="rtl">
+        <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 18px 22px; text-align: right; margin: 0 auto; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}" dir="rtl">
             
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 18px; direction: rtl; text-align: right;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 52%;" dir="rtl">
-                        <h1 style="margin: 0 0 6px 0; font-size: 27px; color: #334155; direction: rtl; unicode-bidi: bidi-override;">הזמנת רכש <span dir="ltr" style="font-size: 17px; color:#64748b;">(Purchase Order)</span></h1>
-                        <div style="font-size: 15px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 13px; border-radius: 6px; border: 1px solid #e2e8f0; direction: rtl; unicode-bidi: bidi-override;">מספר הזמנה:&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
+                        <h1 style="margin: 0 0 6px 0; font-size: 27px; color: #334155; ${isForPdf ? 'direction: rtl; unicode-bidi: bidi-override;' : ''}">${isForPdf ? '&rlm;הזמנת רכש&rlm;' : 'הזמנת רכש'} <span dir="ltr" style="font-size: 17px; color:#64748b;">(Purchase Order)</span></h1>
+                        <div style="font-size: 15px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 5px 13px; border-radius: 6px; border: 1px solid #e2e8f0; direction: rtl; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}">${fixLabelPdf('מספר הזמנה:')}&nbsp;<b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b></div>
                     </td>
                     <td style="vertical-align: middle; text-align: left; width: 48%;" dir="ltr">
                         <span style="font-size: 28px; font-weight: 900; color: #4f46e5; font-family: 'Arial Black', sans-serif;">ONEFLOW <span style="color: #0f172a;">LIFE</span> <span style="font-weight: 300;">BIZ</span></span>
@@ -4274,36 +4297,36 @@ function getOrderHtmlTemplate(orderInfo) {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; direction: rtl; text-align: right;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">פרטי הלקוח (המזמין):</h3>
-                        <div style="margin-bottom: 6px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">${fixLabel('שם העסק:')}&nbsp;<span>${safeStr(currentGroup.name).replace(/ /g, '&nbsp;')}</span></div>
-                        <div style="margin-bottom: 6px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">${fixLabel('איש קשר:')}&nbsp;<span>${safeStr(currentUser.nickname).replace(/ /g, '&nbsp;')}</span></div>
+                        <h3 style="margin: 0 0 10px 0; color: #4f46e5; font-size: 16px; text-align: right; direction: rtl; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}">${isForPdf ? '&rlm;פרטי הלקוח (המזמין):&rlm;' : 'פרטי הלקוח (המזמין):'}</h3>
+                        <div style="margin-bottom: 6px; text-align: right; direction: rtl;" dir="rtl">${fixLabelPdf('שם העסק:')}&nbsp;<span>${fixValuePdf(currentGroup.name)}</span></div>
+                        <div style="margin-bottom: 6px; text-align: right; direction: rtl;" dir="rtl">${fixLabelPdf('איש קשר:')}&nbsp;<span>${fixValuePdf(currentUser.nickname)}</span></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 12px; font-size: 13px; color: #64748b; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">${fixLabel('הופק ב:')}&nbsp;<span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 12px; font-size: 13px; color: #64748b; text-align: right; direction: rtl;" dir="rtl">${fixLabelPdf('הופק ב:')}&nbsp;<span dir="ltr">${new Date().toLocaleDateString('he-IL')}&nbsp;${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">פרטי הספק:</h3>
-                        <div style="margin-bottom: 6px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">${fixLabel('לכבוד:')}&nbsp;<span>${safeStr(orderInfo.supplierName).replace(/ /g, '&nbsp;')}</span></div>
+                        <h3 style="margin: 0 0 10px 0; color: #0f172a; font-size: 16px; text-align: right; direction: rtl; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}">${isForPdf ? '&rlm;פרטי הספק:&rlm;' : 'פרטי הספק:'}</h3>
+                        <div style="margin-bottom: 6px; text-align: right; direction: rtl;" dir="rtl">${fixLabelPdf('לכבוד:')}&nbsp;<span>${fixValuePdf(orderInfo.supplierName)}</span></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
                 </tr>
             </table>
 
-            <div style="margin-bottom: 18px; font-size: 14.5px; line-height: 1.6; color: #334155; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
-                <strong>שלום רב,</strong><br>
-                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
+            <div style="margin-bottom: 18px; font-size: 14.5px; line-height: 1.6; color: #334155; text-align: right; direction: rtl; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}" dir="rtl">
+                <strong>${isForPdf ? '&rlm;שלום רב,&rlm;' : 'שלום רב,'}</strong><br>
+                ${isForPdf ? '&rlm;מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;' : 'מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.'}
             </div>
 
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13.5px; border: 1px solid #cbd5e1; direction: rtl; text-align: right;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
-                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
-                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: right; width: 43%;">תיאור פריט</th>
-                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: center; width: 15%;">כמות</th>
-                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">מחיר יח'</th>
-                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">סה"כ שורה</th>
+                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">${isForPdf ? '&rlm;מק"ט&rlm;' : 'מק"ט'}</th>
+                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: right; width: 43%;">${isForPdf ? '&rlm;תיאור פריט&rlm;' : 'תיאור פריט'}</th>
+                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: center; width: 15%;">${isForPdf ? '&rlm;כמות&rlm;' : 'כמות'}</th>
+                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${isForPdf ? '&rlm;מחיר יח\'&rlm;' : 'מחיר יח\''}</th>
+                        <th style="padding: 10px 6px; border: 1px solid #cbd5e1; text-align: left; width: 15%;">${isForPdf ? '&rlm;סה"כ שורה&rlm;' : 'סה"כ שורה'}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4311,9 +4334,9 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
             
-            <div style="border-top: 3px solid #cbd5e1; padding-top: 15px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
-                <h2 style="margin: 0; font-size: 21px; color: #0f172a; direction: rtl; unicode-bidi: bidi-override;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
+            <div style="border-top: 3px solid #cbd5e1; padding-top: 15px; text-align: right; direction: rtl;" dir="rtl">
+                <h2 style="margin: 0; font-size: 21px; color: #0f172a; direction: rtl; ${isForPdf ? 'unicode-bidi: bidi-override;' : ''}">${isForPdf ? '&rlm;סה"כ לתשלום משוער:&rlm;' : 'סה"כ לתשלום משוער:'}&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">${isForPdf ? '&rlm;* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;' : '* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.'}</div>
             </div>
         </div>
     `;
@@ -4326,12 +4349,12 @@ async function generateOrderPDFBase64(orderInfo) {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
-            const htmlContent = getOrderHtmlTemplate(orderInfo);
+            // העברת true מודיעה לתבנית שהיא מיועדת ל-PDF ולכן תפעיל את תיקוני הכיווניות
+            const htmlContent = getOrderHtmlTemplate(orderInfo, true);
             
             const container = document.createElement('div');
             container.innerHTML = htmlContent;
             
-            // שינוי הגדרות מיקום כדי למנוע את "זריקת" המסמך הצידה ולוודא פריסה מלאה
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
@@ -4341,7 +4364,7 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.zIndex = '-100'; 
             container.style.opacity = '0.99';
             container.style.backgroundColor = '#ffffff';
-            container.style.height = 'max-content'; // מבטיח שהאלמנט נפתח במלואו לפני הצילום
+            container.style.height = 'max-content'; 
             document.body.appendChild(container);
 
             const opt = { 
@@ -4351,7 +4374,7 @@ async function generateOrderPDFBase64(orderInfo) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
-                    width: container.offsetWidth, // הגדרה קריטית כדי לתפוס את הרוחב האמיתי המרוכז
+                    width: container.offsetWidth, 
                     scrollY: 0,
                     height: container.scrollHeight, 
                     windowHeight: container.scrollHeight 
@@ -4612,7 +4635,8 @@ async function downloadOrderPDFManual(orderId) {
     }
 
     const contentDiv = document.getElementById('pdf-preview-content');
-    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
+    // מעבירים false כדי שהמסך יוצג רגיל ולא עם התיקונים המכוערים של ה-PDF
+    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo, false);
     
     document.getElementById('pdf-preview-modal').classList.remove('hidden');
 
@@ -4631,9 +4655,9 @@ async function downloadOrderPDFManual(orderId) {
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
             const pdfContainer = document.createElement('div');
-            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
+            // מעבירים true רק ל-PDF כדי להחיל את ההגנות האגרסיביות של הכיווניות
+            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo, true);
             
-            // שינוי הגדרות מיקום כדי למנוע את זריקת המסמך הצידה ב-PDF
             pdfContainer.style.position = 'absolute';
             pdfContainer.style.top = '0';
             pdfContainer.style.left = '0';
@@ -4653,7 +4677,7 @@ async function downloadOrderPDFManual(orderId) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
-                    width: pdfContainer.offsetWidth, // קריטי ליישור נכון
+                    width: pdfContainer.offsetWidth, 
                     scrollY: 0,
                     height: pdfContainer.scrollHeight, 
                     windowHeight: pdfContainer.scrollHeight 
@@ -4691,8 +4715,7 @@ async function downloadOrderPDFManual(orderId) {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 1.0.9 (תיקון כיווניות עברית)';
-        // שינינו ל-relative כדי שלא ידבק (סטטי בתחתית המסמך)
+        badge.innerHTML = 'גרסה 1.1.0 (הפרדת מסך ו-PDF)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
