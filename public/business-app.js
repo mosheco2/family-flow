@@ -1651,6 +1651,9 @@ function renderUnifiedFeed() {
         } else if (item.type === 'system') {
             const icon = '<i class="fa-solid fa-building text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>';
             contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
+        } else if (item.type === 'order') {
+            const icon = '<i class="fa-solid fa-file-invoice text-indigo-500 bg-indigo-100 p-1.5 rounded-full text-[10px]"></i>';
+            contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg text-slate-800" dir="ltr">₪${item.amount.toFixed(2)}</span></div>`;
         }
         html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
     });
@@ -4501,7 +4504,7 @@ function renderB2BOrders() {
             <div id="b2b-orders-filters-bar" class="flex flex-wrap gap-2 mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                 <select id="filter-order-sup" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">${supOpts}</select>
                 <select id="filter-order-status" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
-                    <option value="all">כל הסטטוסים</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
+                    <option value="all">כל הסטטוסים</option><option value="draft">טיוטות (ממתין לשידור)</option><option value="sent">נשלח</option><option value="processing">בטיפול</option><option value="shipped">במשלוח</option><option value="delivered">סופק</option><option value="cancelled">בוטל</option>
                 </select>
                 <select id="filter-order-date" onchange="renderB2BOrders()" class="modern-input py-1.5 text-xs flex-1 min-w-[120px] bg-white">
                     <option value="all">כל הזמן</option><option value="30">30 יום אחרונים</option><option value="90">3 חודשים אחרונים</option>
@@ -4530,11 +4533,12 @@ function renderB2BOrders() {
     
     let html = '';
     const statusMap = { 
-        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700' }, 
-        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700' }, 
-        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700' }, 
-        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80' }, 
-        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700' } 
+        'draft': { t: 'טיוטה / ממתין לשידור', c: 'bg-slate-100 text-slate-700 border-slate-200' },
+        'sent': { t: 'נשלח לספק', c: 'bg-blue-100 text-blue-700 border-blue-200' }, 
+        'processing': { t: 'בטיפול אצל הספק', c: 'bg-orange-100 text-orange-700 border-orange-200' }, 
+        'shipped': { t: 'בדרך אלינו', c: 'bg-purple-100 text-purple-700 border-purple-200' }, 
+        'delivered': { t: 'סופק במלואו', c: 'bg-green-100 text-green-700 opacity-80 border-green-200' }, 
+        'cancelled': { t: 'בוטל', c: 'bg-red-100 text-red-700 border-red-200' } 
     };
 
     filteredOrders.forEach(o => {
@@ -4562,6 +4566,7 @@ function renderB2BOrders() {
         let statusSelectHtml = '';
         if (currentUser.role === 'ADMIN') {
             const statuses = [
+                {val: 'draft', label: 'טיוטה (ממתין)'},
                 {val: 'sent', label: 'נשלח לספק'},
                 {val: 'processing', label: 'בטיפול אצל הספק'},
                 {val: 'shipped', label: 'בדרך אלינו'},
@@ -4572,9 +4577,16 @@ function renderB2BOrders() {
             statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
         }
 
-        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100"><button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
-        if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
-            actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
+        let actionsHtml = `<div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">`;
+        
+        // התמיכה בטיוטה לעריכת חוסרים
+        if (o.status === 'draft') {
+            actionsHtml += `<button onclick="editDraftOrder(${o.id})" class="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-pen"></i> ערוך ומלא חוסרים בעגלה</button>`;
+        } else {
+            actionsHtml += `<button onclick="downloadOrderPDFManual(${o.id})" class="flex-1 bg-slate-50 hover:bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-200"><i class="fa-solid fa-eye"></i> צפה והורד PDF</button>`;
+            if (currentUser.role === 'ADMIN' && o.status !== 'delivered' && o.status !== 'cancelled') {
+                actionsHtml += `<button onclick="openReceiveGoodsModal(${o.id})" class="flex-[1.5] bg-green-500 hover:bg-green-600 text-white py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-box-open"></i> קבלת סחורה</button>`;
+            }
         }
         actionsHtml += `</div>`;
 
@@ -4586,7 +4598,7 @@ function renderB2BOrders() {
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
                     <span class="font-black text-slate-900 text-lg dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
-                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate">${st.t}</span>
+                    <span class="text-[10px] font-bold ${st.c} px-2 py-1 rounded-md shadow-sm w-full text-center truncate border">${st.t}</span>
                     ${statusSelectHtml}
                 </div>
             </div>
@@ -4607,138 +4619,32 @@ function renderB2BOrders() {
     list.innerHTML = html;
 }
 
+// פונקציה למשיכת טיוטת חוסרים חזרה לעגלה
+async function editDraftOrder(orderId) {
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    try {
+        let items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        items.forEach(i => {
+            if (i.id) { b2bCart[i.id] = (b2bCart[i.id] || 0) + parseFloat(i.quantity); }
+        });
+        await fetch(`${API}/b2b/orders/${orderId}`, { method: 'DELETE' });
+        showToast('success', 'החוסרים נטענו בהצלחה לעגלה!');
+        fetchB2BOrders(); updateB2BCartUI(); switchProcurementTab('list');
+    } catch(e) { showToast('error', 'שגיאה בטעינת הטיוטה לעגלה'); }
+}
+
 async function updateB2BOrderStatus(orderId, status) {
     try {
         const res = await fetch(`${API}/b2b/orders/status`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ orderId, status })
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ orderId, status })
         });
         const data = await res.json();
-        if(data.success) {
-            showToast('success', 'סטטוס הזמנה עודכן בהצלחה');
-            fetchB2BOrders();
-        } else {
-            showToast('error', data.error || 'שגיאה בעדכון סטטוס');
-        }
+        if(data.success) { showToast('success', 'סטטוס הזמנה עודכן בהצלחה'); fetchB2BOrders(); } 
+        else { showToast('error', data.error || 'שגיאה בעדכון סטטוס'); }
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-// הורדת PDF ידנית מהתצוגה המקדימה 
-async function downloadOrderPDFManual(orderId) {
-    showToast('info', 'טוען תצוגה מקדימה...');
-    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId)); 
-    if(!order) { showToast('error', 'ההזמנה לא נמצאה במאגר'); return; }
-    
-    const supData = suppliersList.find(s => String(s.id) === String(order.supplier_id)) || {};
-    let items = [];
-    try { items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) {}
-    
-    const orderInfo = {
-        orderId: order.id,
-        supplierName: order.supplier_name || 'ספק כללי', 
-        supplierPhone: supData.phone || '',
-        supplierEmail: supData.email || '',
-        customerNumber: supData.customer_number || '',
-        branchName: order.branch_name || '', 
-        items: items, 
-        totalAmount: parseFloat(order.total_amount) || 0
-    };
-    
-    if (!document.getElementById('pdf-preview-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="pdf-preview-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-2 sm:p-4">
-            <div class="bg-slate-100 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden border border-slate-200">
-                <div class="p-4 sm:p-5 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
-                    <h3 class="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-pdf text-red-500"></i> צפייה והורדת הזמנה</h3>
-                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-slate-200 transition"><i class="fa-solid fa-times"></i></button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center modal-scroll" style="direction: rtl; background-color: #f1f5f9;">
-                    <div id="pdf-preview-content" class="bg-white shadow-xl border border-slate-300 w-full max-w-[1040px] mx-auto origin-top transition-all" style="padding: 20px;">
-                    </div>
-                </div>
-                <div class="p-4 sm:p-5 border-t border-slate-200 bg-white flex gap-3 justify-end items-center shrink-0" style="direction: rtl;">
-                    <button onclick="document.getElementById('pdf-preview-modal').classList.add('hidden')" class="px-4 sm:px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition text-sm sm:text-base">ביטול</button>
-                    <button id="btn-actual-download-pdf" class="px-5 sm:px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2 text-sm sm:text-base">הורד מסמך <i class="fa-solid fa-download"></i></button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-
-    const contentDiv = document.getElementById('pdf-preview-content');
-    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo);
-    
-    document.getElementById('pdf-preview-modal').classList.remove('hidden');
-
-    const btnDownload = document.getElementById('btn-actual-download-pdf');
-    
-    btnDownload.onclick = async () => {
-        btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
-        btnDownload.disabled = true;
-        
-        try {
-            const isLoaded = await loadHtml2Pdf();
-            if (!isLoaded) throw new Error('PDF library failed to load');
-
-            const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
-            const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
-            
-            const pdfContainer = document.createElement('div');
-            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            
-            pdfContainer.style.position = 'absolute';
-            pdfContainer.style.top = '0';
-            pdfContainer.style.left = '0';
-            pdfContainer.style.right = '0';
-            pdfContainer.style.margin = 'auto';
-            pdfContainer.style.width = '1040px'; 
-            pdfContainer.style.zIndex = '-100'; 
-            pdfContainer.style.opacity = '0.99';
-            pdfContainer.style.backgroundColor = '#ffffff';
-            pdfContainer.style.height = 'max-content';
-            document.body.appendChild(pdfContainer);
-
-            const opt = { 
-                margin: [10, 10, 10, 10], 
-                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    width: pdfContainer.offsetWidth, 
-                    scrollY: 0,
-                    height: pdfContainer.scrollHeight, 
-                    windowHeight: pdfContainer.scrollHeight 
-                }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['css', 'legacy'] }
-            };
-
-            setTimeout(() => {
-                html2pdf().set(opt).from(pdfContainer).save().then(() => {
-                    if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-                    showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
-                    document.getElementById('pdf-preview-modal').classList.add('hidden');
-                    btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-                    btnDownload.disabled = false;
-                }).catch(err => {
-                    if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
-                    showToast('error', 'שגיאה ביצירת מסמך PDF. נסה שוב.');
-                    btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-                    btnDownload.disabled = false;
-                });
-            }, 500);
-            
-        } catch(e) {
-            console.error('PDF Error:', e);
-            showToast('error', 'שגיאה כללית בהפקה.');
-            btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
-            btnDownload.disabled = false;
-        }
-    };
-}
-// === קבלת סחורה ===
 let _receiveGoodsOrderId = null;
 
 function openReceiveGoodsModal(orderId) {
@@ -4770,7 +4676,6 @@ function openReceiveGoodsModal(orderId) {
             </div>
         </div>
     `).join('');
-
     getEl('receive-goods-modal').classList.remove('hidden');
 }
 
@@ -4786,7 +4691,8 @@ async function submitReceiveGoods() {
         const receivedQty = parseFloat(document.getElementById(`rg-received-${idx}`)?.value || 0);
         const missingQty = parseFloat(document.getElementById(`rg-missing-${idx}`)?.value || 0);
         if (receivedQty > 0) receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit || "יח'" });
-        if (missingQty > 0) missingItems.push({ name: item.name, qty: missingQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
+        // הוספתי שמירה של מזהה המוצר כדי שנוכל להחזיר אותו לעגלה!
+        if (missingQty > 0) missingItems.push({ id: item.id, sku: item.sku || '', name: item.name, qty: missingQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
     });
 
     try {
@@ -4796,15 +4702,11 @@ async function submitReceiveGoods() {
         });
         const data = await res.json();
         if (data.success) {
-            showToast('success', `סחורה נרשמה! ${receivedItems.length} פריטים נוספו למלאי${missingItems.length ? `, ${missingItems.length} פריטים חסרים נשלחו לדרישות שוטפות` : ''}`);
+            showToast('success', `סחורה נרשמה! ${missingItems.length ? 'הזמנת החוסרים נוצרה כטיוטה.' : ''}`);
             getEl('receive-goods-modal').classList.add('hidden');
             fetchB2BOrders();
-        } else {
-            showToast('error', data.error || 'שגיאה ברישום הסחורה');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת תקשורת');
-    }
+        } else { showToast('error', data.error || 'שגיאה ברישום הסחורה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
