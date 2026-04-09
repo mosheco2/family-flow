@@ -4612,8 +4612,7 @@ async function downloadOrderPDFManual(orderId) {
     }
 
     const contentDiv = document.getElementById('pdf-preview-content');
-    // מעבירים false כדי שהמסך יוצג רגיל ולא עם התיקונים שמיועדים נטו למנוע הצילום
-    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo, false);
+    contentDiv.innerHTML = getOrderHtmlTemplate(orderInfo, false); // False = רנדור רגיל למסך
     
     document.getElementById('pdf-preview-modal').classList.remove('hidden');
 
@@ -4632,7 +4631,7 @@ async function downloadOrderPDFManual(orderId) {
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
             const pdfContainer = document.createElement('div');
-            // העברת true מודיעה לפונקציה להפעיל את ההגנות האגרסיביות ל-RTL של PDF בלבד
+            // True = מחיל את ההגנות הנסתרות (RLM) רק עבור ה-PDF
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo, true);
             
             pdfContainer.style.position = 'absolute';
@@ -4687,12 +4686,12 @@ async function downloadOrderPDFManual(orderId) {
     };
 }
 
-// הוספת מזהה גרסה בתחתית המסך (ללא fixed)
+// הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 1.1.1 (תיקון כיווניות ורווחים ב-PDF)';
+        badge.innerHTML = 'גרסה 1.1.2 (הפרדת מסך ו-PDF + תיקון רווחים ו-RLM)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
