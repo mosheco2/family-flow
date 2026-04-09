@@ -4332,46 +4332,31 @@ function getOrderHtmlTemplate(orderInfo) {
     `;
 }
 
-// יצירת PDF לשליחה במייל (מוסתר) בפריסה לרוחב (Landscape) 
+// יצירת PDF לשליחה במייל - ללא הסתמכות על הדפדפן שמונע עמודים ריקים
 async function generateOrderPDFBase64(orderInfo) {
     return new Promise(async (resolve) => {
         try {
             const isLoaded = await loadHtml2Pdf();
             if (!isLoaded) { resolve(null); return; }
 
-            const htmlContent = getOrderHtmlTemplate(orderInfo);
-            
-            const container = document.createElement('div');
-            container.innerHTML = htmlContent;
-            
-            container.style.position = 'absolute';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.width = '1040px'; 
-            container.style.zIndex = '-100'; 
-            container.style.opacity = '0.99';
-            container.style.backgroundColor = '#ffffff';
-            document.body.appendChild(container);
+            // שימוש במחרוזת במקום ב-DOM אלמנט מונע באגים של אלמנטים מוסתרים לחלוטין!
+            const htmlString = getOrderHtmlTemplate(orderInfo);
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0 }, 
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
                 pagebreak: { mode: ['css', 'legacy'] } 
             };
 
-            setTimeout(() => {
-                html2pdf().set(opt).from(container).outputPdf('datauristring').then(base64Str => {
-                    if(document.body.contains(container)) document.body.removeChild(container);
-                    if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
-                    else resolve(null);
-                }).catch(err => { 
-                    if(document.body.contains(container)) document.body.removeChild(container);
-                    resolve(null); 
-                });
-            }, 500); 
+            html2pdf().set(opt).from(htmlString).outputPdf('datauristring').then(base64Str => {
+                if (base64Str && base64Str.includes('base64,')) resolve(base64Str.split('base64,')[1]);
+                else resolve(null);
+            }).catch(err => { 
+                resolve(null); 
+            });
         } catch(err) { resolve(null); }
     });
 }
@@ -4632,17 +4617,8 @@ async function downloadOrderPDFManual(orderId) {
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
             
-            const pdfContainer = document.createElement('div');
-            pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            pdfContainer.style.position = 'absolute';
-            pdfContainer.style.top = '0';
-            pdfContainer.style.left = '0';
-            pdfContainer.style.width = '1040px'; 
-            pdfContainer.style.zIndex = '-9999'; 
-            pdfContainer.style.backgroundColor = '#ffffff';
-            document.body.appendChild(pdfContainer);
-
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // יצירה ממחרוזת טקסט מונעת את בעיית הדף הראשון הריק (ניתוק גלילת דפדפן לחלוטין)
+            const htmlString = getOrderHtmlTemplate(orderInfo);
 
             const opt = { 
                 margin: [10, 10, 10, 10], 
@@ -4651,17 +4627,13 @@ async function downloadOrderPDFManual(orderId) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
-                    windowWidth: 1040, 
-                    scrollY: 0,
                     letterRendering: true 
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                 pagebreak: { mode: ['css', 'legacy'] }
             };
 
-            await html2pdf().set(opt).from(pdfContainer).save();
-            
-            if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+            await html2pdf().set(opt).from(htmlString).save();
             
             showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
             document.getElementById('pdf-preview-modal').classList.add('hidden');
