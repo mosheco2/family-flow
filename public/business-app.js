@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה 1.0.9 (תיקון כיווניות עברית מלא ופריסה)
+// תבנית ה-HTML ל-PDF - גרסה 1.0.10 (תיקון סופי למיקום ":" ו"." בעברית)
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4247,8 +4247,7 @@ function getOrderHtmlTemplate(orderInfo) {
         `).join('');
     }
 
-    // פונקציית עזר מתוקנת לסידור הנקודתיים בעברית - עוטפת את כל בלוק המידע ב-RTL קשיח
-    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${label.replace(/ /g, '&nbsp;')}</span>`;
+    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${label.replace(/ /g, '&nbsp;')}&rlm;</span>`;
 
     const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('מספר לקוח:')}&nbsp;<span dir="ltr" style="background-color: #eef2ff; padding: 3px 9px; border-radius: 5px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
     const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 7px; text-align: right; direction: rtl; unicode-bidi: bidi-override;">${fixLabel('עבור סניף/מחלקה:')}&nbsp;<span>${safeStr(orderInfo.branchName).replace(/ /g, '&nbsp;')}</span></div>` : '';
@@ -4257,7 +4256,7 @@ function getOrderHtmlTemplate(orderInfo) {
 
     return `
         <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 100%; box-sizing: border-box; padding: 18px 22px; text-align: right; margin: 0 auto; unicode-bidi: bidi-override;" dir="rtl">
-            
+           
             <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 18px; direction: rtl; text-align: right;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 52%;" dir="rtl">
@@ -4270,7 +4269,6 @@ function getOrderHtmlTemplate(orderInfo) {
                     </td>
                 </tr>
             </table>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; direction: rtl; text-align: right;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; vertical-align: top; text-align: right;" dir="rtl">
@@ -4290,12 +4288,10 @@ function getOrderHtmlTemplate(orderInfo) {
                     </td>
                 </tr>
             </table>
-
             <div style="margin-bottom: 18px; font-size: 14.5px; line-height: 1.6; color: #334155; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
                 <strong>שלום רב,</strong><br>
                 מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
             </div>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13.5px; border: 1px solid #cbd5e1; direction: rtl; text-align: right;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
@@ -4310,7 +4306,7 @@ function getOrderHtmlTemplate(orderInfo) {
                     ${itemsHtml}
                 </tbody>
             </table>
-            
+           
             <div style="border-top: 3px solid #cbd5e1; padding-top: 15px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
                 <h2 style="margin: 0; font-size: 21px; color: #0f172a; direction: rtl; unicode-bidi: bidi-override;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
                 <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
