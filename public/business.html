@@ -1715,17 +1715,25 @@
 
                     <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 shadow-sm">
                         <label class="text-xs font-bold text-indigo-800 block mb-1">סוג תבנית מוצר:</label>
-                        <select id="sp-product-type" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                                                <select id="sp-product-type" onchange="onProductTypeChange()" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
                             <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
                             <option value="food">🍔 מנת מזון / מסעדה</option>
                             <option value="service">✂️ שירות / טיפול</option>
                             <option value="apparel">👕 ביגוד והנעלה (מידות)</option>
+                            <option value="bundle">🎁 חבילה / סט מוצרים</option>
                         </select>
                         <p class="text-[9px] text-indigo-500 mt-1">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
                     </div>
 
+                    <div id="sp-bundle-section" class="hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm">
+                        <label class="text-xs font-bold text-amber-800 block mb-2"><i class="fa-solid fa-cubes-stacked ml-1"></i> פריטים בחבילה:</label>
+                        <div id="sp-bundle-items-list" class="space-y-1.5 max-h-52 overflow-y-auto modal-scroll pr-1"></div>
+                        <p class="text-[9px] text-amber-600 mt-2">סמן את המוצרים שיצרו את החבילה וקבע כמות לכל פריט.</p>
+                    </div>
+
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+
                         <input type="text" id="sp-name" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: המבורגר הבית">
                     </div>
 
