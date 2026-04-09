@@ -480,9 +480,16 @@ app.post('/api/groups', async (req, res) => {
         
         let code = generateGroupCode();
         
+        // איתור קהילה אם הוזן קוד הפניה (Referral)
+        let commId = null;
+        if (req.body.inviteCommunityCode) {
+            const cRes = await dbClient.query('SELECT id FROM communities WHERE code = $1', [req.body.inviteCommunityCode.toUpperCase().trim()]);
+            if (cRes.rows.length > 0) commId = cRes.rows[0].id;
+        }
+        
         const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code) VALUES ($1, $2, LOWER($3), $4) RETURNING *`, 
-            [req.body.type, req.body.groupName, req.body.adminEmail, code]
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id) VALUES ($1, $2, LOWER($3), $4, $5) RETURNING *`, 
+            [req.body.type, req.body.groupName, req.body.adminEmail, code, commId]
         );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;
@@ -499,15 +506,21 @@ app.post('/api/groups', async (req, res) => {
         );
         
         await dbClient.query('COMMIT');
+
+        // מנגנון הבשלת קהילה אוטומטי (30 משפחות מפעילות את הקהילה)
+        if (commId && req.body.type === 'FAMILY') {
+            const famCount = await pool.query(`SELECT COUNT(*) FROM family_groups WHERE community_id = $1 AND type = 'FAMILY'`, [commId]);
+            if (parseInt(famCount.rows[0].count) >= 30) {
+                await pool.query(`UPDATE communities SET status = 'active' WHERE id = $1 AND status = 'pending'`, [commId]);
+            }
+        }
         
-        // --- מערכת שליחת המיילים (עם המתנה לסיום השליחה כדי לא לקרוס) ---
+        // --- מערכת שליחת המיילים ---
         const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
         
-        // 1. מייל למנהל המערכת (mcgames1978@gmail.com)
         const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
         await sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
 
-        // 2. מייל ברוכים הבאים למשתמש החדש
         if (req.body.adminEmail) {
             const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
             await sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
@@ -1775,7 +1788,9 @@ async function initCommunityTables() {
         `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
-        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS image_url TEXT`
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS image_url TEXT`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`,
+        `ALTER TABLE communities ADD COLUMN IF NOT EXISTS created_by_group_id INT`
     ];
     
     for (let q of queries) {
@@ -1783,6 +1798,30 @@ async function initCommunityTables() {
     }
 }
 initCommunityTables();
+
+// --- API ליזמות קהילתית (User-led Communities) ---
+app.post('/api/community/user-create', async (req, res) => {
+    try {
+        const { name, city, groupId } = req.body;
+        const code = 'C-' + generateGroupCode();
+        const result = await pool.query(
+            `INSERT INTO communities (name, city, code, created_by_group_id, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+            [name, city, code, groupId]
+        );
+        res.json({ success: true, community: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/community/my-initiatives/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.*, 
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count 
+            FROM communities c WHERE created_by_group_id = $1 ORDER BY created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, initiatives: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // ============================================================
 // --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק) ---
