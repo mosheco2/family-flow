@@ -3174,6 +3174,7 @@ window.saCommLoaded = true;
 // --- ONBOARDING WIZARD (אשף הקמה למשפחה) ---
 // ==========================================
 let currentWizardStep = 1;
+let wizardProducts = [];
 
 function showOnboardingWizard() {
     if (document.getElementById('onboarding-wizard-modal')) {
@@ -3182,73 +3183,100 @@ function showOnboardingWizard() {
     }
 
     const modalHtml = `
-    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col min-h-[450px]">
+    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:h-auto sm:max-h-[90vh]">
             
-            <div class="w-full bg-slate-100 h-1.5">
-                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 33%;"></div>
+            <div class="w-full bg-slate-100 h-1.5 shrink-0">
+                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 25%;"></div>
             </div>
 
-            <div class="bg-indigo-50 p-6 text-center border-b border-indigo-100 relative">
-                <h2 class="text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow! 🎉</h2>
-                <p class="text-indigo-600 text-sm font-bold">בואו נגדיר את הסביבה המשפחתית ב-3 צעדים</p>
+            <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
+                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
+                <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
             </div>
 
-            <div id="wizard-step-1" class="p-6 flex-1 flex flex-col justify-center fade-in">
-                <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> קצת על המשפחה</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">משפט המפתח של המשפחה שלנו:</label>
-                        <input type="text" id="wizard-slogan" class="modern-input py-3 w-full" placeholder="למשל: משפחת כהן המופלאה">
-                    </div>
-                </div>
-            </div>
-
-            <div id="wizard-step-2" class="p-6 flex-1 flex flex-col justify-center hidden fade-in">
-                <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-box-open text-indigo-500"></i> הוספת פריט ראשון למזווה</h3>
-                <p class="text-xs text-slate-500 text-center mb-4">מה המוצר שתמיד צריך להיות אצלכם בבית?</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">שם המוצר:</label>
-                        <input type="text" id="wizard-item-name" class="modern-input py-3 w-full" placeholder="למשל: חלב תנובה 3%">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">כמות נוכחית:</label>
-                            <input type="number" id="wizard-item-qty" class="modern-input py-3 w-full text-center" value="1">
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 sm:p-6 bg-slate-50/50">
+                <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-house-chimney text-indigo-500"></i> המשפחה שלנו</h3>
+                    <div class="space-y-4">
+                        <div class="flex flex-col items-center justify-center mb-6">
+                            <label class="text-xs font-bold text-slate-500 mb-2">תמונה משפחתית (אופציונלי):</label>
+                            <div class="relative w-24 h-24 bg-white rounded-full border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
+                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
+                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
+                            </div>
+                            <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                            <input type="hidden" id="wizard-logo-base64">
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-slate-500 block mb-1">יחידת מידה:</label>
-                            <select id="wizard-item-unit" class="modern-input py-3 w-full text-center bg-white">
-                                <option value="יח'">יח'</option>
-                                <option value="ק&quot;ג">ק"ג</option>
-                                <option value="ליטר">ליטר</option>
-                                <option value="מארז">מארז</option>
-                            </select>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">משפט מפתח / מוטו משפחתי:</label>
+                            <input type="text" id="wizard-slogan" class="modern-input py-3 w-full bg-white" placeholder="משפחה שכזאת / המשפחה הכי טובה בעולם">
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="wizard-step-3" class="p-6 flex-1 flex flex-col items-center justify-center hidden fade-in text-center">
-                <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-green-200">
-                    <i class="fa-brands fa-whatsapp"></i>
+                <div id="wizard-step-2" class="hidden fade-in max-w-md mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-piggy-bank text-indigo-500"></i> תקציב חודשי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-6">הגדירו מהו התקציב הפנוי או ההכנסה המשותפת שתרצו לנהל ולעקוב אחריה החודש באפליקציה.</p>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
+                        <label class="text-sm font-bold text-slate-700 block mb-2">התקציב החודשי (₪):</label>
+                        <input type="number" id="wizard-initial-budget" class="modern-input py-4 text-2xl font-black text-center dir-ltr text-indigo-600 bg-indigo-50/30" placeholder="0" value="0">
+                        <p class="text-[10px] text-slate-400 mt-3">* אל דאגה, תוכלו לשנות או לאפס את זה בכל רגע.</p>
+                    </div>
                 </div>
-                <h3 class="font-bold text-slate-800 text-lg mb-2">מזמינים את המשפחה</h3>
-                <p class="text-sm text-slate-500 mb-6">הסביבה שלכם מוכנה! עכשיו נשאר רק להזמין את הילדים ובני הזוג פנימה.</p>
-                
-                <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
-                    <i class="fa-brands fa-whatsapp text-lg"></i> הוספת ילדים בוואטסאפ
-                </button>
-                <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
-                    <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה נוסף
-                </button>
-                <button onclick="nextWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline mt-2">אעשה זאת מאוחר יותר</button>
+
+                <div id="wizard-step-3" class="hidden fade-in max-w-xl mx-auto">
+                    <h3 class="font-bold text-slate-800 text-lg mb-2 text-center"><i class="fa-solid fa-boxes-stacked text-indigo-500"></i> בניית המזווה המשפחתי</h3>
+                    <p class="text-xs text-slate-500 text-center mb-4">נוסיף עכשיו את המוצרים שתמיד צריכים להיות בבית. אפשר לתת ל-AI שלנו לנחש בשבילכם!</p>
+                    
+                    <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6">
+                        <label class="text-xs font-bold text-indigo-800 block mb-2">✨ מילוי מזווה אוטומטי ב-AI</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wizard-ai-prompt" class="modern-input py-2.5 text-sm flex-1 bg-white" placeholder="תארו אתכם (למשל: משפחה טבעונית, או משפחה עם תינוק)">
+                            <button id="btn-wizard-ai" onclick="generateWizardCatalog()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-sm shrink-0">מלא מזווה</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl mb-4 shadow-sm">
+                        <label class="text-xs font-bold text-slate-700 block mb-2">✍️ הוספה ידנית</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="wiz-add-name" placeholder="שם מוצר (חלב 3%)" class="modern-input py-2 text-xs flex-1">
+                            <input type="text" id="wiz-add-cat" placeholder="קטגוריה" class="modern-input py-2 text-xs w-24 shrink-0">
+                            <button onclick="addWizardProduct()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-slate-700 transition text-xs shrink-0">הוסף</button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <h4 class="font-bold text-slate-700 text-sm">מוצרים במזווה (<span id="wiz-prod-count">0</span>/25):</h4>
+                        <button onclick="wizardProducts=[]; renderWizardProducts();" class="text-xs text-red-500 hover:underline font-bold">נקה הכל</button>
+                    </div>
+                    <div id="wizard-products-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1">
+                        <p class="text-xs text-slate-400 text-center py-4">אין מוצרים במזווה עדיין.</p>
+                    </div>
+                </div>
+
+                <div id="wizard-step-4" class="hidden fade-in text-center max-w-md mx-auto pt-4">
+                    <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mb-4 shadow-sm border border-green-200 mx-auto">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-xl mb-2">מזמינים את המשפחה</h3>
+                    <p class="text-sm text-slate-500 mb-8">הסביבה מוכנה! שלחו עכשיו הזמנה לשאר בני הבית כדי שיתחילו לקבל דמי כיס ולעזור במשימות.</p>
+                    
+                    <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-brands fa-whatsapp text-lg"></i> הזמנת ילד/ה בוואטסאפ
+                    </button>
+                    <button onclick="sendWhatsAppInvite('ADMIN')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition flex items-center justify-center gap-2 mb-3">
+                        <i class="fa-solid fa-user-tie text-slate-400"></i> הוספת הורה שותף
+                    </button>
+                </div>
             </div>
 
-            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition invisible">חזור</button>
-                <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+            <div class="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
+                <button id="wizard-btn-skip" onclick="skipWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline px-2">דלג על שלב זה</button>
+                <div class="flex gap-2">
+                    <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-4 sm:px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition hidden">חזור</button>
+                    <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-6 sm:px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+                </div>
             </div>
         </div>
     </div>
@@ -3256,81 +3284,139 @@ function showOnboardingWizard() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+function handleWizardLogo(event) {
+    const file = event.target.files[0]; if(!file) return;
+    compressImage(file, 300, 300, 0.8, (base64) => {
+        getEl('wizard-logo-preview').src = base64;
+        getEl('wizard-logo-preview').classList.remove('hidden');
+        getEl('wizard-logo-icon').classList.add('hidden');
+        getEl('wizard-logo-base64').value = base64;
+    });
+}
+
+function addWizardProduct() {
+    if (wizardProducts.length >= 25) return showToast('error', 'ניתן להוסיף עד 25 מוצרים בבת אחת.');
+    const name = val('wiz-add-name'); const cat = val('wiz-add-cat') || 'כללי';
+    if (!name) return showToast('error', 'יש להזין שם מוצר');
+    wizardProducts.push({ name, category: cat });
+    getEl('wiz-add-name').value = ''; getEl('wiz-add-cat').value = '';
+    renderWizardProducts();
+}
+
+function removeWizardProduct(idx) { wizardProducts.splice(idx, 1); renderWizardProducts(); }
+
+function renderWizardProducts() {
+    const list = getEl('wizard-products-list');
+    getEl('wiz-prod-count').innerText = wizardProducts.length;
+    if (wizardProducts.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">המזווה ריק.</p>'; return; }
+    list.innerHTML = wizardProducts.map((p, idx) => `
+        <div class="flex justify-between items-center bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
+            <div class="flex-1 pr-2 overflow-hidden">
+                <div class="font-bold text-slate-700 text-sm truncate">${safeStr(p.name)}</div>
+                <div class="text-[10px] text-slate-400 truncate">${safeStr(p.category)}</div>
+            </div>
+            <button onclick="removeWizardProduct(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 flex items-center justify-center shrink-0"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `).join('');
+}
+
+async function generateWizardCatalog() {
+    const prompt = val('wizard-ai-prompt');
+    if(!prompt) return showToast('error', 'רשמו למשל: משפחה של 5 נפשות שומרת כשרות');
+    const btn = getEl('btn-wizard-ai'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    try {
+        const res = await fetch(`${API}/ai/generate-catalog`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ promptText: prompt, type: 'FAMILY', groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (data.success && data.items) {
+            data.items.forEach(i => { if (wizardProducts.length < 25) wizardProducts.push(i); });
+            renderWizardProducts(); showToast('success', 'המזווה התמלא!');
+        } else { showToast('error', data.error || 'שגיאה ביצירת מזווה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת מול ה-AI'); }
+    finally { btn.disabled = false; btn.innerText = 'מלא מזווה'; }
+}
+
+function updateWizardUI() {
+    [1, 2, 3, 4].forEach(s => getEl(`wizard-step-${s}`).classList.add('hidden'));
+    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
+    getEl('wizard-progress').style.width = `${(currentWizardStep / 4) * 100}%`;
+    
+    getEl('wizard-btn-prev').classList.toggle('hidden', currentWizardStep === 1);
+    const btnNext = getEl('wizard-btn-next');
+    if (currentWizardStep === 4) {
+        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
+        btnNext.classList.remove('bg-slate-800'); btnNext.classList.add('bg-indigo-600');
+    } else {
+        btnNext.innerText = 'המשך';
+        btnNext.classList.add('bg-slate-800'); btnNext.classList.remove('bg-indigo-600');
+    }
+}
+
 async function nextWizardStep() {
     const btnNext = getEl('wizard-btn-next');
-    const btnPrev = getEl('wizard-btn-prev');
-
-    if (currentWizardStep === 1) {
+    
+    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         try {
-            // שומרים את שם הקבוצה / משפט מפתח דרך ה-API של האדמין (אם קיים נתיב ייעודי, או פשוט ממשיכים)
+            // משתמש ב-Settings Store סתם כדי לשמור את התמונה והסלוגן המשפחתי גם אם זה Family
+            await fetch(`${API}/store/settings`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, isActive: false, slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
+            });
         } catch(e) {}
-        btnNext.innerHTML = 'המשך';
     }
-
-    if (currentWizardStep === 2) {
-        const name = val('wizard-item-name');
-        const qty = val('wizard-item-qty') || 1;
-        const unit = val('wizard-item-unit') || "יח'";
-        
-        if (name) {
+    
+    else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
+        const budget = parseFloat(val('wizard-initial-budget')) || 0;
+        if (budget > 0) {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             try {
-                await fetch(`${API}/pantry/add`, {
+                await fetch(`${API}/transaction`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: 1 })
+                    body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
                 });
             } catch(e) {}
-            btnNext.innerHTML = 'המשך';
         }
     }
-
-    if (currentWizardStep === 3) {
-        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסתנכרן...';
+    
+    else if (currentWizardStep === 3) { // העלאת מוצרי מזווה
+        if (wizardProducts.length > 0) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
+            try {
+                for (let p of wizardProducts) {
+                    await fetch(`${API}/pantry/add`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
+                    });
+                }
+            } catch(e) {}
+        }
+    }
+    
+    else if (currentWizardStep === 4) { // סיום
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסיים...';
         try {
-            await fetch(`${API}/groups/onboard`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ groupId: currentGroup.id })
-            });
+            await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
             getEl('onboarding-wizard-modal').classList.add('hidden');
-            triggerConfetti();
-            fetchData();
+            triggerConfetti(); fetchData();
         } catch(e) {}
         return;
     }
 
-    getEl(`wizard-step-${currentWizardStep}`).classList.add('hidden');
     currentWizardStep++;
-    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
-    
-    getEl('wizard-progress').style.width = `${(currentWizardStep / 3) * 100}%`;
-    
-    btnPrev.classList.remove('invisible');
-    if (currentWizardStep === 3) {
-        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
-        btnNext.classList.remove('bg-slate-800');
-        btnNext.classList.add('bg-indigo-600');
-    }
+    updateWizardUI();
 }
 
 function prevWizardStep() {
-    const btnNext = getEl('wizard-btn-next');
-    const btnPrev = getEl('wizard-btn-prev');
-    
-    if (currentWizardStep > 1) {
-        getEl(`wizard-step-${currentWizardStep}`).classList.add('hidden');
-        currentWizardStep--;
-        getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
-        
-        getEl('wizard-progress').style.width = `${(currentWizardStep / 3) * 100}%`;
-        
-        btnNext.innerText = 'המשך';
-        btnNext.classList.add('bg-slate-800');
-        btnNext.classList.remove('bg-indigo-600');
-        
-        if (currentWizardStep === 1) btnPrev.classList.add('invisible');
-    }
+    if (currentWizardStep > 1) { currentWizardStep--; updateWizardUI(); }
+}
+
+function skipWizardStep() {
+    if (currentWizardStep === 4) nextWizardStep(); // סיום
+    else { currentWizardStep++; updateWizardUI(); }
 }
 
 // הוספת מזהה גרסה בתחתית המסך
@@ -3338,9 +3424,8 @@ function prevWizardStep() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.0 (אשף הקמה שולב במערכת המשפחתית)';
+        badge.innerHTML = 'גרסה 2.1.5 (אשף הקמה חכם למשפחות מושלם)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
 })();
-// === סוף הקובץ ===
