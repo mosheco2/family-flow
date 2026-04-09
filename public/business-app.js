@@ -2730,28 +2730,131 @@ function calcQuoteTotal() {
 
 async function submitNewQuote() {
     const name = val('quote-cust-name');
+    const phone = val('quote-cust-phone');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
+
     const btn = getEl('btn-generate-quote');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר PDF...';
+
     const items = Object.values(selectedQuoteItems);
-    let subtotal = 0; items.forEach(i => subtotal += (i.quantity * i.price_at_order));
+    let subtotal = 0; 
+    
+    // סידור הפריטים כדי שיתאימו לתבנית ה-PDF (שמצפה ל-price_per_unit ול-row_total)
+    items.forEach(i => {
+        i.price_per_unit = parseFloat(i.price_at_order) || 0;
+        i.row_total = i.quantity * i.price_per_unit;
+        i.unit = "יח'"; 
+        subtotal += i.row_total;
+    });
+
     const discount = parseFloat(getEl('quote-discount')?.value) || 0;
     const total = subtotal * (1 - discount / 100);
-    const notesData = JSON.stringify({ notes: val('quote-notes'), introText: val('quote-intro-text'), validity: val('quote-validity'), discount });
-    try {
-        const res = await fetch(`${API}/store/quotes`, { method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items, totalAmount: total, notes: notesData }) });
-        const data = await res.json();
-        if(data.success) {
-            try { triggerConfetti(); } catch(e) {}
-            showToast('success', 'הצעת המחיר נוצרה בהצלחה!');
-            getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes();
-        } else { showToast('error', data.error || 'שגיאה בשמירת ההצעה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
-}
+    
+    // יצירת ID זמני להצעה
+    const mockQuoteId = Date.now().toString().slice(-6); 
 
+    const orderInfo = {
+        orderId: mockQuoteId,
+        supplierName: currentGroup.name, 
+        supplierPhone: currentGroup.phone || '',
+        customerName: name,
+        customerNumber: phone || '',
+        totalAmount: total,
+        items: items
+    };
+
+    try {
+        const isLoaded = await loadHtml2Pdf();
+        if(!isLoaded) throw new Error('שגיאה בטעינת מערכת ה-PDF');
+
+        let htmlContent = getOrderHtmlTemplate(orderInfo);
+        
+        // התאמת התבנית להצעת מחיר
+        htmlContent = htmlContent.replace('הזמנת&nbsp;רכש&#x200F;', 'הצעת&nbsp;מחיר&#x200F;').replace('(Purchase Order)', '(Price Quote)');
+        htmlContent = htmlContent.replace('פרטי&nbsp;הלקוח&nbsp;(המזמין):&#x200F;', 'פרטי&nbsp;הספק:&#x200F;');
+        htmlContent = htmlContent.replace('פרטי&nbsp;הספק:&#x200F;', 'פרטי&nbsp;הלקוח:&#x200F;');
+
+        // הוספת טקסטים ייעודיים להצעת המחיר (טקסט פתיחה, הנחה, הערות)
+        let additionalInfoHtml = '<div style="margin-top: 20px; text-align: right;" dir="rtl">';
+        const introText = val('quote-intro-text');
+        if(introText) {
+             additionalInfoHtml += `<div style="margin-bottom: 15px; font-size: 14px;">${safeStr(introText).replace(/\n/g, '<br>')}</div>`;
+        }
+        
+        if(discount > 0) {
+             additionalInfoHtml += `<div style="margin-bottom: 5px; font-size: 14px;"><b>הנחה שניתנה:</b> ${discount}% (המחיר הסופי למעלה כבר כולל את ההנחה)</div>`;
+        }
+        
+        const validity = val('quote-validity');
+        if(validity) {
+             additionalInfoHtml += `<div style="margin-bottom: 5px; font-size: 14px;"><b>תוקף ההצעה:</b> ${safeStr(validity)}</div>`;
+        }
+
+        const notes = val('quote-notes');
+        if(notes) {
+            additionalInfoHtml += `<div style="margin-top: 15px; padding: 15px; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;"><b>הערות נוספות:</b><br>${safeStr(notes).replace(/\n/g, '<br>')}</div>`;
+        }
+        additionalInfoHtml += '</div>';
+
+        htmlContent += additionalInfoHtml;
+
+        const container = document.createElement('div');
+        container.innerHTML = htmlContent;
+        container.style.position = 'absolute'; container.style.top = '0'; container.style.left = '0';
+        container.style.width = '1040px'; container.style.zIndex = '-100'; container.style.backgroundColor = '#ffffff';
+        document.body.appendChild(container);
+
+        const opt = { 
+            margin: [10, 10, 10, 10], filename: `Quote_${mockQuoteId}.pdf`, image: { type: 'jpeg', quality: 1 }, 
+            html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+        };
+
+        setTimeout(() => {
+            html2pdf().set(opt).from(container).save().then(() => {
+                if(document.body.contains(container)) document.body.removeChild(container);
+                try { triggerConfetti(); } catch(e) {}
+                showToast('success', 'הצעת המחיר הופקה והורדה למחשב!');
+                getEl('quote-modal').classList.add('hidden');
+                
+                // נוסיף את ההצעה זמנית לרשימה במסך
+                const newQuote = {
+                    id: mockQuoteId,
+                    customer_name: name,
+                    customer_phone: phone,
+                    total_amount: total,
+                    created_at: new Date().toISOString()
+                };
+                storeQuotesCache.unshift(newQuote);
+                
+                // נרנדר את הרשימה מחדש 
+                const list = getEl('store-quotes-list');
+                if(list) {
+                    list.innerHTML = storeQuotesCache.map(q => `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">הצעה #${q.id} - ${safeStr(q.customer_name)}</h4>
+                                <p class="text-lg font-black text-indigo-600 dir-ltr mt-0.5 text-right">₪${parseFloat(q.total_amount).toFixed(2)}</p>
+                                <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+            }).catch(err => {
+                if(document.body.contains(container)) document.body.removeChild(container);
+                showToast('error', 'שגיאה ביצירת ה-PDF');
+                btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
+            });
+        }, 500);
+
+    } catch(e) { 
+        showToast('error', e.message || 'אירעה שגיאה'); 
+        btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
+    }
+}
 
 function shareQuoteWhatsApp(id, phone) {
     const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
