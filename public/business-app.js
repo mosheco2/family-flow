@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה 1.1.12 (רווחים טבעיים, RLM בלבד ומניעת חיתוך עמוד)
+// תבנית ה-HTML ל-PDF - גרסה 1.1.5 (תיקון שגיאת PDF ריק, שחזור רווחים מלא ומניעת חיתוך שורות)
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4235,13 +4235,16 @@ function getOrderHtmlTemplate(orderInfo) {
         itemsHtml = '<tr><td colspan="5" style="text-align:center; padding:15px;" dir="rtl">אין פריטים להצגה</td></tr>';
     } else {
         itemsHtml = itemsArr.map((i, index) => `
-            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid; break-inside: avoid;" dir="rtl">
                 <td style="padding: 12px 8px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;" dir="ltr">${safeStr(i.sku || '-')}</td>
                 <td style="padding: 12px 8px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;" dir="rtl">
                     ${safeStr(i.name)}
                 </td>
                 <td style="padding: 12px 8px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">
-                    <span style="display: inline-block; direction: rtl;">${i.quantity} ${safeStr(i.unit)}</span>
+                    <div style="display: inline-flex; align-items: center; justify-content: center; direction: rtl;">
+                        <span style="margin-left: 4px;">${i.quantity}</span>
+                        <span>${safeStr(i.unit)}</span>
+                    </div>
                 </td>
                 <td style="padding: 12px 8px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
                 <td style="padding: 12px 8px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
@@ -4249,21 +4252,21 @@ function getOrderHtmlTemplate(orderInfo) {
         `).join('');
     }
 
-    // הפונקציה מחזירה טקסט רגיל עם רווחים טבעיים (בלי nbsp שמדביק מילים), עם rlm בסוף לנעילת נקודתיים
-    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155;">${label}&rlm;</span>`;
+    // pre-wrap מכריח את מנוע ה-PDF לכבד כל רווח רגיל שיש בטקסט, שום מילה לא תידבק! rlm סוגר את הנקודתיים במקום.
+    const fixLabel = (label) => `<span style="font-weight: bold; color: #334155; white-space: pre-wrap;">${label}&rlm;</span>`;
 
-    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('מספר לקוח:')} <span dir="ltr" style="background-color: #eef2ff; padding: 4px 10px; border-radius: 6px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
-    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('עבור סניף/מחלקה:')} <span>${safeStr(orderInfo.branchName)}</span></div>` : '';
-    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('טלפון:')} <span dir="ltr">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
-    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('דוא"ל:')} <span>${safeStr(orderInfo.supplierEmail)}</span></div>` : '';
+    const customerNumHtml = orderInfo.customerNumber ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('מספר לקוח:')} <span dir="ltr" style="background-color: #eef2ff; padding: 4px 10px; border-radius: 6px; color: #4f46e5; font-weight: bold;">${safeStr(orderInfo.customerNumber)}</span></div>` : '';
+    const branchHtml = orderInfo.branchName ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('עבור סניף/מחלקה:')} <span>${safeStr(orderInfo.branchName)}</span></div>` : '';
+    const phoneHtml = orderInfo.supplierPhone ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('טלפון:')} <span dir="ltr">${safeStr(orderInfo.supplierPhone)}</span></div>` : '';
+    const emailHtml = orderInfo.supplierEmail ? `<div style="margin-bottom: 8px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('דוא"ל:')} <span>${safeStr(orderInfo.supplierEmail)}</span></div>` : '';
 
     return `
         <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 25px; text-align: right;" dir="rtl">
             
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 4px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px;" dir="rtl">
                 <tr>
                     <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
-                        <h1 style="margin: 0 0 10px 0; font-size: 30px; color: #334155;">הזמנת רכש&rlm; <span dir="ltr" style="font-size: 18px; color:#64748b;">(Purchase Order)</span></h1>
+                        <h1 style="margin: 0 0 10px 0; font-size: 30px; color: #334155; white-space: pre-wrap;">הזמנת רכש&rlm; <span dir="ltr" style="font-size: 18px; color:#64748b;">(Purchase Order)</span></h1>
                         <div style="font-size: 16px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 8px 18px; border-radius: 8px; border: 1px solid #e2e8f0;">
                             ${fixLabel('מספר הזמנה:')} <b dir="ltr" style="color: #4f46e5;">#${orderInfo.orderId || 'חדש'}</b>
                         </div>
@@ -4285,33 +4288,33 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 14px 0; color: #4f46e5; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right;">פרטי הלקוח (המזמין):&rlm;</h3>
-                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('שם העסק:')} <span>${safeStr(currentGroup.name)}</span></div>
-                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('איש קשר:')} <span>${safeStr(currentUser.nickname)}</span></div>
+                        <h3 style="margin: 0 0 14px 0; color: #4f46e5; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right; white-space: pre-wrap;">פרטי הלקוח (המזמין):&rlm;</h3>
+                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('שם העסק:')} <span>${safeStr(currentGroup.name)}</span></div>
+                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('איש קשר:')} <span>${safeStr(currentUser.nickname)}</span></div>
                         ${branchHtml}
                         ${customerNumHtml}
-                        <div style="margin-top: 16px; font-size: 13px; color: #64748b; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('הופק ב:')} <span dir="ltr">${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                        <div style="margin-top: 16px; font-size: 13px; color: #64748b; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('הופק ב:')} <span dir="ltr">${new Date().toLocaleDateString('he-IL')} ${new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span></div>
                     </td>
                     <td style="width: 4%;"></td>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; vertical-align: top; text-align: right;" dir="rtl">
-                        <h3 style="margin: 0 0 14px 0; color: #0f172a; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right;">פרטי הספק:&rlm;</h3>
-                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid;" dir="rtl">${fixLabel('לכבוד:')} <span>${safeStr(orderInfo.supplierName)}</span></div>
+                        <h3 style="margin: 0 0 14px 0; color: #0f172a; font-size: 18px; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px; text-align: right; white-space: pre-wrap;">פרטי הספק:&rlm;</h3>
+                        <div style="margin-bottom: 9px; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">${fixLabel('לכבוד:')} <span>${safeStr(orderInfo.supplierName)}</span></div>
                         ${phoneHtml}
                         ${emailHtml}
                     </td>
                 </tr>
             </table>
 
-            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right; page-break-inside: avoid;" dir="rtl">
-                <div style="font-weight: bold; margin-bottom: 5px;">שלום רב,&rlm;</div>
-                <div>מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&rlm;</div>
-                <div>נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;</div>
+            <div style="margin-bottom: 25px; font-size: 15px; line-height: 1.7; color: #334155; text-align: right; page-break-inside: avoid; break-inside: avoid;" dir="rtl">
+                <div style="font-weight: bold; margin-bottom: 5px; white-space: pre-wrap;">שלום רב,&rlm;</div>
+                <div style="white-space: pre-wrap;">מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&rlm;</div>
+                <div style="white-space: pre-wrap;">נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;</div>
             </div>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 30px; font-size: 14px; border: 1px solid #cbd5e1; page-break-inside: avoid;" dir="rtl">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 30px; font-size: 14px; border: 1px solid #cbd5e1;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
                         <th style="padding: 14px 10px; border: 1px solid #cbd5e1; text-align: center; width: 12%;">מק"ט</th>
@@ -4326,9 +4329,9 @@ function getOrderHtmlTemplate(orderInfo) {
                 </tbody>
             </table>
             
-            <div style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; text-align: right;" dir="rtl">
-                <h2 style="margin: 0; font-size: 22px; color: #0f172a;">סה"כ לתשלום משוער:&rlm; <span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 12px; margin-top: 8px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
+            <div style="border-top: 3px solid #cbd5e1; padding-top: 20px; page-break-inside: avoid; break-inside: avoid; text-align: right;" dir="rtl">
+                <h2 style="margin: 0; font-size: 22px; color: #0f172a; white-space: pre-wrap;">סה"כ לתשלום משוער:&rlm; <span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
+                <div style="color: #64748b; font-size: 12px; margin-top: 8px; white-space: pre-wrap;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
             </div>
         </div>
     `;
@@ -4355,7 +4358,6 @@ async function generateOrderPDFBase64(orderInfo) {
             container.style.zIndex = '-100'; 
             container.style.opacity = '0.99';
             container.style.backgroundColor = '#ffffff';
-            container.style.height = 'max-content';
             document.body.appendChild(container);
 
             const opt = { 
@@ -4365,14 +4367,10 @@ async function generateOrderPDFBase64(orderInfo) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
-                    width: container.offsetWidth, 
-                    scrollY: 0,
-                    height: container.scrollHeight, 
-                    windowHeight: container.scrollHeight 
+                    scrollY: 0
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                // הוספת מניעת חיתוך אופקי עבור tr (שורות בטבלה) ועבור המחלקה החדשה
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             setTimeout(() => {
@@ -4657,7 +4655,6 @@ async function downloadOrderPDFManual(orderId) {
             pdfContainer.style.zIndex = '-100'; 
             pdfContainer.style.opacity = '0.99';
             pdfContainer.style.backgroundColor = '#ffffff';
-            pdfContainer.style.height = 'max-content';
             document.body.appendChild(pdfContainer);
 
             const opt = { 
@@ -4667,13 +4664,11 @@ async function downloadOrderPDFManual(orderId) {
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
-                    width: container.offsetWidth, 
-                    scrollY: 0,
-                    height: container.scrollHeight, 
-                    windowHeight: container.scrollHeight 
+                    width: pdfContainer.offsetWidth, 
+                    scrollY: 0
                 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] } 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             setTimeout(() => {
@@ -4705,7 +4700,7 @@ async function downloadOrderPDFManual(orderId) {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 1.1.12 (רווחים טבעיים ומניעת חיתוך עמוד)';
+        badge.innerHTML = 'גרסה 1.1.5 (רווחים מלאים עם pre-wrap)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
