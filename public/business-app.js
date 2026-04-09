@@ -723,9 +723,14 @@ async function loadDashboard() {
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
-        // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
+       // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
+
+        // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
+        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
+            setTimeout(showOnboardingWizard, 1000);
+        }
 
     } catch (e) {
         console.error("Dashboard error:", e);
@@ -4708,12 +4713,187 @@ async function submitReceiveGoods() {
         } else { showToast('error', data.error || 'שגיאה ברישום הסחורה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+// ==========================================
+// --- ONBOARDING WIZARD (אשף הקמה) ---
+// ==========================================
+let currentWizardStep = 1;
+
+function showOnboardingWizard() {
+    if (document.getElementById('onboarding-wizard-modal')) {
+        document.getElementById('onboarding-wizard-modal').classList.remove('hidden');
+        return;
+    }
+
+    const isBiz = currentGroup.type === 'BUSINESS';
+    
+    const modalHtml = `
+    <div id="onboarding-wizard-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col min-h-[450px]">
+            
+            <div class="w-full bg-slate-100 h-1.5">
+                <div id="wizard-progress" class="bg-indigo-600 h-1.5 transition-all duration-500" style="width: 33%;"></div>
+            </div>
+
+            <div class="bg-indigo-50 p-6 text-center border-b border-indigo-100 relative">
+                <h2 class="text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow! 🎉</h2>
+                <p class="text-indigo-600 text-sm font-bold">בואו נגדיר את הסביבה שלכם ב-3 צעדים מהירים</p>
+            </div>
+
+            <div id="wizard-step-1" class="p-6 flex-1 flex flex-col justify-center fade-in">
+                <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-gear text-indigo-500"></i> הגדרות בסיסיות</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">מספר טלפון לקישור מהיר (וואטסאפ):</label>
+                        <input type="tel" id="wizard-phone" class="modern-input py-3 text-left dir-ltr w-full" placeholder="050-0000000">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">${isBiz ? 'סלוגן העסק:' : 'משפט מפתח משפחתי:'}</label>
+                        <input type="text" id="wizard-slogan" class="modern-input py-3 w-full" placeholder="${isBiz ? 'המוצרים הכי טובים בעיר' : 'משפחה שכזאת'}">
+                    </div>
+                </div>
+            </div>
+
+            <div id="wizard-step-2" class="p-6 flex-1 flex flex-col justify-center hidden fade-in">
+                <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-box-open text-indigo-500"></i> הוספת פריט ראשון</h3>
+                <p class="text-xs text-slate-500 text-center mb-4">${isBiz ? 'הוסיפו מוצר/שירות ראשון לקטלוג שלכם.' : 'הוסיפו פריט ראשון למזווה המשפחתי.'}</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1">שם הפריט:</label>
+                        <input type="text" id="wizard-item-name" class="modern-input py-3 w-full" placeholder="${isBiz ? 'קפה הפוך גדול / שעת ייעוץ' : 'חלב תנובה 3%'}">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="wizard-item-price" class="modern-input py-3 w-full text-center" placeholder="${isBiz ? '18' : '6.5'}">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">קטגוריה:</label>
+                            <input type="text" id="wizard-item-cat" class="modern-input py-3 w-full text-center" placeholder="${isBiz ? 'שתייה חמה' : 'מוצרי חלב'}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="wizard-step-3" class="p-6 flex-1 flex flex-col items-center justify-center hidden fade-in text-center">
+                <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-green-200">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg mb-2">מזמינים את הצוות</h3>
+                <p class="text-sm text-slate-500 mb-6">הסביבה מוכנה! עכשיו נשאר רק להזמין את ${isBiz ? 'העובדים' : 'בני המשפחה'} פנימה.</p>
+                
+                <button onclick="sendWhatsAppInvite('MEMBER')" class="w-full bg-[#25D366] text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2 mb-3">
+                    <i class="fa-brands fa-whatsapp text-lg"></i> שליחת הזמנה בוואטסאפ
+                </button>
+                <button onclick="nextWizardStep()" class="text-xs text-slate-400 font-bold hover:text-slate-600 transition underline">אעשה זאת מאוחר יותר</button>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                <button id="wizard-btn-prev" onclick="prevWizardStep()" class="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-200 rounded-xl transition invisible">חזור</button>
+                <button id="wizard-btn-next" onclick="nextWizardStep()" class="px-8 py-2.5 bg-slate-800 text-white font-bold rounded-xl shadow-md hover:bg-slate-700 transition">המשך</button>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+async function nextWizardStep() {
+    const btnNext = getEl('wizard-btn-next');
+    const btnPrev = getEl('wizard-btn-prev');
+    const isBiz = currentGroup.type === 'BUSINESS';
+
+    if (currentWizardStep === 1) {
+        const phone = val('wizard-phone');
+        const slogan = val('wizard-slogan');
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            await fetch(`${API}/store/settings`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, isActive: true, phone: phone, slogan: slogan })
+            });
+        } catch(e) {}
+        btnNext.innerHTML = 'המשך';
+    }
+
+    if (currentWizardStep === 2) {
+        const name = val('wizard-item-name');
+        const price = val('wizard-item-price');
+        const cat = val('wizard-item-cat') || 'כללי';
+        
+        if (name) {
+            btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                if (isBiz) {
+                    await fetch(`${API}/store/catalog`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, name: name, price: price || 0, category: cat, isAvailable: true })
+                    });
+                } else {
+                    await fetch(`${API}/pantry/add`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, itemName: name, quantity: 1, unit: "יח'" })
+                    });
+                }
+            } catch(e) {}
+            btnNext.innerHTML = 'המשך';
+        }
+    }
+
+    if (currentWizardStep === 3) {
+        btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסתנכרן...';
+        try {
+            await fetch(`${API}/groups/onboard`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id })
+            });
+            currentGroup.is_onboarded = true;
+            getEl('onboarding-wizard-modal').classList.add('hidden');
+            triggerConfetti();
+            fetchData();
+            if(isBiz) fetchStoreCatalog();
+        } catch(e) {}
+        return;
+    }
+
+    getEl(`wizard-step-${currentWizardStep}`).classList.add('hidden');
+    currentWizardStep++;
+    getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
+    
+    getEl('wizard-progress').style.width = `${(currentWizardStep / 3) * 100}%`;
+    
+    btnPrev.classList.remove('invisible');
+    if (currentWizardStep === 3) {
+        btnNext.innerText = 'סיום והתחלת עבודה 🚀';
+        btnNext.classList.remove('bg-slate-800');
+        btnNext.classList.add('bg-indigo-600');
+    }
+}
+
+function prevWizardStep() {
+    const btnNext = getEl('wizard-btn-next');
+    const btnPrev = getEl('wizard-btn-prev');
+    
+    if (currentWizardStep > 1) {
+        getEl(`wizard-step-${currentWizardStep}`).classList.add('hidden');
+        currentWizardStep--;
+        getEl(`wizard-step-${currentWizardStep}`).classList.remove('hidden');
+        
+        getEl('wizard-progress').style.width = `${(currentWizardStep / 3) * 100}%`;
+        
+        btnNext.innerText = 'המשך';
+        btnNext.classList.add('bg-slate-800');
+        btnNext.classList.remove('bg-indigo-600');
+        
+        if (currentWizardStep === 1) btnPrev.classList.add('invisible');
+    }
+}
+
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 1.1.7 (ללא bidi, רווחים קשיחים לביטחון וחלוקת פסקאות)';
+        badge.innerHTML = 'גרסה 2.1.0 (אשף הקמה שולב במערכת)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
