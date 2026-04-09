@@ -4222,7 +4222,7 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-// תבנית ה-HTML ל-PDF - גרסה 1.0.10 (תיקון סופי למיקום ":" ו"." בעברית)
+// תבנית ה-HTML ל-PDF - גרסה 1.0.11 (תיקון סופי למיקום ":" ו"." וסדר כמות+יחידה)
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
     try {
@@ -4240,6 +4240,7 @@ function getOrderHtmlTemplate(orderInfo) {
                 <td style="padding: 9px 6px; text-align: right; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
                     ${safeStr(i.name).replace(/ /g, '&nbsp;')}
                 </td>
+                <!-- סדר נכון: מספר לפני יחידה -->
                 <td style="padding: 9px 6px; text-align: center; border: 1px solid #cbd5e1; font-weight: bold; color: #4f46e5;" dir="rtl">${i.quantity}&nbsp;${safeStr(i.unit)}</td>
                 <td style="padding: 9px 6px; text-align: left; border: 1px solid #cbd5e1;" dir="ltr">₪${parseFloat(i.price_per_unit || 0).toFixed(2)}</td>
                 <td style="padding: 9px 6px; font-weight: bold; text-align: left; border: 1px solid #cbd5e1; color: #0f172a;" dir="ltr">₪${parseFloat(i.row_total || 0).toFixed(2)}</td>
@@ -4269,6 +4270,7 @@ function getOrderHtmlTemplate(orderInfo) {
                     </td>
                 </tr>
             </table>
+
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; direction: rtl; text-align: right;" dir="rtl">
                 <tr>
                     <td style="width: 48%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; vertical-align: top; text-align: right;" dir="rtl">
@@ -4288,10 +4290,12 @@ function getOrderHtmlTemplate(orderInfo) {
                     </td>
                 </tr>
             </table>
+
             <div style="margin-bottom: 18px; font-size: 14.5px; line-height: 1.6; color: #334155; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
-                <strong>שלום רב,</strong><br>
-                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו. נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.
+                <strong>שלום רב,&rlm;</strong><br>
+                מצ"ב פירוט הזמנת רכש מאושרת ממערכת ההזמנות שלנו.&rlm; נא לספק את הסחורה המפורטת מטה בהקדם האפשרי ולפי תנאי הסחר והמחירון שסוכמו.&rlm;
             </div>
+
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-bottom: 20px; font-size: 13.5px; border: 1px solid #cbd5e1; direction: rtl; text-align: right;" dir="rtl">
                 <thead>
                     <tr style="background-color: #4f46e5; color: white;">
@@ -4309,7 +4313,7 @@ function getOrderHtmlTemplate(orderInfo) {
            
             <div style="border-top: 3px solid #cbd5e1; padding-top: 15px; text-align: right; direction: rtl; unicode-bidi: bidi-override;" dir="rtl">
                 <h2 style="margin: 0; font-size: 21px; color: #0f172a; direction: rtl; unicode-bidi: bidi-override;">סה"כ לתשלום משוער:&nbsp;<span dir="ltr" style="color: #4f46e5;">₪${(orderInfo.totalAmount || orderInfo.total || 0).toFixed(2)}</span></h2>
-                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.</div>
+                <div style="color: #64748b; font-size: 11px; margin-top: 5px;">* ייתכנו שינויים במחיר הסופי בהתאם לשקילה ולמחירון העדכני בעת האספקה.&rlm;</div>
             </div>
         </div>
     `;
