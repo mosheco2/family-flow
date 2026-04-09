@@ -4222,7 +4222,6 @@ async function loadHtml2Pdf() {
         document.head.appendChild(script);
     });
 }
-
 // תבנית ה-HTML ל-PDF - תיקון מלא למניעת עמודים ריקים, כולל ניתוק גלילה בהורדה
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
@@ -4344,6 +4343,7 @@ async function generateOrderPDFBase64(orderInfo) {
             
             const container = document.createElement('div');
             container.innerHTML = htmlContent;
+            
             container.style.position = 'absolute';
             container.style.top = '0';
             container.style.left = '0';
@@ -4356,16 +4356,9 @@ async function generateOrderPDFBase64(orderInfo) {
                 margin: [10, 10, 10, 10], 
                 filename: 'order.pdf', 
                 image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    windowWidth: 1040, 
-                    y: 0, 
-                    scrollY: 0, 
-                    letterRendering: true 
-                }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 1040, scrollY: 0, letterRendering: true }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
-                pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } 
+                pagebreak: { mode: ['css', 'legacy'] } 
             };
 
             setTimeout(() => {
@@ -4377,7 +4370,7 @@ async function generateOrderPDFBase64(orderInfo) {
                     if(document.body.contains(container)) document.body.removeChild(container);
                     resolve(null); 
                 });
-            }, 500); 
+            }, 300); 
         } catch(err) { resolve(null); }
     });
 }
@@ -4648,22 +4641,21 @@ async function downloadOrderPDFManual(orderId) {
             pdfContainer.style.backgroundColor = '#ffffff';
             document.body.appendChild(pdfContainer);
 
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 450));
 
             const opt = { 
-                margin: [10, 10, 10, 10], 
+                margin: [8, 8, 8, 8], 
                 filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
                     windowWidth: 1040, 
-                    y: 0, 
-                    scrollY: 0, 
+                    scrollY: 0,
                     letterRendering: true 
                 }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
             await html2pdf().set(opt).from(pdfContainer).save();
