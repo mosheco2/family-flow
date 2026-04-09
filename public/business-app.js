@@ -4211,6 +4211,17 @@ function openB2BCheckout() {
 // פונקציות ליצירת PDF (תצוגה מקדימה והורדה)
 // -----------------------------------------
 
+// טעינה דינמית של ספריית יצירת ה-PDF
+async function loadHtml2Pdf() {
+    if (window.html2pdf) return true;
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => { showToast('error', 'שגיאה בטעינת מערכת ה-PDF'); resolve(false); };
+        document.head.appendChild(script);
+    });
+}
 // תבנית ה-HTML ל-PDF - גרסה 1.1.7 (ללא bidi, רווחים קשיחים לביטחון וחלוקת פסקאות)
 function getOrderHtmlTemplate(orderInfo) {
     let itemsArr = [];
