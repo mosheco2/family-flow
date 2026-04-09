@@ -902,6 +902,13 @@ async function fetchTimeclockReport() {
                      </div>`;
         });
         
+        // עדכון כרטיסי KPI בראש הטאב
+        let totalMinutes = 0, totalCost = 0;
+        for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
+        const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
+        const sumHEl = getEl('tc-summary-hours'); if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
+        const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(0)}`;
+
         let summaryHtml = '';
         if(currentUser.role === 'ADMIN' && Object.keys(userSummaries).length > 0) {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום עלויות שכר (תקופה נבחרת):</h4><div class="space-y-2">`;
@@ -1582,17 +1589,32 @@ async function deleteTask(id) { if(!confirm('האם למחוק/לסרב לבקש
 
 function buildAndRenderFeed() {
     feedCache = [];
-    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
-    if(Array.isArray(allTransactions)) { allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); }); }
-    if(Array.isArray(allTasks)) { 
-        allTasks.forEach(t => { 
-            // תיקון: הגנה מקריסה אם למשימה אין כותרת
-            if(t.status === 'approved' && (!t.title || !t.title.startsWith('SHIFT|'))) { 
-                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `טיקט: ${t.title || 'ללא שם'}`, amount: t.reward, status: t.status }); 
-            } 
-        }); 
+    if (currentGroup && currentGroup.created_at) { feedCache.push({ type: 'system', id: 'sys_creation', user_id: 0, user_name: 'מערכת', date: new Date(currentGroup.created_at), title: 'סביבת עבודה עסקית נפתחה בהצלחה! 🎉', amount: 0, status: 'welcome' }); }
+
+    if(Array.isArray(allTransactions)) {
+        allTransactions.forEach(t => { feedCache.push({ type: 'transaction', id: t.id, user_id: t.user_id, user_name: t.user_name || currentUser.nickname, date: t.date ? new Date(t.date) : new Date(), title: t.description, amount: t.amount, isIncome: t.type === 'income', category: t.category }); });
     }
-    if(Array.isArray(bundlesCache)) { bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); }); }
+
+    if(Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            if(t.title && !t.title.startsWith('SHIFT|')) {
+                const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
+                feedCache.push({ type: 'task', id: `task_${t.id}`, user_id: t.assigned_to, user_name: t.assignee_name || currentUser.nickname, date: t.created_at ? new Date(t.created_at) : new Date(), title: `משימה: ${t.title || 'ללא שם'} (${statusLabel})`, amount: t.reward || 0, status: t.status });
+            }
+        });
+    }
+
+    if(Array.isArray(bundlesCache)) {
+        bundlesCache.forEach(b => { feedCache.push({ type: 'quiz', id: `quiz_${b.bundle_id}_${b.user_id || b.assigned_to_user || currentUser.id}`, user_id: b.user_id || b.assigned_to_user || currentUser.id, user_name: b.assignee_name || currentUser.nickname, date: b.assigned_at ? new Date(b.assigned_at) : (b.created_at ? new Date(b.created_at) : new Date()), title: `הכשרה: ${b.title}`, amount: b.custom_reward !== null ? b.custom_reward : b.default_reward, status: b.status }); });
+    }
+
+    if(Array.isArray(b2bOrdersHistory)) {
+        b2bOrdersHistory.forEach(o => {
+            const statusMap = { sent: 'נשלחה לספק', processing: 'בטיפול', shipped: 'במשלוח', delivered: 'סופקה', cancelled: 'בוטלה' };
+            feedCache.push({ type: 'order', id: `order_${o.id}`, user_id: o.created_by || 0, user_name: o.creator_name || 'צוות', date: o.created_at ? new Date(o.created_at) : new Date(), title: `הזמנת רכש #${o.id} מ-${o.supplier_name || 'ספק'} — ${statusMap[o.status] || o.status}`, amount: parseFloat(o.total_amount) || 0, isIncome: false });
+        });
+    }
+
     feedCache.sort((a, b) => (b.date && a.date) ? (b.date - a.date) : 0);
     const filterEl = getEl('feed-user-filter');
     if (filterEl) { if(currentUser.role === 'ADMIN') filterEl.classList.remove('hidden'); else filterEl.classList.add('hidden'); }
@@ -2305,51 +2327,69 @@ async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שבר
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
     try {
-        let url, headers = {};
-        if (saToken) { url = `${API}/superadmin/group-360/${groupId}`; headers = { 'Authorization': saToken }; } 
-        else { url = `${API}/group/${groupId}/report-360?adminId=${currentUser.id}`; }
+        // ניסיון API (superadmin) — אם נכשל, בונה מנתונים מקומיים
+        if (saToken) {
+            try {
+                const res = await fetch(`${API}/superadmin/group-360/${groupId}`, { headers: { 'Authorization': saToken } });
+                const data = await res.json();
+                if (data.success) { _render360Report(data); getEl('report-360-modal').classList.remove('hidden'); return; }
+            } catch(e) {}
+        }
 
-        const res = await fetch(url, { headers }); const data = await res.json();
-        if (!data.success) return showToast('error', data.error || 'שגיאה בהפקת הדוח');
+        // בניית דוח מנתונים מקומיים (לאדמין רגיל)
+        const data = {
+            group: currentGroup,
+            users: membersCache,
+            transactions: (allTransactions || []).filter(t => { const d = new Date(t.date); return (Date.now() - d) < 30*24*60*60*1000; }),
+            tasksSummary: (() => {
+                const counts = {}; (allTasks || []).forEach(t => { if(!t.title?.startsWith('SHIFT|')) { counts[t.status] = (counts[t.status]||0)+1; } });
+                return Object.entries(counts).map(([status, count]) => ({status, count}));
+            })()
+        };
 
-        const typeStr = data.group.type === 'BUSINESS' ? 'עסק' : 'משפחה';
-        getEl('report-360-group-name').innerText = safeStr(data.group.name);
-        getEl('report-360-group-type').innerText = `${typeStr} ${data.group.is_premium ? '(PRO)' : ''}`;
-        getEl('report-360-group-code').innerText = data.group.group_code;
-        getEl('report-360-group-email').innerText = safeStr(data.group.admin_email);
-        getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        const usersList = getEl('report-360-users-list');
-        let usersHtml = ''; let totalBalances = 0;
-        data.users.forEach(u => {
-            const roleStr = u.role === 'ADMIN' ? (data.group.type === 'BUSINESS' ? 'הנהלה' : 'הורה/מנהל') : (data.group.type === 'BUSINESS' ? 'עובד צוות' : 'ילד/חבר');
-            const bal = parseFloat(u.balance) || 0; totalBalances += bal;
-            usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
-        });
-        usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ התחייבויות קופה (יתרות צוות):</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
-        usersList.innerHTML = usersHtml;
-
-        const txList = getEl('report-360-tx-list');
-        let txHtml = '';
-        if(data.transactions && data.transactions.length > 0) {
-            data.transactions.forEach(t => {
-                const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
-                const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
-                txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
-            });
-        } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
-        txList.innerHTML = txHtml;
-
-        const tasksList = getEl('report-360-tasks-list');
-        let tasksHtml = '';
-        if(data.tasksSummary && data.tasksSummary.length > 0) {
-            const statusMap = { 'pending': 'פרויקטים בעבודה', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
-            data.tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
-        } else { tasksHtml = '<li>אין משימות או פרויקטים פעילים במערכת.</li>'; }
-        tasksList.innerHTML = tasksHtml;
-
+        _render360Report(data);
         getEl('report-360-modal').classList.remove('hidden');
-    } catch(e) { showToast('error', 'שגיאת תקשורת בהבאת נתוני הדוח'); }
+    } catch(e) { showToast('error', 'שגיאה בהפקת הדוח'); console.error(e); }
+}
+
+function _render360Report(data) {
+    const grp = data.group || currentGroup;
+    getEl('report-360-group-name').innerText = safeStr(grp.name);
+    getEl('report-360-group-type').innerText = `עסק ${grp.is_premium ? '(PRO)' : ''}`;
+    getEl('report-360-group-code').innerText = grp.group_code || '-';
+    getEl('report-360-group-email').innerText = safeStr(grp.admin_email || currentUser.email || '');
+    getEl('report-360-date').innerText = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const usersList = getEl('report-360-users-list');
+    let usersHtml = ''; let totalBalances = 0;
+    (data.users || membersCache).forEach(u => {
+        const roleStr = u.role === 'ADMIN' ? 'הנהלה' : (u.role === 'MANAGER' ? 'מנהל משמרת' : 'עובד צוות');
+        const bal = parseFloat(u.balance) || 0; totalBalances += bal;
+        usersHtml += `<tr><td>${safeStr(u.nickname)}</td><td><span class="report-badge">${roleStr}</span></td><td class="font-bold font-mono">₪${bal.toFixed(2)}</td></tr>`;
+    });
+    usersHtml += `<tr class="bg-slate-100 font-bold border-t-2 border-slate-300"><td colspan="2">סה"כ יתרות צוות:</td><td class="font-mono text-slate-800">₪${totalBalances.toFixed(2)}</td></tr>`;
+    usersList.innerHTML = usersHtml;
+
+    const txList = getEl('report-360-tx-list');
+    let txHtml = '';
+    const txs = data.transactions || [];
+    if(txs.length > 0) {
+        txs.slice(0, 20).forEach(t => {
+            const dateStr = new Date(t.date).toLocaleDateString('he-IL'); const isInc = t.type === 'income';
+            const amtStr = `<span dir="ltr" style="color: ${isInc ? '#16a34a' : '#dc2626'}">${isInc ? '+' : '-'}₪${t.amount}</span>`;
+            txHtml += `<tr><td class="text-xs">${dateStr}</td><td>${safeStr(t.user_name) || 'מערכת'}</td><td class="text-xs">${safeStr(t.description)}</td><td class="font-bold text-left">${amtStr}</td></tr>`;
+        });
+    } else { txHtml = '<tr><td colspan="4" class="text-center text-slate-400 py-4">אין תנועות ב-30 הימים האחרונים</td></tr>'; }
+    txList.innerHTML = txHtml;
+
+    const tasksList = getEl('report-360-tasks-list');
+    let tasksHtml = '';
+    const tasksSummary = data.tasksSummary || [];
+    if(tasksSummary.length > 0) {
+        const statusMap = { 'pending': 'פרויקטים פתוחים', 'done': 'ממתינים לאישור מנהל', 'approved': 'הושלמו ושולמו' };
+        tasksSummary.forEach(ts => { tasksHtml += `<li><strong>${statusMap[ts.status] || ts.status}:</strong> ${ts.count} משימות</li>`; });
+    } else { tasksHtml = '<li>אין משימות פעילות במערכת.</li>'; }
+    tasksList.innerHTML = tasksHtml;
 }
 
 function download360PDF() {
