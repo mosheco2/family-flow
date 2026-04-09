@@ -370,7 +370,7 @@
             try { const parsed = JSON.parse(optionsText); return Array.isArray(parsed) && parsed.length > 0; } catch(e) { return false; }
         }
 
-        function renderCatalog() {
+function renderCatalog() {
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
@@ -414,15 +414,38 @@
             if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
             if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
 
+            // בדיקת מבצעים פעילים כדי לשים דיגולים אוטומטיים
+            const activePromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.is_active)) : [];
+
             const storeType = storeData.settings.store_type || 'retail';
             let html = storeType === 'retail' ? '<div class="grid grid-cols-2 gap-4">' : '<div class="flex flex-col gap-4">';
 
             filtered.forEach(item => {
                 let badgeHtml = '';
+                
+                // 1. דיגול אוטומטי של מבצעים (אם יש מבצע שחל על המוצר הזה)
+                let appliedPromo = null;
+                for (let promo of activePromos) {
+                    if (promo.target_type === 'all') { appliedPromo = promo; break; }
+                    if (promo.target_type === 'category') {
+                        let targetArray = [];
+                        if(Array.isArray(promo.target_ids)) targetArray = promo.target_ids;
+                        else if(typeof promo.target_ids === 'string') { try { targetArray = JSON.parse(promo.target_ids); } catch(e){} }
+                        if (targetArray.includes(item.category)) { appliedPromo = promo; break; }
+                    }
+                }
+
+                // אם יש מבצע שחל על המוצר, נייצר עבורו דיגול אוטומטי!
+                if (appliedPromo) {
+                    let promoText = appliedPromo.promo_type === 'bogo' ? '1+1 מתנה' : (appliedPromo.promo_type === 'discount_pct' ? `${appliedPromo.promo_value}% הנחה` : `ב-₪${appliedPromo.promo_value}`);
+                    badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
+                }
+
+                // 2. דיגול ידני שהוזן על ידי הלקוח למוצר (למשל "חדש", "טבעוני", "מלאי מוגבל") - יופיע בנוסף
                 if (item.badge_text) {
                     const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
                     const bgClass = colors[item.badge_color] || 'bg-red-500';
-                    badgeHtml = `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
+                    badgeHtml += `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
                 }
                 
                 const imgClasses = storeType === 'retail' ? 'w-full h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
