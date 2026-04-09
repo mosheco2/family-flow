@@ -3175,36 +3175,27 @@ function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].
 
 let currentBundleStepsUI = [];
 
-let currentBundleStepsUI = [];
-
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     currentBundleStepsUI = [];
     
-    // 1. הזרקה אגרסיבית ובטוחה של בחירת הבאנדל ל-Dropdown
-    const pTypeEl = getEl('sp-product-type');
-    if (pTypeEl) {
-        if (!pTypeEl.querySelector('option[value="bundle"]')) {
-            pTypeEl.insertAdjacentHTML('beforeend', '<option value="bundle" class="font-bold text-indigo-600">📦 מארז / קומבו (Bundle)</option>');
-        }
-        // הסרת מאזינים ישנים והוספת מאזין חדש לשינוי סוג המוצר
-        pTypeEl.onchange = (e) => toggleProductTypeUI(e.target.value);
-    }
-
-    // 2. הזרקה בטוחה של אזור בניית הבאנדל ל-DOM
+    // הזרקת הממשק להרכבת באנדל (אם לא קיים ב-HTML)
     let bundleContainer = getEl('bundle-builder-container');
     if (!bundleContainer) {
-        bundleContainer = document.createElement('div');
-        bundleContainer.id = 'bundle-builder-container';
-        bundleContainer.className = 'mt-4 border-t border-slate-200 pt-4 hidden';
-        
-        // ננסה להכניס מתחת למודיפיירס, ואם אין - פשוט נוסיף בסוף הטופס המרכזי
         const modContainer = getEl('modifiers-builder-container');
-        if (modContainer && modContainer.parentNode) {
+        if (modContainer) {
+            bundleContainer = document.createElement('div');
+            bundleContainer.id = 'bundle-builder-container';
+            bundleContainer.className = 'mt-4 border-t border-slate-100 pt-4';
             modContainer.parentNode.insertBefore(bundleContainer, modContainer.nextSibling);
-        } else if (pTypeEl) {
-            const formContainer = pTypeEl.closest('.flex-1, .p-5, .p-4, .space-y-4');
-            if (formContainer) formContainer.appendChild(bundleContainer);
+            
+            const pTypeEl = getEl('sp-product-type');
+            if (pTypeEl) {
+                if (!pTypeEl.querySelector('option[value="bundle"]')) {
+                    pTypeEl.insertAdjacentHTML('beforeend', '<option value="bundle">📦 מארז / קומבו (Bundle)</option>');
+                }
+                pTypeEl.addEventListener('change', (e) => toggleProductTypeUI(e.target.value));
+            }
         }
     }
 
@@ -3216,7 +3207,7 @@ function openStoreProductModal(id = null) {
         getEl('sp-category').value = p.category || ''; 
         getEl('sp-desc').value = p.description || ''; 
         
-        if(pTypeEl) pTypeEl.value = p.product_type || 'retail';
+        if(getEl('sp-product-type')) getEl('sp-product-type').value = p.product_type || 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = p.long_description || '';
         
         getEl('sp-image-base64').value = p.image_url || '';
@@ -3238,15 +3229,15 @@ function openStoreProductModal(id = null) {
         }
     } else {
         getEl('sp-id').value = ''; getEl('sp-name').value = ''; getEl('sp-price').value = ''; getEl('sp-category').value = ''; getEl('sp-desc').value = ''; 
-        if(pTypeEl) pTypeEl.value = 'retail';
+        if(getEl('sp-product-type')) getEl('sp-product-type').value = 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = '';
 
         getEl('sp-image-base64').value = ''; getEl('sp-image-preview').src = ''; getEl('sp-image-preview').classList.add('hidden'); getEl('sp-image-placeholder').classList.remove('hidden');
         if(getEl('sp-badge-text')) getEl('sp-badge-text').value = ''; if(getEl('sp-badge-color')) getEl('sp-badge-color').value = 'red';
     }
     
-    toggleProductTypeUI(pTypeEl ? pTypeEl.value : 'retail');
-    try { renderModifiersUI(); } catch(e) {} 
+    toggleProductTypeUI(getEl('sp-product-type') ? getEl('sp-product-type').value : 'retail');
+    renderModifiersUI(); 
     renderBundleBuilderUI();
     getEl('store-product-modal').classList.remove('hidden');
 }
@@ -3288,10 +3279,12 @@ function renderBundleBuilderUI() {
     if (currentBundleStepsUI.length === 0) {
         html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
     } else {
+        // משיכת קטגוריות ייחודיות מתוך הקטלוג עבור תיבת הבחירה
         const cats = [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))];
         let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
         cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
 
+        // משיכת כלל המוצרים הרגילים עבור תיבת הסימון הספציפית
         const prods = storeCatalogCache.filter(p => p.product_type !== 'bundle');
         
         currentBundleStepsUI.forEach((step, idx) => {
