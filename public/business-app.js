@@ -4619,57 +4619,56 @@ async function downloadOrderPDFManual(orderId) {
     btnDownload.onclick = async () => {
         btnDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין קובץ...';
         btnDownload.disabled = true;
-        
+
         try {
             if (typeof html2pdf === 'undefined') throw new Error('PDF library not loaded');
 
             const safeSupplierName = safeStr(order.supplier_name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const safeClientName = safeStr(currentGroup.name).replace(/[^a-zA-Zא-ת0-9]/g, '_');
             const dateStr = new Date().toLocaleDateString('he-IL').replace(/\//g, '-');
-            
+            const filename = `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`;
+
             const pdfContainer = document.createElement('div');
             pdfContainer.innerHTML = getOrderHtmlTemplate(orderInfo);
-            pdfContainer.style.cssText = `
-                position: absolute;
-                top: ${window.scrollY}px;
-                left: 0;
-                width: 1040px;
-                background: white;
-                z-index: 99999;
-            `;
+            pdfContainer.style.cssText = 'position:absolute;top:0;left:0;width:1040px;background:#fff;z-index:99999;';
             document.body.appendChild(pdfContainer);
 
-            const opt = { 
-                margin: [10, 10, 10, 10], 
-                filename: `הזמנת_רכש_מס_${order.id}_${safeClientName}_${safeSupplierName}_${dateStr}.pdf`, 
-                image: { type: 'jpeg', quality: 1 }, 
-                html2canvas: { 
-                    scale: 2, 
+            const savedScroll = window.scrollY;
+            window.scrollTo(0, 0);
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: filename,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: {
+                    scale: 2,
                     useCORS: true,
                     allowTaint: true,
                     scrollX: 0,
-                    scrollY: -window.scrollY,
+                    scrollY: 0,
                     windowWidth: 1040
-                }, 
+                },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['.avoid-break'] }
             };
 
             setTimeout(() => {
                 html2pdf().set(opt).from(pdfContainer).save().then(() => {
-                    if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
+                    window.scrollTo(0, savedScroll);
+                    if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
                     showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
                     document.getElementById('pdf-preview-modal').classList.add('hidden');
                     btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
                     btnDownload.disabled = false;
                 }).catch(err => {
+                    window.scrollTo(0, savedScroll);
                     if (document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
                     showToast('error', 'שגיאה ביצירת מסמך PDF. נסה שוב.');
                     btnDownload.innerHTML = 'הורד מסמך <i class="fa-solid fa-download"></i>';
                     btnDownload.disabled = false;
                 });
-            }, 800);
-            
+            }, 500);
+
         } catch(e) {
             console.error('PDF Error:', e);
             showToast('error', 'שגיאה כללית בהפקה.');
