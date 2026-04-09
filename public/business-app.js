@@ -250,18 +250,7 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
-function executeWithAIWarning(actionCallback) {
-    if (currentGroup && currentGroup.is_premium) return actionCallback();
-    const todayStr = new Date().toLocaleDateString(); const dismissedDate = localStorage.getItem('ofl_ai_warning_dismissed'); if (dismissedDate === todayStr) return actionCallback();
-    const modal = getEl('ai-warning-modal'); const tokensLeft = currentGroup && currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10;
-    const leftEl = getEl('ai-warning-left'); if (leftEl) leftEl.innerText = tokensLeft;
-    const btnContinue = getEl('btn-ai-warning-continue'); const newBtn = btnContinue.cloneNode(true); btnContinue.parentNode.replaceChild(newBtn, btnContinue);
-    newBtn.onclick = () => { const dontShow = getEl('ai-warning-dont-show').checked; if (dontShow) { localStorage.setItem('ofl_ai_warning_dismissed', todayStr); } modal.classList.add('hidden'); actionCallback(); };
-    modal.classList.remove('hidden');
-}
-
 function injectBusinessUI() {
-    // 1. הזרקת משמרות
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) {
@@ -277,7 +266,6 @@ function injectBusinessUI() {
         }
     }
 
-    // 2. הזרקת חנות ומכירות (היה חסר)
     if(!getEl('content-sales')) {
         const contentShifts = getEl('content-shifts') || getEl('content-feed');
         if(contentShifts) {
@@ -288,9 +276,10 @@ function injectBusinessUI() {
                     
                     <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                         <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                        <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
-                        <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק וקופונים</button>
-                        <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
+                        <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                        <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג</button>
+                        <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק</button>
+                        <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
                     </div>
 
                     <div id="sales-view-orders" class="space-y-4">
@@ -306,6 +295,14 @@ function injectBusinessUI() {
                             </select>
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-quotes" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
+                            <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> הצעה חדשה</button>
+                        </div>
+                        <div id="store-quotes-list" class="space-y-3 pb-8"></div>
                     </div>
 
                     <div id="sales-view-catalog" class="hidden space-y-4">
@@ -406,7 +403,49 @@ function injectBusinessUI() {
         }
     }
     
-    // 3. הוספת כפתורי ניווט (טאבים עליונים) אם חסרים
+    if(!getEl('quote-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div class="bg-indigo-50 p-6 border-b border-indigo-100 flex justify-between items-center shrink-0">
+                    <h3 class="text-xl font-black text-indigo-900">הצעת מחיר חדשה</h3>
+                    <button onclick="getEl('quote-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto modal-scroll space-y-4 flex-1">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח:</label>
+                            <input type="text" id="quote-cust-name" class="modern-input py-2 text-sm" placeholder="שם מלא / חברה">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון הלקוח:</label>
+                            <input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000">
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-list-check"></i> בחירת פריטים לקטלוג:</label>
+                        <div id="quote-items-selector" class="space-y-2 max-h-40 overflow-y-auto pr-1 modal-scroll"></div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות להצעה (יופיעו ב-PDF):</label>
+                        <textarea id="quote-notes" class="modern-input py-2 text-sm h-20" placeholder="למשל: תקף ל-14 יום. המחיר כולל מע״מ..."></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold block">סה"כ הצעה</span>
+                        <span id="quote-total-display" class="text-2xl font-black text-slate-900">₪0</span>
+                    </div>
+                    <button id="btn-generate-quote" onclick="submitNewQuote()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                        שמור והפק <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
+
+    // הוספת כפתורי ניווט (טאבים עליונים) אם חסרים
     if(!getEl('tab-shifts')) {
         const tabPantry = getEl('tab-pantry');
         if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
@@ -494,7 +533,6 @@ function injectBusinessUI() {
         `);
     }
 }
-
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
@@ -2594,7 +2632,7 @@ let storeModifierPresets = [];
 let currentStoreOrderId = null;
 
 function switchSalesTab(subTab) {
-    ['orders', 'catalog', 'marketing', 'settings'].forEach(t => {
+    ['orders', 'catalog', 'marketing', 'settings', 'quotes'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     });
@@ -2605,6 +2643,150 @@ function switchSalesTab(subTab) {
     if(subTab === 'catalog') fetchStoreCatalog();
     if(subTab === 'marketing') fetchStoreMarketing(); 
     if(subTab === 'settings') fetchStoreSettings();
+    if(subTab === 'quotes') fetchStoreQuotes();
+}
+
+let storeQuotesCache = [];
+
+async function fetchStoreQuotes() {
+    try {
+        const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
+        const data = await res.json();
+        const list = getEl('store-quotes-list');
+        if(!list) return;
+        
+        if (!data || !data.success || data.quotes.length === 0) {
+            list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
+            return;
+        }
+
+        storeQuotesCache = data.quotes;
+        list.innerHTML = data.quotes.map(q => `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3 hover:shadow-md transition">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">הצעה #${q.id} - ${safeStr(q.customer_name)}</h4>
+                    <p class="text-lg font-black text-indigo-600 dir-ltr mt-0.5 text-right">₪${parseFloat(q.total_amount).toFixed(2)}</p>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="shareQuoteWhatsApp(${q.id}, '${safeStr(q.customer_phone)}')" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+                    <button onclick="downloadQuotePDF(${q.id})" class="bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {}
+}
+
+let selectedQuoteItems = {};
+
+function openNewQuoteModal() {
+    selectedQuoteItems = {};
+    const selector = getEl('quote-items-selector');
+    if(!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'הקטלוג ריק. הוסף מוצרים קודם תחת "קטלוג מוצרים".');
+
+    selector.innerHTML = storeCatalogCache.map(p => `
+        <div class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm mb-2 hover:border-indigo-100 transition">
+            <div class="flex flex-col pr-1">
+                <span class="text-sm font-bold text-slate-700">${safeStr(p.name)}</span>
+                <span class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded w-fit mt-0.5">₪${p.price} / ${safeStr(p.unit_type)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="number" min="0" id="quote-qty-${p.id}" oninput="updateQuoteItem(${p.id}, this.value, '${safeStr(p.name)}', ${p.price})" class="modern-input py-1.5 text-sm text-center w-16 bg-slate-50" placeholder="0">
+            </div>
+        </div>
+    `).join('');
+    
+    getEl('quote-cust-name').value = '';
+    getEl('quote-cust-phone').value = '';
+    getEl('quote-notes').value = '';
+    getEl('quote-total-display').innerText = '₪0';
+    getEl('quote-modal').classList.remove('hidden');
+}
+
+function updateQuoteItem(id, qty, name, price) {
+    if (parseInt(qty) > 0) selectedQuoteItems[id] = { id, name, price_at_order: price, quantity: parseInt(qty) };
+    else delete selectedQuoteItems[id];
+    
+    let total = 0;
+    Object.values(selectedQuoteItems).forEach(i => total += (i.quantity * i.price_at_order));
+    getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
+}
+
+async function submitNewQuote() {
+    const name = val('quote-cust-name');
+    const phone = val('quote-cust-phone');
+    if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
+
+    const btn = getEl('btn-generate-quote');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מייצר...';
+
+    const items = Object.values(selectedQuoteItems);
+    let total = 0; items.forEach(i => total += (i.quantity * i.price_at_order));
+
+    try {
+        const res = await fetch(`${API}/store/quotes`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items, totalAmount: total, notes: val('quote-notes') })
+        });
+        const data = await res.json();
+        if(data.success) {
+            triggerConfetti();
+            showToast('success', 'הצעת המחיר נוצרה!');
+            getEl('quote-modal').classList.add('hidden');
+            fetchStoreQuotes();
+        }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
+}
+
+function shareQuoteWhatsApp(id, phone) {
+    const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
+    window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
+}
+
+async function downloadQuotePDF(id) {
+    const quote = storeQuotesCache.find(q => q.id === id);
+    if (!quote) return;
+    
+    // נייצר אובייקט בפורמט שמתאים ל-PDF Generator הקיים שלנו
+    const orderInfo = {
+        orderId: quote.id,
+        supplierName: currentGroup.name, 
+        supplierPhone: currentGroup.phone,
+        customerName: quote.customer_name,
+        customerNumber: quote.customer_phone,
+        totalAmount: quote.total_amount,
+        items: quote.items
+    };
+    
+    const isLoaded = await loadHtml2Pdf();
+    if(!isLoaded) return;
+    showToast('info', 'מפיק קובץ PDF...');
+    
+    let htmlContent = getOrderHtmlTemplate(orderInfo);
+    // נחליף את הכותרת ל"הצעת מחיר" במקום "הזמנת רכש"
+    htmlContent = htmlContent.replace('הזמנת&nbsp;רכש&#x200F;', 'הצעת&nbsp;מחיר&#x200F;').replace('(Purchase Order)', '(Price Quote)');
+    if(quote.notes) {
+        htmlContent += `<div style="margin-top: 20px; padding: 15px; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: right;" dir="rtl"><b>הערות:</b><br>${safeStr(quote.notes).replace(/\n/g, '<br>')}</div>`;
+    }
+
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    container.style.position = 'absolute'; container.style.top = '0'; container.style.left = '0';
+    container.style.width = '1040px'; container.style.zIndex = '-100'; container.style.backgroundColor = '#ffffff';
+    document.body.appendChild(container);
+
+    const opt = { 
+        margin: [10, 10, 10, 10], filename: `Quote_${id}.pdf`, image: { type: 'jpeg', quality: 1 }, 
+        html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } 
+    };
+
+    setTimeout(() => {
+        html2pdf().set(opt).from(container).save().then(() => {
+            if(document.body.contains(container)) document.body.removeChild(container);
+            showToast('success', 'הורד בהצלחה!');
+        });
+    }, 500);
 }
 
 // === Marketing (Promotions & Coupons) ===
