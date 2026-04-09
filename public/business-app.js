@@ -4738,7 +4738,74 @@ async function downloadOrderPDFManual(orderId) {
         }
     };
 }
+// === קבלת סחורה ===
+let _receiveGoodsOrderId = null;
 
+function openReceiveGoodsModal(orderId) {
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
+    if (!order) return showToast('error', 'הזמנה לא נמצאה');
+
+    _receiveGoodsOrderId = orderId;
+    let items = [];
+    try { items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) { items = []; }
+
+    const container = getEl('receive-goods-items');
+    if (!container) return;
+
+    container.innerHTML = items.map((item, idx) => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</span>
+                <span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">הוזמן: ${item.quantity} ${safeStr(item.unit || "יח'")}</span>
+            </div>
+            <div class="flex gap-2 items-center">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">התקבל בפועל</label>
+                    <input type="number" id="rg-received-${idx}" min="0" step="0.1" value="${item.quantity}" class="modern-input py-1.5 text-sm text-center bg-green-50 border-green-200 w-full">
+                </div>
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">חסר (לא סופק)</label>
+                    <input type="number" id="rg-missing-${idx}" min="0" step="0.1" value="0" class="modern-input py-1.5 text-sm text-center bg-red-50 border-red-200 w-full" oninput="document.getElementById('rg-received-${idx}').value=Math.max(0,${item.quantity}-parseFloat(this.value||0)).toFixed(1)">
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    getEl('receive-goods-modal').classList.remove('hidden');
+}
+
+async function submitReceiveGoods() {
+    const order = b2bOrdersHistory.find(o => String(o.id) === String(_receiveGoodsOrderId));
+    if (!order) return;
+
+    let items = [];
+    try { items = Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'); } catch(e) { items = []; }
+
+    const receivedItems = [], missingItems = [];
+    items.forEach((item, idx) => {
+        const receivedQty = parseFloat(document.getElementById(`rg-received-${idx}`)?.value || 0);
+        const missingQty = parseFloat(document.getElementById(`rg-missing-${idx}`)?.value || 0);
+        if (receivedQty > 0) receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit || "יח'" });
+        if (missingQty > 0) missingItems.push({ name: item.name, qty: missingQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
+    });
+
+    try {
+        const res = await fetch(`${API}/b2b/orders/receive`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: _receiveGoodsOrderId, groupId: currentGroup.id, userId: currentUser.id, receivedItems, missingItems })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `סחורה נרשמה! ${receivedItems.length} פריטים נוספו למלאי${missingItems.length ? `, ${missingItems.length} פריטים חסרים נשלחו לדרישות שוטפות` : ''}`);
+            getEl('receive-goods-modal').classList.add('hidden');
+            fetchB2BOrders();
+        } else {
+            showToast('error', data.error || 'שגיאה ברישום הסחורה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+    }
+}
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
