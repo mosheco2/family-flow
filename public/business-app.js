@@ -4655,7 +4655,7 @@ async function downloadOrderPDFManual(orderId) {
             };
 
             setTimeout(() => {
-                html2pdf().set(opt).from(pdfContainer).outputPdf('datauristring').then(base64Str => {
+                html2pdf().set(opt).from(pdfContainer).save().then(() => {
                     if(document.body.contains(pdfContainer)) document.body.removeChild(pdfContainer);
                     showToast('success', 'הורדת המסמך הושלמה בהצלחה!');
                     document.getElementById('pdf-preview-modal').classList.add('hidden');
