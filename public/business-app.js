@@ -2705,6 +2705,7 @@ let editingQuoteId = null;
 function getQuotePresets(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
 }
+
 function saveQuotePreset(type) {
     const valToSave = getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value.trim();
     if(!valToSave) return showToast('error', 'הטקסט ריק, אין מה לשמור');
@@ -2713,36 +2714,49 @@ function saveQuotePreset(type) {
         presets.push(valToSave); 
         localStorage.setItem(`ofl_quote_presets_${type}`, JSON.stringify(presets)); 
         showToast('success', 'נשמר כתבנית לשימוש עתידי!'); 
-        ensureQuoteHeaders(true); // מרענן את רשימת התבניות
+        ensureQuoteHeaders(true); 
     } else {
         showToast('info', 'התבנית הזו כבר שמורה');
     }
 }
+
 function applyQuotePreset(type, idx) {
     if(idx === '') return;
     const presets = getQuotePresets(type);
     if(presets[idx]) getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value = presets[idx];
 }
+
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const promptText = type === 'intro' 
-        ? `כתוב טקסט פתיחה קצר (עד 2 משפטים) רשמי, שיווקי ומזמין להצעת מחיר עבור ${custName}. העסק שלי הוא ${currentGroup.name}. כתוב רק את הטקסט עצמו ללא מרכאות.` 
-        : `כתוב טקסט הערות מקצועי וקצר להצעת מחיר מטעם העסק ${currentGroup.name} (תנאי תשלום שוטף פלוס, זמן אספקה וכו'). רק את הטקסט, ללא מרכאות.`;
+        ? `נסח פסקה אחת קצרה (2 משפטים גג), שיווקית ומזמינה עבור הלקוח '${custName}'. העסק שלי הוא '${currentGroup.name}'. חשוב: ענה רק עם הטקסט עצמו, בלי כותרות או מרכאות.` 
+        : `כתוב טקסט קצר של הערות משפטיות/תנאי תשלום להצעת מחיר (למשל: תוקף ההצעה, המחיר לא כולל מע"מ, תנאי שוטף פלוס). אל תכתוב פתיח, ענה רק עם הפסקאות עצמן בלי מרכאות.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
     showToast('info', 'ה-AI מנסח עבורך, המתן...');
     
     try {
+        const sysCtx = { role: "אתה כותב עסקי. ספק טקסט ישיר ללא הקדמות" };
         const res = await fetch(`${API}/biz/chat-assistant`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ query: promptText, context: "אתה עוזר כתיבה למסמכים עסקיים", groupId: currentGroup.id }) 
+            body: JSON.stringify({ query: promptText, context: JSON.stringify(sysCtx), groupId: currentGroup.id }) 
         });
         const data = await res.json();
+        
+        if (data.error === 'BATTERY_EMPTY') {
+            handleAIResponseCheck(data);
+            return;
+        }
+        
         if (data.success && data.answer) { 
             getEl(targetId).value = data.answer.replace(/"/g, '').trim(); 
             showToast('success', 'הטקסט הושלם!'); 
-        } else { showToast('error', 'שגיאת AI נסה שנית'); }
-    } catch(e) { showToast('error', 'תקלת רשת מול ה-AI'); }
+        } else { 
+            showToast('error', data.error || 'שגיאת AI נסה שנית'); 
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת תקשורת מול ה-AI'); 
+    }
 }
 
 function ensureQuoteHeaders(forceRefresh = false) {
@@ -2752,28 +2766,28 @@ function ensureQuoteHeaders(forceRefresh = false) {
     const introLabel = getEl('quote-intro-text')?.previousElementSibling;
     if(introLabel && (introLabel.tagName === 'LABEL' || forceRefresh)) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-between items-center mb-1';
+        wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('intro')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('intro')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-intro" onchange="applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${introPresets}</select>
-                <button type="button" onclick="saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
+                <button type="button" onclick="saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
-        if (forceRefresh && introLabel.tagName === 'DIV') introLabel.replaceWith(wrapper);
-        else if(introLabel.tagName === 'LABEL') introLabel.replaceWith(wrapper);
+        if (introLabel.tagName === 'DIV') introLabel.replaceWith(wrapper);
+        else introLabel.replaceWith(wrapper);
     }
     const notesLabel = getEl('quote-notes')?.previousElementSibling;
     if(notesLabel && (notesLabel.tagName === 'LABEL' || forceRefresh)) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'flex justify-between items-center mb-1';
+        wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('notes')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('notes')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-notes" onchange="applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${notesPresets}</select>
-                <button type="button" onclick="saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition"><i class="fa-solid fa-save"></i> שמור</button>
+                <button type="button" onclick="saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
-        if (forceRefresh && notesLabel.tagName === 'DIV') notesLabel.replaceWith(wrapper);
-        else if (notesLabel.tagName === 'LABEL') notesLabel.replaceWith(wrapper);
+        if (notesLabel.tagName === 'DIV') notesLabel.replaceWith(wrapper);
+        else notesLabel.replaceWith(wrapper);
     }
 }
 
@@ -2787,21 +2801,27 @@ async function openNewQuoteModal(skipDataReset = false) {
     
     const selector = getEl('quote-items-selector');
     selector.innerHTML = storeCatalogCache.map(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-10 h-10 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover shrink-0 border border-slate-100">` : `<div class="w-12 h-12 bg-slate-50 text-slate-300 rounded-lg flex items-center justify-center shrink-0 border border-slate-100"><i class="fa-solid fa-box"></i></div>`;
         const existingQty = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].quantity : '';
         const existingPrice = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].price_at_order : (parseFloat(p.price) || 0);
         const existingNote = selectedQuoteItems[p.id] ? selectedQuoteItems[p.id].note : '';
         
         return `
-        <div class="flex items-start justify-between p-2 bg-white rounded-xl border border-slate-100 shadow-sm mb-2 gap-2">
+        <div class="flex items-start justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm mb-2 gap-3">
             ${imgHtml}
-            <div class="flex-1 min-w-0 pt-0.5">
-                <span class="text-sm font-bold text-slate-700 truncate block">${safeStr(p.name)}</span>
-                <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)" class="modern-input py-1 px-2 text-[10px] w-full mt-1 bg-slate-50">
+            <div class="flex-1 min-w-0">
+                <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)}</span>
+                <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)..." class="modern-input py-1 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200">
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-                <div class="text-center"><span class="text-[9px] text-slate-400 block">כמות</span><input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1 text-sm text-center w-12 bg-slate-50" placeholder="0"></div>
-                <div class="text-center"><span class="text-[9px] text-slate-400 block">מחיר ₪</span><input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1 text-sm text-center w-16 bg-indigo-50 text-indigo-700 font-bold"></div>
+            <div class="flex flex-col items-end gap-2 shrink-0 w-20">
+                <div class="w-full relative pt-3">
+                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
+                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+                </div>
+                <div class="w-full relative pt-3">
+                    <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
+                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                </div>
             </div>
         </div>
     `}).join('');
@@ -2923,10 +2943,10 @@ function generateQuoteHtml(quote, settings) {
         <tr style="background:${i%2===0?'#f8fafc':'white'}">
             <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    ${item.image_url ? `<img src="${item.image_url}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;">` : ''}
+                    ${item.image_url ? `<img src="${item.image_url}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid #e2e8f0;">` : ''}
                     <div>
                         ${safeStr(item.name||item.item_name||'')}
-                        ${item.note ? `<div style="font-size:10px;color:#64748b;font-weight:normal;margin-top:2px;">${safeStr(item.note)}</div>` : ''}
+                        ${item.note ? `<div style="font-size:10px;color:#64748b;font-weight:normal;margin-top:3px;">${safeStr(item.note)}</div>` : ''}
                     </div>
                 </div>
             </td>
@@ -3002,15 +3022,21 @@ async function downloadCurrentQuotePDF() {
     const isLoaded = await loadHtml2Pdf();
     if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
     showToast('info', 'מפיק PDF...');
+    
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<>]/g, '-');
+    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<>]/g, '-');
+    const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
+    const pdfFilename = `${bname}_${cname}_${quote.id}_${dateStr}.pdf`;
+
     const container = document.createElement('div');
-    // מניעת הסתרה מלאה או חיתוך, כדי ש-html2canvas יוכל לקרוא ולצלם את ה-DOM
-    container.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:900px;background:white;z-index:0;';
+    // שימוש במיקום מוחלט ו-opacity על מנת שה-Canvas יצליח לרנדר את ה-HTML גם כשהוא לא גלוי
+    container.style.cssText = 'position:absolute;top:0;left:0;width:900px;background:white;z-index:-9999;opacity:0.01;pointer-events:none;';
     container.innerHTML = generateQuoteHtml(quote, window._lastQuoteSettings || {});
     document.body.appendChild(container);
     
     const opt = { 
         margin:[8,8,8,8], 
-        filename:`Quote_${quote.id}.pdf`, 
+        filename: pdfFilename, 
         image:{type:'jpeg',quality:1}, 
         html2canvas:{scale:2, useCORS:true, scrollY: 0, windowWidth: 900}, 
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} 
@@ -3020,6 +3046,9 @@ async function downloadCurrentQuotePDF() {
         html2pdf().set(opt).from(container).save().then(() => { 
             if(document.body.contains(container)) document.body.removeChild(container); 
             showToast('success','הורד בהצלחה!'); 
+        }).catch(err => {
+            if(document.body.contains(container)) document.body.removeChild(container); 
+            showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
         });
     }, 400);
 }
@@ -3029,7 +3058,6 @@ async function openEditQuoteModal(id) {
     if(!quote) return;
     editingQuoteId = id;
     
-    // מכינים את האובייקט עם הנתונים הישנים כדי ש-openNewQuoteModal ימשוך אותם ישר
     let notesObj = {};
     try { notesObj = JSON.parse(quote.notes); } catch(e) { notesObj = { notes: quote.notes || '' }; }
     
