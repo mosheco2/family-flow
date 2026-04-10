@@ -704,7 +704,8 @@ function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
         if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        modal.classList.remove('hidden'); return false;
+        if (modal) { modal.style.zIndex = '999999'; modal.classList.remove('hidden'); }
+        return false;
     }
     return true;
 }
@@ -2729,8 +2730,8 @@ function applyQuotePreset(type, idx) {
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const query = type === 'intro' 
-        ? `נסח 2 משפטי פתיחה בלבד להצעת מחיר. הלקוח: ${custName}. העסק שלנו: ${currentGroup.name}. אסור לך להוסיף שום מילות הקדמה משלך (כמו 'הנה ההצעה:'). כתוב רק את 2 המשפטים נטו.` 
-        : `כתוב 3 סעיפים של תנאי תשלום והערות להצעת מחיר של ${currentGroup.name} (למשל: תוקף הצעה, ללא מע"מ, תנאי שוטף פלוס). קריטי: אסור לך לכתוב מילות הקדמה כמו 'להלן 3 סעיפים...'. התחל מיד בסעיף הראשון.`;
+        ? `נסח 2 משפטי פתיחה שיווקיים ומקצועיים עבור הלקוח: ${custName}. העסק השולח הוא ${currentGroup.name}. חשוב: כתוב אך ורק את התוכן הסופי. אל תוסיף מרכאות, אל תוסיף כותרות, ואל תכתוב מילות פתיחה.` 
+        : `כתוב אך ורק 3 סעיפים מקצועיים וקצרים של הערות ותנאי תשלום להצעת מחיר (תוקף 14 יום, לא כולל מע"מ, וכו') עבור העסק ${currentGroup.name}. חובה: לענות רק בטקסט של הסעיפים. אסור להתחיל במילים כמו "להלן", "מצורף", "הנה".`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
     showToast('info', 'ה-AI מנסח עבורך, המתן שניה...');
@@ -2740,7 +2741,7 @@ async function generateQuoteAI(type) {
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ 
                 query: query, 
-                context: JSON.stringify({ role: "system_robot", instruction: "Do not include any conversational filler. Only output the final requested text." }), 
+                context: JSON.stringify({ role: "מנסח מסמכים עסקיים נוקשה. מחזיר אך ורק את התוכן המבוקש ללא שום מילת קישור, ללא אייקונים וללא אימוג'ים." }), 
                 groupId: currentGroup.id 
             }) 
         });
@@ -2752,11 +2753,10 @@ async function generateQuoteAI(type) {
         }
         
         if (data.success && data.answer) { 
-            // ניקוי כל הסמלים או המילים המקדימות שה-AI אוהב להוסיף לפעמים
             let finalOutput = data.answer.replace(/["*]/g, '').trim();
-            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי).*?:?\n/i, ''); 
-            
-            getEl(targetId).value = finalOutput.trim();
+            // פילטר נוסף לניקוי אגרסיבי של פתיחים שיחתיים שאולי בכל זאת חמקו
+            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim(); 
+            getEl(targetId).value = finalOutput;
             showToast('success', 'הטקסט הושלם בהצלחה!'); 
         } else { 
             showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית'); 
@@ -2964,7 +2964,6 @@ function generateQuoteHtml(quote, settings) {
     let notesObj = {};
     const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
     
-    // שליפת נתוני המטא-דאטה מתוך הפריטים (הטריק שלנו)
     const metaItem = allItems.find(i => i.is_quote_metadata);
     if (metaItem) {
         try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
@@ -2973,6 +2972,9 @@ function generateQuoteHtml(quote, settings) {
     }
     
     const items = allItems.filter(i => !i.is_quote_metadata);
+
+    // פונקציית פילטר שממירה רווחים לרווחים קשיחים לטובת מניעת בליעת רווחים ביצירת הPDF
+    const fixSpaces = (str) => String(str || '').replace(/ /g, '&nbsp;');
 
     const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
     const validity = notesObj.validity || '';
@@ -2989,69 +2991,69 @@ function generateQuoteHtml(quote, settings) {
     
     const rowsHtml = items.map((item, i) => `
         <tr style="background:${i%2===0?'#f8fafc':'white'}">
-            <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;">
+            <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;white-space:pre-wrap;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     ${item.image_url ? `<img src="${item.image_url}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid #e2e8f0;">` : ''}
                     <div>
-                        ${safeStr(item.name||item.item_name||'')}
-                        ${item.note ? `<div style="font-size:10px;color:#64748b;font-weight:normal;margin-top:3px;">${safeStr(item.note)}</div>` : ''}
+                        ${fixSpaces(safeStr(item.name||item.item_name||''))}
+                        ${item.note ? `<div style="font-size:10px;color:#64748b;font-weight:normal;margin-top:3px;">${fixSpaces(safeStr(item.note))}</div>` : ''}
                     </div>
                 </div>
             </td>
             <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;">${item.quantity}</td>
-            <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-            <td style="padding:10px 14px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
+            <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
+            <td style="padding:10px 14px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
         
-    return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;width:100%;max-width:900px;box-sizing:border-box;">
+    return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;width:100%;max-width:900px;box-sizing:border-box;text-align:right;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:3px solid #4f46e5;margin-bottom:24px;">
-            <div>
-                <h1 style="font-size:26px;font-weight:900;color:#1e293b;margin:0;">הצעת מחיר</h1>
-                <p style="font-size:13px;color:#64748b;margin:4px 0 0;">מספר: #${quote.id} &nbsp;|&nbsp; תאריך: ${date}</p>
+            <div style="text-align:right;">
+                <h1 style="font-size:26px;font-weight:900;color:#1e293b;margin:0;">${fixSpaces('הצעת מחיר')}</h1>
+                <p style="font-size:13px;color:#64748b;margin:4px 0 0;">${fixSpaces('מספר:')} #${quote.id} &nbsp;|&nbsp; ${fixSpaces('תאריך:')} ${date}</p>
             </div>
-            ${logo ? `<img src="${logo}" style="max-height:65px;max-width:150px;object-fit:contain;">` : `<h2 style="font-size:20px;font-weight:900;color:#4f46e5;margin:0;">${bname}</h2>`}
+            ${logo ? `<img src="${logo}" style="max-height:65px;max-width:150px;object-fit:contain;">` : `<h2 style="font-size:20px;font-weight:900;color:#4f46e5;margin:0;">${fixSpaces(bname)}</h2>`}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;">
-            <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
-                <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">מאת (הספק)</p>
-                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${bname}</p>
-                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">ח.פ / ע.מ: <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
+            <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;text-align:right;">
+                <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">${fixSpaces('מאת (הספק)')}</p>
+                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${fixSpaces(bname)}</p>
+                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">${fixSpaces('ח.פ / ע.מ:')} <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
                 ${phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(phone)}</p>` : ''}
             </div>
-            <div style="background:#eef2ff;border-radius:10px;padding:14px;border:1px solid #c7d2fe;">
-                <p style="font-size:10px;font-weight:700;color:#818cf8;margin:0 0 6px;text-transform:uppercase;">עבור (הלקוח)</p>
-                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
+            <div style="background:#eef2ff;border-radius:10px;padding:14px;border:1px solid #c7d2fe;text-align:right;">
+                <p style="font-size:10px;font-weight:700;color:#818cf8;margin:0 0 6px;text-transform:uppercase;">${fixSpaces('עבור (הלקוח)')}</p>
+                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${fixSpaces(safeStr(quote.customer_name))}</p>
                 ${quote.customer_phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(quote.customer_phone)}</p>` : ''}
             </div>
         </div>
-        ${introText ? `<div style="background:#f0f9ff;border-radius:10px;padding:12px 16px;margin-bottom:20px;border-right:4px solid #0ea5e9;font-size:13px;color:#0c4a6e;">${introText}</div>` : ''}
-        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${introText ? `<div style="background:#f0f9ff;border-radius:10px;padding:12px 16px;margin-bottom:20px;border-right:4px solid #0ea5e9;font-size:13px;color:#0c4a6e;white-space:pre-wrap;text-align:right;">${fixSpaces(introText)}</div>` : ''}
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;text-align:right;">
             <thead><tr style="background:#4f46e5;color:white;">
-                <th style="padding:11px 14px;text-align:right;font-size:12px;">פריט מבוקש</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:70px;">כמות</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">מחיר יחידה</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">סה"כ</th>
+                <th style="padding:11px 14px;text-align:right;font-size:12px;">${fixSpaces('פריט מבוקש')}</th>
+                <th style="padding:11px 14px;text-align:center;font-size:12px;width:70px;">${fixSpaces('כמות')}</th>
+                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">${fixSpaces('מחיר יחידה')}</th>
+                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">${fixSpaces('סה"כ')}</th>
             </tr></thead>
             <tbody>${rowsHtml}</tbody>
         </table>
         <div style="display:flex;justify-content:flex-end;margin-bottom:20px;">
-            <div style="min-width:240px;background:#f8fafc;border-radius:10px;padding:14px 18px;border:1px solid #e2e8f0;">
+            <div style="min-width:240px;background:#f8fafc;border-radius:10px;padding:14px 18px;border:1px solid #e2e8f0;text-align:right;">
                 <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
-                    <span style="font-size:13px;color:#64748b;">סכום ביניים</span>
-                    <span style="font-size:13px;font-weight:700;color:#1e293b;">₪${subtotal.toFixed(2)}</span>
+                    <span style="font-size:13px;color:#64748b;">${fixSpaces('סכום ביניים')}</span>
+                    <span style="font-size:13px;font-weight:700;color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
                 </div>
                 ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid #e2e8f0;">
-                    <span style="font-size:13px;color:#ef4444;">הנחה ${discount}%</span>
-                    <span style="font-size:13px;font-weight:700;color:#ef4444;">-₪${(subtotal*discount/100).toFixed(2)}</span>
+                    <span style="font-size:13px;color:#ef4444;">${fixSpaces('הנחה')} ${discount}%</span>
+                    <span style="font-size:13px;font-weight:700;color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
                 </div>` : ''}
                 <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid #4f46e5;">
-                    <span style="font-size:15px;font-weight:900;color:#1e293b;">סה"כ לתשלום</span>
-                    <span style="font-size:19px;font-weight:900;color:#4f46e5;">₪${total.toFixed(2)}</span>
+                    <span style="font-size:15px;font-weight:900;color:#1e293b;">${fixSpaces('סה"כ לתשלום')}</span>
+                    <span style="font-size:19px;font-weight:900;color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
                 </div>
             </div>
         </div>
-        ${validity ? `<p style="font-size:11px;color:#94a3b8;margin-bottom:8px;">תוקף ההצעה: ${safeStr(validity)}</p>` : ''}
-        ${notesText ? `<div style="background:#fffbeb;border:1px dashed #fbbf24;border-radius:8px;padding:12px 14px;font-size:12px;color:#78350f;">${notesText}</div>` : ''}
+        ${validity ? `<p style="font-size:11px;color:#94a3b8;margin-bottom:8px;text-align:right;">${fixSpaces('תוקף ההצעה:')} ${fixSpaces(safeStr(validity))}</p>` : ''}
+        ${notesText ? `<div style="background:#fffbeb;border:1px dashed #fbbf24;border-radius:8px;padding:12px 14px;font-size:12px;color:#78350f;white-space:pre-wrap;text-align:right;">${fixSpaces(notesText)}</div>` : ''}
     </div>`;
 }
 
@@ -3072,19 +3074,16 @@ async function downloadCurrentQuotePDF() {
     
     const isLoaded = await loadHtml2Pdf();
     if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מכין קובץ PDF...');
+    showToast('info', 'מפיק ומוריד מסמך PDF...');
     
     const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
     const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
     const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
     const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
 
-    // אנו תופסים את האלמנט הפנימי שכבר מוצג כרגע למשתמש בחלון התצוגה המקדימה!
-    // זה יבטיח שה-Canvas מצלם בדיוק את מה שנראה, כולל למעלה ולמטה, ולעולם לא ריק.
     const elementToPrint = getEl('quote-preview-content').firstElementChild;
     if (!elementToPrint) return showToast('error', 'לא נמצא תוכן להדפסה');
 
-    // נגדיר אופציות ספציפיות שלא יחתכו את ראש העמוד
     const opt = { 
         margin: [5, 5, 5, 5], 
         filename: pdfFilename, 
@@ -3093,9 +3092,8 @@ async function downloadCurrentQuotePDF() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
     
-    // מעבירים את מנוע ה-PDF על האלמנט החי שכבר רונדר וקיים במסך
     html2pdf().set(opt).from(elementToPrint).save().then(() => { 
-        showToast('success','הורד בהצלחה!'); 
+        showToast('success','הורד בהצלחה למכשיר!'); 
     }).catch(err => {
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
     });
