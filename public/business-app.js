@@ -2785,9 +2785,6 @@ async function submitNewQuote() {
         } else {
             showToast('error', data.error || 'שגיאה בשמירת ההצעה');
         }
-    } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
-    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
-}
 
      } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
     finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
