@@ -2728,34 +2728,30 @@ function applyQuotePreset(type, idx) {
 
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
+    // שימוש בפרומפט מדויק המותאם למנוע ניסוח התיאורים לקבלת תשובה חלקה
     const promptText = type === 'intro' 
-        ? `נסח פסקה אחת קצרה (2 משפטים גג), שיווקית ומזמינה עבור הלקוח '${custName}'. העסק שלי הוא '${currentGroup.name}'. חשוב: ענה רק עם הטקסט עצמו, בלי כותרות או מרכאות.` 
-        : `כתוב טקסט קצר של הערות משפטיות/תנאי תשלום להצעת מחיר (למשל: תוקף ההצעה, המחיר לא כולל מע"מ, תנאי שוטף פלוס). אל תכתוב פתיח, ענה רק עם הפסקאות עצמן בלי מרכאות.`;
+        ? `נסח 2 משפטים קצרים ורשמיים לפתיחת הצעת מחיר עבור הלקוח ${custName}. העסק ששולח את ההצעה הוא ${currentGroup.name}. כתוב רק את הטקסט, ללא הקדמות.` 
+        : `כתוב 3 סעיפים קצרים של תנאי תשלום והערות משפטיות להצעת מחיר מטעם עסק (למשל: תוקף ההצעה, המחיר לא כולל מע"מ). כתוב רק את הסעיפים ללא פתיח.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    showToast('info', 'ה-AI מנסח עבורך, המתן...');
+    showToast('info', 'מנסח בעזרת AI, המתן שניה...');
     
     try {
-        const sysCtx = { role: "אתה כותב עסקי. ספק טקסט ישיר ללא הקדמות" };
-        const res = await fetch(`${API}/biz/chat-assistant`, { 
+        // שימוש במנוע התיאורים הקיים והאמין כדי לא לזרוק שגיאות context
+        const res = await fetch(`${API}/store/ai-desc`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ query: promptText, context: JSON.stringify(sysCtx), groupId: currentGroup.id }) 
+            body: JSON.stringify({ productName: promptText, groupId: currentGroup.id }) 
         });
         const data = await res.json();
         
-        if (data.error === 'BATTERY_EMPTY') {
-            handleAIResponseCheck(data);
-            return;
-        }
-        
-        if (data.success && data.answer) { 
-            getEl(targetId).value = data.answer.replace(/"/g, '').trim(); 
-            showToast('success', 'הטקסט הושלם!'); 
+        if (data.success && data.description) { 
+            getEl(targetId).value = data.description.replace(/"/g, '').trim(); 
+            showToast('success', 'הטקסט הושלם בהצלחה!'); 
         } else { 
-            showToast('error', data.error || 'שגיאת AI נסה שנית'); 
+            showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית'); 
         }
     } catch(e) { 
-        showToast('error', 'תקלת תקשורת מול ה-AI'); 
+        showToast('error', 'תקלת רשת מול שרת ה-AI'); 
     }
 }
 
@@ -2813,19 +2809,22 @@ async function openNewQuoteModal(skipDataReset = false) {
                 <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)}</span>
                 <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)..." class="modern-input py-1 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200">
             </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-20">
+            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-1 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
                 </div>
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-1 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
                 </div>
             </div>
         </div>
     `}).join('');
     
+    // משיכת ח.פ משמירה קודמת (לנוחות המשתמש)
+    const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
+
     if(!skipDataReset) {
         getEl('quote-cust-name').value = '';
         getEl('quote-cust-phone').value = '';
@@ -2836,6 +2835,15 @@ async function openNewQuoteModal(skipDataReset = false) {
         getEl('quote-total-display').innerText = '₪0';
         getEl('quote-before-discount').innerText = '';
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
+    }
+    
+    // הזרקת שדה "ח.פ/ע.מ" לממשק אם הוא חסר
+    if (!getEl('quote-company-id')) {
+        const topGrid = getEl('quote-cust-name').parentElement.parentElement;
+        topGrid.className = "grid grid-cols-3 gap-2";
+        topGrid.insertAdjacentHTML('beforeend', `<div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="נשמר אוטומטית" value="${savedCompanyId}"></div>`);
+    } else if(!skipDataReset) {
+        getEl('quote-company-id').value = savedCompanyId;
     }
     
     ensureQuoteHeaders();
@@ -2867,10 +2875,14 @@ function calcQuoteTotal() {
 
 async function submitNewQuote() {
     const name = val('quote-cust-name');
+    const companyId = val('quote-company-id');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
 
+    // שמירת הח.פ/ע.מ במטמון לשימוש עתידי
+    if (companyId) localStorage.setItem('ofl_company_id', companyId);
+
     const btn = getEl('btn-generate-quote');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר ומפיק...';
 
     const editId = editingQuoteId;
     editingQuoteId = null;
@@ -2884,22 +2896,34 @@ async function submitNewQuote() {
         notes: val('quote-notes'),
         introText: val('quote-intro-text'),
         validity: val('quote-validity'),
-        discount
+        discount,
+        companyId
     });
+
+    // שימוש בטריק כדי להכניס את ההערות לתוך עמודת items, ככה זה חוקי ב-DB ולא זורק שגיאה ש-notes חסר!
+    const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
 
     try {
         const url = editId ? `${API}/store/quotes/${editId}` : `${API}/store/quotes`;
         const method = editId ? 'PUT' : 'POST';
         const res = await fetch(url, {
             method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items, totalAmount: total, notes: notesData })
+            // משמיטים את עמודת ה-notes מהפיילוד כדי שה-DB לא יקרוס, הכל עטוף ב-items
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items: safeItemsToSave, totalAmount: total })
         });
         const data = await res.json();
+        
         if(data.success) {
             try { triggerConfetti(); } catch(e) {}
             showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
             getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes();
+            fetchStoreQuotes(); // ירענן את הרשימה
+            
+            // פתיחה אוטומטית של חלון תצוגה מקדימה / הורדה אחרי יצירה
+            const createdId = editId || data.quoteId || data.id; 
+            if (createdId) {
+                setTimeout(() => openQuotePreview(createdId), 800);
+            }
         } else {
             showToast('error', data.error || 'שגיאה בשמירת ההצעה');
         }
@@ -2915,11 +2939,13 @@ function shareQuoteWhatsApp(id, phone) {
 let currentPreviewQuoteId = null;
 
 async function openQuotePreview(id) {
-    const quote = storeQuotesCache.find(q => q.id === id);
+    const quote = storeQuotesCache.find(q => q.id == id); // == במקום === בגלל שזה יכול להיות string
     if(!quote) return;
     currentPreviewQuoteId = id;
     let settings = {};
     try { const r = await fetch(`${API}/store/settings/${currentGroup.id}`); const d = await r.json(); if(d.success) settings = d.settings; } catch(e) {}
+    
+    // עדכון כדי שהתצוגה מקדימה לא תנעל את המסך - ה-PDF ייוצר באותו מבנה
     const html = generateQuoteHtml(quote, settings);
     getEl('quote-preview-content').innerHTML = `<div style="background:white;margin:8px;border-radius:12px;overflow:hidden;">${html}</div>`;
     getEl('quote-preview-modal').classList.remove('hidden');
@@ -2927,18 +2953,31 @@ async function openQuotePreview(id) {
 
 function generateQuoteHtml(quote, settings) {
     let notesObj = {};
-    try { notesObj = JSON.parse(quote.notes); } catch(e) { notesObj = { notes: quote.notes || '' }; }
+    const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
+    
+    // שליפת נתוני המטא-דאטה מתוך הפריטים (הטריק שלנו)
+    const metaItem = allItems.find(i => i.is_quote_metadata);
+    if (metaItem) {
+        try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
+    } else {
+        try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
+    }
+    
+    const items = allItems.filter(i => !i.is_quote_metadata);
+
     const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
     const validity = notesObj.validity || '';
     const discount = parseFloat(notesObj.discount) || 0;
+    const companyId = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
     const notesText = (notesObj.notes || '').replace(/\n/g,'<br>');
-    const items = Array.isArray(quote.items) ? quote.items : [];
+    
     let subtotal = 0; items.forEach(i => subtotal += (parseFloat(i.quantity)||0) * (parseFloat(i.price_at_order)||0));
     const total = subtotal * (1 - discount / 100);
     const logo = settings.logo_url || '';
     const phone = settings.phone || settings.whatsapp_number || '';
     const bname = safeStr(currentGroup.name || '');
     const date = new Date(quote.created_at).toLocaleDateString('he-IL');
+    
     const rowsHtml = items.map((item, i) => `
         <tr style="background:${i%2===0?'#f8fafc':'white'}">
             <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;">
@@ -2954,6 +2993,7 @@ function generateQuoteHtml(quote, settings) {
             <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
             <td style="padding:10px 14px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
+        
     return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:3px solid #4f46e5;margin-bottom:24px;">
             <div>
@@ -2964,12 +3004,13 @@ function generateQuoteHtml(quote, settings) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;">
             <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
-                <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">מאת</p>
+                <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">מאת (הספק)</p>
                 <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${bname}</p>
+                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">ח.פ / ע.מ: ${safeStr(companyId)}</p>` : ''}
                 ${phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(phone)}</p>` : ''}
             </div>
             <div style="background:#eef2ff;border-radius:10px;padding:14px;border:1px solid #c7d2fe;">
-                <p style="font-size:10px;font-weight:700;color:#818cf8;margin:0 0 6px;text-transform:uppercase;">עבור</p>
+                <p style="font-size:10px;font-weight:700;color:#818cf8;margin:0 0 6px;text-transform:uppercase;">עבור (הלקוח)</p>
                 <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
                 ${quote.customer_phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(quote.customer_phone)}</p>` : ''}
             </div>
@@ -3011,26 +3052,26 @@ function editQuoteFromPreview() {
 }
 
 function shareQuoteWhatsAppFromPreview() {
-    const quote = storeQuotesCache.find(q => q.id === currentPreviewQuoteId);
+    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
     if(!quote) return;
     shareQuoteWhatsApp(quote.id, quote.customer_phone);
 }
 
 async function downloadCurrentQuotePDF() {
-    const quote = storeQuotesCache.find(q => q.id === currentPreviewQuoteId);
+    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
     if(!quote) return;
     const isLoaded = await loadHtml2Pdf();
     if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מפיק PDF...');
+    showToast('info', 'מפיק ומוריד מסמך PDF...');
     
-    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<>]/g, '-');
-    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<>]/g, '-');
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
+    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
     const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
-    const pdfFilename = `${bname}_${cname}_${quote.id}_${dateStr}.pdf`;
+    const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
 
     const container = document.createElement('div');
-    // שימוש במיקום מוחלט ו-opacity על מנת שה-Canvas יצליח לרנדר את ה-HTML גם כשהוא לא גלוי
-    container.style.cssText = 'position:absolute;top:0;left:0;width:900px;background:white;z-index:-9999;opacity:0.01;pointer-events:none;';
+    // מיקום הקונטיינר מחוץ למסך אבל מספיק ויזואלי ל-Canvas כדי שלא יצא לבן
+    container.style.cssText = 'position:fixed; top:0; left:200vw; width:1040px; background:white; z-index:9999;';
     container.innerHTML = generateQuoteHtml(quote, window._lastQuoteSettings || {});
     document.body.appendChild(container);
     
@@ -3038,14 +3079,14 @@ async function downloadCurrentQuotePDF() {
         margin:[8,8,8,8], 
         filename: pdfFilename, 
         image:{type:'jpeg',quality:1}, 
-        html2canvas:{scale:2, useCORS:true, scrollY: 0, windowWidth: 900}, 
+        html2canvas:{scale:2, useCORS:true, scrollY: 0, windowWidth: 1040}, 
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} 
     };
     
     setTimeout(() => {
         html2pdf().set(opt).from(container).save().then(() => { 
             if(document.body.contains(container)) document.body.removeChild(container); 
-            showToast('success','הורד בהצלחה!'); 
+            showToast('success','הורד בהצלחה למכשיר!'); 
         }).catch(err => {
             if(document.body.contains(container)) document.body.removeChild(container); 
             showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
@@ -3054,16 +3095,24 @@ async function downloadCurrentQuotePDF() {
 }
 
 async function openEditQuoteModal(id) {
-    const quote = storeQuotesCache.find(q => q.id === id);
+    const quote = storeQuotesCache.find(q => q.id == id);
     if(!quote) return;
     editingQuoteId = id;
     
-    let notesObj = {};
-    try { notesObj = JSON.parse(quote.notes); } catch(e) { notesObj = { notes: quote.notes || '' }; }
+    const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
     
-    const items = Array.isArray(quote.items) ? quote.items : [];
+    let notesObj = {};
+    const metaItem = allItems.find(i => i.is_quote_metadata);
+    if (metaItem) {
+        try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
+    } else {
+        try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
+    }
+    
+    const actualItems = allItems.filter(i => !i.is_quote_metadata);
+    
     selectedQuoteItems = {};
-    items.forEach(item => {
+    actualItems.forEach(item => {
         if(item.quantity > 0) {
             selectedQuoteItems[item.id || item.item_name] = { 
                 id: item.id || item.item_name, 
@@ -3080,6 +3129,7 @@ async function openEditQuoteModal(id) {
     
     getEl('quote-cust-name').value = quote.customer_name || '';
     getEl('quote-cust-phone').value = quote.customer_phone || '';
+    getEl('quote-company-id').value = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
     getEl('quote-intro-text').value = notesObj.introText || '';
     getEl('quote-validity').value = notesObj.validity || '14 יום';
     getEl('quote-discount').value = notesObj.discount || '';
