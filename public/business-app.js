@@ -704,7 +704,10 @@ function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
         if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) { modal.style.zIndex = '999999'; modal.classList.remove('hidden'); }
+        if (modal) { 
+            modal.style.setProperty('z-index', '9999999', 'important'); 
+            modal.classList.remove('hidden'); 
+        }
         return false;
     }
     return true;
@@ -2730,18 +2733,18 @@ function applyQuotePreset(type, idx) {
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const query = type === 'intro' 
-        ? `נסח 2 משפטי פתיחה שיווקיים ומקצועיים עבור הלקוח: ${custName}. העסק השולח הוא ${currentGroup.name}. חשוב: כתוב אך ורק את התוכן הסופי. אל תוסיף מרכאות, אל תוסיף כותרות, ואל תכתוב מילות פתיחה.` 
-        : `כתוב אך ורק 3 סעיפים מקצועיים וקצרים של הערות ותנאי תשלום להצעת מחיר (תוקף 14 יום, לא כולל מע"מ, וכו') עבור העסק ${currentGroup.name}. חובה: לענות רק בטקסט של הסעיפים. אסור להתחיל במילים כמו "להלן", "מצורף", "הנה".`;
+        ? `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.` 
+        : `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע"מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    showToast('info', 'ה-AI מנסח עבורך, המתן שניה...');
+    showToast('info', 'ה-AI מנסח טקסט עסקי, המתן שניה...');
     
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ 
                 query: query, 
-                context: JSON.stringify({ role: "מנסח מסמכים עסקיים נוקשה. מחזיר אך ורק את התוכן המבוקש ללא שום מילת קישור, ללא אייקונים וללא אימוג'ים." }), 
+                context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }), 
                 groupId: currentGroup.id 
             }) 
         });
@@ -2753,8 +2756,8 @@ async function generateQuoteAI(type) {
         }
         
         if (data.success && data.answer) { 
+            // ניקוי עמוק של כל הקדמה שיחתית ומרכאות
             let finalOutput = data.answer.replace(/["*]/g, '').trim();
-            // פילטר נוסף לניקוי אגרסיבי של פתיחים שיחתיים שאולי בכל זאת חמקו
             finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim(); 
             getEl(targetId).value = finalOutput;
             showToast('success', 'הטקסט הושלם בהצלחה!'); 
@@ -2765,7 +2768,6 @@ async function generateQuoteAI(type) {
         showToast('error', 'תקלת רשת מול שרת ה-AI'); 
     }
 }
-
 function ensureQuoteHeaders(forceRefresh = false) {
     const introPresets = getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
     const notesPresets = getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
@@ -2973,9 +2975,6 @@ function generateQuoteHtml(quote, settings) {
     
     const items = allItems.filter(i => !i.is_quote_metadata);
 
-    // פונקציית פילטר שממירה רווחים לרווחים קשיחים לטובת מניעת בליעת רווחים ביצירת הPDF
-    const fixSpaces = (str) => String(str || '').replace(/ /g, '&nbsp;');
-
     const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
     const validity = notesObj.validity || '';
     const discount = parseFloat(notesObj.discount) || 0;
@@ -2989,71 +2988,80 @@ function generateQuoteHtml(quote, settings) {
     const bname = safeStr(currentGroup.name || '');
     const date = new Date(quote.created_at).toLocaleDateString('he-IL');
     
+    // עיצוב טבלה צפוף יותר (padding הוקטן ל-4px) כדי שהפריטים ייראו צמודים כמו במסמך מקצועי
     const rowsHtml = items.map((item, i) => `
-        <tr style="background:${i%2===0?'#f8fafc':'white'}">
-            <td style="padding:10px 14px;font-size:13px;font-weight:600;color:#1e293b;text-align:right;white-space:pre-wrap;">
+        <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
+            <td style="padding:4px 8px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    ${item.image_url ? `<img src="${item.image_url}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid #e2e8f0;">` : ''}
+                    ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
                     <div>
-                        ${fixSpaces(safeStr(item.name||item.item_name||''))}
-                        ${item.note ? `<div style="font-size:10px;color:#64748b;font-weight:normal;margin-top:3px;">${fixSpaces(safeStr(item.note))}</div>` : ''}
+                        ${safeStr(item.name||item.item_name||'')}
+                        ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${safeStr(item.note)}</div>` : ''}
                     </div>
                 </div>
             </td>
-            <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;">${item.quantity}</td>
-            <td style="padding:10px 14px;font-size:13px;text-align:center;color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-            <td style="padding:10px 14px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
+            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
+            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
+            <td style="padding:4px 8px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
         
-    return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;width:100%;max-width:900px;box-sizing:border-box;text-align:right;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:3px solid #4f46e5;margin-bottom:24px;">
+    return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
             <div style="text-align:right;">
-                <h1 style="font-size:26px;font-weight:900;color:#1e293b;margin:0;">${fixSpaces('הצעת מחיר')}</h1>
-                <p style="font-size:13px;color:#64748b;margin:4px 0 0;">${fixSpaces('מספר:')} #${quote.id} &nbsp;|&nbsp; ${fixSpaces('תאריך:')} ${date}</p>
+                <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">הצעת מחיר</h1>
+                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="display:inline-block; margin-left:4px;" dir="rtl">מספר:</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="display:inline-block; margin-left:4px;" dir="rtl">תאריך:</span> <span dir="ltr">${date}</span></p>
             </div>
-            ${logo ? `<img src="${logo}" style="max-height:65px;max-width:150px;object-fit:contain;">` : `<h2 style="font-size:20px;font-weight:900;color:#4f46e5;margin:0;">${fixSpaces(bname)}</h2>`}
+            ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0;">${bname}</h2>`}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;">
-            <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;text-align:right;">
-                <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">${fixSpaces('מאת (הספק)')}</p>
-                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${fixSpaces(bname)}</p>
-                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">${fixSpaces('ח.פ / ע.מ:')} <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                ${phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(phone)}</p>` : ''}
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right;">
+                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">מאת (הספק):</p>
+                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${bname}</p>
+                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="display:inline-block; margin-left:4px;" dir="rtl">ח.פ / ע.מ:</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
+                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(phone)}</span></p>` : ''}
             </div>
-            <div style="background:#eef2ff;border-radius:10px;padding:14px;border:1px solid #c7d2fe;text-align:right;">
-                <p style="font-size:10px;font-weight:700;color:#818cf8;margin:0 0 6px;text-transform:uppercase;">${fixSpaces('עבור (הלקוח)')}</p>
-                <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${fixSpaces(safeStr(quote.customer_name))}</p>
-                ${quote.customer_phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(quote.customer_phone)}</p>` : ''}
+            <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right;">
+                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">עבור (הלקוח):</p>
+                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
+                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
             </div>
         </div>
-        ${introText ? `<div style="background:#f0f9ff;border-radius:10px;padding:12px 16px;margin-bottom:20px;border-right:4px solid #0ea5e9;font-size:13px;color:#0c4a6e;white-space:pre-wrap;text-align:right;">${fixSpaces(introText)}</div>` : ''}
-        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;text-align:right;">
-            <thead><tr style="background:#4f46e5;color:white;">
-                <th style="padding:11px 14px;text-align:right;font-size:12px;">${fixSpaces('פריט מבוקש')}</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:70px;">${fixSpaces('כמות')}</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">${fixSpaces('מחיר יחידה')}</th>
-                <th style="padding:11px 14px;text-align:center;font-size:12px;width:90px;">${fixSpaces('סה"כ')}</th>
-            </tr></thead>
+        
+        ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; line-height:1.4;">${introText}</div>` : ''}
+        
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; border:1px solid #e2e8f0;">
+            <thead>
+                <tr style="background:#4f46e5; color:white;">
+                    <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">פריט מבוקש</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">כמות</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">מחיר יחידה</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">סה"כ</th>
+                </tr>
+            </thead>
             <tbody>${rowsHtml}</tbody>
         </table>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:20px;">
-            <div style="min-width:240px;background:#f8fafc;border-radius:10px;padding:14px 18px;border:1px solid #e2e8f0;text-align:right;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
-                    <span style="font-size:13px;color:#64748b;">${fixSpaces('סכום ביניים')}</span>
-                    <span style="font-size:13px;font-weight:700;color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
+        
+        <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
+            <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <span style="font-size:12px; color:#64748b;">סכום ביניים:</span>
+                    <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
                 </div>
-                ${discount > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid #e2e8f0;">
-                    <span style="font-size:13px;color:#ef4444;">${fixSpaces('הנחה')} ${discount}%</span>
-                    <span style="font-size:13px;font-weight:700;color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
+                ${discount > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
+                    <span style="font-size:12px; color:#ef4444;">הנחה (${discount}%):</span>
+                    <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
                 </div>` : ''}
-                <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid #4f46e5;">
-                    <span style="font-size:15px;font-weight:900;color:#1e293b;">${fixSpaces('סה"כ לתשלום')}</span>
-                    <span style="font-size:19px;font-weight:900;color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
+                <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
+                    <span style="font-size:14px; font-weight:900; color:#1e293b;">סה"כ לתשלום:</span>
+                    <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
                 </div>
             </div>
         </div>
-        ${validity ? `<p style="font-size:11px;color:#94a3b8;margin-bottom:8px;text-align:right;">${fixSpaces('תוקף ההצעה:')} ${fixSpaces(safeStr(validity))}</p>` : ''}
-        ${notesText ? `<div style="background:#fffbeb;border:1px dashed #fbbf24;border-radius:8px;padding:12px 14px;font-size:12px;color:#78350f;white-space:pre-wrap;text-align:right;">${fixSpaces(notesText)}</div>` : ''}
+        
+        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; font-weight:bold;"><span style="display:inline-block; margin-left:4px;" dir="rtl">תוקף ההצעה:</span> <span style="font-weight:normal;" dir="rtl">${safeStr(validity)}</span></p>` : ''}
+        ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; text-align:right; line-height:1.4;">${notesText}</div>` : ''}
     </div>`;
 }
 
