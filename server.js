@@ -79,9 +79,12 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
 
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-      
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
+      
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items
+
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
       client.release();
@@ -1672,8 +1675,19 @@ app.get('/api/store/quotes/:groupId', async (req, res) => {
         res.json({ success: true, quotes: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.get('/api/store/orders/:groupId', async (req, res) => {
+app.put('/api/store/quotes/:id', async (req, res) => {
     try {
+        const { customerName, customerPhone, items, totalAmount, notes } = req.body;
+        await pool.query(
+            `UPDATE store_orders SET customer_name=$1, customer_phone=$2, total_amount=$3, notes=$4, items=$5 WHERE id=$6 AND status='quote'`,
+            [customerName, customerPhone, totalAmount, notes, JSON.stringify(items), req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/store/orders/:groupId', async (req, res) => {
+
+try {
         const orders = await pool.query('SELECT * FROM store_orders WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
         for (let o of orders.rows) {
             const items = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
