@@ -2706,9 +2706,10 @@ async function openNewQuoteModal() {
     getEl('quote-intro-text').value = 'להלן הצעת המחיר שלנו עבורכם.\nנשמח לעמוד לשירותכם בכל שאלה.';
     getEl('quote-total-display').innerText = '₪0';
     getEl('quote-before-discount').innerText = '';
+    editingQuoteId = null;
+    getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     getEl('quote-modal').classList.remove('hidden');
 }
-
 
 function updateQuoteItem(id, name) {
     const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
