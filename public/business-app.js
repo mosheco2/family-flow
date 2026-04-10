@@ -2789,10 +2789,8 @@ async function submitNewQuote() {
     finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
-    } catch(e) { 
-        showToast('error', e.message || 'אירעה שגיאה'); 
-        btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
-    }
+     } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
+    finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
 }
 
 function shareQuoteWhatsApp(id, phone) {
