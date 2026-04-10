@@ -2729,8 +2729,8 @@ function applyQuotePreset(type, idx) {
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const query = type === 'intro' 
-        ? `כתוב בדיוק 2 משפטים רשמיים, שיווקיים ומזמינים לפתיחת הצעת מחיר עבור הלקוח: ${custName}. העסק ששולח את ההצעה הוא: ${currentGroup.name}. חשוב: ענה אך ורק עם הטקסט המבוקש ללא הקדמות, הסברים או תווים מיותרים.` 
-        : `כתוב 3 סעיפים קצרים, מקצועיים וברורים של תנאי תשלום והערות משפטיות להצעת מחיר מטעם ${currentGroup.name}. (למשל: תוקף הצעה 14 יום, המחיר לא כולל מע"מ). ענה אך ורק עם הסעיפים המבוקשים.`;
+        ? `נסח 2 משפטי פתיחה בלבד להצעת מחיר. הלקוח: ${custName}. העסק שלנו: ${currentGroup.name}. אסור לך להוסיף שום מילות הקדמה משלך (כמו 'הנה ההצעה:'). כתוב רק את 2 המשפטים נטו.` 
+        : `כתוב 3 סעיפים של תנאי תשלום והערות להצעת מחיר של ${currentGroup.name} (למשל: תוקף הצעה, ללא מע"מ, תנאי שוטף פלוס). קריטי: אסור לך לכתוב מילות הקדמה כמו 'להלן 3 סעיפים...'. התחל מיד בסעיף הראשון.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
     showToast('info', 'ה-AI מנסח עבורך, המתן שניה...');
@@ -2740,7 +2740,7 @@ async function generateQuoteAI(type) {
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ 
                 query: query, 
-                context: JSON.stringify({ role: "מנסח מסמכים עסקיים מקצועי. אתה מחזיר רק את הטקסט נטו." }), 
+                context: JSON.stringify({ role: "system_robot", instruction: "Do not include any conversational filler. Only output the final requested text." }), 
                 groupId: currentGroup.id 
             }) 
         });
@@ -2752,7 +2752,11 @@ async function generateQuoteAI(type) {
         }
         
         if (data.success && data.answer) { 
-            getEl(targetId).value = data.answer.replace(/["*]/g, '').trim(); 
+            // ניקוי כל הסמלים או המילים המקדימות שה-AI אוהב להוסיף לפעמים
+            let finalOutput = data.answer.replace(/["*]/g, '').trim();
+            finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי).*?:?\n/i, ''); 
+            
+            getEl(targetId).value = finalOutput.trim();
             showToast('success', 'הטקסט הושלם בהצלחה!'); 
         } else { 
             showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית'); 
@@ -3068,28 +3072,30 @@ async function downloadCurrentQuotePDF() {
     
     const isLoaded = await loadHtml2Pdf();
     if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מפיק ומוריד מסמך PDF...');
+    showToast('info', 'מכין קובץ PDF...');
     
     const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
     const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
     const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
     const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
 
-    // הפתרון ל-PDF: יצירת אלמנט וירטואלי (בלי להסתיר אותו בעזרת opacity או top:-9999 שידפקו את הקנבס)
-    const container = document.createElement('div');
-    container.innerHTML = generateQuoteHtml(quote, window._lastQuoteSettings || {});
-    
+    // אנו תופסים את האלמנט הפנימי שכבר מוצג כרגע למשתמש בחלון התצוגה המקדימה!
+    // זה יבטיח שה-Canvas מצלם בדיוק את מה שנראה, כולל למעלה ולמטה, ולעולם לא ריק.
+    const elementToPrint = getEl('quote-preview-content').firstElementChild;
+    if (!elementToPrint) return showToast('error', 'לא נמצא תוכן להדפסה');
+
+    // נגדיר אופציות ספציפיות שלא יחתכו את ראש העמוד
     const opt = { 
-        margin:[8,8,8,8], 
+        margin: [5, 5, 5, 5], 
         filename: pdfFilename, 
-        image:{type:'jpeg',quality:1}, 
-        html2canvas:{scale:2, useCORS:true}, 
-        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} 
+        image: { type: 'jpeg', quality: 1 }, 
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
     };
     
-    // שימוש ישיר ב-container המנותק, זה עובד מושלם עם html2pdf!
-    html2pdf().set(opt).from(container).save().then(() => { 
-        showToast('success','הורד בהצלחה למכשיר!'); 
+    // מעבירים את מנוע ה-PDF על האלמנט החי שכבר רונדר וקיים במסך
+    html2pdf().set(opt).from(elementToPrint).save().then(() => { 
+        showToast('success','הורד בהצלחה!'); 
     }).catch(err => {
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
     });
