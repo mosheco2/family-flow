@@ -2728,24 +2728,31 @@ function applyQuotePreset(type, idx) {
 
 async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
-    // שימוש בפרומפט מדויק המותאם למנוע ניסוח התיאורים לקבלת תשובה חלקה
-    const promptText = type === 'intro' 
-        ? `נסח 2 משפטים קצרים ורשמיים לפתיחת הצעת מחיר עבור הלקוח ${custName}. העסק ששולח את ההצעה הוא ${currentGroup.name}. כתוב רק את הטקסט, ללא הקדמות.` 
-        : `כתוב 3 סעיפים קצרים של תנאי תשלום והערות משפטיות להצעת מחיר מטעם עסק (למשל: תוקף ההצעה, המחיר לא כולל מע"מ). כתוב רק את הסעיפים ללא פתיח.`;
+    const query = type === 'intro' 
+        ? `כתוב בדיוק 2 משפטים רשמיים, שיווקיים ומזמינים לפתיחת הצעת מחיר עבור הלקוח: ${custName}. העסק ששולח את ההצעה הוא: ${currentGroup.name}. חשוב: ענה אך ורק עם הטקסט המבוקש ללא הקדמות, הסברים או תווים מיותרים.` 
+        : `כתוב 3 סעיפים קצרים, מקצועיים וברורים של תנאי תשלום והערות משפטיות להצעת מחיר מטעם ${currentGroup.name}. (למשל: תוקף הצעה 14 יום, המחיר לא כולל מע"מ). ענה אך ורק עם הסעיפים המבוקשים.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    showToast('info', 'מנסח בעזרת AI, המתן שניה...');
+    showToast('info', 'ה-AI מנסח עבורך, המתן שניה...');
     
     try {
-        // שימוש במנוע התיאורים הקיים והאמין כדי לא לזרוק שגיאות context
-        const res = await fetch(`${API}/store/ai-desc`, { 
+        const res = await fetch(`${API}/biz/chat-assistant`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ productName: promptText, groupId: currentGroup.id }) 
+            body: JSON.stringify({ 
+                query: query, 
+                context: JSON.stringify({ role: "מנסח מסמכים עסקיים מקצועי. אתה מחזיר רק את הטקסט נטו." }), 
+                groupId: currentGroup.id 
+            }) 
         });
         const data = await res.json();
         
-        if (data.success && data.description) { 
-            getEl(targetId).value = data.description.replace(/"/g, '').trim(); 
+        if (data.error === 'BATTERY_EMPTY') {
+            handleAIResponseCheck(data);
+            return;
+        }
+        
+        if (data.success && data.answer) { 
+            getEl(targetId).value = data.answer.replace(/["*]/g, '').trim(); 
             showToast('success', 'הטקסט הושלם בהצלחה!'); 
         } else { 
             showToast('error', data.error || 'אירעה שגיאת AI, נסה שנית'); 
@@ -2809,14 +2816,14 @@ async function openNewQuoteModal(skipDataReset = false) {
                 <span class="text-sm font-bold text-slate-700 truncate block leading-tight">${safeStr(p.name)}</span>
                 <input type="text" id="quote-note-${p.id}" value="${safeStr(existingNote)}" onchange="updateQuoteItem(${p.id}, '${safeStr(p.name)}', '${p.image_url || ''}')" placeholder="הערה לשורה (אופציונלי)..." class="modern-input py-1 px-2 text-[10px] w-full mt-2 bg-slate-50 border-slate-200">
             </div>
-            <div class="flex flex-col items-end gap-2 shrink-0 w-28">
+            <div class="flex flex-col items-end gap-2 shrink-0 w-32">
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">מחיר ₪</span>
-                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-1 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
+                    <input type="number" min="0" step="0.01" id="quote-price-${p.id}" value="${existingPrice}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-indigo-50 text-indigo-700 font-bold border-indigo-100" placeholder="0.00">
                 </div>
                 <div class="w-full relative pt-3">
                     <span class="text-[9px] text-slate-400 absolute top-0 right-1 font-bold">כמות</span>
-                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-1 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
+                    <input type="number" min="0" id="quote-qty-${p.id}" value="${existingQty}" oninput="updateQuoteItem(${p.id},'${safeStr(p.name)}', '${p.image_url || ''}')" class="modern-input py-1.5 px-2 text-sm text-center w-full bg-slate-50 border-slate-200" placeholder="0">
                 </div>
             </div>
         </div>
@@ -2831,7 +2838,7 @@ async function openNewQuoteModal(skipDataReset = false) {
         getEl('quote-notes').value = '';
         getEl('quote-discount').value = '';
         getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = 'להלן הצעת המחיר שלנו עבורכם.\nנשמח לעמוד לשירותכם בכל שאלה.';
+        getEl('quote-intro-text').value = ''; // מתחיל ריק לחלוטין כדי שה-AI לא יתערבב
         getEl('quote-total-display').innerText = '₪0';
         getEl('quote-before-discount').innerText = '';
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
@@ -2900,7 +2907,7 @@ async function submitNewQuote() {
         companyId
     });
 
-    // שימוש בטריק כדי להכניס את ההערות לתוך עמודת items, ככה זה חוקי ב-DB ולא זורק שגיאה ש-notes חסר!
+    // שימוש בטריק כדי להכניס את ההערות לתוך עמודת items, ככה זה חוקי ב-DB ולא זורק שגיאה
     const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
 
     try {
@@ -2908,7 +2915,6 @@ async function submitNewQuote() {
         const method = editId ? 'PUT' : 'POST';
         const res = await fetch(url, {
             method, headers: {'Content-Type': 'application/json'},
-            // משמיטים את עמודת ה-notes מהפיילוד כדי שה-DB לא יקרוס, הכל עטוף ב-items
             body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items: safeItemsToSave, totalAmount: total })
         });
         const data = await res.json();
@@ -2917,7 +2923,7 @@ async function submitNewQuote() {
             try { triggerConfetti(); } catch(e) {}
             showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
             getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes(); // ירענן את הרשימה
+            fetchStoreQuotes(); // ירענן את הרשימה מהשרת
             
             // פתיחה אוטומטית של חלון תצוגה מקדימה / הורדה אחרי יצירה
             const createdId = editId || data.quoteId || data.id; 
@@ -2939,13 +2945,12 @@ function shareQuoteWhatsApp(id, phone) {
 let currentPreviewQuoteId = null;
 
 async function openQuotePreview(id) {
-    const quote = storeQuotesCache.find(q => q.id == id); // == במקום === בגלל שזה יכול להיות string
+    const quote = storeQuotesCache.find(q => q.id == id);
     if(!quote) return;
     currentPreviewQuoteId = id;
     let settings = {};
     try { const r = await fetch(`${API}/store/settings/${currentGroup.id}`); const d = await r.json(); if(d.success) settings = d.settings; } catch(e) {}
     
-    // עדכון כדי שהתצוגה מקדימה לא תנעל את המסך - ה-PDF ייוצר באותו מבנה
     const html = generateQuoteHtml(quote, settings);
     getEl('quote-preview-content').innerHTML = `<div style="background:white;margin:8px;border-radius:12px;overflow:hidden;">${html}</div>`;
     getEl('quote-preview-modal').classList.remove('hidden');
@@ -2994,7 +2999,7 @@ function generateQuoteHtml(quote, settings) {
             <td style="padding:10px 14px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
         
-    return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;">
+    return `<div style="font-family:'Segoe UI',Arial,sans-serif;direction:rtl;padding:32px;background:white;width:100%;max-width:900px;box-sizing:border-box;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:3px solid #4f46e5;margin-bottom:24px;">
             <div>
                 <h1 style="font-size:26px;font-weight:900;color:#1e293b;margin:0;">הצעת מחיר</h1>
@@ -3006,7 +3011,7 @@ function generateQuoteHtml(quote, settings) {
             <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
                 <p style="font-size:10px;font-weight:700;color:#94a3b8;margin:0 0 6px;text-transform:uppercase;">מאת (הספק)</p>
                 <p style="font-size:15px;font-weight:900;color:#1e293b;margin:0 0 3px;">${bname}</p>
-                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">ח.פ / ע.מ: ${safeStr(companyId)}</p>` : ''}
+                ${companyId ? `<p style="font-size:12px;color:#64748b;margin:0 0 2px;">ח.פ / ע.מ: <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
                 ${phone ? `<p style="font-size:12px;color:#64748b;margin:0;">${safeStr(phone)}</p>` : ''}
             </div>
             <div style="background:#eef2ff;border-radius:10px;padding:14px;border:1px solid #c7d2fe;">
@@ -3060,6 +3065,7 @@ function shareQuoteWhatsAppFromPreview() {
 async function downloadCurrentQuotePDF() {
     const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
     if(!quote) return;
+    
     const isLoaded = await loadHtml2Pdf();
     if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
     showToast('info', 'מפיק ומוריד מסמך PDF...');
@@ -3069,29 +3075,24 @@ async function downloadCurrentQuotePDF() {
     const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
     const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
 
+    // הפתרון ל-PDF: יצירת אלמנט וירטואלי (בלי להסתיר אותו בעזרת opacity או top:-9999 שידפקו את הקנבס)
     const container = document.createElement('div');
-    // מיקום הקונטיינר מחוץ למסך אבל מספיק ויזואלי ל-Canvas כדי שלא יצא לבן
-    container.style.cssText = 'position:fixed; top:0; left:200vw; width:1040px; background:white; z-index:9999;';
     container.innerHTML = generateQuoteHtml(quote, window._lastQuoteSettings || {});
-    document.body.appendChild(container);
     
     const opt = { 
         margin:[8,8,8,8], 
         filename: pdfFilename, 
         image:{type:'jpeg',quality:1}, 
-        html2canvas:{scale:2, useCORS:true, scrollY: 0, windowWidth: 1040}, 
+        html2canvas:{scale:2, useCORS:true}, 
         jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} 
     };
     
-    setTimeout(() => {
-        html2pdf().set(opt).from(container).save().then(() => { 
-            if(document.body.contains(container)) document.body.removeChild(container); 
-            showToast('success','הורד בהצלחה למכשיר!'); 
-        }).catch(err => {
-            if(document.body.contains(container)) document.body.removeChild(container); 
-            showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-        });
-    }, 400);
+    // שימוש ישיר ב-container המנותק, זה עובד מושלם עם html2pdf!
+    html2pdf().set(opt).from(container).save().then(() => { 
+        showToast('success','הורד בהצלחה למכשיר!'); 
+    }).catch(err => {
+        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
+    });
 }
 
 async function openEditQuoteModal(id) {
@@ -3185,7 +3186,6 @@ function renderStorePromotions() {
         const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
         const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
         
-        // תצוגה באדמין איפה המבצע מופיע (באנר / טאב)
         const isBanner = p.show_in_banner === true || String(p.show_in_banner) === 'true';
         const isTab = p.show_in_tab === true || String(p.show_in_tab) === 'true';
 
@@ -3345,197 +3345,6 @@ async function toggleStorePromotion(id, isActive) {
     try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
 }
 
-async function fetchStoreSettings() {
-    fetchStoreCoupons();
-    fetchStorePromotions();
-}
-
-async function fetchStorePromotions() {
-    try {
-        const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            storePromotionsCache = data.promotions || [];
-            renderStorePromotions();
-        }
-    } catch(e) { console.error(e); }
-}
-
-function renderStorePromotions() {
-    const list = getEl('store-promotions-list');
-    if(!list) return;
-    
-    if (storePromotionsCache.length === 0) {
-        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא מוגדרים מבצעים פעילים.</p>';
-        return;
-    }
-    
-    let html = '';
-    storePromotionsCache.forEach(p => {
-        let desc = '';
-        if (p.promo_type === 'discount_pct') desc = `${p.promo_value}% הנחה`;
-        else if (p.promo_type === 'bogo') desc = `1+1 מתנה (עד ₪${p.promo_value})`;
-        else if (p.promo_type === 'fixed_price') desc = `ב-₪${p.promo_value} בלבד`;
-
-        let targetArray = [];
-        if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
-        else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
-        
-        let targetDesc = p.target_type === 'all' ? 'חל על כל החנות' : `קטגוריה: ${targetArray.length > 0 ? targetArray[0] : ''}`;
-        const activeColor = p.is_active ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-        
-        // יצירת מחרוזות תאריך יפות
-        const createdStr = p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '';
-        const startStr = p.start_date ? new Date(p.start_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'מיידי';
-        const endStr = p.end_date ? new Date(p.end_date).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'}) : 'ללא הגבלת זמן';
-
-        html += `
-        <div class="flex flex-col bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-3 relative hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex items-center gap-3">
-                    <div class="bg-pink-50 text-pink-500 w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"><i class="fa-solid fa-gift"></i></div>
-                    <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)} <span class="text-[10px] text-pink-600 bg-pink-100 px-1.5 rounded-md mr-1">${desc}</span></h4>
-                        <p class="text-[10px] text-slate-500 mt-0.5 font-medium">${targetDesc}</p>
-                        <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock"></i> תוקף: ${startStr} - ${endStr}</p>
-                    </div>
-                </div>
-                <div class="flex flex-col items-end gap-2 shrink-0">
-                    <button onclick="toggleStorePromotion(${p.id}, ${!p.is_active})" class="text-[10px] font-bold px-3 py-1 rounded-lg border transition ${activeColor}">${p.is_active ? 'פעיל' : 'מושהה'}</button>
-                    <div class="text-[9px] text-slate-400">נוצר: ${createdStr}</div>
-                </div>
-            </div>
-            <div class="flex gap-2 border-t border-slate-50 pt-3">
-                <button onclick="openPromotionModal(${p.id})" class="flex-1 text-slate-500 bg-slate-50 hover:bg-slate-100 py-1.5 rounded-lg text-xs font-bold transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-pen"></i> עריכה</button>
-                <button onclick="deleteStorePromotion(${p.id})" class="w-10 text-slate-400 bg-slate-50 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg text-xs transition flex items-center justify-center"><i class="fa-solid fa-trash-can"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function openPromotionModal(id = null) {
-    const modal = getEl('promotion-modal');
-    if (!modal) return;
-    
-    if (!getEl('promo-id')) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.id = 'promo-id';
-        modal.querySelector('.space-y-4').prepend(input);
-    }
-
-    if (id) {
-        const p = storePromotionsCache.find(x => x.id === id);
-        if (p) {
-            getEl('promo-id').value = p.id;
-            getEl('promo-title').value = p.title;
-            getEl('promo-type').value = p.promo_type;
-            getEl('promo-value').value = p.promo_value || '';
-            getEl('promo-target-type').value = p.target_type;
-            
-            let targetArray = [];
-            if(Array.isArray(p.target_ids)) targetArray = p.target_ids;
-            else if(typeof p.target_ids === 'string') { try { targetArray = JSON.parse(p.target_ids); } catch(e){} }
-            getEl('promo-target-category').value = targetArray.length > 0 ? targetArray[0] : '';
-            
-            getEl('promo-start-date').value = p.start_date ? new Date(new Date(p.start_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
-            getEl('promo-end-date').value = p.end_date ? new Date(new Date(p.end_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16) : '';
-            
-            getEl('promo-show-banner').checked = p.show_in_banner !== false;
-            getEl('promo-show-tab').checked = p.show_in_tab !== false;
-            getEl('promo-bg-color').value = p.bg_color || 'pink';
-        }
-    } else {
-        getEl('promo-id').value = '';
-        getEl('promo-title').value = '';
-        getEl('promo-type').value = 'discount_pct';
-        getEl('promo-value').value = '';
-        getEl('promo-target-type').value = 'all';
-        getEl('promo-target-category').value = '';
-        getEl('promo-start-date').value = '';
-        getEl('promo-end-date').value = '';
-        getEl('promo-show-banner').checked = true;
-        getEl('promo-show-tab').checked = true;
-        getEl('promo-bg-color').value = 'pink';
-    }
-    
-    togglePromoValueInput();
-    togglePromoTargetInput();
-    modal.classList.remove('hidden');
-}
-
-function togglePromoValueInput() {
-    const type = val('promo-type');
-    const label = getEl('promo-value-label');
-    const input = getEl('promo-value');
-    if(!label || !input) return;
-
-    if (type === 'bogo') {
-        label.innerText = 'שווי ההטבה (המקסימלי לפריט):';
-        input.placeholder = 'למשל: עד 50 ש"ח למנה מתנה';
-    } else if (type === 'discount_pct') {
-        label.innerText = 'ערך המבצע באחוזים:';
-        input.placeholder = 'למשל: 20 (%)';
-    } else {
-        label.innerText = 'המחיר הקבוע למבצע (פיקס):';
-        input.placeholder = 'למשל: 99 (₪)';
-    }
-}
-
-function togglePromoTargetInput() {
-    const type = val('promo-target-type');
-    const container = getEl('promo-target-category-container');
-    if (type === 'category') container.classList.remove('hidden');
-    else container.classList.add('hidden');
-}
-
-async function submitPromotion() {
-    const id = val('promo-id');
-    const title = val('promo-title');
-    const promoType = val('promo-type');
-    const promoValue = val('promo-value');
-    const targetType = val('promo-target-type');
-    const targetCategory = val('promo-target-category');
-    
-    if (!title) return showToast('error', 'נא להזין שם למבצע');
-    if (!promoValue) return showToast('error', 'נא להזין את ערך המבצע');
-    if (targetType === 'category' && !targetCategory) return showToast('error', 'נא להזין את שם הקטגוריה');
-
-    const btn = getEl('btn-submit-promo'); btn.disabled = true; btn.innerText = 'שומר...';
-    try {
-        const payload = { 
-            groupId: currentGroup.id, title, promoType, promoValue, targetType, 
-            targetIds: targetType === 'category' ? [targetCategory] : [],
-            startDate: val('promo-start-date') || null, endDate: val('promo-end-date') || null,
-            showInBanner: getEl('promo-show-banner').checked, showInTab: getEl('promo-show-tab').checked, bgColor: val('promo-bg-color')
-        };
-        
-        const url = id ? `${API}/store/promotions/${id}` : `${API}/store/promotions`;
-        const method = id ? 'PUT' : 'POST';
-        
-        const res = await fetch(url, {
-            method: method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', id ? 'המבצע עודכן בהצלחה!' : 'המבצע נוצר ופעיל!');
-            getEl('promotion-modal').classList.add('hidden');
-            fetchStorePromotions();
-        } else { showToast('error', data.error || 'שגיאה בשמירת המבצע'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerText = 'שמור והפעל'; }
-}
-
-async function deleteStorePromotion(id) {
-    if(!confirm('האם למחוק מבצע זה?')) return;
-    try { await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק'); fetchStorePromotions(); } catch(e) {}
-}
-
-async function toggleStorePromotion(id, isActive) {
-    try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
-}
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -3917,7 +3726,9 @@ async function submitStoreProduct() {
         else { showToast('error', data.error || 'שגיאה בשמירה'); }
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
+
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
+
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
 async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/orders/${currentGroup.id}`); const data = await res.json(); storeOrdersCache = Array.isArray(data) ? data : []; renderStoreOrders(); } catch(e) {} }
@@ -4047,6 +3858,7 @@ function handleProductImageBase64(event) {
 }
 
 function openGlobalAIAssistant() { getEl('global-ai-input').value = ''; getEl('global-ai-modal').classList.remove('hidden'); }
+
 async function submitGlobalAI() {
     const inputEl = getEl('global-ai-input'); const query = inputEl.value.trim(); if (!query) return;
     const chatBox = getEl('global-ai-chat'); chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`; inputEl.value = '';
@@ -4137,6 +3949,7 @@ async function rejectSABizRequest(communityId, businessId) {
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
+
 function filterSACommSelect() {
     const queryInput = getEl('sa-search-comm-select');
     const query = queryInput ? queryInput.value.toLowerCase() : '';
@@ -4270,189 +4083,184 @@ async function deleteSACommunity(id) {
     loadSACommunityData();
 }
 
-async function deleteSACommunity(id) {
-    if(!confirm('למחוק את הקהילה לצמיתות?')) return;
-    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
-    loadSACommunityData();
-}
-
-async function saveWelcomeMsg(type = 'FAMILY') { 
-    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
-    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
-    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    try { 
-        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
-        if ((await res.json()).success) {
-            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
-        } else {
-            showToast('error', 'שגיאה בשמירת ההודעה');
-        }
-    } catch(e) { 
-        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
-    }
+async function saveWelcomeMsg(type = 'FAMILY') { 
+    const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
+    const btn = document.querySelector(`button[onclick="saveWelcomeMsg('${type}')"]`);
+    if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try { 
+        const res = await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); 
+        if ((await res.json()).success) {
+            showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); 
+        } else {
+            showToast('error', 'שגיאה בשמירת ההודעה');
+        }
+    } catch(e) { 
+        showToast('error', 'תקלת תקשורת בשמירת ההודעה'); 
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
+    }
 }
 
 async function loadBizCommunities() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
-        
-        let data;
-        try { data = await res.json(); } catch(err) { return; }
-        
-        if (!res.ok) { return; }
-        
-        if (data.success && data.communities) {
-            const list = document.getElementById('biz-my-communities-list');
-            if (list) {
-                if (data.communities.length === 0) {
-                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
-                } else {
-                    list.innerHTML = data.communities.map(c => {
-                        let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
-                        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
-                        
-                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
-                    }).join('');
-                }
-            }
-        }
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        
+        let data;
+        try { data = await res.json(); } catch(err) { return; }
+        
+        if (!res.ok) { return; }
+        
+        if (data.success && data.communities) {
+            const list = document.getElementById('biz-my-communities-list');
+            if (list) {
+                if (data.communities.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">העסק אינו מחובר לאף קהילה כרגע.</p>';
+                } else {
+                    list.innerHTML = data.communities.map(c => {
+                        let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
+                        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
+                        
+                        return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
+                    }).join('');
+                }
+            }
+        }
 
-        await loadBizAvailableCommunities();
-        
-    } catch(e) { console.error("Error loading biz communities", e); }
+        await loadBizAvailableCommunities();
+        
+    } catch(e) { console.error("Error loading biz communities", e); }
 }
 
 let bizAvailableCommCache = [];
 
 async function loadBizAvailableCommunities() {
-    try {
-        if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success && data.communities) {
-            bizAvailableCommCache = data.communities;
-            filterBizAvailableCommunities();
-        }
-    } catch(e) { console.error("Error loading available communities", e); }
+    try {
+        if (!currentGroup || !currentGroup.id) return;
+        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.communities) {
+            bizAvailableCommCache = data.communities;
+            filterBizAvailableCommunities();
+        }
+    } catch(e) { console.error("Error loading available communities", e); }
 }
 
 function filterBizAvailableCommunities() {
-    const list = document.getElementById('biz-available-communities-list');
-    if (!list) return;
+    const list = document.getElementById('biz-available-communities-list');
+    if (!list) return;
 
-    const cityFilter = (val('biz-filter-city') || '').toLowerCase();
-    const sizeFilter = val('biz-filter-size') || 'all';
-    const multiFilter = getEl('biz-filter-multi') ? getEl('biz-filter-multi').checked : false;
+    const cityFilter = (val('biz-filter-city') || '').toLowerCase();
+    const sizeFilter = val('biz-filter-size') || 'all';
+    const multiFilter = getEl('biz-filter-multi') ? getEl('biz-filter-multi').checked : false;
 
-    let filtered = [...bizAvailableCommCache];
+    let filtered = [...bizAvailableCommCache];
 
-    if (cityFilter) {
-        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
-    }
-    
-    if (sizeFilter !== 'all') {
-        const minSize = parseInt(sizeFilter);
-        filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
-    }
+    if (cityFilter) {
+        filtered = filtered.filter(c => c.city && c.city.toLowerCase().includes(cityFilter));
+    }
+    
+    if (sizeFilter !== 'all') {
+        const minSize = parseInt(sizeFilter);
+        filtered = filtered.filter(c => parseInt(c.families_count || 0) >= minSize);
+    }
 
-    if (multiFilter) {
-        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
-    }
+    if (multiFilter) {
+        filtered = filtered.filter(c => c.city && c.city.split(',').filter(x => x.trim()).length >= 2);
+    }
 
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
-        return;
-    }
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6 bg-slate-50 rounded-xl w-full sm:col-span-2 border border-dashed border-slate-200">לא נמצאו קהילות פתוחות התואמות לחיפוש.</p>';
+        return;
+    }
 
-    list.innerHTML = filtered.map(c => {
-        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
-        return `
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-3">
-                <div>
-                    ${imgHtml}
-                    <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
-                </div>
-                <div class="flex flex-col gap-1 items-end">
-                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
-                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-user"></i> ${c.users_count || 0} משתמשים</span>
-                </div>
-            </div>
-            <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
-        </div>
-        `;
-    }).join('');
+    list.innerHTML = filtered.map(c => {
+        const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-full object-cover shadow-sm mb-2 border border-slate-100">` : '';
+        return `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    ${imgHtml}
+                    <h4 class="font-bold text-slate-800">${safeStr(c.name)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')}</p>
+                </div>
+                <div class="flex flex-col gap-1 items-end">
+                    <span class="bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-house"></i> ${c.families_count || 0} משפחות</span>
+                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold text-[10px]"><i class="fa-solid fa-user"></i> ${c.users_count || 0} משתמשים</span>
+                </div>
+            </div>
+            <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name)}')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition mt-2">בקשת הצטרפות</button>
+        </div>
+        `;
+    }).join('');
 }
 
 function openBizJoinModal(id, name) {
-    const idEl = getEl('biz-join-comm-id');
-    const nameEl = getEl('biz-join-comm-name');
-    const modal = getEl('biz-join-community-modal');
-    if (idEl && nameEl && modal) {
-        idEl.value = id;
-        nameEl.innerText = `בקשת הצטרפות ל: ${name}`;
-        getEl('biz-join-discount').value = '';
-        modal.classList.remove('hidden');
-    }
+    const idEl = getEl('biz-join-comm-id');
+    const nameEl = getEl('biz-join-comm-name');
+    const modal = getEl('biz-join-community-modal');
+    if (idEl && nameEl && modal) {
+        idEl.value = id;
+        nameEl.innerText = `בקשת הצטרפות ל: ${name}`;
+        getEl('biz-join-discount').value = '';
+        modal.classList.remove('hidden');
+    }
 }
 
 async function submitBizCommunityJoin() {
-    const commId = getEl('biz-join-comm-id').value;
-    const discount = parseFloat(getEl('biz-join-discount').value);
-    
-    if (isNaN(discount) || discount < 0) return showToast('error', 'יש להזין אחוז הנחה תקין (אפשרי 0)');
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            showToast('success', 'בקשת ההצטרפות נשלחה לניהול הקהילה!');
-            getEl('biz-join-community-modal').classList.add('hidden');
-            loadBizCommunities();
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
+    const commId = getEl('biz-join-comm-id').value;
+    const discount = parseFloat(getEl('biz-join-discount').value);
+    
+    if (isNaN(discount) || discount < 0) return showToast('error', 'יש להזין אחוז הנחה תקין (אפשרי 0)');
+    
+    try {
+        const res = await fetch(`${API}/biz/communities/join`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', 'בקשת ההצטרפות נשלחה לניהול הקהילה!');
+            getEl('biz-join-community-modal').classList.add('hidden');
+            loadBizCommunities();
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+        }
+    } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
 async function leaveBizCommunity(commId) {
-    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
-    
-    try {
-        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'התנתקת מהקהילה בהצלחה.');
-            loadBizCommunities();
-        } else {
-            showToast('error', 'שגיאה בהתנתקות מהקהילה');
-        }
-    } catch(e) { showToast('error', 'תקלת רשת'); }
+    if(!confirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
+    
+    try {
+        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'התנתקת מהקהילה בהצלחה.');
+            loadBizCommunities();
+        } else {
+            showToast('error', 'שגיאה בהתנתקות מהקהילה');
+        }
+    } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
 const originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
-    window.loadSADashboard = async function() {
-        const userDash = document.getElementById('dashboard-container');
-        if (userDash) userDash.classList.add('hidden');
-        
-        await originalLoadSADashboard();
-        try { loadSACommunityData(); } catch(e) {}
-        
-        setTimeout(() => {
-            if (userDash) userDash.classList.add('hidden');
-        }, 100);
-    };
-    window.saCommLoaded = true;
+    window.loadSADashboard = async function() {
+        const userDash = document.getElementById('dashboard-container');
+        if (userDash) userDash.classList.add('hidden');
+        
+        await originalLoadSADashboard();
+        try { loadSACommunityData(); } catch(e) {}
+        
+        setTimeout(() => {
+            if (userDash) userDash.classList.add('hidden');
+        }, 100);
+    };
+    window.saCommLoaded = true;
 }
+
 // ==========================================
 // --- ניהול רכש וספקים מורחב (B2B Procurement) ---
 // ==========================================
@@ -4617,9 +4425,10 @@ async function submitSupplier() {
 }
 
 async function deleteSupplier(id) {
-    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
-    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
+    if(!confirm('האם למחוק ספק זה? יימחקו גם כל המוצרים בקטלוג שלו! לא ניתן לבטל.')) return;
+    try { await fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }); showToast('success', 'הספק והקטלוג שלו נמחקו בהצלחה'); fetchSuppliers(); } catch(e) {}
 }
+
 // -----------------------------------------
 // קטלוג מוצרים ספציפי (במודאל מנהל) + תמיכה במק"ט
 // -----------------------------------------
@@ -5647,7 +5456,7 @@ function skipWizardStep() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.5 (אשף הקמה חכם לעסקים + מניעת קריסת PDF)';
+        badge.innerHTML = 'גרסה 2.1.9 (מודול הצעות מחיר משופר ומלא)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
