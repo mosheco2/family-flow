@@ -666,7 +666,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','sales','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','shop','sales','customers','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -676,7 +676,7 @@ function switchTab(t) {
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
-    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון לטעינת הפיד המרכזי
+    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} 
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -684,6 +684,7 @@ function switchTab(t) {
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
     if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
+    if (t === 'customers') { try { if(typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {} }
     if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
     if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
@@ -1003,6 +1004,7 @@ const ALL_TABS = [
     { id: 'shop', name: 'רכש ארגוני 🛒' },
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'customers', name: 'לקוחות 🤝' },
     { id: 'bank', name: 'כספים 💳' },
     { id: 'cashflow', name: 'תזרים מזומנים 💸' },
     { id: 'budget', name: 'תקציבים 📊' },
@@ -1015,7 +1017,7 @@ const ALL_TABS = [
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
     'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
