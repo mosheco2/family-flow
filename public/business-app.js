@@ -413,6 +413,53 @@ function injectBusinessUI() {
             <div id="store-quotes-list" class="space-y-3 pb-8"></div>
         </div>`);
     }
+    if(!getEl('content-customers')) {
+        const contentSales = getEl('content-sales') || getEl('content-feed');
+        if(contentSales) {
+            contentSales.insertAdjacentHTML('afterend', `
+            <div id="content-customers" class="hidden">
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800 text-lg">מועדון לקוחות 🤝</h3>
+                        <button onclick="openNewCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
+                        <select id="filter-customer-type" onchange="fetchStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                            <option value="all">כל הלקוחות</option>
+                            <option value="order">רוכשים בחנות</option>
+                            <option value="quote">מבקשי הצעות מחיר</option>
+                        </select>
+                    </div>
+                    <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                </div>
+            </div>
+            `);
+        }
+    }
+
+    if(!getEl('customer-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
+                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
+                    <h3 class="text-lg font-black text-indigo-900">הוספת לקוח חדש</h3>
+                    <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm h-16"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100 bg-slate-50 flex">
+                    <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור לקוח</button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
     if(!getEl('quote-preview-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="quote-preview-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-3">
