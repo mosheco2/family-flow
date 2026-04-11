@@ -2866,7 +2866,7 @@ window.submitTargetDatetime = async function() {
     finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
 };
 
-async function submitNewCustomer() {
+window.submitNewCustomer = async function() {
     const name = val('cust-name');
     if(!name) return showToast('error', 'שם הלקוח הוא שדה חובה');
     const btn = getEl('btn-submit-customer');
@@ -2886,7 +2886,58 @@ async function submitNewCustomer() {
         } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאת רשת בשמירה'); }
     finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
-}
+};
+
+let storeCustomersCache = [];
+
+window.fetchStoreCustomers = async function() {
+    try {
+        const type = val('filter-customer-type') || 'all';
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}?type=${type}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            window.renderStoreCustomers();
+        }
+    } catch(e) { console.error("Error fetching customers:", e); }
+};
+
+window.renderStoreCustomers = function() {
+    const list = getEl('store-customers-list');
+    if(!list) return;
+
+    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+    const filtered = storeCustomersCache.filter(c => {
+        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
+        return searchStr.includes(searchTerm);
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+        const initial = (c.name || '?').charAt(0).toUpperCase();
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
+                    ${initial}
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
+                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
+                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
+                    </div>
+                </div>
+            </div>
+            ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[200px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+        </div>
+    `}).join('');
+};
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
