@@ -651,7 +651,8 @@
                             
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                               <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                                <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                                <button id="btn-sales-customers" onclick="switchSalesTab('customers')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">לקוחות</button>
                                 <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
                                 <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
                                 <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
@@ -671,15 +672,7 @@
                                 </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
                             </div>
-
-                            <div id="sales-view-catalog" class="hidden space-y-4">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
-                                    <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> מוצר חדש</button>
-                                </div>
-                                <div id="store-catalog-list" class="space-y-3 pb-8"></div>
-                            </div>
-
+                            <div id="sales-view-catalog">
                             <div id="sales-view-marketing" class="hidden space-y-8">
                                 <div>
                                     <div class="flex justify-between items-center mb-4">
