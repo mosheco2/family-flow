@@ -402,17 +402,32 @@ function injectBusinessUI() {
             `);
         }
     }
-        if(!getEl('sales-view-quotes')) {
-        const ordersView = getEl('sales-view-orders');
-        if(ordersView) ordersView.insertAdjacentHTML('afterend', `
-        <div id="sales-view-quotes" class="hidden space-y-4">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
-                <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> הצעה חדשה</button>
+
+    if(!getEl('content-customers')) {
+        const contentSales = getEl('content-sales') || getEl('content-feed');
+        if(contentSales) {
+            contentSales.insertAdjacentHTML('afterend', `
+            <div id="content-customers" class="hidden">
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800 text-lg">מועדון לקוחות 🤝</h3>
+                        <button onclick="openNewCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
+                        <select id="filter-customer-type" onchange="fetchStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                            <option value="all">כל הלקוחות</option>
+                            <option value="order">רוכשים בחנות</option>
+                            <option value="quote">מבקשי הצעות מחיר</option>
+                        </select>
+                    </div>
+                    <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                </div>
             </div>
-            <div id="store-quotes-list" class="space-y-3 pb-8"></div>
-        </div>`);
+            `);
+        }
     }
+
     if(!getEl('quote-preview-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="quote-preview-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-3">
@@ -466,6 +481,29 @@ function injectBusinessUI() {
         </div>
         `);
     }
+    
+    if(!getEl('customer-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
+                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
+                    <h3 class="text-lg font-black text-indigo-900">הוספת לקוח חדש</h3>
+                    <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm dir-ltr text-left"></div>
+                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm h-16"></textarea></div>
+                </div>
+                <div class="p-4 border-t border-slate-100 bg-slate-50 flex">
+                    <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור לקוח</button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
 
     if(!getEl('tab-shifts')) {
         const tabPantry = getEl('tab-pantry');
@@ -474,6 +512,10 @@ function injectBusinessUI() {
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
         if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+    }
+    if(!getEl('tab-customers')) {
+        const tabSales = getEl('tab-sales');
+        if(tabSales) tabSales.insertAdjacentHTML('afterend', `<button onclick="switchTab('customers')" id="tab-customers" class="tab-btn border border-indigo-200 text-indigo-700 hover:bg-indigo-50">לקוחות 🤝</button>`);
     }
 
     if(!getEl('shift-modal')) {
@@ -666,7 +708,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','sales','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','shop','sales','customers','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -676,7 +718,7 @@ function switchTab(t) {
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
     
-    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} // תיקון לטעינת הפיד המרכזי
+    if (t === 'feed') try { renderUnifiedFeed(); } catch(e) {} 
     if (t === 'cashflow') try { renderCashflow(); } catch(e) {} 
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -684,6 +726,7 @@ function switchTab(t) {
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
     if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
+    if (t === 'customers') { try { fetchStoreCustomers(); } catch(e) {} }
     if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
     if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
@@ -1003,6 +1046,7 @@ const ALL_TABS = [
     { id: 'shop', name: 'רכש ארגוני 🛒' },
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
+    { id: 'customers', name: 'לקוחות 🤝' },
     { id: 'bank', name: 'כספים 💳' },
     { id: 'cashflow', name: 'תזרים מזומנים 💸' },
     { id: 'budget', name: 'תקציבים 📊' },
@@ -1015,7 +1059,7 @@ const ALL_TABS = [
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales'],
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
     'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
@@ -2685,23 +2729,77 @@ async function fetchStoreQuotes() {
         }
 
         storeQuotesCache = data.quotes;
-        list.innerHTML = data.quotes.map(q => `
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3 hover:shadow-md transition">
+        renderStoreQuotes();
+    } catch(e) {}
+}
+
+function renderStoreQuotes() {
+    const list = getEl('store-quotes-list');
+    if(!list) return;
+    
+    const statuses = {
+        'draft': 'טיוטה (טרם נשלחה)',
+        'sent': 'נשלחה ללקוח',
+        'waiting_customer': 'ממתינה לאישור לקוח',
+        'frozen': 'הוקפאה / הושהתה',
+        'cancelled': 'בוטלה ע"י הלקוח'
+    };
+
+    list.innerHTML = storeQuotesCache.map(q => {
+        const currentStatus = q.quote_status || 'draft';
+        const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
+        
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name)}</h4>
                     <p class="text-lg font-black text-indigo-600 mt-0.5">₪${parseFloat(q.total_amount).toFixed(2)}</p>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
                 </div>
-                <div class="flex gap-1.5 shrink-0 mr-2">
-                    <button onclick="openEditQuoteModal(${q.id})" title="ערוך" class="bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button>
-                    <button onclick="openQuotePreview(${q.id})" title="תצוגה מקדימה / PDF" class="bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i></button>
-                    <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" title="שלח בווצאפ" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm"><i class="fa-brands fa-whatsapp"></i></button>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400">
+                        ${optionsHtml}
+                    </select>
+                    <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
                 </div>
             </div>
-        `).join('');
-    } catch(e) {}
+            <div class="flex gap-2 border-t border-slate-100 pt-3">
+                <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
+                <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
+                <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+            </div>
+        </div>
+    `}).join('');
 }
 
+async function updateQuoteStatus(id, status) {
+    try {
+        await fetch(`${API}/store/quotes/${id}/status`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ quoteStatus: status })
+        });
+        showToast('success', 'סטטוס הצעת המחיר עודכן');
+    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+}
+
+async function approveQuoteToOrder(id) {
+    const datetime = prompt('הצעת המחיר תאושר ותעבור מיד לרשימת ההזמנות לביצוע.\n\nהזן תאריך ושעת יעד לאספקה (למשל: 2026-05-01 14:00), או השאר ריק:');
+    if (datetime === null) return; 
+    try {
+        const res = await fetch(`${API}/store/quotes/${id}/approve`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetDatetime: datetime || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            triggerConfetti();
+            showToast('success', 'מעולה! ההצעה אושרה והועברה לניהול הזמנות.');
+            fetchStoreQuotes();
+            fetchStoreOrders(); 
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת במעבר ההזמנה'); }
+}
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
@@ -2988,10 +3086,9 @@ function generateQuoteHtml(quote, settings) {
     const bname = safeStr(currentGroup.name || '');
     const date = new Date(quote.created_at).toLocaleDateString('he-IL');
     
-    // עיצוב טבלה צפוף יותר (padding הוקטן ל-4px) כדי שהפריטים ייראו צמודים כמו במסמך מקצועי
     const rowsHtml = items.map((item, i) => `
         <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
-            <td style="padding:4px 8px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
+            <td style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
                     <div>
@@ -3000,31 +3097,31 @@ function generateQuoteHtml(quote, settings) {
                     </div>
                 </div>
             </td>
-            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
-            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-            <td style="padding:4px 8px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
+            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
+            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
+            <td style="padding:6px 10px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
         
     return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
             <div style="text-align:right;">
                 <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">הצעת מחיר</h1>
-                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="display:inline-block; margin-left:4px;" dir="rtl">מספר:</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="display:inline-block; margin-left:4px;" dir="rtl">תאריך:</span> <span dir="ltr">${date}</span></p>
+                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="font-weight:bold;">מספר:&#x200F;</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="font-weight:bold;">תאריך:&#x200F;</span> <span dir="ltr">${date}</span></p>
             </div>
             ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0;">${bname}</h2>`}
         </div>
         
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
             <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">מאת (הספק):</p>
+                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">מאת (הספק):&#x200F;</p>
                 <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${bname}</p>
-                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="display:inline-block; margin-left:4px;" dir="rtl">ח.פ / ע.מ:</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(phone)}</span></p>` : ''}
+                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="font-weight:bold;">ח.פ / ע.מ:&#x200F;</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
+                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">טלפון:&#x200F;</span> <span dir="ltr">${safeStr(phone)}</span></p>` : ''}
             </div>
             <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">עבור (הלקוח):</p>
+                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">עבור (הלקוח):&#x200F;</p>
                 <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
-                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
+                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">טלפון:&#x200F;</span> <span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
             </div>
         </div>
         
@@ -3045,22 +3142,22 @@ function generateQuoteHtml(quote, settings) {
         <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
             <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="font-size:12px; color:#64748b;">סכום ביניים:</span>
+                    <span style="font-size:12px; color:#64748b;">סכום ביניים:&#x200F;</span>
                     <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
                 </div>
                 ${discount > 0 ? `
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
-                    <span style="font-size:12px; color:#ef4444;">הנחה (${discount}%):</span>
+                    <span style="font-size:12px; color:#ef4444;">הנחה (${discount}%):&#x200F;</span>
                     <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
                 </div>` : ''}
                 <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
-                    <span style="font-size:14px; font-weight:900; color:#1e293b;">סה"כ לתשלום:</span>
+                    <span style="font-size:14px; font-weight:900; color:#1e293b;">סה"כ לתשלום:&#x200F;</span>
                     <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
                 </div>
             </div>
         </div>
         
-        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; font-weight:bold;"><span style="display:inline-block; margin-left:4px;" dir="rtl">תוקף ההצעה:</span> <span style="font-weight:normal;" dir="rtl">${safeStr(validity)}</span></p>` : ''}
+        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right;"><span style="font-weight:bold;">תוקף ההצעה:&#x200F;</span> <span dir="rtl">${safeStr(validity)}</span></p>` : ''}
         ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; text-align:right; line-height:1.4;">${notesText}</div>` : ''}
     </div>`;
 }
@@ -5462,7 +5559,104 @@ function skipWizardStep() {
     if (currentWizardStep === 4) nextWizardStep(); // סיום
     else { currentWizardStep++; updateWizardUI(); }
 }
+// ==========================================
+// --- מועדון לקוחות (Customers Club) ---
+// ==========================================
+let storeCustomersCache = [];
 
+async function fetchStoreCustomers() {
+    try {
+        const type = val('filter-customer-type') || 'all';
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}?type=${type}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            renderStoreCustomers();
+        }
+    } catch(e) { console.error("Error fetching customers:", e); }
+}
+
+function renderStoreCustomers() {
+    const list = getEl('store-customers-list');
+    if(!list) return;
+
+    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+
+    // סינון לוקאלי על פי טקסט חיפוש (שם, טלפון, ח.פ, או מייל)
+    const filtered = storeCustomersCache.filter(c => {
+        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
+        return searchStr.includes(searchTerm);
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+        const initial = (c.name || '?').charAt(0).toUpperCase();
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
+                    ${initial}
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
+                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
+                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
+                    </div>
+                </div>
+            </div>
+            ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[200px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+        </div>
+    `}).join('');
+}
+
+function openNewCustomerModal() {
+    getEl('cust-name').value = '';
+    getEl('cust-phone').value = '';
+    getEl('cust-email').value = '';
+    getEl('cust-business-id').value = '';
+    getEl('cust-notes').value = '';
+    getEl('customer-modal').classList.remove('hidden');
+}
+
+async function submitNewCustomer() {
+    const name = val('cust-name');
+    if(!name) return showToast('error', 'שם הלקוח הוא שדה חובה');
+    
+    const btn = getEl('btn-submit-customer');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
+    
+    try {
+        const res = await fetch(`${API}/store/customers`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                name: name,
+                phone: val('cust-phone'),
+                email: val('cust-email'),
+                businessId: val('cust-business-id'),
+                notes: val('cust-notes')
+            })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'לקוח חדש נשמר במאגר!');
+            getEl('customer-modal').classList.add('hidden');
+            fetchStoreCustomers(); 
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת הלקוח');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בשמירת הלקוח');
+    } finally {
+        btn.disabled = false; btn.innerText = 'שמור לקוח';
+    }
+}
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
