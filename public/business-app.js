@@ -481,7 +481,7 @@ function injectBusinessUI() {
         </div>
         `);
     }
-
+    
     if(!getEl('customer-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
@@ -595,6 +595,31 @@ function injectBusinessUI() {
         `);
     }
 }
+function startEmployeeTour() {
+    switchTab('feed'); const intro = introJs();
+    intro.setOptions({
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        steps: [
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
+        ]
+    });
+    intro.onbeforechange(function(targetElement) { 
+        if(!targetElement) return; const id = targetElement.id;
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
+    });
+    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+}
 
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
@@ -639,7 +664,7 @@ async function handleLogin(e) {
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
-            loadDashboard(); 
+            loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
         } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
@@ -653,11 +678,12 @@ async function handleCreate(e) {
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
-            loadDashboard(); 
+            loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
         } else showToast('error', data.error); 
     } catch(e) { showToast('error', 'שגיאה בחיבור לשרת'); } finally { toggleLoader('login', false); } 
 }
 
+// נוספה פונקציית בחירת סוג שחשובה למסך ההרשמה שלא היתה
 function handleTypeSelection(type) {
     const typeInput = getEl('create-type'); if(typeInput) typeInput.value = type;
     const btnBiz = getEl('type-business'); const btnFam = getEl('type-family'); const nameInput = getEl('create-group-name');
@@ -678,7 +704,6 @@ async function handleJoin(e) {
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }
-
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
@@ -708,7 +733,6 @@ function switchTab(t) {
     if (t === 'tasks') { try { renderTasks(allTasks); } catch(e) {} }
     if (t === 'members') { try { fetchMembers(); } catch(e) {} }
 }
-
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
@@ -723,7 +747,10 @@ function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
         const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
         if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) { modal.style.setProperty('z-index', '9999999', 'important'); modal.classList.remove('hidden'); }
+        if (modal) { 
+            modal.style.setProperty('z-index', '9999999', 'important'); 
+            modal.classList.remove('hidden'); 
+        }
         return false;
     }
     return true;
@@ -745,6 +772,7 @@ async function loadDashboard() {
         
         const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         
+        // חשיפת כפתורי פעולה לאחר כניסה
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
         const aiAssistant = document.querySelector('.fixed.bottom-40.right-6.animate-pulse'); if(aiAssistant) aiAssistant.classList.remove('hidden');
         const waButton = document.querySelector('a[href^="https://wa.me/"]'); if(waButton) waButton.classList.remove('hidden');
@@ -800,9 +828,11 @@ async function loadDashboard() {
         try { if(typeof fetchLoans === 'function') await fetchLoans(); } catch(e){}
         try { if(typeof checkTimeclockStatus === 'function') await checkTimeclockStatus(); } catch(e){}
 
+       // התיקון הקריטי להצגת הנתונים: פתיחת הטאב הראשי ובדיקת הודעת פתיחה
         switchTab('feed');
         try { await checkGlobalWelcome(); } catch(e) {}
 
+        // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
         if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
             setTimeout(showOnboardingWizard, 1000);
         }
@@ -817,7 +847,8 @@ async function loadDashboard() {
         }
     }
 }
-        
+       
+// -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
     if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
     if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס ממיקום זה.')) return;
@@ -848,6 +879,7 @@ async function checkTimeclockStatus() {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
             icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; text.innerText = "כניסה"; info.classList.add('hidden');
         }
+        // רענון אוטומטי של הרשימה למטה בכל פעם שהסטטוס נבדק (פותר את הבעיה שלא רואים יציאה/כניסה)
         fetchTimeclockReport();
     } catch(e) {}
 }
@@ -910,6 +942,7 @@ async function submitManualPunch() {
         await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         showToast('success', 'דווח בהצלחה!');
         getEl('manual-punch-modal').classList.add('hidden');
+        // רענון אוטומטי של הרשימה
         fetchTimeclockReport();
     } catch(e) {
         showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
@@ -928,6 +961,7 @@ async function fetchTimeclockReport() {
         const res = await fetch(reqUrl); 
         let rawData = await res.json();
         
+        // הגנה קריטית: חילוץ המערך למקרה והשרת עוטף אותו באובייקט
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
         if (monthFilter !== 'all') {
@@ -978,6 +1012,7 @@ async function fetchTimeclockReport() {
                      </div>`;
         });
         
+        // עדכון כרטיסי KPI בראש הטאב
         let totalMinutes = 0, totalCost = 0;
         for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
         const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
@@ -2765,7 +2800,6 @@ async function approveQuoteToOrder(id) {
         } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאת רשת במעבר ההזמנה'); }
 }
-
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
@@ -2911,6 +2945,7 @@ async function openNewQuoteModal(skipDataReset = false) {
         </div>
     `}).join('');
     
+    // משיכת ח.פ משמירה קודמת (לנוחות המשתמש)
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
     if(!skipDataReset) {
@@ -2919,12 +2954,13 @@ async function openNewQuoteModal(skipDataReset = false) {
         getEl('quote-notes').value = '';
         getEl('quote-discount').value = '';
         getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = '';
+        getEl('quote-intro-text').value = ''; // מתחיל ריק לחלוטין כדי שה-AI לא יתערבב
         getEl('quote-total-display').innerText = '₪0';
         getEl('quote-before-discount').innerText = '';
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
+    // הזרקת שדה "ח.פ/ע.מ" לממשק אם הוא חסר
     if (!getEl('quote-company-id')) {
         const topGrid = getEl('quote-cust-name').parentElement.parentElement;
         topGrid.className = "grid grid-cols-3 gap-2";
@@ -2965,6 +3001,7 @@ async function submitNewQuote() {
     const companyId = val('quote-company-id');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
 
+    // שמירת הח.פ/ע.מ במטמון לשימוש עתידי
     if (companyId) localStorage.setItem('ofl_company_id', companyId);
 
     const btn = getEl('btn-generate-quote');
@@ -2986,6 +3023,7 @@ async function submitNewQuote() {
         companyId
     });
 
+    // שימוש בטריק כדי להכניס את ההערות לתוך עמודת items, ככה זה חוקי ב-DB ולא זורק שגיאה
     const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
 
     try {
@@ -3001,8 +3039,9 @@ async function submitNewQuote() {
             try { triggerConfetti(); } catch(e) {}
             showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
             getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes(); 
+            fetchStoreQuotes(); // ירענן את הרשימה מהשרת
             
+            // פתיחה אוטומטית של חלון תצוגה מקדימה / הורדה אחרי יצירה
             const createdId = editId || data.quoteId || data.id; 
             if (createdId) {
                 setTimeout(() => openQuotePreview(createdId), 800);
@@ -3033,151 +3072,6 @@ async function openQuotePreview(id) {
     getEl('quote-preview-modal').classList.remove('hidden');
 }
 
-function generateQuoteHtml(quote, settings) {
-    let notesObj = {};
-    const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
-    
-    const metaItem = allItems.find(i => i.is_quote_metadata);
-    if (metaItem) {
-        try { notesObj = JSON.parse(metaItem.data); } catch(e) {}
-    } else {
-        try { notesObj = JSON.parse(quote.notes || '{}'); } catch(e) {}
-    }
-    
-    const items = allItems.filter(i => !i.is_quote_metadata);
-
-    const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
-    const validity = notesObj.validity || '';
-    const discount = parseFloat(notesObj.discount) || 0;
-    const companyId = notesObj.companyId || localStorage.getItem('ofl_company_id') || '';
-    const notesText = (notesObj.notes || '').replace(/\n/g,'<br>');
-    
-    let subtotal = 0; items.forEach(i => subtotal += (parseFloat(i.quantity)||0) * (parseFloat(i.price_at_order)||0));
-    const total = subtotal * (1 - discount / 100);
-    const logo = settings.logo_url || '';
-    const phone = settings.phone || settings.whatsapp_number || '';
-    const bname = safeStr(currentGroup.name || '');
-    const date = new Date(quote.created_at).toLocaleDateString('he-IL');
-    
-    const rowsHtml = items.map((item, i) => `
-        <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
-            <td style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
-                    <div>
-                        ${safeStr(item.name||item.item_name||'')}
-                        ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${safeStr(item.note)}</div>` : ''}
-                    </div>
-                </div>
-            </td>
-            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
-            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-            <td style="padding:6px 10px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
-        </tr>`).join('');
-        
-    return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
-            <div style="text-align:right;">
-                <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">הצעת מחיר</h1>
-                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="font-weight:bold;">מספר:&#x200F;</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="font-weight:bold;">תאריך:&#x200F;</span> <span dir="ltr">${date}</span></p>
-            </div>
-            ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0;">${bname}</h2>`}
-        </div>
-        
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-            <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">מאת (הספק):&#x200F;</p>
-                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${bname}</p>
-                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="font-weight:bold;">ח.פ / ע.מ:&#x200F;</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">טלפון:&#x200F;</span> <span dir="ltr">${safeStr(phone)}</span></p>` : ''}
-            </div>
-            <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">עבור (הלקוח):&#x200F;</p>
-                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
-                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">טלפון:&#x200F;</span> <span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
-            </div>
-        </div>
-        
-        ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; line-height:1.4;">${introText}</div>` : ''}
-        
-        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; border:1px solid #e2e8f0;">
-            <thead>
-                <tr style="background:#4f46e5; color:white;">
-                    <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">פריט מבוקש</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">כמות</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">מחיר יחידה</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">סה"כ</th>
-                </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-        </table>
-        
-        <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-            <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="font-size:12px; color:#64748b;">סכום ביניים:&#x200F;</span>
-                    <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
-                </div>
-                ${discount > 0 ? `
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
-                    <span style="font-size:12px; color:#ef4444;">הנחה (${discount}%):&#x200F;</span>
-                    <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
-                </div>` : ''}
-                <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
-                    <span style="font-size:14px; font-weight:900; color:#1e293b;">סה"כ לתשלום:&#x200F;</span>
-                    <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
-                </div>
-            </div>
-        </div>
-        
-        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right;"><span style="font-weight:bold;">תוקף ההצעה:&#x200F;</span> <span dir="rtl">${safeStr(validity)}</span></p>` : ''}
-        ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; text-align:right; line-height:1.4;">${notesText}</div>` : ''}
-    </div>`;
-}
-
-function editQuoteFromPreview() {
-    getEl('quote-preview-modal').classList.add('hidden');
-    if(currentPreviewQuoteId) openEditQuoteModal(currentPreviewQuoteId);
-}
-
-function shareQuoteWhatsAppFromPreview() {
-    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
-    if(!quote) return;
-    shareQuoteWhatsApp(quote.id, quote.customer_phone);
-}
-
-async function downloadCurrentQuotePDF() {
-    const quote = storeQuotesCache.find(q => q.id == currentPreviewQuoteId);
-    if(!quote) return;
-    
-    const isLoaded = await loadHtml2Pdf();
-    if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
-    showToast('info', 'מפיק ומוריד מסמך PDF...');
-    
-    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const cname = safeStr(quote.customer_name || 'לקוח').replace(/[\/\\?%*:|"<> ]/g, '_');
-    const dateStr = new Date(quote.created_at).toLocaleDateString('he-IL').replace(/\./g, '-');
-    const pdfFilename = `${bname}_${cname}_הצעה-${quote.id}_${dateStr}.pdf`;
-
-    const elementToPrint = getEl('quote-preview-content').firstElementChild;
-    if (!elementToPrint) return showToast('error', 'לא נמצא תוכן להדפסה');
-
-    const opt = { 
-        margin: [5, 5, 5, 5], 
-        filename: pdfFilename, 
-        image: { type: 'jpeg', quality: 1 }, 
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-    };
-    
-    html2pdf().set(opt).from(elementToPrint).save().then(() => { 
-        showToast('success','הורד בהצלחה למכשיר!'); 
-    }).catch(err => {
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-    });
-}
-
-async function openEditQuoteModal(id) {
 function generateQuoteHtml(quote, settings) {
     let notesObj = {};
     const allItems = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
@@ -4031,6 +3925,7 @@ async function updateStoreOrderStatus(status) {
         fetchStoreOrders(); 
     } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 }
+
 async function generateStoreProductAI() {
     const name = val('sp-name'); if(!name) return showToast('error', 'נא להזין קודם את שם המוצר בשדה למעלה');
     executeWithAIWarning(async () => {
