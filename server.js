@@ -1743,6 +1743,68 @@ app.post('/api/store/orders/status', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// --- עדכון תאריך יעד להזמנה ---
+app.patch('/api/store/orders/:id/target-date', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עדכון סטטוס הצעת מחיר ---
+app.patch('/api/store/quotes/:id/status', async (req, res) => {
+    try {
+        const { quoteStatus } = req.body;
+        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', [quoteStatus, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- אישור הצעת מחיר והפיכתה להזמנה פעילה ---
+app.post('/api/store/quotes/:id/approve', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        const quoteId = req.params.id;
+        
+        // שליפת ההצעה
+        const quoteRes = await pool.query('SELECT * FROM store_quotes WHERE id = $1', [quoteId]);
+        if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
+        const quote = quoteRes.rows[0];
+        
+        // יצירת הזמנה חדשה
+        await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status) 
+             VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
+            [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, quote.items, targetDatetime || null]
+        );
+        
+        // עדכון סטטוס ההצעה ל"אושרה"
+        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- מועדון לקוחות ---
+app.get('/api/store/customers/:groupId', async (req, res) => {
+    try {
+        // שולף לקוחות וממיין מהחדש לישן
+        const result = await pool.query('SELECT * FROM store_customers WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        res.json({ success: true, customers: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/store/customers', async (req, res) => {
+    try {
+        const { groupId, name, phone, email, businessId, notes } = req.body;
+        const result = await pool.query(
+            `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [groupId, name, phone, email, businessId, notes]
+        );
+        res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 app.get('/api/storefront/:code', async (req, res) => {
     try {
