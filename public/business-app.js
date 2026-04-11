@@ -2366,7 +2366,7 @@ function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) 
             datasets: [{ 
                 data: chartData, 
                 backgroundColor: chartBg, 
-                borderWidth: 2, 
+               borderWidth: 2, 
                 hoverOffset: 4 
             }] 
         }, 
@@ -2384,12 +2384,13 @@ function drawForecastCharts(incomeData, expenseData, totalIncome, totalExpense) 
                     }
                 },
                 tooltip: {
-                    enabled: hasData // מכבה טולטיפ כשאין נתונים
+                    enabled: hasData
                 }
             } 
         } 
     });
 }
+
 function getForecastInsight() {
     executeWithAIWarning(async () => {
         showAIModal('רואת העתידות', null); getEl('familai-loading-text').innerText = 'מחשבת את התזרים הצפוי...';
@@ -2403,7 +2404,6 @@ function getForecastInsight() {
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
 }
-
 function initAccessibility() { 
     const saved = localStorage.getItem('ofl_accessibility'); 
     if(saved) { try { accState = JSON.parse(saved); applyAccessibility(); } catch(e) {} } 
