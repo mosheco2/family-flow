@@ -2828,21 +2828,14 @@ function applyQuotePreset(type, idx) {
     if(presets[idx]) getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value = presets[idx];
 }
 
-async function generateQuoteAI(type, btnElement) {
+async function generateQuoteAI(type) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const query = type === 'intro' 
         ? `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.` 
         : `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע"מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    
-    const originalHtml = btnElement ? btnElement.innerHTML : '';
-    if (btnElement) {
-        btnElement.disabled = true;
-        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
-    }
-    
-    showToast('info', 'ה-AI מעבד בקשה, המתן מספר שניות...');
+    showToast('info', 'ה-AI מנסח טקסט עסקי, המתן שניה...');
     
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { 
@@ -2861,6 +2854,7 @@ async function generateQuoteAI(type, btnElement) {
         }
         
         if (data.success && data.answer) { 
+            // ניקוי עמוק של כל הקדמה שיחתית ומרכאות
             let finalOutput = data.answer.replace(/["*]/g, '').trim();
             finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim(); 
             getEl(targetId).value = finalOutput;
@@ -2870,14 +2864,8 @@ async function generateQuoteAI(type, btnElement) {
         }
     } catch(e) { 
         showToast('error', 'תקלת רשת מול שרת ה-AI'); 
-    } finally {
-        if (btnElement) {
-            btnElement.disabled = false;
-            btnElement.innerHTML = originalHtml;
-        }
     }
 }
-
 function ensureQuoteHeaders(forceRefresh = false) {
     const introPresets = getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
     const notesPresets = getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
@@ -2888,7 +2876,7 @@ function ensureQuoteHeaders(forceRefresh = false) {
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('intro')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-intro" onchange="applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${introPresets}</select>
                 <button type="button" onclick="saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
@@ -2901,7 +2889,7 @@ function ensureQuoteHeaders(forceRefresh = false) {
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('notes')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-notes" onchange="applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${notesPresets}</select>
                 <button type="button" onclick="saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
@@ -3866,64 +3854,95 @@ function renderStoreOrders() {
         'shipped': { text: 'במשלוח 🚚', color: 'bg-purple-100 text-purple-700 border-purple-200' },
         'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } 
     };
-    
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
-        let targetDateHtml = '';
-        
-        if (o.target_datetime) {
-            targetDateHtml = `<span class="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg border border-blue-100 font-bold"><i class="fa-regular fa-clock"></i> יעד מסירה: <span dir="ltr">${safeStr(o.target_datetime)}</span></span>`;
-        } else {
-            targetDateHtml = `<span class="text-slate-400">לא הוגדר יעד לאספקה</span>`;
-        }
+        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
+    }); list.innerHTML = html;
+}
 
+// --- מערכת קופונים ---
+let storeCouponsCache = [];
+
+async function fetchStoreCoupons() {
+    try {
+        const res = await fetch(`${API}/store/coupons/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCouponsCache = data.coupons || [];
+            renderStoreCoupons();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function renderStoreCoupons() {
+    const list = getEl('store-coupons-list');
+    if (storeCouponsCache.length === 0) {
+        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">לא הוגדרו קופונים בחנות.</p>';
+        return;
+    }
+    
+    let html = '';
+    storeCouponsCache.forEach(c => {
+        const isExpired = c.valid_until && new Date(c.valid_until) < new Date();
+        const dateStr = c.valid_until ? new Date(c.valid_until).toLocaleDateString('he-IL') : 'ללא תפוגה';
+        const expiredTag = isExpired ? '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded ml-2">פג תוקף</span>' : '';
+        
         html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 hover:shadow-md transition">
-            <div class="flex items-center justify-between cursor-pointer" onclick="openStoreOrderModal(${o.id})">
-                <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
-                    <p class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-1">
-                        <span><i class="fa-regular fa-user"></i> ${safeStr(o.customer_name)}</span> 
-                        <span>| ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span>
-                    </p>
+        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm ${isExpired ? 'opacity-60' : ''}">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-50 text-indigo-700 font-mono font-bold px-3 py-1.5 rounded-lg text-sm border border-indigo-100">${safeStr(c.code)}</div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold text-slate-800">${c.discount_pct}% הנחה ${expiredTag}</span>
+                    <span class="text-[10px] text-slate-500">תוקף: ${dateStr}</span>
                 </div>
-                <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
             </div>
-            <div class="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
-                <div class="text-[10px]">${targetDateHtml}</div>
-                <button onclick="editOrderTargetDate(${o.id}, '${safeStr(o.target_datetime || '')}')" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-calendar-day"></i> עדכן יעד</button>
-            </div>
+            <button onclick="deleteStoreCoupon(${c.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
         </div>`;
-    }); 
+    });
     list.innerHTML = html;
 }
 
-async function editOrderTargetDate(orderId, currentDate) {
-    const datetime = prompt('הזן תאריך ושעת יעד לאספקה (לדוגמה: 2026-05-01 14:00):', currentDate || '');
-    if (datetime === null) return;
+async function createStoreCoupon() {
+    const code = val('coupon-code');
+    const discountPct = val('coupon-discount');
+    const validUntil = val('coupon-date');
+    
+    if (!code || !discountPct) return showToast('error', 'חובה להזין קוד ואחוז הנחה');
+    
     try {
-        const res = await fetch(`${API}/store/orders/${orderId}/target-date`, {
-            method: 'PATCH', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ targetDatetime: datetime })
+        const res = await fetch(`${API}/store/coupons`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code, discountPct, validUntil })
         });
         const data = await res.json();
-        if(data.success) { 
-            showToast('success', 'תאריך היעד עודכן בהצלחה!'); 
-            fetchStoreOrders(); 
-        } else { 
-            showToast('error', data.error || 'שגיאה בעדכון התאריך'); 
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת בעדכון תאריך'); }
+        if (data.success) {
+            showToast('success', 'קופון נוצר בהצלחה!');
+            getEl('coupon-code').value = ''; getEl('coupon-discount').value = ''; getEl('coupon-date').value = '';
+            fetchStoreCoupons();
+        } else { showToast('error', data.error || 'שגיאה ביצירת קופון'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteStoreCoupon(id) {
+    if(!confirm('האם אתה בטוח שברצונך למחוק את הקופון?')) return;
+    try {
+        await fetch(`${API}/store/coupons/${id}`, { method: 'DELETE' });
+        showToast('success', 'קופון נמחק');
+        fetchStoreCoupons();
+    } catch(e) { showToast('error', 'שגיאה במחיקה'); }
+}
+
+function openStoreOrderModal(orderId) {
+    currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
+    getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
+    let itemsHtml = '';
+    if(order.items) order.items.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
+    getEl('so-modal-items').innerHTML = itemsHtml; getEl('store-order-modal').classList.remove('hidden');
 }
 
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
-    try { 
-        await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); 
-        showToast('success', 'סטטוס ההזמנה עודכן!'); 
-        getEl('store-order-modal').classList.add('hidden'); 
-        fetchStoreOrders(); 
-    } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
+    try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
 }
 
 async function generateStoreProductAI() {
