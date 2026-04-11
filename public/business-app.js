@@ -599,6 +599,30 @@ function injectBusinessUI() {
         </div>
         `);
     }
+    
+    // מודאל גלובלי לבחירת תאריך יעד עם יומן
+    if(!getEl('target-datetime-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="target-datetime-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[120] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
+                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
+                    <h3 id="target-date-modal-title" class="text-lg font-black text-indigo-900">בחירת תאריך יעד</h3>
+                    <button onclick="document.getElementById('target-datetime-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-4 text-center">
+                    <p id="target-date-modal-desc" class="text-xs text-slate-500 mb-4 leading-relaxed"></p>
+                    <div class="relative max-w-[200px] mx-auto">
+                        <input type="datetime-local" id="target-datetime-input" class="modern-input py-3 px-4 w-full bg-slate-50 text-slate-800 text-sm font-bold border-slate-200 rounded-xl focus:border-indigo-500 focus:bg-white transition dir-ltr shadow-inner cursor-pointer" style="font-family: inherit;">
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100 bg-slate-50 flex gap-3">
+                    <button onclick="document.getElementById('target-datetime-modal').classList.add('hidden')" class="flex-[0.8] bg-white border border-slate-200 text-slate-500 py-3 rounded-xl font-bold shadow-sm hover:bg-slate-100 transition">ביטול</button>
+                    <button id="btn-submit-target-date" onclick="submitTargetDatetime()" class="flex-[1.2] bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">אישור ועדכון</button>
+                </div>
+            </div>
+        </div>
+        `);
+    }
 }
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
@@ -2788,24 +2812,81 @@ async function updateQuoteStatus(id, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-async function approveQuoteToOrder(id) {
-    const datetime = prompt('הצעת המחיר תאושר ותעבור מיד לרשימת ההזמנות לביצוע.\n\nהזן תאריך ושעת יעד לאספקה (למשל: 2026-05-01 14:00), או השאר ריק:');
-    if (datetime === null) return; 
-    try {
-        const res = await fetch(`${API}/store/quotes/${id}/approve`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ targetDatetime: datetime || null })
-        });
-        const data = await res.json();
-        if (data.success) {
-            triggerConfetti();
-            showToast('success', 'מעולה! ההצעה אושרה והועברה לניהול הזמנות.');
-            fetchStoreQuotes();
-            if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
-        } else showToast('error', data.error);
-    } catch(e) { showToast('error', 'שגיאת רשת במעבר ההזמנה'); }
+let currentActionTargetId = null;
+let currentActionType = null; 
+
+window.approveQuoteToOrder = function(id) {
+    currentActionTargetId = id;
+    currentActionType = 'quote';
+    getEl('target-datetime-input').value = '';
+    getEl('target-date-modal-title').innerText = 'אישור הצעת מחיר';
+    getEl('target-date-modal-desc').innerText = 'ההצעה תאושר ותעבור מיד לרשימת ההזמנות. ניתן להגדיר תאריך ושעת יעד לאספקה:';
+    getEl('target-datetime-modal').classList.remove('hidden');
+};
+
+async function editOrderTargetDate(orderId, currentDate) {
+    currentActionTargetId = orderId;
+    currentActionType = 'order';
+    let formattedDate = '';
+    if (currentDate && currentDate !== 'null' && currentDate !== '') {
+        try {
+            const d = new Date(currentDate);
+            formattedDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+        } catch(e) {}
+    }
+    getEl('target-datetime-input').value = formattedDate;
+    getEl('target-date-modal-title').innerText = 'עדכון יעד אספקה';
+    getEl('target-date-modal-desc').innerText = 'בחר תאריך ושעה מעודכנים ליעד מסירת ההזמנה ללקוח:';
+    getEl('target-datetime-modal').classList.remove('hidden');
 }
 
+window.submitTargetDatetime = async function() {
+    const datetime = getEl('target-datetime-input').value;
+    const finalDatetime = datetime ? datetime.replace('T', ' ') : null; 
+    const btn = getEl('btn-submit-target-date');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מבצע...';
+
+    try {
+        const url = currentActionType === 'quote' ? `${API}/store/quotes/${currentActionTargetId}/approve` : `${API}/store/orders/${currentActionTargetId}/target-date`;
+        const method = currentActionType === 'quote' ? 'POST' : 'PATCH';
+        
+        const res = await fetch(url, {
+            method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetDatetime: finalDatetime })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'הפעולה בוצעה בהצלחה!');
+            getEl('target-datetime-modal').classList.add('hidden');
+            fetchStoreQuotes();
+            if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
+        } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
+};
+
+async function submitNewCustomer() {
+    const name = val('cust-name');
+    if(!name) return showToast('error', 'שם הלקוח הוא שדה חובה');
+    const btn = getEl('btn-submit-customer');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...'; }
+    try {
+        const res = await fetch(`${API}/store/customers`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                groupId: currentGroup.id, name, phone: val('cust-phone'), email: val('cust-email'), businessId: val('cust-business-id'), notes: val('cust-notes')
+            })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'לקוח חדש נשמר במאגר!');
+            getEl('customer-modal').classList.add('hidden');
+            if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); 
+        } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאת רשת בשמירה'); }
+    finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
+}
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
