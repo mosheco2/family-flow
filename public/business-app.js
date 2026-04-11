@@ -413,7 +413,7 @@ function injectBusinessUI() {
             <div id="store-quotes-list" class="space-y-3 pb-8"></div>
         </div>`);
     }
-    if(!getEl('content-customers')) {
+if(!getEl('content-customers')) {
         const contentSales = getEl('content-sales') || getEl('content-feed');
         if(contentSales) {
             contentSales.insertAdjacentHTML('afterend', `
@@ -421,11 +421,11 @@ function injectBusinessUI() {
                 <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-slate-800 text-lg">מועדון לקוחות 🤝</h3>
-                        <button onclick="document.getElementById('customer-modal').classList.remove('hidden');" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+                        <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
                     </div>
                     <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
-                        <select id="filter-customer-type" onchange="fetchStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                        <select id="filter-customer-type" onchange="renderStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
                             <option value="all">כל הלקוחות</option>
                             <option value="order">רוכשים בחנות</option>
                             <option value="quote">מבקשי הצעות מחיר</option>
@@ -443,10 +443,11 @@ function injectBusinessUI() {
         <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
                 <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
-                    <h3 class="text-lg font-black text-indigo-900">הוספת לקוח חדש</h3>
+                    <h3 id="customer-modal-title" class="text-lg font-black text-indigo-900">הוספת לקוח חדש</h3>
                     <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="p-5 space-y-4">
+                    <input type="hidden" id="cust-id">
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left"></div>
                     <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left"></div>
@@ -2866,26 +2867,120 @@ window.submitTargetDatetime = async function() {
     finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
 };
 
+window.openCustomerModal = function(id = null) {
+    const modal = getEl('customer-modal');
+    if (!modal) return;
+    
+    if (id) {
+        const c = storeCustomersCache.find(x => x.id === id);
+        if (c) {
+            getEl('cust-id').value = c.id;
+            getEl('cust-name').value = c.name || '';
+            getEl('cust-phone').value = c.phone || '';
+            getEl('cust-email').value = c.email || '';
+            getEl('cust-business-id').value = c.business_id || '';
+            getEl('cust-notes').value = c.notes || '';
+            if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'עריכת לקוח';
+        }
+    } else {
+        getEl('cust-id').value = '';
+        getEl('cust-name').value = '';
+        getEl('cust-phone').value = '';
+        getEl('cust-email').value = '';
+        getEl('cust-business-id').value = '';
+        getEl('cust-notes').value = '';
+        if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'הוספת לקוח חדש';
+    }
+    modal.classList.remove('hidden');
+};
+
 window.submitNewCustomer = async function() {
+    const id = val('cust-id');
     const name = val('cust-name');
     if(!name) return showToast('error', 'שם הלקוח הוא שדה חובה');
     const btn = getEl('btn-submit-customer');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...'; }
+    
     try {
-        const res = await fetch(`${API}/store/customers`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                groupId: currentGroup.id, name, phone: val('cust-phone'), email: val('cust-email'), businessId: val('cust-business-id'), notes: val('cust-notes')
-            })
+        const payload = { groupId: currentGroup.id, name, phone: val('cust-phone'), email: val('cust-email'), businessId: val('cust-business-id'), notes: val('cust-notes') };
+        const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
+        const method = id ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if(data.success) {
-            showToast('success', 'לקוח חדש נשמר במאגר!');
+            showToast('success', id ? 'לקוח עודכן בהצלחה!' : 'לקוח חדש נשמר במאגר!');
             getEl('customer-modal').classList.add('hidden');
             if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); 
         } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאת רשת בשמירה'); }
     finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
+};
+
+let storeCustomersCache = [];
+
+window.fetchStoreCustomers = async function() {
+    try {
+        // שולף מהשרת תמיד את כל הלקוחות
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            window.renderStoreCustomers();
+        }
+    } catch(e) { console.error("Error fetching customers:", e); }
+};
+
+window.renderStoreCustomers = function() {
+    const list = getEl('store-customers-list');
+    if(!list) return;
+
+    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+    const filterType = val('filter-customer-type') || 'all';
+
+    let filtered = storeCustomersCache.filter(c => {
+        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
+        return searchStr.includes(searchTerm);
+    });
+
+    // סינון חכם מקומי: בודק אם הלקוח (לפי שם או טלפון) קיים ברשימת ההזמנות או ההצעות שכבר נמשכו מהשרת
+    if (filterType === 'order') {
+        filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
+    } else if (filterType === 'quote') {
+        filtered = filtered.filter(c => storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone));
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+        const initial = (c.name || '?').charAt(0).toUpperCase();
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
+                    ${initial}
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
+                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
+                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+                <button onclick="openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+            </div>
+        </div>
+    `}).join('');
 };
 
 let storeCustomersCache = [];
