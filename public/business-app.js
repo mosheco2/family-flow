@@ -3032,6 +3032,7 @@ async function openQuotePreview(id) {
     getEl('quote-preview-modal').classList.remove('hidden');
 }
 
+function generateQuoteHtml(quote, settings) {
 async function fetchStoreQuotes() {
     try {
         const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
