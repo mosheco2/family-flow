@@ -26,10 +26,23 @@ const pool = new Pool({
 });
 
 pool.connect()
-  .then(async (client) => {
-      console.log('✅ Connected to DB (Pool)');
-      
-      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+  .then(async (client) => {
+      console.log('✅ Connected to DB (Pool)');
+      
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
+      try { await client.query('ALTER TABLE store_quotes ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
+      
+      await client.query(`CREATE TABLE IF NOT EXISTS store_customers (
+          id SERIAL PRIMARY KEY,
+          group_id INTEGER,
+          name VARCHAR(255),
+          phone VARCHAR(50),
+          email VARCHAR(255),
+          business_id VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
       try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
