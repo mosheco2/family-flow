@@ -2721,8 +2721,6 @@ function switchSalesTab(subTab) {
 
 let storeQuotesCache = [];
 
-let storeQuotesCache = [];
-
 async function fetchStoreQuotes() {
     try {
         const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
