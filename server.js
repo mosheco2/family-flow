@@ -1801,6 +1801,14 @@ app.patch('/api/store/orders/:id/target-date', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.patch('/api/store/orders/:id/target-date', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/storefront/:code', async (req, res) => {
     try {
         const gRes = await pool.query("SELECT id, name FROM family_groups WHERE group_code = $1", [req.params.code.toUpperCase()]);
