@@ -421,7 +421,7 @@ function injectBusinessUI() {
                 <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="font-bold text-slate-800 text-lg">מועדון לקוחות 🤝</h3>
-                        <button onclick="openNewCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+                        <button onclick="document.getElementById('customer-modal').classList.remove('hidden');" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
                     </div>
                     <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
@@ -2721,6 +2721,8 @@ function switchSalesTab(subTab) {
 
 let storeQuotesCache = [];
 
+let storeQuotesCache = [];
+
 async function fetchStoreQuotes() {
     try {
         const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
@@ -2734,27 +2736,81 @@ async function fetchStoreQuotes() {
         }
 
         storeQuotesCache = data.quotes;
-        list.innerHTML = data.quotes.map(q => `
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center mb-3 hover:shadow-md transition">
+        renderStoreQuotes();
+    } catch(e) {}
+}
+
+function renderStoreQuotes() {
+    const list = getEl('store-quotes-list');
+    if(!list) return;
+    
+    const statuses = {
+        'draft': 'טיוטה (טרם נשלחה)',
+        'sent': 'נשלחה ללקוח',
+        'waiting_customer': 'ממתינה לאישור לקוח',
+        'frozen': 'הוקפאה / הושהתה',
+        'cancelled': 'בוטלה ע"י הלקוח'
+    };
+
+    list.innerHTML = storeQuotesCache.map(q => {
+        const currentStatus = q.quote_status || 'draft';
+        const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
+        
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-3">
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name)}</h4>
                     <p class="text-lg font-black text-indigo-600 mt-0.5">₪${parseFloat(q.total_amount).toFixed(2)}</p>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
                 </div>
-                <div class="flex gap-1.5 shrink-0 mr-2">
-                    <button onclick="openEditQuoteModal(${q.id})" title="ערוך" class="bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button>
-                    <button onclick="openQuotePreview(${q.id})" title="תצוגה מקדימה / PDF" class="bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i></button>
-                    <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" title="שלח בווצאפ" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 w-9 h-9 rounded-xl flex items-center justify-center transition shadow-sm"><i class="fa-brands fa-whatsapp"></i></button>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;">
+                        ${optionsHtml}
+                    </select>
+                    <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
                 </div>
             </div>
-        `).join('');
-    } catch(e) {}
+            <div class="flex gap-2 border-t border-slate-100 pt-3">
+                <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
+                <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
+                <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
+            </div>
+        </div>
+    `}).join('');
+}
+
+async function updateQuoteStatus(id, status) {
+    try {
+        await fetch(`${API}/store/quotes/${id}/status`, {
+            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ quoteStatus: status })
+        });
+        showToast('success', 'סטטוס הצעת המחיר עודכן');
+    } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
+}
+
+async function approveQuoteToOrder(id) {
+    const datetime = prompt('הצעת המחיר תאושר ותעבור מיד לרשימת ההזמנות לביצוע.\n\nהזן תאריך ושעת יעד לאספקה (למשל: 2026-05-01 14:00), או השאר ריק:');
+    if (datetime === null) return; 
+    try {
+        const res = await fetch(`${API}/store/quotes/${id}/approve`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetDatetime: datetime || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            triggerConfetti();
+            showToast('success', 'מעולה! ההצעה אושרה והועברה לניהול הזמנות.');
+            fetchStoreQuotes();
+            if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
+        } else showToast('error', data.error);
+    } catch(e) { showToast('error', 'שגיאת רשת במעבר ההזמנה'); }
 }
 
 let selectedQuoteItems = {};
 let editingQuoteId = null;
 
-// --- ניהול תבניות להצעות מחיר + מודול AI ---
 function getQuotePresets(type) {
     try { return JSON.parse(localStorage.getItem(`ofl_quote_presets_${type}`)) || []; } catch(e) { return []; }
 }
@@ -2779,14 +2835,21 @@ function applyQuotePreset(type, idx) {
     if(presets[idx]) getEl(type === 'intro' ? 'quote-intro-text' : 'quote-notes').value = presets[idx];
 }
 
-async function generateQuoteAI(type) {
+async function generateQuoteAI(type, btnElement) {
     const custName = val('quote-cust-name') || 'לקוח יקר';
     const query = type === 'intro' 
         ? `כתוב 2 משפטי פתיחה רשמיים, מכובדים ומקצועיים להצעת מחיר עבור הלקוח: ${custName}. העסק השולח: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את המשפטים ללא שום מילת הקדמה מצידך.` 
         : `כתוב 3 סעיפים מפורטים, רשמיים ומקצועיים של תנאי תשלום והערות משפטיות להצעת מחיר (למשל: תוקף ההצעה 14 יום, המחיר אינו כולל מע"מ) עבור העסק: ${currentGroup.name}. חובה: ללא אימוג'ים או אייקונים כלל. החזר אך ורק את הסעיפים, ללא מילות פתיחה וללא סיכום.`;
     
     const targetId = type === 'intro' ? 'quote-intro-text' : 'quote-notes';
-    showToast('info', 'ה-AI מנסח טקסט עסקי, המתן שניה...');
+    
+    const originalHtml = btnElement ? btnElement.innerHTML : '';
+    if (btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מנסח...';
+    }
+    
+    showToast('info', 'ה-AI מעבד בקשה, המתן מספר שניות...');
     
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { 
@@ -2805,7 +2868,6 @@ async function generateQuoteAI(type) {
         }
         
         if (data.success && data.answer) { 
-            // ניקוי עמוק של כל הקדמה שיחתית ומרכאות
             let finalOutput = data.answer.replace(/["*]/g, '').trim();
             finalOutput = finalOutput.replace(/^(להלן|הנה|אלו|מצאתי|מצורפים|לבקשתך|הסעיפים).*?:?\n/i, '').trim(); 
             getEl(targetId).value = finalOutput;
@@ -2815,8 +2877,14 @@ async function generateQuoteAI(type) {
         }
     } catch(e) { 
         showToast('error', 'תקלת רשת מול שרת ה-AI'); 
+    } finally {
+        if (btnElement) {
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalHtml;
+        }
     }
 }
+
 function ensureQuoteHeaders(forceRefresh = false) {
     const introPresets = getQuotePresets('intro').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
     const notesPresets = getQuotePresets('notes').map((p,i) => `<option value="${i}">תבנית ${i+1}</option>`).join('');
@@ -2827,7 +2895,7 @@ function ensureQuoteHeaders(forceRefresh = false) {
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('intro')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('intro', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-intro" onchange="applyQuotePreset('intro', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${introPresets}</select>
                 <button type="button" onclick="saveQuotePreset('intro')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
@@ -2840,7 +2908,7 @@ function ensureQuoteHeaders(forceRefresh = false) {
         wrapper.className = 'flex justify-between items-center mb-1 mt-2';
         wrapper.innerHTML = `<label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
             <div class="flex gap-1">
-                <button type="button" onclick="generateQuoteAI('notes')" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                <button type="button" onclick="generateQuoteAI('notes', this)" class="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-purple-100 transition flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
                 <select id="sel-preset-notes" onchange="applyQuotePreset('notes', this.value)" class="text-[9px] bg-slate-50 border border-slate-200 text-slate-600 rounded px-1 py-0.5 outline-none w-16"><option value="">תבניות...</option>${notesPresets}</select>
                 <button type="button" onclick="saveQuotePreset('notes')" class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded shadow-sm hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-save"></i> שמור</button>
             </div>`;
@@ -2884,7 +2952,6 @@ async function openNewQuoteModal(skipDataReset = false) {
         </div>
     `}).join('');
     
-    // משיכת ח.פ משמירה קודמת (לנוחות המשתמש)
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
     if(!skipDataReset) {
@@ -2893,13 +2960,12 @@ async function openNewQuoteModal(skipDataReset = false) {
         getEl('quote-notes').value = '';
         getEl('quote-discount').value = '';
         getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = ''; // מתחיל ריק לחלוטין כדי שה-AI לא יתערבב
+        getEl('quote-intro-text').value = '';
         getEl('quote-total-display').innerText = '₪0';
         getEl('quote-before-discount').innerText = '';
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
-    // הזרקת שדה "ח.פ/ע.מ" לממשק אם הוא חסר
     if (!getEl('quote-company-id')) {
         const topGrid = getEl('quote-cust-name').parentElement.parentElement;
         topGrid.className = "grid grid-cols-3 gap-2";
@@ -2940,7 +3006,6 @@ async function submitNewQuote() {
     const companyId = val('quote-company-id');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
 
-    // שמירת הח.פ/ע.מ במטמון לשימוש עתידי
     if (companyId) localStorage.setItem('ofl_company_id', companyId);
 
     const btn = getEl('btn-generate-quote');
@@ -2962,7 +3027,6 @@ async function submitNewQuote() {
         companyId
     });
 
-    // שימוש בטריק כדי להכניס את ההערות לתוך עמודת items, ככה זה חוקי ב-DB ולא זורק שגיאה
     const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
 
     try {
@@ -2978,9 +3042,8 @@ async function submitNewQuote() {
             try { triggerConfetti(); } catch(e) {}
             showToast('success', editId ? 'הצעת המחיר עודכנה בהצלחה!' : 'הצעת המחיר נוצרה בהצלחה!');
             getEl('quote-modal').classList.add('hidden');
-            fetchStoreQuotes(); // ירענן את הרשימה מהשרת
+            fetchStoreQuotes(); 
             
-            // פתיחה אוטומטית של חלון תצוגה מקדימה / הורדה אחרי יצירה
             const createdId = editId || data.quoteId || data.id; 
             if (createdId) {
                 setTimeout(() => openQuotePreview(createdId), 800);
@@ -3024,6 +3087,10 @@ function generateQuoteHtml(quote, settings) {
     
     const items = allItems.filter(i => !i.is_quote_metadata);
 
+    // הפונקציה הזו מחליפה את כל הרווחים לרווחים קשיחים (Non-breaking spaces)
+    // כך ש-html2canvas לא 'יבלע' את הרווחים בהמרה של עברית.
+    const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
+
     const introText = (notesObj.introText || '').replace(/\n/g,'<br>');
     const validity = notesObj.validity || '';
     const discount = parseFloat(notesObj.discount) || 0;
@@ -3037,80 +3104,79 @@ function generateQuoteHtml(quote, settings) {
     const bname = safeStr(currentGroup.name || '');
     const date = new Date(quote.created_at).toLocaleDateString('he-IL');
     
-    // עיצוב טבלה צפוף יותר (padding הוקטן ל-4px) כדי שהפריטים ייראו צמודים כמו במסמך מקצועי
     const rowsHtml = items.map((item, i) => `
         <tr style="background:${i%2===0?'#ffffff':'#f8fafc'}; border-bottom:1px solid #e2e8f0;">
-            <td style="padding:4px 8px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
+            <td style="padding:6px 10px; font-size:12px; font-weight:600; color:#1e293b; text-align:right;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     ${item.image_url ? `<img src="${item.image_url}" style="width:24px; height:24px; border-radius:4px; object-fit:cover; border:1px solid #e2e8f0;">` : ''}
-                    <div>
-                        ${safeStr(item.name||item.item_name||'')}
-                        ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${safeStr(item.note)}</div>` : ''}
+                    <div style="direction:rtl; text-align:right;">
+                        ${nb(safeStr(item.name||item.item_name||''))}
+                        ${item.note ? `<div style="font-size:10px; color:#64748b; font-weight:normal; margin-top:2px;">${nb(safeStr(item.note))}</div>` : ''}
                     </div>
                 </div>
             </td>
-            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
-            <td style="padding:4px 8px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
-            <td style="padding:4px 8px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
+            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;">${item.quantity}</td>
+            <td style="padding:6px 10px; font-size:12px; text-align:center; color:#475569;" dir="ltr">₪${parseFloat(item.price_at_order).toFixed(2)}</td>
+            <td style="padding:6px 10px; font-size:12px; font-weight:700; text-align:center; color:#1e293b;" dir="ltr">₪${(parseFloat(item.quantity)*parseFloat(item.price_at_order)).toFixed(2)}</td>
         </tr>`).join('');
         
     return `<div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:30px; background:white; width:100%; max-width:900px; box-sizing:border-box; text-align:right;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:15px; border-bottom:3px solid #4f46e5; margin-bottom:20px;">
-            <div style="text-align:right;">
-                <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">הצעת מחיר</h1>
-                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="display:inline-block; margin-left:4px;" dir="rtl">מספר:</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="display:inline-block; margin-left:4px;" dir="rtl">תאריך:</span> <span dir="ltr">${date}</span></p>
+            <div style="text-align:right; direction:rtl;">
+                <h1 style="font-size:24px; font-weight:900; color:#1e293b; margin:0;">${nb('הצעת מחיר')}</h1>
+                <p style="font-size:12px; color:#64748b; margin:4px 0 0;"><span style="font-weight:bold;">${nb('מספר:')}&#x200F;</span> <span dir="ltr">#${quote.id}</span> &nbsp;|&nbsp; <span style="font-weight:bold;">${nb('תאריך:')}&#x200F;</span> <span dir="ltr">${date}</span></p>
             </div>
-            ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0;">${bname}</h2>`}
+            ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;">` : `<h2 style="font-size:20px; font-weight:900; color:#4f46e5; margin:0; direction:rtl;">${nb(bname)}</h2>`}
         </div>
         
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
-            <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">מאת (הספק):</p>
-                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${bname}</p>
-                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="display:inline-block; margin-left:4px;" dir="rtl">ח.פ / ע.מ:</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
-                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(phone)}</span></p>` : ''}
+            <div style="background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
+                <p style="font-size:10px; font-weight:700; color:#94a3b8; margin:0 0 4px; text-transform:uppercase;">${nb('מאת (הספק):')}&#x200F;</p>
+                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(bname)}</p>
+                ${companyId ? `<p style="font-size:11px; color:#64748b; margin:0 0 2px;"><span style="font-weight:bold;">${nb('ח.פ / ע.מ:')}&#x200F;</span> <span dir="ltr">${safeStr(companyId)}</span></p>` : ''}
+                ${phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(phone)}</span></p>` : ''}
             </div>
-            <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right;">
-                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">עבור (הלקוח):</p>
-                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${safeStr(quote.customer_name)}</p>
-                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
+            <div style="background:#eef2ff; border-radius:8px; padding:12px; border:1px solid #c7d2fe; text-align:right; direction:rtl;">
+                <p style="font-size:10px; font-weight:700; color:#818cf8; margin:0 0 4px; text-transform:uppercase;">${nb('עבור (הלקוח):')}&#x200F;</p>
+                <p style="font-size:14px; font-weight:900; color:#1e293b; margin:0 0 3px;">${nb(safeStr(quote.customer_name))}</p>
+                ${quote.customer_phone ? `<p style="font-size:11px; color:#64748b; margin:0;"><span style="font-weight:bold;">${nb('טלפון:')}&#x200F;</span> <span dir="ltr">${safeStr(quote.customer_phone)}</span></p>` : ''}
             </div>
         </div>
         
-        ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; line-height:1.4;">${introText}</div>` : ''}
+        ${introText ? `<div style="background:#f0f9ff; border-radius:8px; padding:12px 14px; margin-bottom:16px; border-right:4px solid #0ea5e9; font-size:13px; color:#0c4a6e; white-space:pre-wrap; text-align:right; direction:rtl; line-height:1.4;">${nb(introText)}</div>` : ''}
         
-        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; border:1px solid #e2e8f0;">
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; text-align:right; direction:rtl; border:1px solid #e2e8f0;">
             <thead>
                 <tr style="background:#4f46e5; color:white;">
-                    <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">פריט מבוקש</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">כמות</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">מחיר יחידה</th>
-                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">סה"כ</th>
+                    <th style="padding:8px 10px; text-align:right; font-size:12px; font-weight:600;">${nb('פריט מבוקש')}</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:70px;">${nb('כמות')}</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('מחיר יחידה')}</th>
+                    <th style="padding:8px 10px; text-align:center; font-size:12px; font-weight:600; width:90px;">${nb('סה"כ')}</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
         </table>
         
-        <div style="display:flex; justify-content:flex-end; margin-bottom:16px;">
-            <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right;">
+        <div style="display:flex; justify-content:flex-start; margin-bottom:16px; direction:ltr;">
+            <div style="min-width:220px; background:#f8fafc; border-radius:8px; padding:12px 16px; border:1px solid #e2e8f0; text-align:right; direction:rtl;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <span style="font-size:12px; color:#64748b;">סכום ביניים:</span>
                     <span style="font-size:12px; font-weight:700; color:#1e293b;" dir="ltr">₪${subtotal.toFixed(2)}</span>
+                    <span style="font-size:12px; color:#64748b;">${nb('סכום ביניים:')}&#x200F;</span>
                 </div>
                 ${discount > 0 ? `
                 <div style="display:flex; justify-content:space-between; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
-                    <span style="font-size:12px; color:#ef4444;">הנחה (${discount}%):</span>
                     <span style="font-size:12px; font-weight:700; color:#ef4444;" dir="ltr">-₪${(subtotal*discount/100).toFixed(2)}</span>
+                    <span style="font-size:12px; color:#ef4444;">${nb('הנחה')} (${discount}%):&#x200F;</span>
                 </div>` : ''}
                 <div style="display:flex; justify-content:space-between; padding-top:6px; border-top: ${discount > 0 ? 'none' : '1px solid #e2e8f0'};">
-                    <span style="font-size:14px; font-weight:900; color:#1e293b;">סה"כ לתשלום:</span>
                     <span style="font-size:16px; font-weight:900; color:#4f46e5;" dir="ltr">₪${total.toFixed(2)}</span>
+                    <span style="font-size:14px; font-weight:900; color:#1e293b;">${nb('סה"כ לתשלום:')}&#x200F;</span>
                 </div>
             </div>
         </div>
         
-        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; font-weight:bold;"><span style="display:inline-block; margin-left:4px;" dir="rtl">תוקף ההצעה:</span> <span style="font-weight:normal;" dir="rtl">${safeStr(validity)}</span></p>` : ''}
-        ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; text-align:right; line-height:1.4;">${notesText}</div>` : ''}
+        ${validity ? `<p style="font-size:11px; color:#94a3b8; margin-bottom:6px; text-align:right; direction:rtl;"><span style="font-weight:bold;">${nb('תוקף ההצעה:')}&#x200F;</span> <span dir="rtl">${nb(safeStr(validity))}</span></p>` : ''}
+        ${notesText ? `<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 12px; font-size:11px; color:#475569; white-space:pre-wrap; text-align:right; direction:rtl; line-height:1.4;">${nb(notesText)}</div>` : ''}
     </div>`;
 }
 
@@ -3200,7 +3266,6 @@ async function openEditQuoteModal(id) {
     calcQuoteTotal();
     getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 }
-
 // === Marketing (Promotions & Coupons) ===
 let storePromotionsCache = [];
 
