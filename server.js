@@ -1785,20 +1785,36 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
         if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
         const quote = quoteRes.rows[0];
         
-        // יצירת הזמנה חדשה עם נתוני ההצעה ותאריך היעד
-        await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
-            [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, quote.items, targetDatetime || null]
-        );
+        try {
+            await pool.query(
+                `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status) 
+                 VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
+                [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, quote.items, targetDatetime || null]
+            );
+        } catch(err) {
+            // הגנה במקרה שהשרת לא יצר את העמודות החדשות בזמן
+            await pool.query(
+                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status) 
+                 VALUES ($1, $2, $3, $4, 'new')`,
+                [quote.group_id, quote.customer_name, quote.total_amount, quote.items]
+            );
+        }
         
-        // עדכון סטטוס ההצעה ל"אושרה"
         await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
 
-// --- מועדון לקוחות ---
+// --- עדכון תאריך יעד לאספקת הזמנה ---
+app.patch('/api/store/orders/:id/target-date', async (req, res) => {
+    try {
+        const { targetDatetime } = req.body;
+        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'עמודת תאריך יעד חסרה במסד הנתונים. אנא הפעל מחדש את השרת כדי שייווצרו העמודות.' }); }
+});
+
+// --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_customers WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
@@ -1817,11 +1833,14 @@ app.post('/api/store/customers', async (req, res) => {
         res.json({ success: true, id: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// --- עדכון תאריך יעד להזמנה ---
-app.patch('/api/store/orders/:id/target-date', async (req, res) => {
+
+app.put('/api/store/customers/:id', async (req, res) => {
     try {
-        const { targetDatetime } = req.body;
-        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, req.params.id]);
+        const { name, phone, email, businessId, notes } = req.body;
+        await pool.query(
+            `UPDATE store_customers SET name=$1, phone=$2, email=$3, business_id=$4, notes=$5 WHERE id=$6`,
+            [name, phone, email, businessId, notes, req.params.id]
+        );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
