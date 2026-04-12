@@ -4153,15 +4153,23 @@ function openStoreOrderModal(orderId) {
     if(!order) return;
     
     getEl('so-modal-id').innerText = order.id; 
-    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); 
+    
+    // מניעת קריסה אם תאריך היצירה חסר בהזמנות ישנות
+    let dateStr = 'לא ידוע';
+    try { if (order.created_at) dateStr = new Date(order.created_at).toLocaleString('he-IL'); } catch(e) {}
+    getEl('so-modal-date').innerText = dateStr; 
+    
     getEl('so-modal-total').innerText = order.total_amount; 
     getEl('so-modal-customer').innerText = order.customer_name; 
     getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     
     let itemsHtml = '';
     if(order.items) {
-        const parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        let parsedItems = [];
+        try { parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) { parsedItems = []; }
+        
         parsedItems.forEach(i => { 
+            // תמיכה בפריטים שהגיעו מהצעת מחיר (name) או מהחנות (item_name)
             const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
             const itemPrice = i.price_at_order || i.price || 0;
             itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
