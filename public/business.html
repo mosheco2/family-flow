@@ -659,24 +659,24 @@
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
-                                                           <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
-                                <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                                <div class="flex gap-2">
-                                    <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
-                                        <option value="all">כל הסוגים</option>
-                                        <option value="from_store">הזמנת חנות</option>
-                                        <option value="from_quote">הזמנת לקוח</option>
-                                    </select>
-                                    <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
-                                        <option value="all">כל הסטטוסים</option>
-                                        <option value="new">חדשות</option>
-                                        <option value="processing">בהכנה</option>
-                                        <option value="ready">מוכנות</option>
-                                        <option value="shipped">במשלוח</option>
-                                        <option value="completed">הושלמו</option>
-                                    </select>
+                                <div class="flex flex-col gap-2 mb-2">
+                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
+                                    <div class="flex gap-2">
+                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                            <option value="all">כל הסוגים</option>
+                                            <option value="from_store">הזמנת חנות</option>
+                                            <option value="from_quote">הזמנת לקוח (מהצעה)</option>
+                                        </select>
+                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                            <option value="all">כל הסטטוסים</option>
+                                            <option value="new">חדשות</option>
+                                            <option value="processing">בהכנה</option>
+                                            <option value="ready">מוכנות</option>
+                                            <option value="shipped">במשלוח</option>
+                                            <option value="completed">הושלמו</option>
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
                             </div>
 
@@ -1797,7 +1797,7 @@
                 </div>
             </div>
         </div>
-        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div id="store-order-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                     <h3 class="text-xl font-black text-slate-800">הזמנה #<span id="so-modal-id"></span></h3>
@@ -1808,6 +1808,7 @@
                     <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-regular fa-user mr-1 text-slate-400"></i> לקוח: <span id="so-modal-customer" class="text-slate-900"></span></p>
                     <p class="text-sm font-bold text-slate-700 mb-1"><i class="fa-solid fa-phone mr-1 text-slate-400"></i> טלפון: <span id="so-modal-phone" class="text-slate-900 dir-ltr inline-block"></span></p>
                     <p class="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200"><i class="fa-regular fa-clock mr-1"></i> התקבל ב: <span id="so-modal-date"></span></p>
+                    <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-calendar-check mr-1 text-green-500"></i> יעד אספקה: <span id="so-modal-target" class="font-bold text-green-700"></span></p>
                 </div>
 
                 <h4 class="font-bold text-slate-700 text-sm mb-2">פירוט הפריטים:</h4>
