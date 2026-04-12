@@ -4116,8 +4116,6 @@ function renderStoreOrders() {
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
 
-
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
