@@ -425,7 +425,7 @@ if(!getEl('content-customers')) {
                     </div>
                     <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
-                        <select id="filter-customer-type" onchange="renderStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                        <select id="filter-customer-type" onchange="fetchStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
                             <option value="all">כל הלקוחות</option>
                             <option value="order">רוכשים בחנות</option>
                             <option value="quote">מבקשי הצעות מחיר</option>
