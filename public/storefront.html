@@ -343,12 +343,24 @@
             bannerContainer.innerHTML = promoHtml;
         }
 
-        function renderHeader() {
+       function renderHeader() {
             getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
             if(storeData.settings.logo_url) { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
             if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
             
+            // --- תמיכה ברקע/באנר ראשי דינמי מתוך מסד הנתונים ---
+            const headerEl = document.querySelector('header');
+            if (headerEl && storeData.settings.banner_url) {
+                headerEl.style.backgroundImage = `url('${safeStr(storeData.settings.banner_url)}')`;
+                headerEl.style.backgroundSize = 'cover';
+                headerEl.style.backgroundPosition = 'center';
+                // מוסיף שכבת שקיפות לבנה (Overlay) כדי שהלוגו והטקסטים השחורים עדיין יהיו קריאים וברורים על גבי כל תמונה
+                headerEl.classList.remove('bg-white');
+                headerEl.classList.add('bg-white/85', 'bg-blend-overlay');
+            }
+            // ----------------------------------------------------
+
             let showContactRow = false;
             if(storeData.settings.open_time && storeData.settings.close_time) {
                 getEl('header-hours-text').innerText = `${storeData.settings.open_time} - ${storeData.settings.close_time}`;
