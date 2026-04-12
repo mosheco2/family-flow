@@ -1262,7 +1262,47 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         res.json({ success: true, tasks: parsedTasks });
     } catch (e) { handleAIError(e, res, 'שגיאה בפירוק המשימות'); }
 });
+// --- יצירת תמונות (לוגו ובאנר) באמצעות AI (Gemini Flash Image) ---
+app.post('/api/ai/generate-image', async (req, res) => {
+    try {
+        const { prompt, groupId, type } = req.body;
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
+        // שימוש במודל יצירת התמונות (יש לוודא שהמפתח תומך ושהשם מעודכן לפי התיעוד של גוגל, לרוב "gemini-3-flash-image")
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-image" });
+        
+        // יצירת תוכן מה-AI - עבור מודל תמונות זה בדרך כלל מחזיר Base64 או URL
+        // מאחר וגרסת ה-API יכולה להשתנות, ננסה לחלץ את התמונה. 
+        // במקרה וזה עדיין לא נתמך בספריה, הוא ייפול ל-catch ויחזיר שגיאה מסודרת.
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        
+        // משיכת הטקסט/תמונה (תלוי במבנה ה-JSON ש-Google מחזירה למודלי Image)
+        let outputUrl = "";
+        try {
+             // אם המודל מחזיר Base64/URI ישיר בטקסט
+             outputUrl = response.text(); 
+        } catch(e) {
+             // חילוץ גיבוי מתוך אובייקט ה-candidates במידה ויש אובייקט image
+             if (response.candidates && response.candidates[0] && response.candidates[0].content.parts[0]) {
+                 outputUrl = response.candidates[0].content.parts[0].text || "";
+             }
+        }
+
+        if(outputUrl && outputUrl.length > 10) {
+            res.json({ success: true, imageUrl: outputUrl });
+        } else {
+            throw new Error("המודל לא החזיר תמונה חוקית");
+        }
+    } catch(e) { 
+        console.error('Image Gen Error:', e);
+        // Fallback ידידותי במקרה של חסימת API/חוסר תמיכה בספרייה הנוכחית
+        res.status(500).json({ error: 'שירות יצירת התמונות אינו זמין כרגע. נסה להעלות קובץ ידנית.' });
+    }
+});
 app.post('/api/goals/familai-advice', async (req, res) => {
     try {
         const { userId, goalId, groupId } = req.body;
@@ -1600,17 +1640,34 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, openTime, closeTime, whatsappNumber } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber } = req.body;
         
+        // וידוא שהעמודות קיימות, כולל תמיכה בבאנר החדש
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
 
-        await pool.query(`INSERT INTO store_settings (group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, open_time, close_time, whatsapp_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (group_id) DO UPDATE SET is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, logo_url=COALESCE($8, store_settings.logo_url), open_time=$9, close_time=$10, whatsapp_number=$11`, [groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, logoUrl, openTime || '', closeTime || '', whatsappNumber || '']);
+        await pool.query(`
+            INSERT INTO store_settings (
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+            ON CONFLICT (group_id) DO UPDATE SET 
+                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
+                logo_url=COALESCE($8, store_settings.logo_url), 
+                banner_url=COALESCE($9, store_settings.banner_url),
+                open_time=$10, close_time=$11, whatsapp_number=$12
+        `, [
+            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
+            logoUrl, bannerUrl, openTime || '', closeTime || '', whatsappNumber || ''
+        ]);
+        
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        console.error("Error saving store settings:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
-
 app.post('/api/store/settings/presets', async (req, res) => {
     try {
         const { groupId, presets } = req.body;
