@@ -2917,6 +2917,33 @@ window.submitNewCustomer = async function() {
 
 let storeCustomersCache = [];
 
+window.openCustomerModal = function(id = null) {
+    const modal = getEl('customer-modal');
+    if (!modal) return;
+    
+    if (id) {
+        const c = storeCustomersCache.find(x => x.id === id);
+        if (c) {
+            getEl('cust-id').value = c.id;
+            getEl('cust-name').value = c.name || '';
+            getEl('cust-phone').value = c.phone || '';
+            getEl('cust-email').value = c.email || '';
+            getEl('cust-business-id').value = c.business_id || '';
+            getEl('cust-notes').value = c.notes || '';
+            if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'עריכת לקוח';
+        }
+    } else {
+        if(getEl('cust-id')) getEl('cust-id').value = '';
+        getEl('cust-name').value = '';
+        getEl('cust-phone').value = '';
+        getEl('cust-email').value = '';
+        getEl('cust-business-id').value = '';
+        getEl('cust-notes').value = '';
+        if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'הוספת לקוח חדש';
+    }
+    modal.classList.remove('hidden');
+};
+
 window.renderStoreCustomers = function() {
     const list = getEl('store-customers-list');
     if(!list) return;
@@ -2929,7 +2956,6 @@ window.renderStoreCustomers = function() {
         return searchStr.includes(searchTerm);
     });
 
-    // סינון חכם מקומי: בודק אם הלקוח (לפי שם או טלפון) קיים ברשימת ההזמנות או ההצעות שכבר נמשכו מהשרת
     if (filterType === 'order') {
         filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
     } else if (filterType === 'quote') {
@@ -2960,7 +2986,7 @@ window.renderStoreCustomers = function() {
             </div>
             <div class="flex items-center gap-2">
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
-                <button onclick="openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="window.openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
             </div>
         </div>
     `}).join('');
