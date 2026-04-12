@@ -2949,18 +2949,6 @@ window.submitNewCustomer = async function() {
 
 let storeCustomersCache = [];
 
-window.fetchStoreCustomers = async function() {
-    try {
-        // שולף מהשרת תמיד את כל הלקוחות
-        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            storeCustomersCache = data.customers || [];
-            window.renderStoreCustomers();
-        }
-    } catch(e) { console.error("Error fetching customers:", e); }
-};
-
 window.renderStoreCustomers = function() {
     const list = getEl('store-customers-list');
     if(!list) return;
@@ -3009,10 +2997,14 @@ window.renderStoreCustomers = function() {
         </div>
     `}).join('');
 };
+
 window.fetchStoreCustomers = async function() {
     try {
         const type = val('filter-customer-type') || 'all';
-        const res = await fetch(`${API}/store/customers/${currentGroup.id}?type=${type}`);
+        const url = type === 'all'
+            ? `${API}/store/customers/${currentGroup.id}`
+            : `${API}/store/customers/${currentGroup.id}?type=${type}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
             storeCustomersCache = data.customers || [];
@@ -4110,7 +4102,14 @@ async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/
 
 function renderStoreOrders() {
     const list = getEl('store-orders-list'); const filter = val('store-orders-filter') || 'all'; let filteredOrders = storeOrdersCache;
-    if (filter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === filter);
+    if (filter === 'from_quote') {
+        filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
+    } else if (filter === 'from_store') {
+        filteredOrders = filteredOrders.filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status !== 'approved'));
+    } else if (filter !== 'all') {
+        filteredOrders = filteredOrders.filter(o => o.status === filter);
+    }
+
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
     const statusMap = { 
