@@ -1843,8 +1843,8 @@ app.get('/api/store/customers/:groupId', async (req, res) => {
             // לקוחות חנות: הזמנות שלא הגיעו מהצעת מחיר (quote_status='draft')
             result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='new' AND (so.quote_status IS NULL OR so.quote_status='draft') ORDER BY sc.name ASC`, [req.params.groupId]);
         } else if(type === 'quote') {
-            // לקוחות הצעת מחיר: הזמנות שאושרו מהצעת מחיר (quote_status='approved')
-            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.quote_status='approved' ORDER BY sc.name ASC`, [req.params.groupId]);
+            // לקוחות הצעת מחיר: יש להם הצעה ממתינה או מאושרת
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND (so.status='quote' OR so.quote_status='approved') ORDER BY sc.name ASC`, [req.params.groupId]);
         } else {
             result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
         }
