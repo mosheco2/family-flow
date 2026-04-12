@@ -1703,15 +1703,18 @@ app.put('/api/store/quotes/:id', async (req, res) => {
 
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
-        // מונע שליפת הצעות מחיר למסך ההזמנות!
-        const orders = await pool.query(`SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC`, [req.params.groupId]);
+        const orders = await pool.query("SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC", [req.params.groupId]);
         for (let o of orders.rows) {
             const items = await pool.query('SELECT * FROM store_order_items WHERE order_id=$1', [o.id]);
-            if(items.rows.length > 0) o.items = items.rows;
+            if (items.rows.length > 0) {
+                o.items = items.rows;
+            }
+            // else: keep JSONB items as-is (quote-converted orders store items in JSONB column)
         }
         res.json(orders.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
@@ -1834,20 +1837,18 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
 // --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM store_customers WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        const { type } = req.query;
+        let result;
+        if(type === 'order') {
+            // לקוחות חנות: הזמנות שלא הגיעו מהצעת מחיר (quote_status='draft')
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='new' AND (so.quote_status IS NULL OR so.quote_status='draft') ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else if(type === 'quote') {
+            // לקוחות הצעת מחיר: הזמנות שאושרו מהצעת מחיר (quote_status='approved')
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON so.group_id=sc.group_id AND (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.quote_status='approved' ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else {
+            result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        }
         res.json({ success: true, customers: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/customers', async (req, res) => {
-    try {
-        const { groupId, name, phone, email, businessId, notes } = req.body;
-        const result = await pool.query(
-            `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [groupId, name, phone, email, businessId, notes]
-        );
-        res.json({ success: true, id: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
