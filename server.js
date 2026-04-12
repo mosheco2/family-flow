@@ -1782,38 +1782,59 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
     try {
         const { targetDatetime } = req.body;
         const quoteId = req.params.id;
-        const quoteRes = await pool.query('SELECT * FROM store_quotes WHERE id = $1', [quoteId]);
+        const quoteRes = await pool.query('SELECT * FROM store_orders WHERE id = $1 AND status = \'quote\'', [quoteId]);
+        
         if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
         const quote = quoteRes.rows[0];
         
         let safeItems = quote.items;
-        if (typeof safeItems === 'object') safeItems = JSON.stringify(safeItems);
+        if (typeof safeItems !== 'string') safeItems = JSON.stringify(safeItems);
 
-        // יצירת ההזמנה - בצורה בטוחה שמונעת קריסות DB
         let orderId = null;
         try {
             const insertRes = await pool.query(
-                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status) 
-                 VALUES ($1, $2, $3, $4, 'new') RETURNING id`,
-                [quote.group_id, quote.customer_name, quote.total_amount, safeItems]
+                `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status, created_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, 'new', CURRENT_TIMESTAMP) RETURNING id`,
+                [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, safeItems, targetDatetime || null]
             );
             orderId = insertRes.rows[0].id;
         } catch(err) {
-             return res.status(500).json({ error: 'שגיאת מסד נתונים ביצירת ההזמנה' });
+            const fallbackRes = await pool.query(
+                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status, created_at) 
+                 VALUES ($1, $2, $3, $4, 'new', CURRENT_TIMESTAMP) RETURNING id`,
+                [quote.group_id, quote.customer_name, quote.total_amount, safeItems]
+            );
+            orderId = fallbackRes.rows[0].id;
+            try { await pool.query('UPDATE store_orders SET target_datetime = $1 WHERE id = $2', [targetDatetime || null, orderId]); } catch(e){}
+            try { await pool.query('UPDATE store_orders SET customer_phone = $1 WHERE id = $2', [quote.customer_phone || '', orderId]); } catch(e){}
         }
+
+        await pool.query(`UPDATE store_orders SET quote_status = 'approved' WHERE id = $1`, [quoteId]);
         
-        // עדכון שדות נוספים רק אם העמודות קיימות
-        if (orderId) {
-            try { await pool.query(`UPDATE store_orders SET target_datetime = $1 WHERE id = $2`, [targetDatetime || null, orderId]); } catch(err) {}
-            try { await pool.query(`UPDATE store_orders SET customer_phone = $1 WHERE id = $2`, [quote.customer_phone || '', orderId]); } catch(err) {}
-        }
-        
-        // עדכון סטטוס ההצעה ל"אושרה"
-        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
-        res.json({ success: true });
+        // יצירת לקוח ברקע
+        setTimeout(async () => {
+            try {
+                if (!quote.customer_name) return;
+                const custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [quote.group_id, quote.customer_name]);
+                if (custExist.rows.length === 0) {
+                    let businessId = '';
+                    try {
+                        const itemsArr = JSON.parse(safeItems);
+                        const meta = itemsArr.find(i => i.is_quote_metadata);
+                        if (meta) { businessId = JSON.parse(meta.data).companyId || ''; }
+                    } catch(e) {}
+                    await pool.query(
+                        `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
+                         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
+                        [quote.group_id, quote.customer_name, quote.customer_phone || '', '', businessId, `נוצר מאישור הצעה #${quoteId}`]
+                    );
+                }
+            } catch(e) { console.error('Background customer error:', e); }
+        }, 100);
+
+        res.json({ success: true, orderId: orderId });
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
-
 // --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {
@@ -1842,35 +1863,6 @@ app.put('/api/store/customers/:id', async (req, res) => {
             [name, phone, email, businessId, notes, req.params.id]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- עדכון סטטוס הצעת מחיר ---
-// --- מועדון לקוחות ---
-app.get('/api/store/customers/:groupId', async (req, res) => {
-    try {
-        const { type } = req.query;
-        let result;
-        if (type === 'quote') {
-            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='quote' ORDER BY sc.name ASC`, [req.params.groupId]);
-        } else if (type === 'order') {
-            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='new' AND (so.quote_status IS NULL OR so.quote_status != 'approved') ORDER BY sc.name ASC`, [req.params.groupId]);
-        } else {
-            result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
-        }
-        res.json({ success: true, customers: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/store/customers', async (req, res) => {
-    try {
-        const { groupId, name, phone, email, businessId, notes } = req.body;
-        const result = await pool.query(
-            `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [groupId, name, phone, email, businessId, notes]
-        );
-        res.json({ success: true, id: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
