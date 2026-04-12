@@ -72,7 +72,17 @@
                 <i class="fa-solid fa-search absolute right-7 top-6 text-slate-400"></i>
                 <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition">
             </div>
-            <div class="cat-slider" id="categories-container"></div>
+            <div class="relative w-full px-2 pb-2">
+                <button id="scroll-right-btn" onclick="scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+
+                <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
+
+                <button id="scroll-left-btn" onclick="scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+            </div>
         </div>
 
         <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
@@ -745,6 +755,46 @@ function openProductModal(itemId) {
         }
 
         initStore();
+     // ==========================================
+// לוגיקת חצי גלילה לקטגוריות החנות (משימה 1.1 - מתוקן)
+// ==========================================
+
+function scrollCategories(direction) {
+    const container = document.getElementById('categories-container');
+    if (container) {
+        const scrollAmount = 200; 
+        container.scrollBy({
+            left: direction * scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function updateScrollButtonsVisibility() {
+    const container = document.getElementById('categories-container');
+    const rightBtn = document.getElementById('scroll-right-btn');
+    const leftBtn = document.getElementById('scroll-left-btn');
+    
+    if (!container || !rightBtn || !leftBtn) return;
+
+    const isAtStart = container.scrollLeft === 0;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    const isAtEnd = Math.abs(container.scrollLeft) >= (maxScroll - 5);
+
+    rightBtn.style.opacity = isAtStart ? '0.3' : '1';
+    rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
+    
+    leftBtn.style.opacity = isAtEnd ? '0.3' : '1';
+    leftBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('categories-container');
+    if (container) {
+        container.addEventListener('scroll', updateScrollButtonsVisibility);
+        setTimeout(updateScrollButtonsVisibility, 800); // טריגר מושהה כדי לוודא שהקטגוריות נטענו מה-API
+    }
+});
     </script>
 </body>
 </html>
