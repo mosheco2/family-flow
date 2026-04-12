@@ -1771,7 +1771,7 @@ app.patch('/api/store/orders/:id/target-date', async (req, res) => {
 app.patch('/api/store/quotes/:id/status', async (req, res) => {
     try {
         const { quoteStatus } = req.body;
-        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', [quoteStatus, req.params.id]);
+        await pool.query(`UPDATE store_orders SET quote_status=$1 WHERE id=$2 AND status='quote'`, [quoteStatus, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1780,29 +1780,12 @@ app.patch('/api/store/quotes/:id/status', async (req, res) => {
 app.post('/api/store/quotes/:id/approve', async (req, res) => {
     try {
         const { targetDatetime } = req.body;
-        const quoteId = req.params.id;
-        const quoteRes = await pool.query('SELECT * FROM store_quotes WHERE id = $1', [quoteId]);
-        if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
-        const quote = quoteRes.rows[0];
-        
-        try {
-            await pool.query(
-                `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status) 
-                 VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
-                [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, quote.items, targetDatetime || null]
-            );
-        } catch(err) {
-            // הגנה במקרה שהשרת לא יצר את העמודות החדשות בזמן
-            await pool.query(
-                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status) 
-                 VALUES ($1, $2, $3, $4, 'new')`,
-                [quote.group_id, quote.customer_name, quote.total_amount, quote.items]
-            );
-        }
-        
-        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
+        await pool.query(
+            `UPDATE store_orders SET status='new', quote_status='approved', target_datetime=$1 WHERE id=$2`,
+            [targetDatetime || null, req.params.id]
+        );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- עדכון תאריך יעד לאספקת הזמנה ---
@@ -1846,43 +1829,18 @@ app.put('/api/store/customers/:id', async (req, res) => {
 });
 
 // --- עדכון סטטוס הצעת מחיר ---
-app.patch('/api/store/quotes/:id/status', async (req, res) => {
-    try {
-        const { quoteStatus } = req.body;
-        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', [quoteStatus, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// --- אישור הצעת מחיר והפיכתה להזמנה פעילה ---
-app.post('/api/store/quotes/:id/approve', async (req, res) => {
-    try {
-        const { targetDatetime } = req.body;
-        const quoteId = req.params.id;
-        
-        // שליפת ההצעה
-        const quoteRes = await pool.query('SELECT * FROM store_quotes WHERE id = $1', [quoteId]);
-        if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
-        const quote = quoteRes.rows[0];
-        
-        // יצירת הזמנה חדשה
-        await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status) 
-             VALUES ($1, $2, $3, $4, $5, $6, 'new')`,
-            [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, quote.items, targetDatetime || null]
-        );
-        
-        // עדכון סטטוס ההצעה ל"אושרה"
-        await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
 // --- מועדון לקוחות ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {
-        // שולף לקוחות וממיין מהחדש לישן
-        const result = await pool.query('SELECT * FROM store_customers WHERE group_id = $1 ORDER BY created_at DESC', [req.params.groupId]);
+        const { type } = req.query;
+        let result;
+        if (type === 'quote') {
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='quote' ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else if (type === 'order') {
+            result = await pool.query(`SELECT DISTINCT sc.* FROM store_customers sc JOIN store_orders so ON (so.customer_phone=sc.phone OR so.customer_name=sc.name) WHERE sc.group_id=$1 AND so.status='new' AND (so.quote_status IS NULL OR so.quote_status != 'approved') ORDER BY sc.name ASC`, [req.params.groupId]);
+        } else {
+            result = await pool.query('SELECT * FROM store_customers WHERE group_id=$1 ORDER BY created_at DESC', [req.params.groupId]);
+        }
         res.json({ success: true, customers: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
