@@ -3004,7 +3004,6 @@ window.renderStoreCustomers = function() {
         </div>
     `}).join('');
 };
-
 let storeCustomersCache = [];
 
 window.openCustomerModal = function(id = null) {
