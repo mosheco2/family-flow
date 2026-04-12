@@ -2867,59 +2867,27 @@ window.submitTargetDatetime = async function() {
     finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
 };
 
-window.openCustomerModal = function(id = null) {
+function openCustomerModal(id = null) {
     const modal = getEl('customer-modal');
-    if (!modal) return;
-    
+    if (!modal) { showToast('error', 'מודל לקוח לא נמצא'); return; }
+    const titleEl = getEl('customer-modal-title');
     if (id) {
-        const c = storeCustomersCache.find(x => x.id === id);
-        if (c) {
-            getEl('cust-id').value = c.id;
-            getEl('cust-name').value = c.name || '';
-            getEl('cust-phone').value = c.phone || '';
-            getEl('cust-email').value = c.email || '';
-            getEl('cust-business-id').value = c.business_id || '';
-            getEl('cust-notes').value = c.notes || '';
-            if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'עריכת לקוח';
-        }
+        const c = storeCustomersCache.find(x => parseInt(x.id) === parseInt(id));
+        if (!c) { showToast('error', 'לקוח לא נמצא במטמון'); return; }
+        getEl('cust-id').value = c.id;
+        getEl('cust-name').value = c.name || '';
+        getEl('cust-phone').value = c.phone || '';
+        getEl('cust-email').value = c.email || '';
+        getEl('cust-business-id').value = c.business_id || '';
+        getEl('cust-notes').value = c.notes || '';
+        if (titleEl) titleEl.innerText = 'עריכת לקוח';
     } else {
-        getEl('cust-id').value = '';
-        getEl('cust-name').value = '';
-        getEl('cust-phone').value = '';
-        getEl('cust-email').value = '';
-        getEl('cust-business-id').value = '';
-        getEl('cust-notes').value = '';
-        if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'הוספת לקוח חדש';
+        ['cust-id','cust-name','cust-phone','cust-email','cust-business-id','cust-notes'].forEach(id => { const el = getEl(id); if(el) el.value = ''; });
+        if (titleEl) titleEl.innerText = 'לקוח חדש';
     }
     modal.classList.remove('hidden');
-};
-
-window.openCustomerModal = function(id = null) {
-    const modal = getEl('customer-modal');
-    if (!modal) return;
-    
-    if (id) {
-        const c = storeCustomersCache.find(x => x.id === id);
-        if (c) {
-            getEl('cust-id').value = c.id;
-            getEl('cust-name').value = c.name || '';
-            getEl('cust-phone').value = c.phone || '';
-            getEl('cust-email').value = c.email || '';
-            getEl('cust-business-id').value = c.business_id || '';
-            getEl('cust-notes').value = c.notes || '';
-            if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'עריכת לקוח';
-        }
-    } else {
-        getEl('cust-id').value = '';
-        getEl('cust-name').value = '';
-        getEl('cust-phone').value = '';
-        getEl('cust-email').value = '';
-        getEl('cust-business-id').value = '';
-        getEl('cust-notes').value = '';
-        if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'הוספת לקוח חדש';
-    }
-    modal.classList.remove('hidden');
-};
+}
+window.openCustomerModal = openCustomerModal;
 
 window.submitNewCustomer = async function() {
     const id = val('cust-id');
@@ -4101,13 +4069,17 @@ async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה ל
 async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/orders/${currentGroup.id}`); const data = await res.json(); storeOrdersCache = Array.isArray(data) ? data : []; renderStoreOrders(); } catch(e) {} }
 
 function renderStoreOrders() {
-    const list = getEl('store-orders-list'); const filter = val('store-orders-filter') || 'all'; let filteredOrders = storeOrdersCache;
-    if (filter === 'from_quote') {
+    const list = getEl('store-orders-list');
+    const statusFilter = val('store-orders-filter') || 'all';
+    const typeFilter = val('store-orders-type-filter') || 'all';
+    let filteredOrders = storeOrdersCache;
+    if (typeFilter === 'from_quote') {
         filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
-    } else if (filter === 'from_store') {
-        filteredOrders = filteredOrders.filter(o => o.status !== 'quote' && (!o.quote_status || o.quote_status !== 'approved'));
-    } else if (filter !== 'all') {
-        filteredOrders = filteredOrders.filter(o => o.status === filter);
+    } else if (typeFilter === 'from_store') {
+        filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status !== 'approved');
+    }
+    if (statusFilter !== 'all') {
+        filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
     }
 
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
