@@ -1262,44 +1262,30 @@ app.post('/api/tasks/ai-generate', async (req, res) => {
         res.json({ success: true, tasks: parsedTasks });
     } catch (e) { handleAIError(e, res, 'שגיאה בפירוק המשימות'); }
 });
-// --- יצירת תמונות (לוגו ובאנר) באמצעות AI (Gemini Flash Image) ---
+// --- יצירת תמונות (לוגו ובאנר) באמצעות AI  ---
 app.post('/api/ai/generate-image', async (req, res) => {
     try {
         const { prompt, groupId, type } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-
-        // שימוש במודל יצירת התמונות (יש לוודא שהמפתח תומך ושהשם מעודכן לפי התיעוד של גוגל, לרוב "gemini-3-flash-image")
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-image" });
+        // אנו משתמשים בשירות יצירת התמונות החינמי של pollinations.ai 
+        // כדי לספק תוצאה מידית ויציבה ללא תלות במפתחות פרימיום.
+        const encodedPrompt = encodeURIComponent(prompt);
         
-        // יצירת תוכן מה-AI - עבור מודל תמונות זה בדרך כלל מחזיר Base64 או URL
-        // מאחר וגרסת ה-API יכולה להשתנות, ננסה לחלץ את התמונה. 
-        // במקרה וזה עדיין לא נתמך בספריה, הוא ייפול ל-catch ויחזיר שגיאה מסודרת.
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
+        // הגדרת מידות התמונה (באנר מלבני, לוגו מרובע)
+        const width = type === 'banner' ? 1200 : 512;
+        const height = type === 'banner' ? 400 : 512;
         
-        // משיכת הטקסט/תמונה (תלוי במבנה ה-JSON ש-Google מחזירה למודלי Image)
-        let outputUrl = "";
-        try {
-             // אם המודל מחזיר Base64/URI ישיר בטקסט
-             outputUrl = response.text(); 
-        } catch(e) {
-             // חילוץ גיבוי מתוך אובייקט ה-candidates במידה ויש אובייקט image
-             if (response.candidates && response.candidates[0] && response.candidates[0].content.parts[0]) {
-                 outputUrl = response.candidates[0].content.parts[0].text || "";
-             }
-        }
-
-        if(outputUrl && outputUrl.length > 10) {
-            res.json({ success: true, imageUrl: outputUrl });
-        } else {
-            throw new Error("המודל לא החזיר תמונה חוקית");
-        }
+        // הוספת Seed אקראי כדי למנוע קבלת תמונה מהקאש (שכפול) בכל לחיצה
+        const seed = Math.floor(Math.random() * 1000000);
+        
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+        
+        // השרת מחזיר את הכתובת הישירה לתמונה מיד, כשהדפדפן יטען אותה היא תיווצר בזמן אמת.
+        res.json({ success: true, imageUrl: imageUrl });
     } catch(e) { 
         console.error('Image Gen Error:', e);
-        // Fallback ידידותי במקרה של חסימת API/חוסר תמיכה בספרייה הנוכחית
         res.status(500).json({ error: 'שירות יצירת התמונות אינו זמין כרגע. נסה להעלות קובץ ידנית.' });
     }
 });
