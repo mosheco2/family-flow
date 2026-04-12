@@ -4031,7 +4031,20 @@ async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/c
 
 async function deleteStoreProduct(id) { if(!confirm('למחוק מוצר זה לחלוטין?')) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
-async function fetchStoreOrders() { try { const res = await fetch(`${API}/store/orders/${currentGroup.id}`); const data = await res.json(); storeOrdersCache = Array.isArray(data) ? data : []; renderStoreOrders(); } catch(e) {} }
+async function fetchStoreOrders() { 
+    try { 
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
+        let data = await res.json(); 
+        if (Array.isArray(data)) {
+            // מיון: ההזמנות החדשות ביותר תמיד יופיעו ראשונות (סעיף 1)
+            data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            storeOrdersCache = data;
+        } else {
+            storeOrdersCache = [];
+        }
+        renderStoreOrders(); 
+    } catch(e) {} 
+}
 
 function renderStoreOrders() {
     const list = getEl('store-orders-list');
