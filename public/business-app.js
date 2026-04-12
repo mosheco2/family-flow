@@ -2856,32 +2856,6 @@ async function editOrderTargetDate(orderId, currentDate) {
     getEl('target-datetime-modal').classList.remove('hidden');
 }
 
-window.submitTargetDatetime = async function() {
-    const datetime = getEl('target-datetime-input').value;
-    const finalDatetime = datetime ? datetime.replace('T', ' ') : null; 
-    const btn = getEl('btn-submit-target-date');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מבצע...';
-
-    try {
-        const url = currentActionType === 'quote' ? `${API}/store/quotes/${currentActionTargetId}/approve` : `${API}/store/orders/${currentActionTargetId}/target-date`;
-        const method = currentActionType === 'quote' ? 'POST' : 'PATCH';
-        
-        const res = await fetch(url, {
-            method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ targetDatetime: finalDatetime })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'הפעולה בוצעה בהצלחה!');
-            getEl('target-datetime-modal').classList.add('hidden');
-            fetchStoreQuotes();
-            if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
-        } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-    finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
-};
-
 let storeCustomersCache = [];
 
 window.switchCustomerTab = function(tab) {
@@ -2949,6 +2923,33 @@ window.openCustomerModal = function(id = null) {
         getEl('btn-cust-tab-history').style.display = 'none';
     }
     modal.classList.remove('hidden');
+};
+
+window.submitTargetDatetime = async function() {
+    const datetime = getEl('target-datetime-input').value;
+    const finalDatetime = datetime ? datetime.replace('T', ' ') : null; 
+    const btn = getEl('btn-submit-target-date');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מבצע...'; }
+
+    try {
+        const url = currentActionType === 'quote' ? `${API}/store/quotes/${currentActionTargetId}/approve` : `${API}/store/orders/${currentActionTargetId}/target-date`;
+        const method = currentActionType === 'quote' ? 'POST' : 'PATCH';
+        
+        const res = await fetch(url, {
+            method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetDatetime: finalDatetime })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            if (currentActionType === 'quote') { try { triggerConfetti(); } catch(e){} }
+            showToast('success', 'הפעולה בוצעה בהצלחה!');
+            getEl('target-datetime-modal').classList.add('hidden');
+            if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+            if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); 
+        } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { if (btn) { btn.disabled = false; btn.innerText = 'אישור ועדכון'; } }
 };
 
 window.submitNewCustomer = async function() {
