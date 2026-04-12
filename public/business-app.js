@@ -2922,7 +2922,8 @@ window.openCustomerModal = function(id = null) {
     if (!modal) return;
     
     if (id) {
-        const c = storeCustomersCache.find(x => x.id === id);
+        // שימוש ב-String כדי למנוע בעיות המרת סוגים שמשאירות את הטופס ריק
+        const c = storeCustomersCache.find(x => String(x.id) === String(id));
         if (c) {
             getEl('cust-id').value = c.id;
             getEl('cust-name').value = c.name || '';
@@ -2930,7 +2931,8 @@ window.openCustomerModal = function(id = null) {
             getEl('cust-email').value = c.email || '';
             getEl('cust-business-id').value = c.business_id || '';
             getEl('cust-notes').value = c.notes || '';
-            if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'עריכת לקוח';
+            const titleEl = modal.querySelector('h3');
+            if(titleEl) titleEl.innerText = 'עריכת לקוח';
         }
     } else {
         if(getEl('cust-id')) getEl('cust-id').value = '';
@@ -2939,7 +2941,8 @@ window.openCustomerModal = function(id = null) {
         getEl('cust-email').value = '';
         getEl('cust-business-id').value = '';
         getEl('cust-notes').value = '';
-        if(getEl('customer-modal-title')) getEl('customer-modal-title').innerText = 'הוספת לקוח חדש';
+        const titleEl = modal.querySelector('h3');
+        if(titleEl) titleEl.innerText = 'הוספת לקוח חדש';
     }
     modal.classList.remove('hidden');
 };
