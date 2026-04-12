@@ -2867,27 +2867,7 @@ window.submitTargetDatetime = async function() {
     finally { btn.disabled = false; btn.innerText = 'אישור ועדכון'; }
 };
 
-function openCustomerModal(id = null) {
-    const modal = getEl('customer-modal');
-    if (!modal) { showToast('error', 'מודל לקוח לא נמצא'); return; }
-    const titleEl = getEl('customer-modal-title');
-    if (id) {
-        const c = storeCustomersCache.find(x => parseInt(x.id) === parseInt(id));
-        if (!c) { showToast('error', 'לקוח לא נמצא במטמון'); return; }
-        getEl('cust-id').value = c.id;
-        getEl('cust-name').value = c.name || '';
-        getEl('cust-phone').value = c.phone || '';
-        getEl('cust-email').value = c.email || '';
-        getEl('cust-business-id').value = c.business_id || '';
-        getEl('cust-notes').value = c.notes || '';
-        if (titleEl) titleEl.innerText = 'עריכת לקוח';
-    } else {
-        ['cust-id','cust-name','cust-phone','cust-email','cust-business-id','cust-notes'].forEach(id => { const el = getEl(id); if(el) el.value = ''; });
-        if (titleEl) titleEl.innerText = 'לקוח חדש';
-    }
-    modal.classList.remove('hidden');
-}
-window.openCustomerModal = openCustomerModal;
+let storeCustomersCache = [];
 
 window.openCustomerModal = function(id = null) {
     const modal = getEl('customer-modal');
@@ -2944,8 +2924,6 @@ window.submitNewCustomer = async function() {
     finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
 };
 
-let storeCustomersCache = [];
-
 window.fetchStoreCustomers = async function() {
     try {
         const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
@@ -3001,137 +2979,6 @@ window.renderStoreCustomers = function() {
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
                 <button onclick="window.openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
             </div>
-        </div>
-    `}).join('');
-};
-let storeCustomersCache = [];
-
-window.openCustomerModal = function(id = null) {
-    const modal = getEl('customer-modal');
-    if (!modal) return;
-    
-    if (id) {
-        // שימוש ב-String כדי למנוע בעיות המרת סוגים שמשאירות את הטופס ריק
-        const c = storeCustomersCache.find(x => String(x.id) === String(id));
-        if (c) {
-            getEl('cust-id').value = c.id;
-            getEl('cust-name').value = c.name || '';
-            getEl('cust-phone').value = c.phone || '';
-            getEl('cust-email').value = c.email || '';
-            getEl('cust-business-id').value = c.business_id || '';
-            getEl('cust-notes').value = c.notes || '';
-            const titleEl = modal.querySelector('h3');
-            if(titleEl) titleEl.innerText = 'עריכת לקוח';
-        }
-    } else {
-        if(getEl('cust-id')) getEl('cust-id').value = '';
-        getEl('cust-name').value = '';
-        getEl('cust-phone').value = '';
-        getEl('cust-email').value = '';
-        getEl('cust-business-id').value = '';
-        getEl('cust-notes').value = '';
-        const titleEl = modal.querySelector('h3');
-        if(titleEl) titleEl.innerText = 'הוספת לקוח חדש';
-    }
-    modal.classList.remove('hidden');
-};
-
-window.renderStoreCustomers = function() {
-    const list = getEl('store-customers-list');
-    if(!list) return;
-
-    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
-    const filterType = val('filter-customer-type') || 'all';
-
-    let filtered = storeCustomersCache.filter(c => {
-        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
-        return searchStr.includes(searchTerm);
-    });
-
-    if (filterType === 'order') {
-        filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
-    } else if (filterType === 'quote') {
-        filtered = filtered.filter(c => storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone));
-    }
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
-        return;
-    }
-
-    list.innerHTML = filtered.map(c => {
-        const initial = (c.name || '?').charAt(0).toUpperCase();
-        return `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
-                    ${initial}
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
-                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
-                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
-                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
-                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
-                <button onclick="window.openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
-            </div>
-        </div>
-    `}).join('');
-};
-
-window.fetchStoreCustomers = async function() {
-    try {
-        const type = val('filter-customer-type') || 'all';
-        const url = type === 'all'
-            ? `${API}/store/customers/${currentGroup.id}`
-            : `${API}/store/customers/${currentGroup.id}?type=${type}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.success) {
-            storeCustomersCache = data.customers || [];
-            window.renderStoreCustomers();
-        }
-    } catch(e) { console.error("Error fetching customers:", e); }
-};
-
-window.renderStoreCustomers = function() {
-    const list = getEl('store-customers-list');
-    if(!list) return;
-
-    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
-    const filtered = storeCustomersCache.filter(c => {
-        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
-        return searchStr.includes(searchTerm);
-    });
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
-        return;
-    }
-
-    list.innerHTML = filtered.map(c => {
-        const initial = (c.name || '?').charAt(0).toUpperCase();
-        return `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
-                    ${initial}
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
-                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
-                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
-                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
-                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
-                    </div>
-                </div>
-            </div>
-            ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[200px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
         </div>
     `}).join('');
 };
