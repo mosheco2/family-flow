@@ -4205,14 +4205,19 @@ async function deleteStoreCoupon(id) {
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
-window.openStoreOrderModal = function(orderId) {
+function openStoreOrderModal(orderId) {
     currentStoreOrderId = orderId; 
-    const order = storeOrdersCache.find(o => o.id === orderId); 
+    const order = storeOrdersCache.find(o => String(o.id) === String(orderId)); 
     if(!order) return;
     
     getEl('so-modal-id').innerText = order.id; 
+    
     let dateStr = 'לא ידוע';
-    try { if (order.created_at) dateStr = new Date(order.created_at).toLocaleString('he-IL'); } catch(e) {}
+    try { 
+        if (order.created_at) dateStr = new Date(order.created_at).toLocaleString('he-IL'); 
+        else if (order.target_datetime) dateStr = new Date(order.target_datetime).toLocaleString('he-IL');
+    } catch(e) {}
+    
     getEl('so-modal-date').innerText = dateStr; 
     getEl('so-modal-total').innerText = order.total_amount; 
     getEl('so-modal-customer').innerText = order.customer_name; 
@@ -4222,28 +4227,24 @@ window.openStoreOrderModal = function(orderId) {
     if(order.items) {
         let parsedItems = [];
         try { 
-            // פענוח כפול במקרה שהשרת קידד את זה כסטרינג בתוך סטרינג
-            parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; 
-            if (typeof parsedItems === 'string') parsedItems = JSON.parse(parsedItems); 
+            let temp = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; 
+            if (typeof temp === 'string') temp = JSON.parse(temp);
+            if (Array.isArray(temp)) parsedItems = temp;
         } catch(e) { parsedItems = []; }
         
-        if (!Array.isArray(parsedItems)) {
-            if (typeof parsedItems === 'object' && parsedItems !== null) parsedItems = [parsedItems];
-            else parsedItems = [];
-        }
-
         parsedItems.forEach(i => { 
             if (i.is_quote_metadata) return; 
             const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
-            const itemPrice = i.price_at_order || i.price || 0;
-            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity || 1}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
+            const itemPrice = i.price_at_order || i.price || i.row_total || 0;
+            const qty = i.quantity || 1;
+            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${qty}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
         });
     }
     
     if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center mt-3">אין פריטים להצגה בהזמנה זו.</p>';
     getEl('so-modal-items').innerHTML = itemsHtml; 
     getEl('store-order-modal').classList.remove('hidden');
-};
+}
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
     try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
