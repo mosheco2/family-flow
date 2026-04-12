@@ -6039,4 +6039,28 @@ function skipWizardStep() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
+   // --- פונקציית עזר למחיקת תמונה (לוגו/באנר) ---
+window.clearImage = function(targetIdPrefix) {
+    const preview = getEl(`${targetIdPrefix}-preview`);
+    // לחלק יש id מסתיים ב-icon (וויזארד) ולחלק ב-placeholder (הגדרות)
+    const icon = getEl(`${targetIdPrefix}-icon`) || getEl(`${targetIdPrefix}-placeholder`);
+    const base64Input = getEl(`${targetIdPrefix}-base64`);
+    const fileInput = getEl(`${targetIdPrefix}-upload`);
+    
+    if (preview) {
+        preview.src = '';
+        preview.classList.add('hidden');
+    }
+    if (icon) {
+        icon.classList.remove('hidden');
+    }
+    if (base64Input) {
+        base64Input.value = '';
+    }
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
+    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
+}; 
 })();
