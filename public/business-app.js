@@ -4205,7 +4205,7 @@ async function deleteStoreCoupon(id) {
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
-function openStoreOrderModal(orderId) {
+window.openStoreOrderModal = function(orderId) {
     currentStoreOrderId = orderId; 
     const order = storeOrdersCache.find(o => String(o.id) === String(orderId)); 
     if(!order) return;
@@ -4227,24 +4227,44 @@ function openStoreOrderModal(orderId) {
     if(order.items) {
         let parsedItems = [];
         try { 
-            let temp = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; 
-            if (typeof temp === 'string') temp = JSON.parse(temp);
-            if (Array.isArray(temp)) parsedItems = temp;
-        } catch(e) { parsedItems = []; }
-        
-        parsedItems.forEach(i => { 
-            if (i.is_quote_metadata) return; 
-            const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
-            const itemPrice = i.price_at_order || i.price || i.row_total || 0;
-            const qty = i.quantity || 1;
-            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${qty}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
-        });
+            // מנגנון חילוץ עמוק ובטוח
+            let tempItems = order.items;
+            
+            // מפענח עד שמקבל אובייקט/מערך אמיתי (מטפל במקרה של סטרינג בתוך סטרינג)
+            while (typeof tempItems === 'string') {
+                try {
+                    tempItems = JSON.parse(tempItems);
+                } catch(parseError) {
+                    console.error("שגיאה בפענוח JSON של פריטים:", tempItems);
+                    break; 
+                }
+            }
+            
+            // מוודא שזה באמת מערך שאפשר לרוץ עליו
+            if (Array.isArray(tempItems)) {
+                parsedItems = tempItems;
+            } else if (typeof tempItems === 'object' && tempItems !== null) {
+                // אם זה אובייקט יחיד, נכניס אותו למערך
+                parsedItems = [tempItems];
+            }
+
+            parsedItems.forEach(i => { 
+                if (i.is_quote_metadata) return; // הסתרת נתוני מטמון של הצעת מחיר
+                const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
+                const itemPrice = i.price_at_order || i.price || i.row_total || 0;
+                const qty = i.quantity || 1;
+                itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${qty}</span></span><span class="font-bold text-slate-600 text-sm">₪${parseFloat(itemPrice).toFixed(2)}</span></div>`; 
+            });
+            
+        } catch(e) { 
+            console.error("קריסה כוללת בפענוח פריטי הזמנה:", e);
+        }
     }
     
     if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center mt-3">אין פריטים להצגה בהזמנה זו.</p>';
     getEl('so-modal-items').innerHTML = itemsHtml; 
     getEl('store-order-modal').classList.remove('hidden');
-}
+};
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
     try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
