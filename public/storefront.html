@@ -46,61 +46,33 @@
 
     <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-white shadow-2xl relative sm:rounded-2xl sm:my-4 overflow-hidden">
         
-<div id="top-ad-banner" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-center py-2 px-4 text-xs md:text-sm font-bold flex justify-center items-center gap-2 relative z-50 shadow-sm">
-            <span id="ad-banner-text">ברוכים הבאים! <span class="font-normal text-indigo-100">מבצעי החודש בפנים</span></span>
-            <button onclick="this.parentElement.style.display='none'" class="absolute left-3 text-white/80 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-
-        <header class="bg-white shadow-sm relative z-40 border-b border-slate-100">
-            <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-start">
-                <div class="flex items-center gap-3">
-                    <div class="w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner relative">
-                        <img id="store-logo" src="" class="w-full h-full object-cover hidden">
-                        <i id="store-logo-placeholder" class="fa-solid fa-store text-2xl text-slate-300"></i>
-                    </div>
-                    <div class="flex flex-col mt-0.5">
-                        <h1 id="store-name" class="font-black text-slate-800 text-lg md:text-xl leading-tight">טוען...</h1>
-                        <p id="store-slogan" class="text-[10px] text-slate-500 font-medium hidden mb-1"></p>
-                        <span class="text-[9px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                            Powered by <span class="font-black text-slate-600 tracking-wide">ONEFLOW</span>
-                            <span class="bg-black text-white px-1 py-0 rounded-[3px] text-[7px] leading-tight">LIFE</span>
-                        </span>
-                    </div>
+        <header class="hero-bg pt-10 pb-0 text-center relative border-b border-slate-100 flex flex-col items-center">
+            <div class="relative z-10 flex flex-col items-center px-6 pb-6">
+                <div class="w-24 h-24 rounded-2xl bg-white shadow-lg p-1 mb-4 flex items-center justify-center relative overflow-hidden">
+                    <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
+                    <i id="store-logo-placeholder" class="fa-solid fa-store text-4xl text-slate-300"></i>
                 </div>
-            </div>
-            
-            <div class="px-4 pb-3 max-w-4xl mx-auto flex flex-col gap-2">
-                <div id="store-contact-info" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold text-slate-600 hidden bg-slate-50 py-1.5 px-3 rounded-lg border border-slate-100 w-fit">
+                <h1 id="store-name" class="text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
+                <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-2 hidden"></p>
+                
+                <div id="store-contact-info" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] font-bold text-slate-600 mb-3 hidden bg-white/50 backdrop-blur-sm py-1.5 px-4 rounded-full border border-slate-200 shadow-sm">
                     <span id="header-hours" class="hidden flex items-center gap-1"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
                     <a id="header-wa" href="#" target="_blank" class="hidden text-green-600 hover:text-green-700 flex items-center gap-1"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                     <a id="header-phone" href="#" class="hidden text-blue-600 hover:text-blue-700 flex items-center gap-1"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
                 </div>
-                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1 rounded-md hidden w-fit"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[9px]"></i> <span id="store-welcome-text"></span></div>
-            </div>
 
+                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hidden shadow-sm mb-2"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
+            </div>
+            
             <div id="store-promotions-banner" class="w-full m-0 p-0"></div>
         </header>
-        ```
 
-במשימה הזו אין צורך בקוד JavaScript או CSS נוסף, מכיוון שהשתמשתי באותם מזהים שהפונקציה `renderHeader()` שלך כבר מכירה ויודעת למלא בנתונים.
-
-שמור את הקובץ ורענן את החנות. תראה שההדר הפך להרבה יותר נקי, קומפקטי ומקצועי. ברגע שאתה מאשר, נעבור ל**משימה 1.3: מערכת דיגולים חכמה למוצרים**. מחכה לאישור תקינות!
         <div class="glass-header sticky top-0 z-40">
             <div class="p-4 pb-2 relative">
                 <i class="fa-solid fa-search absolute right-7 top-6 text-slate-400"></i>
                 <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition">
             </div>
-            <div class="relative w-full px-2 pb-2">
-                <button id="scroll-right-btn" onclick="scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
-                    <i class="fa-solid fa-chevron-right text-xs"></i>
-                </button>
-
-                <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
-
-                <button id="scroll-left-btn" onclick="scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
-                    <i class="fa-solid fa-chevron-left text-xs"></i>
-                </button>
-            </div>
+            <div class="cat-slider" id="categories-container"></div>
         </div>
 
         <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
@@ -343,24 +315,12 @@
             bannerContainer.innerHTML = promoHtml;
         }
 
-       function renderHeader() {
+        function renderHeader() {
             getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
             if(storeData.settings.logo_url) { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
             if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
             
-            // --- תמיכה ברקע/באנר ראשי דינמי מתוך מסד הנתונים ---
-            const headerEl = document.querySelector('header');
-            if (headerEl && storeData.settings.banner_url) {
-                headerEl.style.backgroundImage = `url('${safeStr(storeData.settings.banner_url)}')`;
-                headerEl.style.backgroundSize = 'cover';
-                headerEl.style.backgroundPosition = 'center';
-                // מוסיף שכבת שקיפות לבנה (Overlay) כדי שהלוגו והטקסטים השחורים עדיין יהיו קריאים וברורים על גבי כל תמונה
-                headerEl.classList.remove('bg-white');
-                headerEl.classList.add('bg-white/85', 'bg-blend-overlay');
-            }
-            // ----------------------------------------------------
-
             let showContactRow = false;
             if(storeData.settings.open_time && storeData.settings.close_time) {
                 getEl('header-hours-text').innerText = `${storeData.settings.open_time} - ${storeData.settings.close_time}`;
@@ -785,46 +745,6 @@ function openProductModal(itemId) {
         }
 
         initStore();
-     // ==========================================
-// לוגיקת חצי גלילה לקטגוריות החנות (משימה 1.1 - מתוקן)
-// ==========================================
-
-function scrollCategories(direction) {
-    const container = document.getElementById('categories-container');
-    if (container) {
-        const scrollAmount = 200; 
-        container.scrollBy({
-            left: direction * scrollAmount,
-            behavior: 'smooth'
-        });
-    }
-}
-
-function updateScrollButtonsVisibility() {
-    const container = document.getElementById('categories-container');
-    const rightBtn = document.getElementById('scroll-right-btn');
-    const leftBtn = document.getElementById('scroll-left-btn');
-    
-    if (!container || !rightBtn || !leftBtn) return;
-
-    const isAtStart = container.scrollLeft === 0;
-    const maxScroll = container.scrollWidth - container.clientWidth;
-    const isAtEnd = Math.abs(container.scrollLeft) >= (maxScroll - 5);
-
-    rightBtn.style.opacity = isAtStart ? '0.3' : '1';
-    rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
-    
-    leftBtn.style.opacity = isAtEnd ? '0.3' : '1';
-    leftBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('categories-container');
-    if (container) {
-        container.addEventListener('scroll', updateScrollButtonsVisibility);
-        setTimeout(updateScrollButtonsVisibility, 800); // טריגר מושהה כדי לוודא שהקטגוריות נטענו מה-API
-    }
-});
     </script>
 </body>
 </html>
