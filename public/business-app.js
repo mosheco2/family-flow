@@ -3001,10 +3001,11 @@ window.renderStoreCustomers = function() {
         return searchStr.includes(searchTerm);
     });
 
+      // לקוחות חנות = הזמנות ישירות מהחנות; לקוחות הצעת מחיר = הזמנות שהומרו מהצעה
     if (filterType === 'order') {
-        filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
+        filtered = filtered.filter(c => storeOrdersCache.some(o => (o.customer_name === c.name || o.customer_phone === c.phone) && (!o.quote_status || o.quote_status === 'draft')));
     } else if (filterType === 'quote') {
-        filtered = filtered.filter(c => storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone));
+        filtered = filtered.filter(c => storeOrdersCache.some(o => (o.customer_name === c.name || o.customer_phone === c.phone) && o.quote_status === 'approved'));
     }
 
     if (filtered.length === 0) {
@@ -4110,14 +4111,11 @@ function renderStoreOrders() {
     const statusFilter = val('store-orders-filter') || 'all';
     const typeFilter = val('store-orders-type-filter') || 'all';
     let filteredOrders = storeOrdersCache;
-    if (typeFilter === 'from_quote') {
-        filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
-    } else if (typeFilter === 'from_store') {
-        filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status !== 'approved');
-    }
-    if (statusFilter !== 'all') {
-        filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
-    }
+    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
+    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
+
 
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
@@ -4206,66 +4204,26 @@ async function deleteStoreCoupon(id) {
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
-window.openStoreOrderModal = function(orderId) {
-    currentStoreOrderId = orderId; 
-    const order = storeOrdersCache.find(o => String(o.id) === String(orderId)); 
-    if(!order) return;
-    
-    getEl('so-modal-id').innerText = order.id; 
-    
-    let dateStr = 'לא ידוע';
-    try { 
-        if (order.created_at) dateStr = new Date(order.created_at).toLocaleString('he-IL'); 
-        else if (order.target_datetime) dateStr = new Date(order.target_datetime).toLocaleString('he-IL');
-    } catch(e) {}
-    
-    getEl('so-modal-date').innerText = dateStr; 
-    getEl('so-modal-total').innerText = order.total_amount; 
-    getEl('so-modal-customer').innerText = order.customer_name; 
+function openStoreOrderModal(orderId) {
+    currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
+    getEl('so-modal-id').innerText = order.id;
+    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
+    getEl('so-modal-total').innerText = order.total_amount;
+    getEl('so-modal-customer').innerText = order.customer_name;
     getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
-    
+    const targetEl = getEl('so-modal-target');
+    if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
+    const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata) : [];
     let itemsHtml = '';
-    if(order.items) {
-        let parsedItems = [];
-        try { 
-            // מנגנון חילוץ עמוק ובטוח
-            let tempItems = order.items;
-            
-            // מפענח עד שמקבל אובייקט/מערך אמיתי (מטפל במקרה של סטרינג בתוך סטרינג)
-            while (typeof tempItems === 'string') {
-                try {
-                    tempItems = JSON.parse(tempItems);
-                } catch(parseError) {
-                    console.error("שגיאה בפענוח JSON של פריטים:", tempItems);
-                    break; 
-                }
-            }
-            
-            // מוודא שזה באמת מערך שאפשר לרוץ עליו
-            if (Array.isArray(tempItems)) {
-                parsedItems = tempItems;
-            } else if (typeof tempItems === 'object' && tempItems !== null) {
-                // אם זה אובייקט יחיד, נכניס אותו למערך
-                parsedItems = [tempItems];
-            }
-
-            parsedItems.forEach(i => { 
-                if (i.is_quote_metadata) return; // הסתרת נתוני מטמון של הצעת מחיר
-                const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
-                const itemPrice = i.price_at_order || i.price || i.row_total || 0;
-                const qty = i.quantity || 1;
-                itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${qty}</span></span><span class="font-bold text-slate-600 text-sm">₪${parseFloat(itemPrice).toFixed(2)}</span></div>`; 
-            });
-            
-        } catch(e) { 
-            console.error("קריסה כוללת בפענוח פריטי הזמנה:", e);
-        }
+    if (rawItems.length > 0) {
+        rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
+    } else {
+        itemsHtml = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
     }
-    
-    if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center mt-3">אין פריטים להצגה בהזמנה זו.</p>';
-    getEl('so-modal-items').innerHTML = itemsHtml; 
+    getEl('so-modal-items').innerHTML = itemsHtml;
     getEl('store-order-modal').classList.remove('hidden');
-};
+}
+
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
     try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
