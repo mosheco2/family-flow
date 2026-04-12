@@ -438,24 +438,39 @@ if(!getEl('content-customers')) {
         }
     }
 
-    if(!getEl('customer-modal')) {
+   if(!getEl('customer-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col overflow-hidden">
-                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center">
-                    <h3 id="customer-modal-title" class="text-lg font-black text-indigo-900">הוספת לקוח חדש</h3>
-                    <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
+            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
+                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center shrink-0">
+                    <h3 id="customer-modal-title" class="text-lg font-black text-indigo-900">ניהול לקוח</h3>
+                    <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="p-5 space-y-4">
-                    <input type="hidden" id="cust-id">
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm dir-ltr text-left"></div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm h-16"></textarea></div>
+                
+                <div class="flex bg-slate-100 p-1.5 shrink-0 mx-4 mt-4 rounded-xl">
+                    <button id="btn-cust-tab-details" onclick="switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים אישיים</button>
+                    <button id="btn-cust-tab-history" onclick="switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
                 </div>
-                <div class="p-4 border-t border-slate-100 bg-slate-50 flex">
-                    <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition">שמור לקוח</button>
+
+                <div class="flex-1 overflow-y-auto modal-scroll p-5">
+                    <div id="cust-view-details" class="space-y-4">
+                        <input type="hidden" id="cust-id">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-slate-50"></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
+                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
+                        </div>
+                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותיעוד לקוח:</label><textarea id="cust-notes" class="modern-input py-2 text-sm h-20 bg-slate-50"></textarea></div>
+                        <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition mt-4">שמור פרטי לקוח</button>
+                    </div>
+
+                    <div id="cust-view-history" class="hidden h-full flex flex-col">
+                        <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-4 text-xs font-bold text-indigo-800 text-center" id="cust-history-summary">
+                            מציג היסטוריה עבור לקוח זה
+                        </div>
+                        <div class="space-y-3 pb-4" id="cust-history-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2869,10 +2884,46 @@ window.submitTargetDatetime = async function() {
 
 let storeCustomersCache = [];
 
+window.switchCustomerTab = function(tab) {
+    getEl('cust-view-details').classList.add('hidden');
+    getEl('cust-view-history').classList.add('hidden');
+    getEl('btn-cust-tab-details').className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    getEl('btn-cust-tab-history').className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    
+    getEl(`cust-view-${tab}`).classList.remove('hidden');
+    getEl(`btn-cust-tab-${tab}`).className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    
+    if (tab === 'history') {
+        const custName = val('cust-name');
+        const custPhone = val('cust-phone');
+        getEl('cust-history-summary').innerText = `הזמנות והצעות עבור: ${custName}`;
+        
+        let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2">הזמנות רכש:</h4>';
+        const orders = storeOrdersCache.filter(o => o.customer_name === custName || (custPhone && o.customer_phone === custPhone));
+        if (orders.length > 0) {
+            orders.forEach(o => {
+                historyHtml += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הזמנה #${o.id}</span><span class="text-[10px] text-slate-500 block">${new Date(o.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${o.total_amount}</span></div>`;
+            });
+        } else { historyHtml += '<p class="text-[10px] text-slate-400 mb-4">אין הזמנות קודמות.</p>'; }
+        
+        historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (Quotes):</h4>';
+        const quotes = storeQuotesCache.filter(q => q.customer_name === custName || (custPhone && q.customer_phone === custPhone));
+        if (quotes.length > 0) {
+            quotes.forEach(q => {
+                historyHtml += `<div onclick="openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הצעה #${q.id}</span><span class="text-[10px] text-slate-500 block">${new Date(q.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(q.total_amount).toFixed(2)}</span></div>`;
+            });
+        } else { historyHtml += '<p class="text-[10px] text-slate-400">אין הצעות מחיר.</p>'; }
+        
+        getEl('cust-history-list').innerHTML = historyHtml;
+    }
+};
+
 window.openCustomerModal = function(id = null) {
     const modal = getEl('customer-modal');
     if (!modal) return;
     
+    switchCustomerTab('details');
+
     if (id) {
         const c = storeCustomersCache.find(x => String(x.id) === String(id));
         if (c) {
@@ -2883,7 +2934,8 @@ window.openCustomerModal = function(id = null) {
             getEl('cust-business-id').value = c.business_id || '';
             getEl('cust-notes').value = c.notes || '';
             const titleEl = modal.querySelector('h3');
-            if(titleEl) titleEl.innerText = 'עריכת לקוח';
+            if(titleEl) titleEl.innerText = 'כרטיס לקוח';
+            getEl('btn-cust-tab-history').style.display = 'block'; 
         }
     } else {
         if(getEl('cust-id')) getEl('cust-id').value = '';
@@ -2894,6 +2946,7 @@ window.openCustomerModal = function(id = null) {
         getEl('cust-notes').value = '';
         const titleEl = modal.querySelector('h3');
         if(titleEl) titleEl.innerText = 'הוספת לקוח חדש';
+        getEl('btn-cust-tab-history').style.display = 'none';
     }
     modal.classList.remove('hidden');
 };
@@ -4153,12 +4206,9 @@ function openStoreOrderModal(orderId) {
     if(!order) return;
     
     getEl('so-modal-id').innerText = order.id; 
-    
-    // מניעת קריסה אם תאריך היצירה חסר בהזמנות ישנות
     let dateStr = 'לא ידוע';
     try { if (order.created_at) dateStr = new Date(order.created_at).toLocaleString('he-IL'); } catch(e) {}
     getEl('so-modal-date').innerText = dateStr; 
-    
     getEl('so-modal-total').innerText = order.total_amount; 
     getEl('so-modal-customer').innerText = order.customer_name; 
     getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
@@ -4169,12 +4219,14 @@ function openStoreOrderModal(orderId) {
         try { parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) { parsedItems = []; }
         
         parsedItems.forEach(i => { 
-            // תמיכה בפריטים שהגיעו מהצעת מחיר (name) או מהחנות (item_name)
+            if (i.is_quote_metadata) return; // מתעלם מנתוני רקע של הצעת מחיר
             const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
             const itemPrice = i.price_at_order || i.price || 0;
             itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
         });
     }
+    
+    if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center">אין פריטים להצגה בהזמנה זו.</p>';
     getEl('so-modal-items').innerHTML = itemsHtml; 
     getEl('store-order-modal').classList.remove('hidden');
 }
