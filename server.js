@@ -341,6 +341,9 @@ app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
 
 app.get('/api/superadmin/data', verifySA, async (req, res) => {
     try {
+        // ריענון מכסות ה-AI גלובלית לכלל העסקים במערכת (פעם ביום) כדי שתצוגת האדמין תהיה מדויקת
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE last_token_reset IS NULL OR last_token_reset < CURRENT_DATE`);
+        
         const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
         const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
         const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
@@ -676,6 +679,9 @@ app.get('/api/data/:userId', async (req, res) => {
         const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.userId]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
         const user = userRes.rows[0];
+        
+        // עדכון מכסת ה-AI היומית למשתמש בזמן הטעינה (מתאפס ל-10 בחצות)
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE id = $1 AND (last_token_reset IS NULL OR last_token_reset < CURRENT_DATE)`, [user.group_id]);
         
         const groupRes = await pool.query('SELECT * FROM family_groups WHERE id = $1', [user.group_id]);
         const group = groupRes.rows[0];
