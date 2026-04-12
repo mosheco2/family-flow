@@ -2858,36 +2858,50 @@ async function editOrderTargetDate(orderId, currentDate) {
 
 let storeCustomersCache = [];
 
-window.switchCustomerTab = function(tab) {
+window.switchCustomerTab = async function(tab) {
     getEl('cust-view-details').classList.add('hidden');
     getEl('cust-view-history').classList.add('hidden');
     getEl('btn-cust-tab-details').className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     getEl('btn-cust-tab-history').className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    
+
     getEl(`cust-view-${tab}`).classList.remove('hidden');
     getEl(`btn-cust-tab-${tab}`).className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-    
+
     if (tab === 'history') {
         const custName = val('cust-name');
-        const custPhone = val('cust-phone');
+        const custPhone = (val('cust-phone') || '').trim();
         getEl('cust-history-summary').innerText = `הזמנות והצעות עבור: ${custName}`;
-        
+        getEl('cust-history-list').innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4">טוען היסטוריה...</p>';
+
+        // טעינת נתונים אם הקאש ריק
+        if (storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
+        if (storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
+
+        const match = (o) => o.customer_name === custName || (custPhone && o.customer_phone === custPhone);
+
+        // הזמנות רכש
         let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2">הזמנות רכש:</h4>';
-        const orders = storeOrdersCache.filter(o => o.customer_name === custName || (custPhone && o.customer_phone === custPhone));
+        const orders = storeOrdersCache.filter(match);
         if (orders.length > 0) {
             orders.forEach(o => {
-                historyHtml += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הזמנה #${o.id}</span><span class="text-[10px] text-slate-500 block">${new Date(o.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${o.total_amount}</span></div>`;
+                const tag = o.quote_status === 'approved' ? '<span class="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 mr-1">מהצעה</span>' : '';
+                historyHtml += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הזמנה #${o.id} ${tag}</span><span class="text-[10px] text-slate-500 block">${new Date(o.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${o.total_amount}</span></div>`;
             });
         } else { historyHtml += '<p class="text-[10px] text-slate-400 mb-4">אין הזמנות קודמות.</p>'; }
-        
-        historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (Quotes):</h4>';
-        const quotes = storeQuotesCache.filter(q => q.customer_name === custName || (custPhone && q.customer_phone === custPhone));
-        if (quotes.length > 0) {
-            quotes.forEach(q => {
-                historyHtml += `<div onclick="openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הצעה #${q.id}</span><span class="text-[10px] text-slate-500 block">${new Date(q.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(q.total_amount).toFixed(2)}</span></div>`;
+
+        // הצעות מחיר: ממתינות מ-storeQuotesCache + מאושרות מ-storeOrdersCache
+        historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר:</h4>';
+        const pendingQuotes = storeQuotesCache.filter(match);
+        const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved');
+        if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
+            pendingQuotes.forEach(q => {
+                historyHtml += `<div onclick="openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הצעה #${q.id}</span><span class="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 mr-1">ממתינה</span><span class="text-[10px] text-slate-500 block">${new Date(q.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(q.total_amount).toFixed(2)}</span></div>`;
+            });
+            approvedQuotes.forEach(o => {
+                historyHtml += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-slate-50 transition"><div><span class="font-bold text-sm text-slate-800">הצעה #${o.id}</span><span class="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 mr-1">אושרה→הזמנה</span><span class="text-[10px] text-slate-500 block">${new Date(o.created_at).toLocaleDateString('he-IL')}</span></div><span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span></div>`;
             });
         } else { historyHtml += '<p class="text-[10px] text-slate-400">אין הצעות מחיר.</p>'; }
-        
+
         getEl('cust-history-list').innerHTML = historyHtml;
     }
 };
@@ -3001,11 +3015,14 @@ window.renderStoreCustomers = function() {
         return searchStr.includes(searchTerm);
     });
 
-      // לקוחות חנות = הזמנות ישירות מהחנות; לקוחות הצעת מחיר = הזמנות שהומרו מהצעה
+    // לקוחות חנות = הזמנות ישירות; לקוחות הצעת מחיר = יש להם הצעה (ממתינה או מאושרת)
     if (filterType === 'order') {
         filtered = filtered.filter(c => storeOrdersCache.some(o => (o.customer_name === c.name || o.customer_phone === c.phone) && (!o.quote_status || o.quote_status === 'draft')));
     } else if (filterType === 'quote') {
-        filtered = filtered.filter(c => storeOrdersCache.some(o => (o.customer_name === c.name || o.customer_phone === c.phone) && o.quote_status === 'approved'));
+        filtered = filtered.filter(c =>
+            storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone) ||
+            storeOrdersCache.some(o => (o.customer_name === c.name || o.customer_phone === c.phone) && o.quote_status === 'approved')
+        );
     }
 
     if (filtered.length === 0) {
