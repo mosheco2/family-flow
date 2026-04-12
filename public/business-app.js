@@ -5770,9 +5770,39 @@ function handleStoreBannerUpload(event) {
     });
 }
 
-async function generateLogoAI() {
-    const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
+// שיחזור הפונקציה החסרה לאישור משאבי AI
+window.executeWithAIWarning = window.executeWithAIWarning || function(callback) {
+    const dontShow = localStorage.getItem('ofl_ai_warning_dismissed');
+    const today = new Date().toLocaleDateString('he-IL');
+    if (dontShow === today || (currentGroup && currentGroup.is_premium)) {
+        callback();
+        return;
+    }
+    const modal = getEl('ai-warning-modal');
+    const leftSpan = getEl('ai-warning-left');
+    if(modal && leftSpan) {
+        leftSpan.innerText = currentGroup ? (currentGroup.ai_tokens || 10) : 10;
+        modal.classList.remove('hidden');
+        const btn = getEl('btn-ai-warning-continue');
+        if(btn) {
+            btn.onclick = () => {
+                const dontShowCheckbox = getEl('ai-warning-dont-show');
+                if (dontShowCheckbox && dontShowCheckbox.checked) {
+                    localStorage.setItem('ofl_ai_warning_dismissed', today);
+                }
+                modal.classList.add('hidden');
+                callback();
+            };
+        } else { callback(); }
+    } else {
+        callback(); // גיבוי אם המודל לא קיים ב-HTML
+    }
+};
+
+window.generateLogoAI = async function() {
+    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
     const slogan = val('wizard-slogan') || val('store-slogan') || '';
+    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
     
     executeWithAIWarning(async () => {
         showToast('info', 'ה-AI מעצב לוגו מקצועי... (לוקח עד 15 שניות)');
@@ -5781,25 +5811,63 @@ async function generateLogoAI() {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     prompt: `Professional minimalist logo for a business named "${businessName}". Style: Modern, flat design, clean lines. Slogan: "${slogan}". High resolution, white background, suitable for a web app icon.`,
-                    groupId: currentGroup.id, type: 'logo'
+                    groupId: groupId, type: 'logo'
                 })
             });
             const data = await res.json();
             if (data.success && data.imageUrl) {
-                const preview = getEl('wizard-logo-preview') || getEl('store-logo-preview');
-                const icon = getEl('wizard-logo-icon') || getEl('store-logo-placeholder');
-                const hiddenInput = getEl('wizard-logo-base64') || getEl('store-logo-base64');
+                // מעדכן את התצוגה היכן שהיא פתוחה (בהגדרות או בוויזארד)
+                const previewWiz = getEl('wizard-logo-preview');
+                const iconWiz = getEl('wizard-logo-icon');
+                const inputWiz = getEl('wizard-logo-base64');
                 
-                if(preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
-                if(icon) icon.classList.add('hidden');
-                if(hiddenInput) hiddenInput.value = data.imageUrl;
+                const previewStore = getEl('store-logo-preview');
+                const iconStore = getEl('store-logo-placeholder');
+                const inputStore = getEl('store-logo-base64');
+                
+                if(previewWiz && !previewWiz.closest('.hidden')) { previewWiz.src = data.imageUrl; previewWiz.classList.remove('hidden'); if(iconWiz) iconWiz.classList.add('hidden'); if(inputWiz) inputWiz.value = data.imageUrl; }
+                if(previewStore && !previewStore.closest('.hidden')) { previewStore.src = data.imageUrl; previewStore.classList.remove('hidden'); if(iconStore) iconStore.classList.add('hidden'); if(inputStore) inputStore.value = data.imageUrl; }
                 
                 showToast('success', 'הלוגו עוצב בהצלחה!');
-                triggerConfetti();
+                try { triggerConfetti(); } catch(e){}
             } else { showToast('error', data.error || 'שגיאה ביצירת לוגו'); }
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     });
-}
+};
+
+window.generateBannerAI = async function() {
+    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
+    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
+    
+    executeWithAIWarning(async () => {
+        showToast('info', 'מייצר רקע שיתאים למיתוג העסק... המתינו');
+        try {
+            const res = await fetch(`${API}/ai/generate-image`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: `Professional website hero banner background for a business named "${businessName}". Style: Abstract, modern, corporate, soft focus, high quality, panoramic aspect ratio. Avoid text.`,
+                    groupId: groupId, type: 'banner'
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.imageUrl) {
+                const previewWiz = getEl('wizard-banner-preview');
+                const iconWiz = getEl('wizard-banner-icon');
+                const inputWiz = getEl('wizard-banner-base64');
+                
+                const previewStore = getEl('store-banner-preview');
+                const iconStore = getEl('store-banner-placeholder');
+                const inputStore = getEl('store-banner-base64');
+                
+                if(previewWiz && !previewWiz.closest('.hidden')) { previewWiz.src = data.imageUrl; previewWiz.classList.remove('hidden'); if(iconWiz) iconWiz.classList.add('hidden'); if(inputWiz) inputWiz.value = data.imageUrl; }
+                if(previewStore && !previewStore.closest('.hidden')) { previewStore.src = data.imageUrl; previewStore.classList.remove('hidden'); if(iconStore) iconStore.classList.add('hidden'); if(inputStore) inputStore.value = data.imageUrl; }
+                
+                showToast('success', 'הבאנר נוצר והותאם בהצלחה!');
+                try { triggerConfetti(); } catch(e){}
+            } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
+        } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
+    });
+};
 
 async function generateBannerAI() {
     const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
