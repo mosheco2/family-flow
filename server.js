@@ -1786,47 +1786,29 @@ app.post('/api/store/quotes/:id/approve', async (req, res) => {
         if (quoteRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה' });
         const quote = quoteRes.rows[0];
         
-        // מוודאים שהמוצרים נשמרים כ-JSON String תקני
         let safeItems = quote.items;
-        if (typeof safeItems !== 'string') {
-            safeItems = JSON.stringify(safeItems);
-        }
+        if (typeof safeItems === 'object') safeItems = JSON.stringify(safeItems);
 
-        // 1. יצירת ההזמנה עם זמן מעודכן
+        // יצירת ההזמנה - בצורה בטוחה שמונעת קריסות DB
+        let orderId = null;
         try {
-            await pool.query(
-                `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, items, target_datetime, status, created_at) 
-                 VALUES ($1, $2, $3, $4, $5, $6, 'new', CURRENT_TIMESTAMP)`,
-                [quote.group_id, quote.customer_name, quote.customer_phone, quote.total_amount, safeItems, targetDatetime || null]
-            );
-        } catch(err) {
-            await pool.query(
-                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status, created_at) 
-                 VALUES ($1, $2, $3, $4, 'new', CURRENT_TIMESTAMP)`,
+            const insertRes = await pool.query(
+                `INSERT INTO store_orders (group_id, customer_name, total_amount, items, status) 
+                 VALUES ($1, $2, $3, $4, 'new') RETURNING id`,
                 [quote.group_id, quote.customer_name, quote.total_amount, safeItems]
             );
+            orderId = insertRes.rows[0].id;
+        } catch(err) {
+             return res.status(500).json({ error: 'שגיאת מסד נתונים ביצירת ההזמנה' });
         }
-
-        // 2. יצירה אוטומטית של לקוח במועדון (אם לא קיים)
-        try {
-            const custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [quote.group_id, quote.customer_name]);
-            if (custExist.rows.length === 0 && quote.customer_name) {
-                let businessId = '';
-                try {
-                    const itemsArr = JSON.parse(safeItems);
-                    const meta = itemsArr.find(i => i.is_quote_metadata);
-                    if (meta) { businessId = JSON.parse(meta.data).companyId || ''; }
-                } catch(e) {}
-
-                await pool.query(
-                    `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
-                     VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
-                    [quote.group_id, quote.customer_name, quote.customer_phone || '', '', businessId, `נוצר אוטומטית בעקבות אישור הצעת מחיר #${quoteId}`]
-                );
-            }
-        } catch(e) { console.error('Error auto-creating customer:', e.message); }
         
-        // 3. עדכון סטטוס
+        // עדכון שדות נוספים רק אם העמודות קיימות
+        if (orderId) {
+            try { await pool.query(`UPDATE store_orders SET target_datetime = $1 WHERE id = $2`, [targetDatetime || null, orderId]); } catch(err) {}
+            try { await pool.query(`UPDATE store_orders SET customer_phone = $1 WHERE id = $2`, [quote.customer_phone || '', orderId]); } catch(err) {}
+        }
+        
+        // עדכון סטטוס ההצעה ל"אושרה"
         await pool.query('UPDATE store_quotes SET quote_status = $1 WHERE id = $2', ['approved', quoteId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
