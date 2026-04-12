@@ -5662,12 +5662,44 @@ function showOnboardingWizard() {
                 <div id="wizard-step-1" class="fade-in max-w-md mx-auto">
                     <h3 class="font-bold text-slate-800 text-lg mb-4 text-center"><i class="fa-solid fa-store text-indigo-500"></i> פרופיל העסק</h3>
                     <div class="space-y-4">
-                        <div class="flex flex-col items-center justify-center mb-6">
-                            <label class="text-xs font-bold text-slate-500 mb-2">לוגו העסק (יופיע בחנות ובמסמכים):</label>
-                            <div class="relative w-24 h-24 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center cursor-pointer hover:border-indigo-400 transition shadow-sm overflow-hidden" onclick="document.getElementById('wizard-logo-upload').click()">
-                                <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
-                                <i id="wizard-logo-icon" class="fa-solid fa-camera text-2xl text-indigo-300"></i>
+                        <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 mt-4 mb-6 space-y-4">
+                            <h4 class="text-[11px] font-black text-indigo-800 border-b border-indigo-200/50 pb-2">עיצוב ומיתוג העסק (אופציונלי)</h4>
+                            
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">לוגו העסק:</label>
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('wizard-logo-upload').click()" class="bg-white text-slate-600 px-4 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה מהמחשב</button>
+                                        <button type="button" onclick="clearImage('wizard-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                    <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
+                                    <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
+                                </div>
+                                <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                                <input type="hidden" id="wizard-logo-base64">
                             </div>
+
+                            <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
+                                            <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        <button type="button" onclick="generateBannerAI()" class="bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע (AI)</button>
+                                    </div>
+                                </div>
+                                <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                    <img id="wizard-banner-preview" class="w-full h-full object-cover hidden">
+                                    <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
+                                </div>
+                                <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
+                                <input type="hidden" id="wizard-banner-base64">
+                            </div>
+                        </div>
                             <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
                             <input type="hidden" id="wizard-logo-base64">
                         </div>
@@ -6116,30 +6148,23 @@ function skipWizardStep() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
-   // --- פונקציית עזר למחיקת תמונה (לוגו/באנר) ---
+})();
+
+// --- פונקציית עזר למחיקת תמונה (לוגו/באנר) ---
 window.clearImage = function(targetIdPrefix) {
     const preview = getEl(`${targetIdPrefix}-preview`);
-    // לחלק יש id מסתיים ב-icon (וויזארד) ולחלק ב-placeholder (הגדרות)
     const icon = getEl(`${targetIdPrefix}-icon`) || getEl(`${targetIdPrefix}-placeholder`);
     const base64Input = getEl(`${targetIdPrefix}-base64`);
     const fileInput = getEl(`${targetIdPrefix}-upload`);
     
-    if (preview) {
-        preview.src = '';
-        preview.classList.add('hidden');
-    }
-    if (icon) {
-        icon.classList.remove('hidden');
-    }
-    if (base64Input) {
-        base64Input.value = '';
-    }
-    if (fileInput) {
-        fileInput.value = '';
-    }
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    if (icon) { icon.classList.remove('hidden'); }
+    if (base64Input) { base64Input.value = ''; }
+    if (fileInput) { fileInput.value = ''; }
     
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 }; 
+
 // --- שדרוג / ביטול מנוי PRO לעסק מהסופר אדמין ---
 window.saTogglePremium = async function(id, enable) {
     if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
@@ -6160,4 +6185,3 @@ window.saTogglePremium = async function(id, enable) {
         showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי');
     }
 };
-})();
