@@ -6140,4 +6140,24 @@ window.clearImage = function(targetIdPrefix) {
     
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 }; 
+// --- שדרוג / ביטול מנוי PRO לעסק מהסופר אדמין ---
+window.saTogglePremium = async function(id, enable) {
+    if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
+    try {
+        const res = await fetch(`${API}/superadmin/groups/${id}/premium`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ enable: enable })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', `מנוי PRO ${enable ? 'הופעל' : 'בוטל'} בהצלחה!`);
+            loadSAData(); // מרענן את רשימת הסביבות
+        } else {
+            showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי');
+    }
+};
 })();
