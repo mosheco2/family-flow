@@ -3744,7 +3744,12 @@ async function fetchStoreSettings() {
                 getEl('store-logo-placeholder').classList.add('hidden');
                 getEl('store-logo-base64').value = data.settings.logo_url;
             }
-
+            if (data.settings.banner_url) { // טעינת הבאנר
+                getEl('store-banner-preview').src = data.settings.banner_url;
+                getEl('store-banner-preview').classList.remove('hidden');
+                getEl('store-banner-placeholder').classList.add('hidden');
+                getEl('store-banner-base64').value = data.settings.banner_url;
+            }
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 renderPresetSelector();
@@ -3763,6 +3768,7 @@ async function saveStoreSettings() {
                 groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
                 phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
                 logoUrl: val('store-logo-base64') || null,
+                bannerUrl: val('store-banner-base64') || null, // שליחת הבאנר לשרת
                 openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
             })
         });
@@ -3771,6 +3777,17 @@ async function saveStoreSettings() {
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
 
+// פונקציית עזר חדשה להעלאת הבאנר בצד המנהל
+function handleStoreBannerUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת באנר...');
+    compressImage(file, 800, 400, 0.8, (compressedDataUrl) => { 
+        getEl('store-banner-preview').src = compressedDataUrl; 
+        getEl('store-banner-preview').classList.remove('hidden'); 
+        getEl('store-banner-placeholder').classList.add('hidden'); 
+        getEl('store-banner-base64').value = compressedDataUrl; 
+        showToast('success', 'הבאנר הועלה ומוכן לשמירה!'); 
+    });
+}
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
@@ -5797,16 +5814,22 @@ function updateWizardUI() {
 async function nextWizardStep() {
     const btnNext = getEl('wizard-btn-next');
     
-    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
+    if (currentWizardStep === 1) { // שמירת לוגו, באנר וסלוגן
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         try {
             await fetch(`${API}/store/settings`, {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ groupId: currentGroup.id, isActive: true, phone: val('wizard-phone'), slogan: val('wizard-slogan'), logoUrl: val('wizard-logo-base64') || null })
+                body: JSON.stringify({ 
+                    groupId: currentGroup.id, 
+                    isActive: true, 
+                    phone: val('wizard-phone'), 
+                    slogan: val('wizard-slogan'), 
+                    logoUrl: val('wiz-logo') || null,      // שימוש בכתובת הלוגו
+                    bannerUrl: val('wiz-banner') || null   // שמירת כתובת הבאנר (משימה 1.2)
+                })
             });
         } catch(e) {}
-    }
-    
+    }    
     else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
         const budget = parseFloat(val('wizard-initial-budget')) || 0;
         if (budget > 0) {
