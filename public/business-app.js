@@ -3231,6 +3231,7 @@ function calcQuoteTotal() {
 async function submitNewQuote() {
     const name = val('quote-cust-name');
     const companyId = val('quote-company-id');
+    const phone = val('quote-cust-phone');
     if(!name || Object.keys(selectedQuoteItems).length === 0) return showToast('error', 'יש להזין שם לקוח ולבחור לפחות פריט אחד');
 
     if (companyId) localStorage.setItem('ofl_company_id', companyId);
@@ -3247,11 +3248,7 @@ async function submitNewQuote() {
     const total = subtotal * (1 - discount / 100);
 
     const notesData = JSON.stringify({
-        notes: val('quote-notes'),
-        introText: val('quote-intro-text'),
-        validity: val('quote-validity'),
-        discount,
-        companyId
+        notes: val('quote-notes'), introText: val('quote-intro-text'), validity: val('quote-validity'), discount, companyId
     });
 
     const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
@@ -3261,7 +3258,7 @@ async function submitNewQuote() {
         const method = editId ? 'PUT' : 'POST';
         const res = await fetch(url, {
             method, headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: val('quote-cust-phone'), items: safeItemsToSave, totalAmount: total })
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: name, customerPhone: phone, items: safeItemsToSave, totalAmount: total })
         });
         const data = await res.json();
         
@@ -3271,17 +3268,25 @@ async function submitNewQuote() {
             getEl('quote-modal').classList.add('hidden');
             fetchStoreQuotes(); 
             
-            const createdId = editId || data.quoteId || data.id; 
-            if (createdId) {
-                setTimeout(() => openQuotePreview(createdId), 800);
+            // יצירה אוטומטית של לקוח חדש במערכת
+            if (!editId) {
+                try {
+                    await fetch(`${API}/store/customers`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ groupId: currentGroup.id, name: name, phone: phone, email: '', businessId: companyId, notes: 'נוצר אוטומטית מיצירת הצעת מחיר' })
+                    });
+                    if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers();
+                } catch(e) {}
             }
+            
+            const createdId = editId || data.quoteId || data.id; 
+            if (createdId) { setTimeout(() => openQuotePreview(createdId), 800); }
         } else {
             showToast('error', data.error || 'שגיאה בשמירת ההצעה');
         }
      } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
     finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
 }
-
 function shareQuoteWhatsApp(id, phone) {
     const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
     window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
@@ -4200,7 +4205,7 @@ async function deleteStoreCoupon(id) {
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
-function openStoreOrderModal(orderId) {
+window.openStoreOrderModal = function(orderId) {
     currentStoreOrderId = orderId; 
     const order = storeOrdersCache.find(o => o.id === orderId); 
     if(!order) return;
@@ -4216,20 +4221,29 @@ function openStoreOrderModal(orderId) {
     let itemsHtml = '';
     if(order.items) {
         let parsedItems = [];
-        try { parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; } catch(e) { parsedItems = []; }
+        try { 
+            // פענוח כפול במקרה שהשרת קידד את זה כסטרינג בתוך סטרינג
+            parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items; 
+            if (typeof parsedItems === 'string') parsedItems = JSON.parse(parsedItems); 
+        } catch(e) { parsedItems = []; }
         
+        if (!Array.isArray(parsedItems)) {
+            if (typeof parsedItems === 'object' && parsedItems !== null) parsedItems = [parsedItems];
+            else parsedItems = [];
+        }
+
         parsedItems.forEach(i => { 
-            if (i.is_quote_metadata) return; // מתעלם מנתוני רקע של הצעת מחיר
+            if (i.is_quote_metadata) return; 
             const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
             const itemPrice = i.price_at_order || i.price || 0;
-            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
+            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity || 1}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
         });
     }
     
-    if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center">אין פריטים להצגה בהזמנה זו.</p>';
+    if (itemsHtml === '') itemsHtml = '<p class="text-xs text-slate-400 text-center mt-3">אין פריטים להצגה בהזמנה זו.</p>';
     getEl('so-modal-items').innerHTML = itemsHtml; 
     getEl('store-order-modal').classList.remove('hidden');
-}
+};
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
     try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
