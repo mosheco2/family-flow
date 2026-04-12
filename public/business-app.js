@@ -3738,18 +3738,24 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
-            if (data.settings.logo_url) {
+if (data.settings.logo_url) {
                 getEl('store-logo-preview').src = data.settings.logo_url;
                 getEl('store-logo-preview').classList.remove('hidden');
                 getEl('store-logo-placeholder').classList.add('hidden');
                 getEl('store-logo-base64').value = data.settings.logo_url;
             }
-            if (data.settings.banner_url) { // טעינת הבאנר
-                getEl('store-banner-preview').src = data.settings.banner_url;
-                getEl('store-banner-preview').classList.remove('hidden');
-                getEl('store-banner-placeholder').classList.add('hidden');
-                getEl('store-banner-base64').value = data.settings.banner_url;
+            
+            if (data.settings.banner_url) {
+                const bannerPreview = getEl('store-banner-preview');
+                const bannerPlaceholder = getEl('store-banner-placeholder');
+                if(bannerPreview) {
+                    bannerPreview.src = data.settings.banner_url;
+                    bannerPreview.classList.remove('hidden');
+                    if(bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+                    getEl('store-banner-base64').value = data.settings.banner_url;
+                }
             }
+
             if (data.settings.modifier_presets) {
                 try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 renderPresetSelector();
@@ -3757,7 +3763,6 @@ async function fetchStoreSettings() {
         }
     } catch(e) { console.error(e); }
 }
-
 async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
     btn.disabled = true; btn.innerText = 'שומר...';
@@ -3768,7 +3773,7 @@ async function saveStoreSettings() {
                 groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
                 phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
                 logoUrl: val('store-logo-base64') || null,
-                bannerUrl: val('store-banner-base64') || null, // שליחת הבאנר לשרת
+                bannerUrl: val('store-banner-base64') || null,
                 openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
             })
         });
@@ -3777,17 +3782,6 @@ async function saveStoreSettings() {
     finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
 }
 
-// פונקציית עזר חדשה להעלאת הבאנר בצד המנהל
-function handleStoreBannerUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת באנר...');
-    compressImage(file, 800, 400, 0.8, (compressedDataUrl) => { 
-        getEl('store-banner-preview').src = compressedDataUrl; 
-        getEl('store-banner-preview').classList.remove('hidden'); 
-        getEl('store-banner-placeholder').classList.add('hidden'); 
-        getEl('store-banner-base64').value = compressedDataUrl; 
-        showToast('success', 'הבאנר הועלה ומוכן לשמירה!'); 
-    });
-}
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
@@ -5744,10 +5738,95 @@ function showOnboardingWizard() {
 function handleWizardLogo(event) {
     const file = event.target.files[0]; if(!file) return;
     compressImage(file, 300, 300, 0.8, (base64) => {
-        getEl('wizard-logo-preview').src = base64;
-        getEl('wizard-logo-preview').classList.remove('hidden');
-        getEl('wizard-logo-icon').classList.add('hidden');
-        getEl('wizard-logo-base64').value = base64;
+        const preview = getEl('wizard-logo-preview') || getEl('store-logo-preview');
+        const icon = getEl('wizard-logo-icon') || getEl('store-logo-placeholder');
+        const input = getEl('wizard-logo-base64') || getEl('store-logo-base64');
+        if(preview) { preview.src = base64; preview.classList.remove('hidden'); }
+        if(icon) icon.classList.add('hidden');
+        if(input) input.value = base64;
+    });
+}
+
+function handleWizardBanner(event) {
+    const file = event.target.files[0]; if(!file) return;
+    compressImage(file, 800, 400, 0.8, (base64) => {
+        const preview = getEl('wizard-banner-preview') || getEl('store-banner-preview');
+        const icon = getEl('wizard-banner-icon') || getEl('store-banner-placeholder');
+        const input = getEl('wizard-banner-base64') || getEl('store-banner-base64');
+        if(preview) { preview.src = base64; preview.classList.remove('hidden'); }
+        if(icon) icon.classList.add('hidden');
+        if(input) input.value = base64;
+    });
+}
+
+function handleStoreBannerUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת באנר...');
+    compressImage(file, 800, 400, 0.8, (compressedDataUrl) => { 
+        getEl('store-banner-preview').src = compressedDataUrl; 
+        getEl('store-banner-preview').classList.remove('hidden'); 
+        if(getEl('store-banner-placeholder')) getEl('store-banner-placeholder').classList.add('hidden'); 
+        getEl('store-banner-base64').value = compressedDataUrl; 
+        showToast('success', 'הבאנר הועלה ומוכן לשמירה!'); 
+    });
+}
+
+async function generateLogoAI() {
+    const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
+    const slogan = val('wizard-slogan') || val('store-slogan') || '';
+    
+    executeWithAIWarning(async () => {
+        showToast('info', 'ה-AI מעצב לוגו מקצועי... (לוקח עד 15 שניות)');
+        try {
+            const res = await fetch(`${API}/ai/generate-image`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: `Professional minimalist logo for a business named "${businessName}". Style: Modern, flat design, clean lines. Slogan: "${slogan}". High resolution, white background, suitable for a web app icon.`,
+                    groupId: currentGroup.id, type: 'logo'
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.imageUrl) {
+                const preview = getEl('wizard-logo-preview') || getEl('store-logo-preview');
+                const icon = getEl('wizard-logo-icon') || getEl('store-logo-placeholder');
+                const hiddenInput = getEl('wizard-logo-base64') || getEl('store-logo-base64');
+                
+                if(preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
+                if(icon) icon.classList.add('hidden');
+                if(hiddenInput) hiddenInput.value = data.imageUrl;
+                
+                showToast('success', 'הלוגו עוצב בהצלחה!');
+                triggerConfetti();
+            } else { showToast('error', data.error || 'שגיאה ביצירת לוגו'); }
+        } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
+    });
+}
+
+async function generateBannerAI() {
+    const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
+    
+    executeWithAIWarning(async () => {
+        showToast('info', 'מייצר רקע שיתאים למיתוג העסק...');
+        try {
+            const res = await fetch(`${API}/ai/generate-image`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: `Professional website hero banner background for a business named "${businessName}". Style: Abstract, modern, corporate, soft focus, high quality, panoramic aspect ratio. Avoid text.`,
+                    groupId: currentGroup.id, type: 'banner'
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.imageUrl) {
+                const preview = getEl('wizard-banner-preview') || getEl('store-banner-preview');
+                const icon = getEl('wizard-banner-icon') || getEl('store-banner-placeholder');
+                const hiddenInput = getEl('wizard-banner-base64') || getEl('store-banner-base64');
+                
+                if(preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
+                if(icon) icon.classList.add('hidden');
+                if(hiddenInput) hiddenInput.value = data.imageUrl;
+                
+                showToast('success', 'הבאנר נוצר והותאם בהצלחה!');
+            } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
+        } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     });
 }
 
@@ -5814,7 +5893,7 @@ function updateWizardUI() {
 async function nextWizardStep() {
     const btnNext = getEl('wizard-btn-next');
     
-    if (currentWizardStep === 1) { // שמירת לוגו, באנר וסלוגן
+    if (currentWizardStep === 1) { // שמירת לוגו וסלוגן
         btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         try {
             await fetch(`${API}/store/settings`, {
@@ -5824,12 +5903,13 @@ async function nextWizardStep() {
                     isActive: true, 
                     phone: val('wizard-phone'), 
                     slogan: val('wizard-slogan'), 
-                    logoUrl: val('wiz-logo') || null,      // שימוש בכתובת הלוגו
-                    bannerUrl: val('wiz-banner') || null   // שמירת כתובת הבאנר (משימה 1.2)
+                    logoUrl: val('wizard-logo-base64') || val('store-logo-base64') || null,
+                    bannerUrl: val('wizard-banner-base64') || val('store-banner-base64') || null
                 })
             });
         } catch(e) {}
-    }    
+    }
+    
     else if (currentWizardStep === 2) { // שמירת תקציב התחלתי
         const budget = parseFloat(val('wizard-initial-budget')) || 0;
         if (budget > 0) {
