@@ -2889,6 +2889,35 @@ function openCustomerModal(id = null) {
 }
 window.openCustomerModal = openCustomerModal;
 
+window.openCustomerModal = function(id = null) {
+    const modal = getEl('customer-modal');
+    if (!modal) return;
+    
+    if (id) {
+        const c = storeCustomersCache.find(x => String(x.id) === String(id));
+        if (c) {
+            if(getEl('cust-id')) getEl('cust-id').value = c.id;
+            getEl('cust-name').value = c.name || '';
+            getEl('cust-phone').value = c.phone || '';
+            getEl('cust-email').value = c.email || '';
+            getEl('cust-business-id').value = c.business_id || '';
+            getEl('cust-notes').value = c.notes || '';
+            const titleEl = modal.querySelector('h3');
+            if(titleEl) titleEl.innerText = 'עריכת לקוח';
+        }
+    } else {
+        if(getEl('cust-id')) getEl('cust-id').value = '';
+        getEl('cust-name').value = '';
+        getEl('cust-phone').value = '';
+        getEl('cust-email').value = '';
+        getEl('cust-business-id').value = '';
+        getEl('cust-notes').value = '';
+        const titleEl = modal.querySelector('h3');
+        if(titleEl) titleEl.innerText = 'הוספת לקוח חדש';
+    }
+    modal.classList.remove('hidden');
+};
+
 window.submitNewCustomer = async function() {
     const id = val('cust-id');
     const name = val('cust-name');
@@ -2909,10 +2938,71 @@ window.submitNewCustomer = async function() {
         if(data.success) {
             showToast('success', id ? 'לקוח עודכן בהצלחה!' : 'לקוח חדש נשמר במאגר!');
             getEl('customer-modal').classList.add('hidden');
-            if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); 
+            if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers(); 
         } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאת רשת בשמירה'); }
     finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
+};
+
+let storeCustomersCache = [];
+
+window.fetchStoreCustomers = async function() {
+    try {
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            if (typeof window.renderStoreCustomers === 'function') window.renderStoreCustomers();
+        }
+    } catch(e) { console.error("Error fetching customers:", e); }
+};
+
+window.renderStoreCustomers = function() {
+    const list = getEl('store-customers-list');
+    if(!list) return;
+
+    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+    const filterType = val('filter-customer-type') || 'all';
+
+    let filtered = storeCustomersCache.filter(c => {
+        const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
+        return searchStr.includes(searchTerm);
+    });
+
+    if (filterType === 'order') {
+        filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
+    } else if (filterType === 'quote') {
+        filtered = filtered.filter(c => storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone));
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(c => {
+        const initial = (c.name || '?').charAt(0).toUpperCase();
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">
+                    ${initial}
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
+                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
+                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+                <button onclick="window.openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+            </div>
+        </div>
+    `}).join('');
 };
 
 let storeCustomersCache = [];
@@ -4199,13 +4289,28 @@ async function deleteStoreCoupon(id) {
 }
 
 function openStoreOrderModal(orderId) {
-    currentStoreOrderId = orderId; const order = storeOrdersCache.find(o => o.id === orderId); if(!order) return;
-    getEl('so-modal-id').innerText = order.id; getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); getEl('so-modal-total').innerText = order.total_amount; getEl('so-modal-customer').innerText = order.customer_name; getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
+    currentStoreOrderId = orderId; 
+    const order = storeOrdersCache.find(o => o.id === orderId); 
+    if(!order) return;
+    
+    getEl('so-modal-id').innerText = order.id; 
+    getEl('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL'); 
+    getEl('so-modal-total').innerText = order.total_amount; 
+    getEl('so-modal-customer').innerText = order.customer_name; 
+    getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
+    
     let itemsHtml = '';
-    if(order.items) order.items.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
-    getEl('so-modal-items').innerHTML = itemsHtml; getEl('store-order-modal').classList.remove('hidden');
+    if(order.items) {
+        const parsedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        parsedItems.forEach(i => { 
+            const itemName = safeStr(i.item_name || i.name || 'פריט כללי');
+            const itemPrice = i.price_at_order || i.price || 0;
+            itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${itemName} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${itemPrice}</span></div>`; 
+        });
+    }
+    getEl('so-modal-items').innerHTML = itemsHtml; 
+    getEl('store-order-modal').classList.remove('hidden');
 }
-
 async function updateStoreOrderStatus(status) {
     if(!currentStoreOrderId) return;
     try { await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId: currentStoreOrderId, status }) }); showToast('success', 'סטטוס ההזמנה עודכן!'); getEl('store-order-modal').classList.add('hidden'); fetchStoreOrders(); } catch(e) { showToast('error', 'שגיאה בעדכון הסטטוס'); }
