@@ -5842,7 +5842,7 @@ window.generateBannerAI = async function() {
     const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
     const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
     
-    // משיכת הלוגו שהלקוח העלה - חובה כדי להתאים צבעים!
+    // משיכת הלוגו שהלקוח העלה - חובה כדי שה-AI ידע לאיזה סגנון להתאים!
     let logoBase64 = val('wizard-logo-base64');
     if (!logoBase64) {
         logoBase64 = val('store-logo-base64');
@@ -5914,6 +5914,7 @@ window.clearImage = function(targetIdPrefix) {
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 };
 
+// פתרון לכפתור PRO במסך אדמין עליון
 window.saTogglePremium = async function(id, enable) {
     if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
     try {
