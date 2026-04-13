@@ -610,84 +610,113 @@ async function loadDashboard() {
 async function fetchData() {
     try {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
-        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
+        if (document.activeElement && document.activeElement.classList.contains('price-input')) return;
 
         const res = await fetch(`${API}/data/${currentUser.id}`);
+        const data = await res.json();
         
-        let data;
-        try { data = await res.json(); } catch(err) { console.error("Failed to parse JSON", err); return; }
-        
-        if (!res.ok) { console.error("Backend Error:", data.error); return; }
         if (!data || !data.user) return;
         
+        // עדכון סטטוסים בסיסיים
         currentUser.balance = data.user.balance; 
         if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
-            try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
+            currentGroup.logo_url = data.group.logo_url; // וודא שהשדה נשמר במטמון
+            updateBatteryUI();
             
-            const profileUp = document.getElementById('profile-upgrade-section');
-            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-slate-800 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>'; }
+            // לוגיקת הצגת תמונת המשפחה/עסק ב-Header ובניהול
+            const logoUrl = data.group.logo_url || data.group.image_url;
+            const headerImg = getEl('header-group-img');
+            const headerFallback = getEl('header-group-icon-fallback');
+            const mgmtImg = getEl('mgmt-group-logo-preview');
+            const mgmtIcon = getEl('mgmt-group-logo-icon');
+
+            if (logoUrl) {
+                if (headerImg) { headerImg.src = logoUrl; headerImg.classList.remove('hidden'); }
+                if (headerFallback) headerFallback.classList.add('hidden');
+                if (mgmtImg) { mgmtImg.src = logoUrl; mgmtImg.classList.remove('hidden'); }
+                if (mgmtIcon) mgmtIcon.classList.add('hidden');
+            } else {
+                if (headerImg) headerImg.classList.add('hidden');
+                if (headerFallback) headerFallback.classList.remove('hidden');
+                if (mgmtImg) mgmtImg.classList.add('hidden');
+                if (mgmtIcon) mgmtIcon.classList.remove('hidden');
+            }
+
+            const profileUp = getEl('profile-upgrade-section');
+            if (profileUp && currentUser.role === 'ADMIN' && currentGroup.is_premium) {
+                profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> מסלול PRO פעיל</p>';
+            }
         }
 
-        if (currentUser.role === 'ADMIN') {
-            const balEl = document.getElementById('user-balance'); 
-            if(balEl) {
-                const realBalance = data.group.admin_total_balance || 0;
-                balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
+        // עדכון יתרה ראשית
+        const balEl = getEl('user-balance'); 
+        if(balEl) {
+            const realBalance = currentUser.role === 'ADMIN' ? (data.group.admin_total_balance || 0) : (currentUser.balance || 0);
+            balEl.innerText = `₪${parseFloat(realBalance).toFixed(2)}`;
+            if (currentUser.role === 'ADMIN') {
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${realBalance >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
-        } else {
-            const balEl = document.getElementById('user-balance'); if(balEl) balEl.innerText = `₪${currentUser.balance || 0}`;
         }
         
+        // טעינת מטמונים (Caches)
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; 
         bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; 
         pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
-        if (data.all_bundles && data.all_bundles.length > 0) allBundles = data.all_bundles;
+        if (data.all_bundles) allBundles = data.all_bundles;
+        window.communityUpdatesCache = Array.isArray(data.community_updates) ? data.community_updates : [];
+        window.communityBusinessesCache = Array.isArray(data.community_businesses) ? data.community_businesses : [];
 
-        try { if (currentUser.role === 'ADMIN' && typeof renderAdminAcademy === 'function') renderAdminAcademy(); else { if(typeof renderMyAssignments === 'function') renderMyAssignments(bundlesCache); if(typeof renderLibrary === 'function') renderLibrary(); } } catch(e) {}
-        try { if(typeof renderTasks === 'function') renderTasks(allTasks); if(typeof renderPantry === 'function') renderPantry(); if(typeof renderShifts === 'function') renderShifts(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; if(typeof renderShopList === 'function') renderShopList(); } catch(e) {}
-        try { if(typeof fetchBudget === 'function') fetchBudget(); } catch(e) {}
-        try { if(typeof renderForecast === 'function') renderForecast(); } catch(e) {}
+        // רינדור טאבים
+        if (currentUser.role === 'ADMIN') renderAdminAcademy(); 
+        else { renderMyAssignments(bundlesCache); renderLibrary(); }
         
-        try {
-            const goalsList = document.getElementById(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list'); const goalsContainer = currentUser.role !== 'ADMIN' ? document.getElementById('my-goals-container') : null; 
-            if (goalsList) { 
-                goalsList.innerHTML = ''; 
-                if(data.goals && data.goals.length > 0) { 
-                    if(goalsContainer) goalsContainer.classList.remove('hidden'); 
-                    data.goals.forEach(g => { 
-                        const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)); const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${g.owner_name ? g.owner_name.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}</span>` : ''; const adviseBtn = `<button onclick="if(typeof getBusinessAIAdvice === 'function') getBusinessAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200 hover:bg-slate-200 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> המלצת AI</button>`;
-                        goalsList.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2"><div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div><div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${g.title ? g.title.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p><div class="flex gap-2"><button onclick="if(typeof openDepositModal === 'function') openDepositModal(${g.id}, '${g.title ? g.title.replace(/'/g, "\\'").replace(/"/g, "&quot;") : ''}')" class="mt-2 bg-slate-800 text-white px-3 py-1 rounded text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> העברה ליעד</button>${adviseBtn}</div></div></div>`; 
-                    }); 
-                } else { if (goalsContainer) goalsContainer.classList.add('hidden'); goalsList.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין יעדים מוגדרים</p>'; } 
-            }
-        } catch(e) {}
+        renderTasks(allTasks); 
+        renderPantry(); 
+        renderRecipePantrySelection();
+        shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; 
+        renderShopList();
+        fetchBudget();
+        renderForecast();
+        renderFamilyCommunities(window.communityBusinessesCache);
+        renderChildTodo();
+        buildAndRenderFeed();
         
-        try {
-            if (currentUser.role !== 'ADMIN' && data.weekly_stats) { 
-                const spent = parseFloat(data.weekly_stats.spent).toFixed(1); const limit = parseFloat(data.weekly_stats.limit).toFixed(1); const pct = limit > 0 ? (spent / limit) * 100 : 0; 
-                const statusEl = document.getElementById('card-spend-status'); if(statusEl) statusEl.innerText = `₪${spent} מתוך ₪${limit}`; 
-                const bar = document.getElementById('card-spend-bar'); if(bar) { bar.style.width = `${Math.min(100, pct)}%`; bar.className = parseFloat(spent) > parseFloat(limit) ? 'bg-red-500 h-1.5 rounded-full' : 'bg-green-400 h-1.5 rounded-full'; }
-                const msgEl = document.getElementById('card-spend-msg'); if (msgEl) msgEl.innerText = parseFloat(spent) > parseFloat(limit) ? 'חרגת מהתקציב שאושר!' : 'עמידה ביעדי התקציב מזכה בבונוס!'; 
-            }
-        } catch(e) {}
+        if (getEl('tab-cashflow').classList.contains('tab-active')) renderCashflow();
 
-        try {
-            const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
-            if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
-        } catch(e) { allTransactions = []; }
+        // טיפול ביעדים
+        const goalsList = getEl(currentUser.role === 'ADMIN' ? 'admin-goals-list' : 'my-goals-list');
+        const goalsContainer = currentUser.role !== 'ADMIN' ? getEl('my-goals-container') : null; 
+        if (goalsList) { 
+            goalsList.innerHTML = ''; 
+            if(data.goals && data.goals.length > 0) { 
+                if(goalsContainer) goalsContainer.classList.remove('hidden'); 
+                data.goals.forEach(g => { 
+                    const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
+                    const ownerBadge = currentUser.role === 'ADMIN' ? `<span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 block mb-1">${safeStr(g.owner_name)}</span>` : '';
+                    goalsList.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-50 flex items-start gap-4 mb-2">
+                            <div class="radial-progress flex-shrink-0 mt-1" style="--pct: ${pct*3.6}deg"><span>${pct}%</span></div>
+                            <div class="flex-1">${ownerBadge}<h4 class="font-bold text-slate-800">${safeStr(g.title)}</h4><p class="text-xs text-slate-500 mb-1">₪${g.current_amount} / ₪${g.target_amount}</p>
+                            <div class="flex gap-2"><button onclick="openDepositModal(${g.id}, '${safeStr(g.title)}')" class="mt-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus"></i> הפקד</button>
+                            <button onclick="getFamilAIAdvice(${g.target_user_id || g.user_id}, ${g.id})" class="mt-2 text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 hover:bg-purple-100 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> טיפ</button></div></div>
+                        </div>`; 
+                }); 
+            } else if (goalsContainer) goalsContainer.classList.add('hidden');
+        }
 
-        try { if (typeof renderEmployeeTodo === 'function') renderEmployeeTodo(); if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); const cashTab = document.getElementById('tab-cashflow'); if (cashTab && cashTab.classList.contains('tab-active') && typeof renderCashflow === 'function') renderCashflow(); } catch(e){}
-        try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
+        // טעינת תנועות
+        const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+        const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=100`);
+        if(transRes.ok) allTransactions = await transRes.json();
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
+            setTimeout(showOnboardingWizard, 1000);
+        }
+
+    } catch(e) { console.error("Fetch data error:", e); }
 }
 window.openBalanceAdjustmentModal = function(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; window.toggleAdjustmentType('deduct'); getEl('balance-adjustment-modal').classList.remove('hidden'); };
 window.submitBalanceAdjustment = async function() {
@@ -3664,29 +3693,4 @@ async function handleFamilyPhotoUpload(event) {
         }
     });
 }
-
-// עדכון פונקציית הזרקת הנתונים הראשית כדי שתטפל בתמונה ב-Header
-const originalFetchData = window.fetchData;
-window.fetchData = async function() {
-    await originalFetchData();
-    
-    if (currentGroup && (currentGroup.logo_url || currentGroup.image_url)) {
-        const url = currentGroup.logo_url || currentGroup.image_url;
-        const headerImg = getEl('header-group-img');
-        const headerFallback = getEl('header-group-icon-fallback');
-        const mgmtImg = getEl('mgmt-group-logo-preview');
-        const mgmtIcon = getEl('mgmt-group-logo-icon');
-
-        if (headerImg) {
-            headerImg.src = url;
-            headerImg.classList.remove('hidden');
-            if (headerFallback) headerFallback.classList.add('hidden');
-        }
-        if (mgmtImg) {
-            mgmtImg.src = url;
-            mgmtImg.classList.remove('hidden');
-            if (mgmtIcon) mgmtIcon.classList.add('hidden');
-        }
-    }
-};
 })();
