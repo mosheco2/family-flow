@@ -88,7 +88,7 @@ window.onload = async () => {
             const session = JSON.parse(saved); 
             if(session && session.user && session.group) { 
                 if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
-                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
+                currentUser = session.user; currentGroup = session.group; loadDashboard(); return;
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
@@ -831,6 +831,12 @@ window.upgradeToPremium = function() {
     window.open('https://wa.me/972504000024?text=' + encodeURIComponent('שלום, אני מעוניין לשדרג למסלול ה-PRO העסקי של המערכת כדי לקבל AI ללא הגבלה.'), '_blank');
 };
 async function loadDashboard() {
+    // טיימר בטיחות: מסתיר את הטעינה אחרי 10 שניות גם אם fetch תקוע
+    const _safetyTimer = setTimeout(() => {
+        const el = document.getElementById('app-preloader');
+        if (el) { el.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => el.classList.add('hidden'), 500); }
+    }, 10000);
+
     try {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
             const authContainer = document.getElementById('auth-container');
@@ -839,6 +845,14 @@ async function loadDashboard() {
         }
 
         const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
+
+        // תיקון פריסה: מונע מהדשבורד להיות ממורכז אנכית על מסך מלא
+        const mainWrapper = getEl('main-wrapper');
+        if (mainWrapper) { mainWrapper.classList.remove('items-center', 'justify-center'); mainWrapper.classList.add('flex-col'); }
+
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
+
         try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
         
         const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
@@ -908,13 +922,14 @@ async function loadDashboard() {
             setTimeout(showOnboardingWizard, 1000);
         }
 
-    } catch (e) {
+       } catch (e) {
         console.error("Dashboard error:", e);
     } finally {
-        const preloader = document.getElementById('app-preloader'); 
-        if (preloader) { 
-            preloader.classList.add('opacity-0', 'pointer-events-none'); 
-            setTimeout(() => { preloader.classList.add('hidden'); }, 700); 
+        clearTimeout(_safetyTimer);
+        const preloader = document.getElementById('app-preloader');
+        if (preloader) {
+            preloader.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => { preloader.classList.add('hidden'); }, 700);
         }
     }
 }
