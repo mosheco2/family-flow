@@ -128,16 +128,32 @@ async function saveAllBanners() {
 
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
-    const renderBanner = (el, text, link, img) => {
+    const placeholder = getEl('app-banner-placeholder');
+    
+    const renderBanner = (el, text, link, img, isTop = false) => {
         if(!el) return;
         if(text || img) { 
-            let html = ''; if(img) { const imgSrc = img.startsWith('http') ? img : `/${img}`; html += `<img src="${imgSrc}" alt="Banner" class="w-full object-cover block">`; }
-            if(text) html += `<span class="py-3 px-4 block w-full text-center">${text}</span>`; el.innerHTML = html; el.href = link || '#'; 
+            let html = ''; 
+            if(img) { 
+                const imgSrc = img.startsWith('http') ? img : `/${img}`; 
+                html += `<img src="${imgSrc}" alt="Ad" class="w-full h-full object-cover block">`; 
+            }
+            if(text) {
+                const padding = img ? 'p-1' : 'p-3';
+                html += `<span class="${padding} block w-full text-center">${text}</span>`; 
+            }
+            el.innerHTML = html; 
+            el.href = link || '#'; 
             if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
-            el.classList.remove('hidden'); el.classList.add('flex'); 
-        } else { el.classList.add('hidden'); el.classList.remove('flex'); }
+            el.classList.remove('hidden'); el.classList.add('flex');
+            if(isTop && placeholder) placeholder.classList.add('hidden');
+        } else { 
+            el.classList.add('hidden'); el.classList.remove('flex'); 
+            if(isTop && placeholder) placeholder.classList.remove('hidden');
+        }
     };
-    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img); renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
+    renderBanner(appTop, banners.banner_top_text, banners.banner_top_link, banners.banner_top_img, true); 
+    renderBanner(appBottom, banners.banner_bottom_text, banners.banner_bottom_link, banners.banner_bottom_img);
 }
 
 async function fetchBanners() {
@@ -3618,4 +3634,59 @@ function skipWizardStep() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
+    // --- ניהול תמונת זהות משפחתית ---
+async function handleFamilyPhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showToast('info', 'מעלה ומעבד תמונה...');
+    compressImage(file, 600, 600, 0.8, async (base64) => {
+        try {
+            // אנחנו משתמשים באותו Endpoint של הגדרות חנות כי הוא שומר לוגו לקבוצה
+            const res = await fetch(`${API}/store/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    groupId: currentGroup.id,
+                    logoUrl: base64,
+                    isActive: true // כדי לוודא שהתמונה תישלף בנתונים
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
+                fetchData(); // ירענן את התצוגה בכל המקומות
+            } else {
+                showToast('error', 'שגיאה בשמירת התמונה');
+            }
+        } catch (e) {
+            showToast('error', 'תקלת רשת בעדכון תמונה');
+        }
+    });
+}
+
+// עדכון פונקציית הזרקת הנתונים הראשית כדי שתטפל בתמונה ב-Header
+const originalFetchData = window.fetchData;
+window.fetchData = async function() {
+    await originalFetchData();
+    
+    if (currentGroup && (currentGroup.logo_url || currentGroup.image_url)) {
+        const url = currentGroup.logo_url || currentGroup.image_url;
+        const headerImg = getEl('header-group-img');
+        const headerFallback = getEl('header-group-icon-fallback');
+        const mgmtImg = getEl('mgmt-group-logo-preview');
+        const mgmtIcon = getEl('mgmt-group-logo-icon');
+
+        if (headerImg) {
+            headerImg.src = url;
+            headerImg.classList.remove('hidden');
+            if (headerFallback) headerFallback.classList.add('hidden');
+        }
+        if (mgmtImg) {
+            mgmtImg.src = url;
+            mgmtImg.classList.remove('hidden');
+            if (mgmtIcon) mgmtIcon.classList.add('hidden');
+        }
+    }
+};
 })();
