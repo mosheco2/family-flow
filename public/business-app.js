@@ -358,7 +358,7 @@ function injectBusinessUI() {
                                     <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
                                         <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
                                         <div class="flex items-center gap-3">
-                                                                                         <div id="store-logo-preview-container" class="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                        <div id="store-logo-preview-container" class="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
                                                  <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
                                                  <img id="store-logo-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
                                              </div>
@@ -5805,37 +5805,36 @@ function showOnboardingWizard() {
                                 <div>
                                     <label class="text-[10px] font-bold text-slate-600 block mb-1.5">לוגו העסק:</label>
                                     <div class="flex gap-2">
-                                        <button type="button" onclick="document.getElementById('wizard-logo-upload').click()" class="bg-white text-slate-600 px-4 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה מהמחשב</button>
-                                        <button type="button" onclick="clearImage('wizard-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
+                                        <button type="button" onclick="document.getElementById('wizard-logo-upload').click()" class="bg-white text-slate-600 px-4 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                        <button type="button" onclick="clearImage('wizard-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק לוגו"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
-                                    <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                     <img id="wizard-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                     <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
-                                 </div>
-                                 <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
-                                 <input type="hidden" id="wizard-logo-base64">
-                             </div>
+                                <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                    <img id="wizard-logo-preview" class="w-full h-full object-cover hidden cursor-pointer hover:opacity-80 transition" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                    <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
+                                </div>
+                                <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                                <input type="hidden" id="wizard-logo-base64">
+                            </div>
 
-                             <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
-                                 <div>
-                                     <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
-                                     <div class="flex flex-col gap-2">
-                                         <div class="flex gap-2">
-                                             <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
-                                             <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
-                                         </div>
-                                         <button type="button" id="btn-generate-banner-ai-wiz" onclick="generateBannerAI()" class="hidden bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ב-AI</button>
-                                     </div>
-                                 </div>
-                                 <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                     <img id="wizard-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                     <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
-                                 </div>
-                                 <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
-                                 <input type="hidden" id="wizard-banner-base64">
-                             </div>
-
+                            <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex gap-2">
+                                            <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
+                                            <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק רקע"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        <button type="button" onclick="generateBannerAI()" class="bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
+                                    </div>
+                                </div>
+                                <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                    <img id="wizard-banner-preview" class="w-full h-full object-cover hidden cursor-pointer hover:opacity-80 transition" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                    <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
+                                </div>
+                                <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
+                                <input type="hidden" id="wizard-banner-base64">
+                            </div>
                         </div>
 
                         <div>
@@ -5994,15 +5993,59 @@ window.generateBannerAI = async function() {
     const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
     const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
     
-    // משיכת הלוגו שהלקוח העלה - חובה כדי להתאים צבעים!
-    let logoBase64 = val('wizard-logo-base64');
-    if (!logoBase64) {
-        logoBase64 = val('store-logo-base64');
-    }
+    let logoBase64 = val('wizard-logo-base64') || val('store-logo-base64');
 
     if (!logoBase64) {
-        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
+        return showToast('error', 'יש להעלות קודם תמונת לוגו כדי שה-AI יוכל להתאים עבורכם את צבעי הרקע!');
     }
+    
+    if (typeof executeWithAIWarning === 'function') {
+        executeWithAIWarning(runBannerAI);
+    } else {
+        runBannerAI();
+    }
+
+    async function runBannerAI() {
+        showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
+        try {
+            const res = await fetch(`${API}/ai/generate-image`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: businessName,
+                    groupId: groupId, 
+                    type: 'banner',
+                    logoBase64: logoBase64
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.imageUrl) {
+                const img = new Image();
+                img.onload = () => {
+                    const previewWiz = getEl('wizard-banner-preview');
+                    const iconWiz = getEl('wizard-banner-icon');
+                    const inputWiz = getEl('wizard-banner-base64');
+                    
+                    const previewStore = getEl('store-banner-preview');
+                    const iconStore = getEl('store-banner-placeholder');
+                    const inputStore = getEl('store-banner-base64');
+                    
+                    if(previewWiz) { previewWiz.src = data.imageUrl; previewWiz.classList.remove('hidden'); }
+                    if(iconWiz) iconWiz.classList.add('hidden');
+                    if(inputWiz) inputWiz.value = data.imageUrl;
+                    
+                    if(previewStore) { previewStore.src = data.imageUrl; previewStore.classList.remove('hidden'); }
+                    if(iconStore) iconStore.classList.add('hidden');
+                    if(inputStore) inputStore.value = data.imageUrl;
+                    
+                    showToast('success', 'הבאנר נוצר והותאם ללוגו שלכם בהצלחה!');
+                    try { triggerConfetti(); } catch(e){}
+                };
+                img.onerror = () => showToast('error', 'שגיאה בטעינת הבאנר מהשרת. נסו שוב.');
+                img.src = data.imageUrl;
+            } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
+        } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
+    }
+};
     
     if (typeof executeWithAIWarning === 'function') {
         executeWithAIWarning(runBannerAI);
@@ -6050,6 +6093,18 @@ window.generateBannerAI = async function() {
             } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     }
+};
+
+window.openStoreImageModal = function(src) {
+    if (!src || src.length < 10) return;
+    const existing = document.getElementById('store-img-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'store-img-modal';
+    modal.className = 'fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center p-4';
+    modal.onclick = () => modal.remove();
+    modal.innerHTML = '<div class="relative max-w-full max-h-full" onclick="event.stopPropagation()"><img src="' + src + '" class="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain"><button onclick="document.getElementById(\'store-img-modal\').remove()" class="absolute top-2 right-2 bg-white/90 text-slate-700 w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-lg hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button></div>';
+    document.body.appendChild(modal);
 };
 
 window.clearImage = function(targetIdPrefix) {
