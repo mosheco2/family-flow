@@ -358,10 +358,11 @@ function injectBusinessUI() {
                                     <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
                                         <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
                                         <div class="flex items-center gap-3">
-                                            <div id="store-logo-preview-container" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
-                                                <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
-                                                <img id="store-logo-preview" src="" class="w-full h-full object-cover hidden">
-                                            </div>
+                                                                                         <div id="store-logo-preview-container" class="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                 <i class="fa-solid fa-store text-2xl" id="store-logo-placeholder"></i>
+                                                 <img id="store-logo-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                             </div>
+
                                             <div class="flex flex-col gap-2 w-full">
                                                 <button type="button" onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קיים</button>
                                                 <button type="button" onclick="clearImage('store-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
@@ -374,18 +375,18 @@ function injectBusinessUI() {
                                     <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
                                         <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
                                         <div class="flex items-center gap-3 mb-2">
-                                            <div id="store-banner-preview-container" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
-                                                <i class="fa-regular fa-image text-2xl" id="store-banner-placeholder"></i>
-                                                <img id="store-banner-preview" src="" class="w-full h-full object-cover hidden">
-                                            </div>
-                                            <div class="flex flex-col gap-2 w-full">
-                                                <button type="button" onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קיים</button>
-                                                <button type="button" onclick="clearImage('store-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
-                                            </div>
-                                            <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
-                                            <input type="hidden" id="store-banner-base64">
-                                        </div>
-                                        <button type="button" onclick="generateBannerAI()" class="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
+                                                                                     <div id="store-banner-preview-container" class="relative w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 text-slate-300 shadow-inner">
+                                                 <i class="fa-regular fa-image text-2xl" id="store-banner-placeholder"></i>
+                                                 <img id="store-banner-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                             </div>
+                                             <div class="flex flex-col gap-2 w-full">
+                                                 <button type="button" onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קיים</button>
+                                                 <button type="button" onclick="clearImage('store-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
+                                             </div>
+                                             <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
+                                             <input type="hidden" id="store-banner-base64">
+                                         </div>
+                                         <button type="button" id="btn-generate-banner-ai" onclick="generateBannerAI()" class="hidden bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>   
                                     </div>
                                 </div>
 
@@ -3806,8 +3807,10 @@ if (data.settings.logo_url) {
                 getEl('store-logo-preview').classList.remove('hidden');
                 getEl('store-logo-placeholder').classList.add('hidden');
                 getEl('store-logo-base64').value = data.settings.logo_url;
+                const aiBannerBtn = getEl('btn-generate-banner-ai');
+                if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
             }
-            
+    
             if (data.settings.banner_url) {
                 const bannerPreview = getEl('store-banner-preview');
                 const bannerPlaceholder = getEl('store-banner-placeholder');
@@ -4336,10 +4339,8 @@ function handleStoreLogoUpload(event) {
         getEl('store-logo-preview').classList.remove('hidden');
         getEl('store-logo-placeholder').classList.add('hidden');
         getEl('store-logo-base64').value = compressedDataUrl;
-        const clearBtn = getEl('btn-clear-logo');
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        const aiBgBtn = getEl('btn-generate-bg-ai');
-        if (aiBgBtn) aiBgBtn.classList.remove('hidden');
+        const aiBannerBtn = getEl('btn-generate-banner-ai');
+        if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
         showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
     });
 }
@@ -5808,32 +5809,33 @@ function showOnboardingWizard() {
                                         <button type="button" onclick="clearImage('wizard-logo')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
-                                <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                    <img id="wizard-logo-preview" class="w-full h-full object-cover hidden">
-                                    <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
-                                </div>
-                                <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
-                                <input type="hidden" id="wizard-logo-base64">
-                            </div>
+                                    <div class="relative w-16 h-16 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                     <img id="wizard-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                     <i id="wizard-logo-icon" class="fa-solid fa-camera text-indigo-300 text-xl"></i>
+                                 </div>
+                                 <input type="file" id="wizard-logo-upload" accept="image/*" class="hidden" onchange="handleWizardLogo(event)">
+                                 <input type="hidden" id="wizard-logo-base64">
+                             </div>
 
-                            <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
-                                <div>
-                                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
-                                    <div class="flex flex-col gap-2">
-                                        <div class="flex gap-2">
-                                            <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
-                                            <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
-                                        </div>
-                                        <button type="button" onclick="generateBannerAI()" class="bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ב-AI</button>
-                                    </div>
-                                </div>
-                                <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
-                                    <img id="wizard-banner-preview" class="w-full h-full object-cover hidden">
-                                    <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
-                                </div>
-                                <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
-                                <input type="hidden" id="wizard-banner-base64">
-                            </div>
+                             <div class="flex items-center justify-between gap-4 pt-3 border-t border-indigo-100/50">
+                                 <div>
+                                     <label class="text-[10px] font-bold text-slate-600 block mb-1.5">באנר / רקע ראשי:</label>
+                                     <div class="flex flex-col gap-2">
+                                         <div class="flex gap-2">
+                                             <button type="button" onclick="document.getElementById('wizard-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-upload"></i> העלה קיים</button>
+                                             <button type="button" onclick="clearImage('wizard-banner')" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 shadow-sm transition" title="מחק"><i class="fa-solid fa-trash"></i></button>
+                                         </div>
+                                         <button type="button" id="btn-generate-banner-ai-wiz" onclick="generateBannerAI()" class="hidden bg-purple-600 text-white px-3 py-2 rounded-xl text-[10px] font-bold shadow-md hover:bg-purple-700 flex items-center justify-center gap-1 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ב-AI</button>
+                                     </div>
+                                 </div>
+                                 <div class="relative w-24 h-12 bg-white rounded-xl border-2 border-dashed border-indigo-200 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                                     <img id="wizard-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                     <i id="wizard-banner-icon" class="fa-regular fa-image text-indigo-300"></i>
+                                 </div>
+                                 <input type="file" id="wizard-banner-upload" accept="image/*" class="hidden" onchange="handleWizardBanner(event)">
+                                 <input type="hidden" id="wizard-banner-base64">
+                             </div>
+
                         </div>
 
                         <div>
@@ -5927,6 +5929,10 @@ function handleWizardLogo(event) {
         if(preview) { preview.src = base64; preview.classList.remove('hidden'); }
         if(icon) icon.classList.add('hidden');
         if(input) input.value = base64;
+        const aiBannerBtnWiz = getEl('btn-generate-banner-ai-wiz');
+        if (aiBannerBtnWiz) aiBannerBtnWiz.classList.remove('hidden');
+        const aiBannerBtn = getEl('btn-generate-banner-ai');
+        if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
     });
 }
 
@@ -6057,7 +6063,28 @@ window.clearImage = function(targetIdPrefix) {
     if (base64Input) { base64Input.value = ''; }
     if (fileInput) { fileInput.value = ''; }
     
+    if (targetIdPrefix === 'store-logo') {
+        const aiBannerBtn = getEl('btn-generate-banner-ai');
+        if (aiBannerBtn) aiBannerBtn.classList.add('hidden');
+    }
+    if (targetIdPrefix === 'wizard-logo') {
+        const aiBannerBtnWiz = getEl('btn-generate-banner-ai-wiz');
+        if (aiBannerBtnWiz) aiBannerBtnWiz.classList.add('hidden');
+    }
+    
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
+};
+
+window.openStoreImageModal = function(src) {
+    if (!src || src.length < 10) return;
+    const existing = document.getElementById('store-img-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'store-img-modal';
+    modal.className = 'fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center p-4';
+    modal.onclick = () => modal.remove();
+    modal.innerHTML = '<div class="relative max-w-full max-h-full" onclick="event.stopPropagation()"><img src="' + src + '" class="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain"><button onclick="document.getElementById(\'store-img-modal\').remove()" class="absolute top-2 right-2 bg-white/90 text-slate-700 w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-lg hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button></div>';
+    document.body.appendChild(modal);
 };
 
 window.saTogglePremium = async function(id, enable) {
