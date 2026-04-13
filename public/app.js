@@ -3665,17 +3665,8 @@ function skipWizardStep() {
     else { currentWizardStep++; updateWizardUI(); }
 }
 
-// הוספת מזהה גרסה בתחתית המסך
-(function addVersionBadge() {
-    if (!document.getElementById('oneflow-version-badge')) {
-        const badge = document.createElement('div');
-        badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.5 (אשף הקמה חכם למשפחות מושלם)';
-        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
-        document.body.appendChild(badge);
-    }
-    // --- ניהול תמונת זהות משפחתית ---
-async function handleFamilyPhotoUpload(event) {
+// --- ניהול תמונת זהות משפחתית ---
+window.handleFamilyPhotoUpload = async function(event) {
     const file = event.target.files[0];
     if (!file) return;
     
@@ -3715,5 +3706,15 @@ async function handleFamilyPhotoUpload(event) {
             showToast('error', 'תקלת רשת בעדכון תמונה');
         }
     });
-}
+};
+
+// הוספת מזהה גרסה בתחתית המסך
+(function addVersionBadge() {
+    if (!document.getElementById('oneflow-version-badge')) {
+        const badge = document.createElement('div');
+        badge.id = 'oneflow-version-badge';
+        badge.innerHTML = 'גרסה 2.1.6 (עיצוב Header, תמונת משפחה במובייל)';
+        badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
+        document.body.appendChild(badge);
+    }
 })();
