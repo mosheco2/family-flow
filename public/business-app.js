@@ -229,6 +229,25 @@ function filterSAGroups() { renderSAGroups(); }
 async function saDeleteUser(id) { if(!confirm('למחוק משתמש זה מהמערכת כליל?')) return; await fetch(`${API}/superadmin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'משתמש נמחק'); loadSAData(); }
 async function saDeleteGroup(id) { if(!confirm('האם למחוק סביבה זו לצמיתות?')) return; await fetch(`${API}/superadmin/groups/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken }}); showToast('success', 'הסביבה נמחקה לחלוטין'); loadSAData(); }
 
+async function saTogglePremium(groupId, enable) {
+    const action = enable ? 'הפעל PRO' : 'בטל PRO';
+    if (!confirm(`האם ${action} לסביבה זו?`)) return;
+    try {
+        const res = await fetch(`${API}/superadmin/groups/${groupId}/premium`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ enable })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', enable ? 'מנוי PRO הופעל בהצלחה! 🎉' : 'מנוי PRO בוטל.');
+            loadSAData();
+        } else {
+            showToast('error', data.error || 'שגיאה בשינוי מנוי');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
 async function saveWelcomeMsg(type = 'FAMILY') { 
     const body = type === 'BUSINESS' ? { businessWelcomeMsg: val('sa-biz-welcome-msg') } : { welcomeMsg: val('sa-welcome-msg') };
     try { await fetch(`${API}/superadmin/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify(body) }); showToast('success', 'הודעת הפתיחה נשמרה בהצלחה!'); } catch(e) { showToast('error', 'שגיאה בשמירת ההודעה'); }
@@ -4275,7 +4294,97 @@ async function generateStoreProductAI() {
 
 function handleStoreLogoUpload(event) {
     const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
-    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => { getEl('store-logo-preview').src = compressedDataUrl; getEl('store-logo-preview').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); getEl('store-logo-base64').value = compressedDataUrl; showToast('success', 'הלוגו הועלה ומוכן לשמירה!'); });
+    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
+        getEl('store-logo-preview').src = compressedDataUrl;
+        getEl('store-logo-preview').classList.remove('hidden');
+        getEl('store-logo-placeholder').classList.add('hidden');
+        getEl('store-logo-base64').value = compressedDataUrl;
+        const clearBtn = getEl('btn-clear-logo');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        const aiBgBtn = getEl('btn-generate-bg-ai');
+        if (aiBgBtn) aiBgBtn.classList.remove('hidden');
+        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
+    });
+}
+
+function clearStoreLogo() {
+    getEl('store-logo-preview').src = '';
+    getEl('store-logo-preview').classList.add('hidden');
+    getEl('store-logo-placeholder').classList.remove('hidden');
+    getEl('store-logo-base64').value = '';
+    const clearBtn = getEl('btn-clear-logo');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    const aiBgBtn = getEl('btn-generate-bg-ai');
+    if (aiBgBtn) aiBgBtn.classList.add('hidden');
+    showToast('info', 'הלוגו הוסר. שמור הגדרות כדי לאשר.');
+}
+
+function handleStoreBgUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת רקע...');
+    compressImage(file, 1200, 600, 0.85, (compressedDataUrl) => {
+        const bgPreview = getEl('store-bg-preview');
+        const bgPlaceholder = getEl('store-bg-placeholder');
+        bgPreview.src = compressedDataUrl;
+        bgPreview.classList.remove('hidden');
+        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
+        getEl('store-bg-base64').value = compressedDataUrl;
+        const clearBtn = getEl('btn-clear-bg');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        showToast('success', 'תמונת הרקע הועלתה ומוכנה לשמירה!');
+    });
+}
+
+function clearStoreBg() {
+    const bgPreview = getEl('store-bg-preview');
+    const bgPlaceholder = getEl('store-bg-placeholder');
+    if (bgPreview) { bgPreview.src = ''; bgPreview.classList.add('hidden'); }
+    if (bgPlaceholder) bgPlaceholder.classList.remove('hidden');
+    getEl('store-bg-base64').value = '';
+    const clearBtn = getEl('btn-clear-bg');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    showToast('info', 'הרקע הוסר. שמור הגדרות כדי לאשר.');
+}
+
+async function generateStoreBgAI() {
+    const logoBase64 = val('store-logo-base64');
+    if (!logoBase64) { showToast('error', 'יש להעלות לוגו תחילה כדי ליצור רקע מותאם'); return; }
+    const btn = getEl('btn-generate-bg-ai');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> יוצר רקע...'; }
+    try {
+        const res = await fetch(`${API}/store/ai-bg`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ logoBase64, groupId: currentGroup.id })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error === 'BATTERY_EMPTY' ? 'אין טוקנים AI זמינים' : (data.error || 'שגיאה ביצירת רקע')); return; }
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200; canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        const colorMatches = data.gradient.match(/#[0-9a-fA-F]{3,6}|rgb\([^)]+\)/g);
+        if (colorMatches && colorMatches.length >= 2) {
+            grad.addColorStop(0, colorMatches[0]);
+            grad.addColorStop(0.5, colorMatches[1]);
+            if (colorMatches[2]) grad.addColorStop(1, colorMatches[2]);
+            else grad.addColorStop(1, colorMatches[1]);
+        } else {
+            grad.addColorStop(0, '#4f46e5');
+            grad.addColorStop(1, '#7c3aed');
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const bgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const bgPreview = getEl('store-bg-preview');
+        const bgPlaceholder = getEl('store-bg-placeholder');
+        bgPreview.src = bgDataUrl;
+        bgPreview.classList.remove('hidden');
+        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
+        getEl('store-bg-base64').value = bgDataUrl;
+        const clearBtn = getEl('btn-clear-bg');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        showToast('success', `רקע AI נוצר! ${data.style ? '(' + data.style + ')' : ''} שמור הגדרות כדי לאשר.`);
+    } catch(e) { showToast('error', 'שגיאת רשת ביצירת הרקע'); }
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> צור רקע עם AI'; } }
 }
 
 function handleProductImageBase64(event) {
