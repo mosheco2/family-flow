@@ -623,25 +623,36 @@ async function fetchData() {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
-            currentGroup.logo_url = data.group.logo_url; // וודא שהשדה נשמר במטמון
+            
+            // משיכת תמונת המשפחה מהגדרות הסביבה ושמירה במטמון המקומי
+            try {
+                const setRes = await fetch(`${API}/store/settings?groupId=${currentGroup.id}`);
+                if (setRes.ok) {
+                    const setData = await setRes.json();
+                    if (setData.success && setData.settings && setData.settings.logo_url) {
+                        currentGroup.logo_url = setData.settings.logo_url;
+                    }
+                }
+            } catch(e) {}
+
             updateBatteryUI();
             
             // לוגיקת הצגת תמונת המשפחה/עסק ב-Header ובניהול
-            const logoUrl = data.group.logo_url || data.group.image_url;
+            const logoUrl = currentGroup.logo_url || data.group.logo_url || data.group.image_url;
             const headerImg = getEl('header-group-img');
             const headerFallback = getEl('header-group-icon-fallback');
             const mgmtImg = getEl('mgmt-group-logo-preview');
             const mgmtIcon = getEl('mgmt-group-logo-icon');
 
-            if (logoUrl) {
+            if (logoUrl && logoUrl.trim() !== '') {
                 if (headerImg) { headerImg.src = logoUrl; headerImg.classList.remove('hidden'); }
                 if (headerFallback) headerFallback.classList.add('hidden');
                 if (mgmtImg) { mgmtImg.src = logoUrl; mgmtImg.classList.remove('hidden'); }
                 if (mgmtIcon) mgmtIcon.classList.add('hidden');
             } else {
-                if (headerImg) headerImg.classList.add('hidden');
+                if (headerImg) { headerImg.src = ''; headerImg.classList.add('hidden'); }
                 if (headerFallback) headerFallback.classList.remove('hidden');
-                if (mgmtImg) mgmtImg.classList.add('hidden');
+                if (mgmtImg) { mgmtImg.src = ''; mgmtImg.classList.add('hidden'); }
                 if (mgmtIcon) mgmtIcon.classList.remove('hidden');
             }
 
@@ -3670,23 +3681,35 @@ async function handleFamilyPhotoUpload(event) {
     
     showToast('info', 'מעלה ומעבד תמונה...');
     compressImage(file, 600, 600, 0.8, async (base64) => {
+        
+        // 1. תצוגה מיידית למשתמש ושמירה במטמון לפני תשובת שרת
+        if (currentGroup) currentGroup.logo_url = base64;
+        const headerImg = getEl('header-group-img');
+        const headerFallback = getEl('header-group-icon-fallback');
+        const mgmtImg = getEl('mgmt-group-logo-preview');
+        const mgmtIcon = getEl('mgmt-group-logo-icon');
+
+        if (headerImg) { headerImg.src = base64; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        if (mgmtImg) { mgmtImg.src = base64; mgmtImg.classList.remove('hidden'); }
+        if (mgmtIcon) mgmtIcon.classList.add('hidden');
+
+        // 2. שמירה בשרת
         try {
-            // אנחנו משתמשים באותו Endpoint של הגדרות חנות כי הוא שומר לוגו לקבוצה
             const res = await fetch(`${API}/store/settings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     groupId: currentGroup.id,
                     logoUrl: base64,
-                    isActive: true // כדי לוודא שהתמונה תישלף בנתונים
+                    isActive: true
                 })
             });
             const data = await res.json();
             if (data.success) {
                 showToast('success', 'תמונת המשפחה עודכנה בהצלחה!');
-                fetchData(); // ירענן את התצוגה בכל המקומות
             } else {
-                showToast('error', 'שגיאה בשמירת התמונה');
+                showToast('error', 'שגיאה בשמירת התמונה בשרת');
             }
         } catch (e) {
             showToast('error', 'תקלת רשת בעדכון תמונה');
