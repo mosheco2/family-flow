@@ -3127,6 +3127,66 @@ async function saveWelcomeMsg(type = 'FAMILY') {
         if (btn) { btn.disabled = false; btn.innerText = 'שמור הודעה'; }
     }
 }
+async function checkGlobalWelcome() {
+    try {
+        const res = await fetch(`${API}/settings/welcome?type=FAMILY`);
+        const data = await res.json();
+        if (data.message && data.message.trim() !== '') {
+            const seen = localStorage.getItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`);
+            if (seen !== data.message) {
+                getEl('welcome-modal-text').innerText = data.message;
+                setupPwaInstallSection();
+                getEl('welcome-modal').classList.remove('hidden');
+                window.pendingWelcomeMsg = data.message;
+                return true;
+            }
+        }
+    } catch(e) {}
+    return false;
+}
+
+function closeWelcomeModal() {
+    getEl('welcome-modal').classList.add('hidden');
+    if (window.pendingWelcomeMsg) {
+        localStorage.setItem(`ofl_welcome_${currentUser.id}_${currentGroup.group_code}`, window.pendingWelcomeMsg);
+    }
+    checkAndStartTour(forceTourStart);
+    forceTourStart = false;
+}
+
+function checkAndStartTour(force = false) {
+    setTimeout(() => {
+        try {
+            const tourKey = `ofl_tour_${currentUser.role}_${currentUser.id}_${currentGroup.group_code}`;
+            if (force || !localStorage.getItem(tourKey)) {
+                localStorage.setItem(tourKey, 'true');
+                switchTab('feed');
+                if (currentUser.role === 'ADMIN') startAdminTour();
+                else startChildTour();
+            }
+        } catch(e) {}
+    }, 1000);
+}
+
+function triggerManualTour() {
+    getEl('profile-modal').classList.add('hidden');
+    setTimeout(() => {
+        switchTab('feed');
+        if (currentUser.role === 'ADMIN') startAdminTour();
+        else startChildTour();
+    }, 300);
+}
+
+function openAlertModal(title, text) {
+    const titleEl = getEl('generic-alert-title');
+    const textEl = getEl('generic-alert-text');
+    const modal = getEl('generic-alert-modal');
+    if(titleEl && textEl && modal) {
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        modal.classList.remove('hidden');
+    }
+}
 async function linkBizToCommunity() {
     const communityId = val('sa-link-comm'); 
     const businessId = val('sa-link-biz'); 
