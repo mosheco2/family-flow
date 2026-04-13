@@ -6260,7 +6260,7 @@ function skipWizardStep() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.2.0 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
+        badge.innerHTML = 'גרסה 2.2.1 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
