@@ -542,13 +542,14 @@ app.post('/api/groups', async (req, res) => {
         const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
         
         const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
-        await sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml);
+                // שליחת מיילים ברקע - לא חוסמת את התגובה
+        sendSystemEmail('mcgames1978@gmail.com', 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml).catch(e => console.error('Email error:', e));
 
         if (req.body.adminEmail) {
             const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
-            await sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml);
+            sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml).catch(e => console.error('Email error:', e));
         }
-        
+
         res.json({ success: true, user: uRes.rows[0], group: group });
     } catch (e) { 
         if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
