@@ -1958,8 +1958,6 @@ app.post('/api/store/ai-desc', async (req, res) => {
         res.json({ success: true, description: result.response.text().trim() });
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
 });
-
-app.post('/api/store/ai-bg', async (req, res) => {
     try {
         const { logoBase64, groupId } = req.body;
         if (!logoBase64) return res.json({ success: false, error: 'נדרש לוגו כדי ליצור רקע' });
