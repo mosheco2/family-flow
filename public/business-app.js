@@ -813,6 +813,62 @@ function updateBatteryUI() {
         if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200'); else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200'); else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
     }
 }
+function handleAIResponseCheck(data) {
+    if (data.error === 'BATTERY_EMPTY') {
+        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
+        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
+        if (modal) { 
+            modal.style.setProperty('z-index', '9999999', 'important'); 
+            modal.classList.remove('hidden'); 
+        }
+        return false;
+    }
+    return true;
+}
+
+function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
+function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
+
+// *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
+window.executeWithAIWarning = function(callback) {
+    if (currentGroup && currentGroup.is_premium) {
+        callback(); // לקוח PRO מדלג על האזהרה ורץ חופשי
+        return;
+    }
+
+    const hideWarning = localStorage.getItem('ofl_hide_ai_warning') === 'true';
+    if (hideWarning) {
+        callback();
+        return;
+    }
+
+    const modal = getEl('ai-warning-modal');
+    if (!modal) { callback(); return; } // הגנה במקרה שה-HTML חסר
+
+    const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 10;
+    const tokensEl = getEl('ai-warning-left');
+    if (tokensEl) tokensEl.innerText = tokens;
+
+    modal.classList.remove('hidden');
+
+    const btnContinue = getEl('btn-ai-warning-continue');
+    if (btnContinue) {
+        // הסרת מאזינים קודמים כדי למנוע כפילויות של קריאות (Deduplication)
+        const newBtn = btnContinue.cloneNode(true);
+        btnContinue.parentNode.replaceChild(newBtn, btnContinue);
+        
+        newBtn.onclick = () => {
+            const dontShow = getEl('ai-warning-dont-show');
+            if (dontShow && dontShow.checked) {
+                localStorage.setItem('ofl_hide_ai_warning', 'true');
+                // אתחול האזהרה בסוף היום
+                setTimeout(() => localStorage.removeItem('ofl_hide_ai_warning'), 24 * 60 * 60 * 1000);
+            }
+            modal.classList.add('hidden');
+            callback();
+        };
+    }
+};
 
 function handleAIResponseCheck(data) {
     if (data.error === 'BATTERY_EMPTY') {
