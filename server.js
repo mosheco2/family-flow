@@ -1953,20 +1953,7 @@ app.post('/api/store/ai-desc', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
-        const result = await model.generateContent(prompt);
-        res.json({ success: true, description: result.response.text().trim() });
-    } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
-});
-app.post('/api/store/ai-desc', async (req, res) => {
-    try {
-        const { productName, groupId } = req.body;
-        const hasTokens = await handleAITokens(groupId);
-        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const prompt = 'כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "' + productName + '". השתמש באימוג\'ים ואל תשתמש במרכאות.';
         const result = await model.generateContent(prompt);
         res.json({ success: true, description: result.response.text().trim() });
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
