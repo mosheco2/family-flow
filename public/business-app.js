@@ -770,22 +770,6 @@ function updateBatteryUI() {
         if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200'); else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200'); else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
     }
 }
-function handleAIResponseCheck(data) {
-    if (data.error === 'BATTERY_EMPTY') {
-        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
-        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
-        if (modal) { 
-            modal.style.setProperty('z-index', '9999999', 'important'); 
-            modal.classList.remove('hidden'); 
-        }
-        return false;
-    }
-    return true;
-}
-
-function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
-function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
-
 // *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
 window.executeWithAIWarning = function(callback) {
     if (currentGroup && currentGroup.is_premium) {
@@ -810,7 +794,6 @@ window.executeWithAIWarning = function(callback) {
 
     const btnContinue = getEl('btn-ai-warning-continue');
     if (btnContinue) {
-        // הסרת מאזינים קודמים כדי למנוע כפילויות של קריאות (Deduplication)
         const newBtn = btnContinue.cloneNode(true);
         btnContinue.parentNode.replaceChild(newBtn, btnContinue);
         
@@ -818,7 +801,6 @@ window.executeWithAIWarning = function(callback) {
             const dontShow = getEl('ai-warning-dont-show');
             if (dontShow && dontShow.checked) {
                 localStorage.setItem('ofl_hide_ai_warning', 'true');
-                // אתחול האזהרה בסוף היום
                 setTimeout(() => localStorage.removeItem('ofl_hide_ai_warning'), 24 * 60 * 60 * 1000);
             }
             modal.classList.add('hidden');
@@ -841,8 +823,13 @@ function handleAIResponseCheck(data) {
 }
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
-function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
+window.upgradeToPremium = function() { 
+    closeAiBatteryModal(); 
+    const profileModal = getEl('profile-modal'); 
+    if(profileModal) profileModal.classList.add('hidden'); 
+    window.open('https://wa.me/972504000024?text=' + encodeURIComponent('שלום, אני מעוניין לשדרג למסלול ה-PRO העסקי של המערכת כדי לקבל AI ללא הגבלה.'), '_blank');
+};
 async function loadDashboard() {
     try {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
