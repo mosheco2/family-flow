@@ -443,6 +443,38 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
+// ---- מודל אישור AI (ai-warning-modal) ----
+let _pendingAIAction = null;
+
+window.showAIWarning = function(callback) {
+    if (!currentGroup) { if (callback) callback(); return; }
+    const today = new Date().toDateString();
+    if (localStorage.getItem('ofl_ai_skip_' + today) === '1') {
+        if (callback) try { callback(); } catch(e) { showToast('error', 'שגיאה בפעולת AI'); }
+        return;
+    }
+    const tokens = currentGroup.is_premium ? '∞' : (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10);
+    const leftEl = getEl('ai-warning-left');
+    if (leftEl) leftEl.innerText = tokens;
+    _pendingAIAction = callback;
+    const modal = getEl('ai-warning-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.confirmAIWarning = function() {
+    const dontShow = getEl('ai-warning-dont-show');
+    if (dontShow && dontShow.checked) {
+        localStorage.setItem('ofl_ai_skip_' + new Date().toDateString(), '1');
+    }
+    const modal = getEl('ai-warning-modal');
+    if (modal) modal.classList.add('hidden');
+    if (_pendingAIAction) {
+        const cb = _pendingAIAction;
+        _pendingAIAction = null;
+        try { cb(); } catch(e) { console.error('AI action error:', e); showToast('error', 'שגיאה בפעולת ה-AI'); }
+    }
+};
+
 let currentAIAction = null;
 function executeWithAIWarning(actionFn) {
     if(currentGroup && currentGroup.is_premium) { actionFn(); return; }
