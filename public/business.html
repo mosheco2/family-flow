@@ -1268,7 +1268,7 @@
                 </label>
 
                 <div class="space-y-2">
-                    <button id="btn-ai-warning-continue" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">המשך עיבוד</button>
+                    <button id="btn-ai-warning-continue" type="button" onclick="confirmAIWarning()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-md hover:scale-[1.02] transition">המשך עיבוד</button>
                     <button onclick="openAlertModal('Oneflowlife Pro', 'שדרוג למסלול העסקי יעלה בקרוב!')" class="w-full bg-yellow-50 text-yellow-700 border border-yellow-200 py-3 rounded-xl font-bold hover:bg-yellow-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-crown"></i> שדרוג למסלול ללא הגבלת משאבים</button>
                     <button onclick="document.getElementById('ai-warning-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-500 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ביטול עיבוד</button>
                 </div>
