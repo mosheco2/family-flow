@@ -83,8 +83,10 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bg_url TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog
+
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
@@ -1626,7 +1628,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
+        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, bg_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1957,8 +1959,44 @@ app.post('/api/store/ai-desc', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
 });
 
-app.post('/api/biz/chat-assistant', async (req, res) => {
+app.post('/api/store/ai-bg', async (req, res) => {
     try {
+        const { logoBase64, groupId } = req.body;
+        if (!logoBase64) return res.json({ success: false, error: 'נדרש לוגו כדי ליצור רקע' });
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const base64Data = logoBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+        const mimeMatch = logoBase64.match(/^data:(image\/[a-z]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+        const prompt = `אתה מומחה לעיצוב גרפי. ניתחת לוגו של עסק ובהתאם לצבעים ולסגנון שלו, תן לי JSON עם ערכים ליצירת גרדיאנט CSS יפה לרקע אתר החנות. החזר JSON בלבד ללא הסברים בפורמט הבא:
+{
+  "color1": "#hexcolor",
+  "color2": "#hexcolor", 
+  "color3": "#hexcolor",
+  "direction": "135deg",
+  "style": "תיאור קצר של הסגנון שנבחר"
+}
+השתמש בצבעים שמתאימים ומשלימים את הלוגו, ויוצרים רקע מודרני ואסתטי לחנות.`;
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { mimeType, data: base64Data } }
+        ]);
+        const text = result.response.text().trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Invalid AI response');
+        const parsed = JSON.parse(jsonMatch[0]);
+        const gradient = `linear-gradient(${parsed.direction || '135deg'}, ${parsed.color1}, ${parsed.color2}${parsed.color3 ? ', ' + parsed.color3 : ''})`;
+        res.json({ success: true, gradient, style: parsed.style || '' });
+    } catch(e) { handleAIError(e, res, 'שגיאה ביצירת רקע'); }
+});
+
+app.post('/api/biz/chat-assistant', async (req, res) => {
+try {
         const { query, context, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
