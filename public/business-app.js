@@ -6055,8 +6055,6 @@ window.generateBannerAI = async function() {
             } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     }
-};
-
 window.openStoreImageModal = function(src) {
     if (!src || src.length < 10) return;
     const existing = document.getElementById('store-img-modal');
