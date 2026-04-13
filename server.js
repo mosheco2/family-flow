@@ -1,3 +1,4 @@
+
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -44,56 +45,54 @@ pool.connect()
           notes TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
-      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
-      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
-      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
-      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
-      try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
-      
-      try {
-          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
-          await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
-      } catch(e) { console.log('Email constraint exists or error:', e.message); }
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
+      try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
+      try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
+      
+      try {
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
+          await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
+      } catch(e) { console.log('Email constraint exists or error:', e.message); }
 
-      try {
-          await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
-              id SERIAL PRIMARY KEY,
-              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
-              user_id INT REFERENCES users(id) ON DELETE CASCADE,
-              punch_in TIMESTAMP NOT NULL,
-              punch_out TIMESTAMP,
-              total_minutes INT DEFAULT 0
-          )`);
-      } catch(e) {}
-      
-      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
+      try {
+          await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
+              id SERIAL PRIMARY KEY,
+              group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+              user_id INT REFERENCES users(id) ON DELETE CASCADE,
+              punch_in TIMESTAMP NOT NULL,
+              punch_out TIMESTAMP,
+              total_minutes INT DEFAULT 0
+          )`);
+      } catch(e) {}
+      
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
 
       // טבלאות החנות הוירטואלית (E-commerce)
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
-      
-      // עדכון שדות חדשים למסד נתונים קיים
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_type VARCHAR(20) DEFAULT 'retail'`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS logo_url TEXT`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
+      
+      // עדכון שדות חדשים למסד נתונים קיים
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_type VARCHAR(20) DEFAULT 'retail'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS logo_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS bg_url TEXT`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog
-
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
@@ -101,11 +100,11 @@ pool.connect()
       
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
 
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
-      client.release();
-  })
-  .catch(err => console.error('Connection Error', err.stack));
+      client.release();
+  })
+  .catch(err => console.error('Connection Error', err.stack));
 
 const calculateAge = (birthYear) => new Date().getFullYear() - (birthYear || new Date().getFullYear());
 const getAgeGroup = (age) => { if(age<8) return '6-8'; if(age<10) return '8-10'; if(age<13) return '10-13'; if(age<15) return '13-15'; if(age<18) return '15-18'; return '18+'; };
@@ -1628,7 +1627,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
-        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, bg_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
+        else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1959,44 +1958,8 @@ app.post('/api/store/ai-desc', async (req, res) => {
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
 });
 
-app.post('/api/store/ai-bg', async (req, res) => {
-    try {
-        const { logoBase64, groupId } = req.body;
-        if (!logoBase64) return res.json({ success: false, error: 'נדרש לוגו כדי ליצור רקע' });
-        const hasTokens = await handleAITokens(groupId);
-        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
-        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
-
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const base64Data = logoBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-        const mimeMatch = logoBase64.match(/^data:(image\/[a-z]+);base64,/);
-        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
-        const prompt = `אתה מומחה לעיצוב גרפי. ניתחת לוגו של עסק ובהתאם לצבעים ולסגנון שלו, תן לי JSON עם ערכים ליצירת גרדיאנט CSS יפה לרקע אתר החנות. החזר JSON בלבד ללא הסברים בפורמט הבא:
-{
-  "color1": "#hexcolor",
-  "color2": "#hexcolor", 
-  "color3": "#hexcolor",
-  "direction": "135deg",
-  "style": "תיאור קצר של הסגנון שנבחר"
-}
-השתמש בצבעים שמתאימים ומשלימים את הלוגו, ויוצרים רקע מודרני ואסתטי לחנות.`;
-
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { mimeType, data: base64Data } }
-        ]);
-        const text = result.response.text().trim();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('Invalid AI response');
-        const parsed = JSON.parse(jsonMatch[0]);
-        const gradient = `linear-gradient(${parsed.direction || '135deg'}, ${parsed.color1}, ${parsed.color2}${parsed.color3 ? ', ' + parsed.color3 : ''})`;
-        res.json({ success: true, gradient, style: parsed.style || '' });
-    } catch(e) { handleAIError(e, res, 'שגיאה ביצירת רקע'); }
-});
-
 app.post('/api/biz/chat-assistant', async (req, res) => {
-try {
+    try {
         const { query, context, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
