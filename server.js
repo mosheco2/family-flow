@@ -1953,10 +1953,46 @@ app.post('/api/store/ai-desc', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = 'כתוב לי פסקה קצרה ושיווקית מאוד בעברית (עד 2-3 משפטים) שתתאר את המוצר: "' + productName + '". כלול emoji ואל תשתמש במרכאות.';
-      const result = await model.generateContent(prompt);
+        const prompt = `כתוב לי פסקה קצרה ושיווקית מאוד (עד 2-3 משפטים) בעברית שתתאר את המוצר/מנה הבאה למכירה בחנות/מסעדה שלי: "${productName}". השתמש באימוג'ים ואל תשתמש במרכאות.`;
+        const result = await model.generateContent(prompt);
         res.json({ success: true, description: result.response.text().trim() });
     } catch(e) { handleAIError(e, res, 'שגיאה בניסוח'); }
+});
+
+app.post('/api/store/ai-bg', async (req, res) => {
+    try {
+        const { logoBase64, groupId } = req.body;
+        if (!logoBase64) return res.json({ success: false, error: 'נדרש לוגו כדי ליצור רקע' });
+        const hasTokens = await handleAITokens(groupId);
+        if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
+        if (!genAI) throw new Error('GEMINI_API_KEY is not set');
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const base64Data = logoBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+        const mimeMatch = logoBase64.match(/^data:(image\/[a-z]+);base64,/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+        const prompt = `אתה מומחה לעיצוב גרפי. ניתחת לוגו של עסק ובהתאם לצבעים ולסגנון שלו, תן לי JSON עם ערכים ליצירת גרדיאנט CSS יפה לרקע אתר החנות. החזר JSON בלבד ללא הסברים בפורמט הבא:
+{
+  "color1": "#hexcolor",
+  "color2": "#hexcolor", 
+  "color3": "#hexcolor",
+  "direction": "135deg",
+  "style": "תיאור קצר של הסגנון שנבחר"
+}
+השתמש בצבעים שמתאימים ומשלימים את הלוגו, ויוצרים רקע מודרני ואסתטי לחנות.`;
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { mimeType, data: base64Data } }
+        ]);
+        const text = result.response.text().trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Invalid AI response');
+        const parsed = JSON.parse(jsonMatch[0]);
+        const gradient = `linear-gradient(${parsed.direction || '135deg'}, ${parsed.color1}, ${parsed.color2}${parsed.color3 ? ', ' + parsed.color3 : ''})`;
+        res.json({ success: true, gradient, style: parsed.style || '' });
+    } catch(e) { handleAIError(e, res, 'שגיאה ביצירת רקע'); }
 });
 
 app.post('/api/biz/chat-assistant', async (req, res) => {
