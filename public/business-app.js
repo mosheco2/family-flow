@@ -851,12 +851,6 @@ async function loadDashboard() {
         const mainWrapper = getEl('main-wrapper');
         if (mainWrapper) { mainWrapper.classList.remove('items-center', 'justify-center'); mainWrapper.classList.add('flex-col'); }
 
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
-
-        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
-        
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
-        
         // חשיפת כפתורי פעולה לאחר כניסה
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
         const aiAssistant = document.querySelector('.fixed.bottom-40.right-6.animate-pulse'); if(aiAssistant) aiAssistant.classList.remove('hidden');
