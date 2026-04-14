@@ -156,52 +156,62 @@
     </div>
 
     <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] slide-up">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
+            <div class="flex justify-between items-center p-5 border-b border-slate-100 shrink-0">
                 <h3 class="text-2xl font-black text-slate-900">העגלה שלך</h3>
-                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="flex-1 overflow-y-auto modal-scroll mb-4 pr-2 space-y-3" id="checkout-items"></div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-5">
+                <div id="checkout-items" class="space-y-3 mb-6"></div>
 
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 shrink-0">
-                <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm font-bold text-slate-600">סה"כ לתשלום:</span>
-                    <span id="checkout-total" class="text-2xl font-black text-slate-900">₪0</span>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-600">סיכום ביניים:</span>
+                        <span id="checkout-total" class="text-xl font-black text-slate-900">₪0</span>
+                    </div>
+                    <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden mt-2 bg-red-50 p-1.5 rounded-lg border border-red-100"><i class="fa-solid fa-circle-exclamation"></i> מינימום להזמנה: ₪<span id="min-order-val"></span></p>
                 </div>
-                <p id="checkout-min-warning" class="text-[10px] font-bold text-red-500 text-right hidden mt-2 bg-red-50 p-1.5 rounded-lg border border-red-100"><i class="fa-solid fa-circle-exclamation"></i> מינימום להזמנה: ₪<span id="min-order-val"></span></p>
+
+                <form id="checkout-form" class="space-y-4">
+                    <div class="flex bg-slate-100 p-1 rounded-xl">
+                        <button type="button" id="btn-delivery-false" onclick="toggleDelivery(false)" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">איסוף עצמי</button>
+                        <button type="button" id="btn-delivery-true" onclick="toggleDelivery(true)" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">משלוח עד הבית</button>
+                    </div>
+                    <input type="hidden" id="is-delivery" value="false">
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-bold text-slate-400 mr-1">שם מלא</label>
+                            <input type="text" id="cust-name" required class="modern-input py-2.5 text-sm bg-white border-slate-200" placeholder="ישראל ישראלי">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-bold text-slate-400 mr-1">טלפון</label>
+                            <input type="tel" id="cust-phone" required class="modern-input py-2.5 text-sm text-left dir-ltr bg-white border-slate-200" placeholder="050-0000000">
+                        </div>
+                    </div>
+                    
+                    <div id="delivery-fields" class="hidden space-y-3 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-inner fade-in">
+                        <h4 class="font-bold text-sm text-indigo-900 mb-1"><i class="fa-solid fa-motorcycle text-indigo-500 mr-1"></i> כתובת למשלוח</h4>
+                        <input type="text" id="cust-city" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="עיר / יישוב">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="cust-street" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="רחוב">
+                            <input type="text" id="cust-house" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="מספר בית">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="cust-floor" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="קומה">
+                            <input type="text" id="cust-apt" class="modern-input py-2 text-sm bg-white border-indigo-100" placeholder="דירה">
+                        </div>
+                        <textarea id="cust-notes" class="modern-input py-2 text-sm bg-white border-indigo-100 h-16" placeholder="הערות לשליח..."></textarea>
+                    </div>
+                </form>
             </div>
 
-            <form onsubmit="submitOrder(event)" class="space-y-3 shrink-0" id="checkout-form">
-                <div class="flex bg-slate-100 p-1 rounded-xl mb-2">
-                    <button type="button" id="btn-delivery-false" onclick="toggleDelivery(false)" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">איסוף עצמי</button>
-                    <button type="button" id="btn-delivery-true" onclick="toggleDelivery(true)" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">משלוח עד הבית</button>
-                </div>
-                <input type="hidden" id="is-delivery" value="false">
-
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="cust-name" required class="modern-input py-3 text-sm bg-white" placeholder="שם מלא">
-                    <input type="tel" id="cust-phone" required class="modern-input py-3 text-sm text-left dir-ltr bg-white" placeholder="מספר טלפון">
-                </div>
-                
-                <div id="delivery-fields" class="hidden space-y-3 mt-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner fade-in">
-                    <h4 class="font-bold text-sm text-slate-700 mb-1"><i class="fa-solid fa-motorcycle text-indigo-500 mr-1"></i> לאן להגיע?</h4>
-                    <input type="text" id="cust-city" class="modern-input py-2.5 text-sm bg-white" placeholder="עיר / יישוב">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="cust-street" class="modern-input py-2.5 text-sm bg-white" placeholder="רחוב">
-                        <input type="text" id="cust-house" class="modern-input py-2.5 text-sm bg-white" placeholder="מספר בית">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="cust-floor" class="modern-input py-2.5 text-sm bg-white" placeholder="קומה (אופציונלי)">
-                        <input type="text" id="cust-apt" class="modern-input py-2.5 text-sm bg-white" placeholder="דירה (אופציונלי)">
-                    </div>
-                    <textarea id="cust-notes" class="modern-input py-2.5 text-sm bg-white h-16" placeholder="הערות לשליח (קוד כניסה, להשאיר ליד הדלת...)"></textarea>
-                </div>
-
-                <button type="submit" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-xl mt-4 text-lg hover:bg-slate-800 transition flex justify-center items-center gap-2">
-                    <span>שליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1"></span> <i class="fa-solid fa-paper-plane"></i>
+            <div class="p-5 border-t border-slate-100 bg-white shrink-0">
+                <button type="button" onclick="submitOrder(event)" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl text-lg hover:bg-black transition active:scale-95 flex justify-center items-center gap-2">
+                    <span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded"></span> <i class="fa-solid fa-paper-plane"></i>
                 </button>
-            </form>
+            </div>
         </div>
     </div>
 
