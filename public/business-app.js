@@ -4292,6 +4292,20 @@ async function fetchStoreOrders() {
     } catch(e) {} 
 }
 
+// פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
+function getDeliveryMeta(order) {
+    if (!order || !order.items) return null;
+    try {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+        const metaItem = items.find(i => i.name && i.name.startsWith('DELIVERY_META|'));
+        if (metaItem) {
+            const jsonStr = metaItem.name.split('DELIVERY_META|')[1];
+            return { delivery_fee: metaItem.price || metaItem.price_at_order, delivery_details: JSON.parse(jsonStr) };
+        }
+        return null;
+    } catch(e) { return null; }
+}
+
 function renderStoreOrders() {
     const list = getEl('store-orders-list');
     const statusFilter = val('store-orders-filter') || 'all';
@@ -4312,7 +4326,10 @@ function renderStoreOrders() {
     };
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
-        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
+        const meta = getDeliveryMeta(o);
+        const deliveryTag = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta) ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1 border border-indigo-200"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md ml-1 border border-slate-200"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
+        
+        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
     }); list.innerHTML = html;
 }
 
@@ -4397,13 +4414,21 @@ function openStoreOrderModal(orderId) {
     getEl('so-modal-phone').innerText = order.customer_phone || 'לא הוזן טלפון';
     const targetEl = getEl('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
-    const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata) : [];
+    
+    // סינון פריטי המטא-דאטה מהתצוגה למנהל
+    const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
     if (rawItems.length > 0) {
-        rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order}</span></div>`; });
+        rawItems.forEach(i => { itemsHtml += `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 mb-2 shadow-sm"><span class="font-bold text-slate-700 text-sm">${safeStr(i.item_name || i.name)} <span class="text-xs font-black text-indigo-500 ml-1 bg-indigo-50 px-2 py-0.5 rounded-full">x${i.quantity}</span></span><span class="font-bold text-slate-600 text-sm">₪${i.price_at_order || i.price}</span></div>`; });
     } else {
         itemsHtml = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו פריטי הזמנה</p>';
     }
+
+    const meta = getDeliveryMeta(order);
+    if (meta && meta.delivery_fee > 0) {
+         itemsHtml += `<div class="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2 shadow-sm"><span class="font-bold text-indigo-800 text-sm"><i class="fa-solid fa-motorcycle ml-1"></i> דמי משלוח עיר</span><span class="font-bold text-indigo-800 text-sm">₪${meta.delivery_fee}</span></div>`;
+    }
+
     getEl('so-modal-items').innerHTML = itemsHtml;
     getEl('store-order-modal').classList.remove('hidden');
 }
@@ -6465,12 +6490,10 @@ function switchDeliveryTab(tab) {
         targetBtn.className = 'flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200';
     }
     
-    // טעינת נתונים רק אם הטאב גלוי
     loadCourierData();
 }
 
 async function loadCourierData() {
-    // מניעת הרצה אם המשתמש לא מורשה או אם הטאב לא פעיל
     const hasAccess = (currentUser.permissions?.tabs?.includes('deliveries') || currentUser.role === 'ADMIN');
     if (!hasAccess) return;
     
@@ -6479,18 +6502,14 @@ async function loadCourierData() {
         const data = await res.json();
         
         if (data && Array.isArray(data)) {
-            // זיהוי הזמנת משלוח דרך ה-Metadata שהזרקנו בחנות
+            // זיהוי משלוח
             const checkIsDelivery = (o) => {
                 if (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true') return true;
-                try {
-                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-                    return items.some(i => i.is_delivery_metadata === true);
-                } catch(e) { return false; }
+                return getDeliveryMeta(o) !== null;
             };
 
             const allDeliveries = data.filter(checkIsDelivery);
             
-            // סינון לפי סטטוסים
             const active = allDeliveries.filter(o => o.status === 'ready');
             const transit = allDeliveries.filter(o => o.status === 'shipped');
             
@@ -6512,17 +6531,21 @@ function renderCourierList(type, orders, statusType) {
     if (!container) return;
     
     if (orders.length === 0) {
-        container.innerHTML = `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><i class="fa-solid fa-box-open text-3xl text-slate-200 mb-2"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות בקטגוריה זו</p></div>`;
+        container.innerHTML = `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><i class="fa-solid fa-box-open text-3xl text-slate-200 mb-2"></i><p class="text-[11px] text-slate-400 font-bold">אין משלוחים בקטגוריה זו</p></div>`;
         return;
     }
 
     container.innerHTML = orders.map(o => {
         let deliveryData = {};
-        try {
-            const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-            const meta = items.find(i => i.is_delivery_metadata === true);
-            deliveryData = meta ? meta.delivery_details : {};
-        } catch(e) { deliveryData = {}; }
+        const meta = getDeliveryMeta(o);
+        if (meta && meta.delivery_details) {
+            deliveryData = meta.delivery_details;
+        } else {
+            try { 
+                const fallbackDetails = typeof o.delivery_details === 'string' ? JSON.parse(o.delivery_details) : o.delivery_details; 
+                if (fallbackDetails) deliveryData = fallbackDetails;
+            } catch(e){}
+        }
 
         const addr = `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}`;
         const waze = `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
@@ -6536,6 +6559,7 @@ function renderCourierList(type, orders, statusType) {
 
         return `
         <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm mb-3 relative overflow-hidden">
+            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
             <div class="flex justify-between items-start">
                 <div class="flex-1 pr-1">
                     <div class="flex items-center gap-2 mb-1">
@@ -6567,7 +6591,6 @@ async function updateStoreOrderStatusCourier(orderId, status) {
             if(status === 'completed') triggerConfetti();
             showToast('success', status === 'completed' ? 'המשלוח נמסר!' : 'נאסף! נסיעה טובה'); 
             loadCourierData(); 
-            // רענון ברקע גם למסך המנהל אם הוא פתוח
             if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
         } else { showToast('error', data.error || 'שגיאה בעדכון'); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
