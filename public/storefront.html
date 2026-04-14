@@ -88,9 +88,14 @@
         </header>
 
        <div class="glass-header sticky top-0 z-40">
-            <div class="p-4 pb-2 relative">
-                <i class="fa-solid fa-search absolute right-7 top-6 text-slate-400"></i>
-                <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition">
+            <div class="p-4 pb-2 flex items-center gap-2">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
+                </div>
+                <button onclick="toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
+                    <i class="fa-solid fa-list text-lg"></i>
+                </button>
             </div>
             <div class="relative w-full px-2 pb-2">
                 <button id="scroll-right-btn" onclick="scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
@@ -210,6 +215,9 @@
         let currentPizzaToppings = [];
         let pizzaState = {};
         let activePizzaTopping = null;
+        
+        // משתנה מצב תצוגת הקטלוג (קוביות כדיפולט)
+        let catalogViewMode = 'grid';
 
         const getEl = id => document.getElementById(id);
         const val = id => getEl(id) ? getEl(id).value : '';
@@ -414,7 +422,18 @@ function renderHeader() {
             try { const parsed = JSON.parse(optionsText); return Array.isArray(parsed) && parsed.length > 0; } catch(e) { return false; }
         }
 
-function renderCatalog() {
+window.toggleViewMode = function() {
+            catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
+            const btn = getEl('view-mode-btn');
+            if (btn) {
+                btn.innerHTML = catalogViewMode === 'grid' 
+                    ? '<i class="fa-solid fa-list text-lg"></i>' 
+                    : '<i class="fa-solid fa-border-all text-lg"></i>';
+            }
+            renderCatalog();
+        };
+
+        function renderCatalog() {
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
@@ -437,7 +456,7 @@ function renderCatalog() {
                     <div class="bg-gradient-to-r ${bgClass} text-white p-5 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between border border-white/20 fade-in">
                         <i class="fa-solid fa-tags absolute -left-2 -top-2 text-7xl opacity-20 transform -rotate-12"></i>
                         <div>
-                            <h4 class="font-black text-xl relative z-10 leading-tight mb-2 drop-shadow-sm">${safeStr(p.title)}</h4>
+                            <h4 class="font-bold text-xl relative z-10 leading-tight mb-2 drop-shadow-sm">${safeStr(p.title)}</h4>
                             <div class="relative z-10 flex flex-col items-start gap-2">
                                 <span class="text-sm font-bold bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm border border-white/30 text-white shadow-sm">${desc}</span>
                                 <span class="text-xs font-medium opacity-90">${targetDesc}</span>
@@ -448,6 +467,80 @@ function renderCatalog() {
                 container.innerHTML = html + '</div>';
                 return;
             }
+
+            if (!storeData.catalog || storeData.catalog.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
+                return;
+            }
+
+            let filtered = storeData.catalog;
+            if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
+            if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
+
+            const activePromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.is_active)) : [];
+
+            // פותח קונטיינר לפי סוג התצוגה הנבחר
+            let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
+
+            filtered.forEach(item => {
+                let badgeHtml = '';
+                let appliedPromo = null;
+                
+                for (let promo of activePromos) {
+                    if (promo.target_type === 'all') { appliedPromo = promo; break; }
+                    if (promo.target_type === 'category') {
+                        let targetArray = [];
+                        if(Array.isArray(promo.target_ids)) targetArray = promo.target_ids;
+                        else if(typeof promo.target_ids === 'string') { try { targetArray = JSON.parse(promo.target_ids); } catch(e){} }
+                        if (targetArray.includes(item.category)) { appliedPromo = promo; break; }
+                    }
+                }
+
+                if (appliedPromo) {
+                    let promoText = appliedPromo.promo_type === 'bogo' ? '1+1 מתנה' : (appliedPromo.promo_type === 'discount_pct' ? `${appliedPromo.promo_value}% הנחה` : `ב-₪${appliedPromo.promo_value}`);
+                    badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
+                }
+
+                if (item.badge_text) {
+                    const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+                    const bgClass = colors[item.badge_color] || 'bg-red-500';
+                    badgeHtml += `<div class="absolute top-2 right-2 ${bgClass} text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm">${safeStr(item.badge_text)}</div>`;
+                }
+                
+                // שינוי תמונות בהתאם למצב התצוגה
+                const imgClasses = catalogViewMode === 'grid' ? 'w-full h-32 sm:h-40 mb-3 relative shrink-0' : 'w-24 h-24 relative shrink-0';
+                const imgInner = item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover rounded-xl shadow-sm">` : `<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>`;
+                const imgHtml = `<div class="${imgClasses}">${badgeHtml}${imgInner}</div>`;
+                
+                let priceHtml = '';
+                const orig = parseFloat(item.original_price);
+                const curr = parseFloat(item.price);
+                
+                if (orig && orig > curr) {
+                    priceHtml = `
+                        <div class="flex flex-col">
+                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 line-through">₪${orig}</span>
+                                <span class="font-black text-emerald-600 text-base">₪${curr}</span>
+                            </div>
+                        </div>`;
+                } else {
+                    priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
+                }
+
+                const pType = item.product_type || 'retail';
+                const btnText = pType === 'pizza_builder' ? 'הרכב פיצה' : (pType === 'service' ? 'הזמן שירות' : (pType === 'food' ? 'בחר מנה' : 'פרטים והוספה'));
+                const actionHtml = `<button onclick="openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
+
+                if (catalogViewMode === 'grid') {
+                    html += `<div onclick="openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
+                } else {
+                    html += `<div onclick="openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
+                }
+            });
+            container.innerHTML = html + '</div>';
+        }
 
             if (!storeData.catalog || storeData.catalog.length === 0) {
                 container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
