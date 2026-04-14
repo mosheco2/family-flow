@@ -339,6 +339,22 @@
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
             if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
             
+            // הוספת באנר לחנות (רקע מאחורי הלוגו)
+            if(storeData.settings.banner_url) {
+                const headerEl = document.querySelector('header.hero-bg');
+                if (headerEl) {
+                    headerEl.style.backgroundImage = `url('${storeData.settings.banner_url}')`;
+                    headerEl.style.backgroundSize = 'cover';
+                    headerEl.style.backgroundPosition = 'center';
+                    headerEl.classList.remove('hero-bg'); // מסיר את צבע הרקע הדיפולטיבי
+                    
+                    // יצירת שכבת שקיפות עדינה אם לא קיימת (כדי שהטקסט מעל הבאנר יישאר קריא)
+                    if(!document.getElementById('header-banner-overlay')) {
+                        headerEl.insertAdjacentHTML('afterbegin', '<div id="header-banner-overlay" class="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-0"></div>');
+                    }
+                }
+            }
+            
             let showContactRow = false;
             if(storeData.settings.open_time && storeData.settings.close_time) {
                 getEl('header-hours-text').innerText = `${storeData.settings.open_time} - ${storeData.settings.close_time}`;
