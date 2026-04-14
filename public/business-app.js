@@ -191,12 +191,13 @@ async function fetchBanners() {
 }
 
 async function loadSAData() {
-    fetchBanners();
-    try {
-        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
-        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
-        
-        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
+    const mainWrap = getEl('main-wrapper'); if (mainWrap && !mainWrap.contains(getEl('sa-dashboard-container'))) mainWrap.classList.add('hidden');
+    fetchBanners();
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
+        if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
+        
+        const setVal = (id, v) => { const e = getEl(id); if(e) e.value = v || ''; };
         setVal('sa-welcome-msg', data.welcomeMsg); setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
         setVal('sa-banner-top-text', data.adBannerTextTop); setVal('sa-banner-top-link', data.adBannerLinkTop); setVal('sa-banner-top-img', data.adBannerImgTop);
         setVal('sa-banner-bottom-text', data.adBannerTextBottom); setVal('sa-banner-bottom-link', data.adBannerLinkBottom); setVal('sa-banner-bottom-img', data.adBannerImgBottom);
