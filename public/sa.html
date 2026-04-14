@@ -147,7 +147,7 @@
                                             <img id="sa-comm-img-preview" src="" class="w-full h-full object-cover">
                                         </div>
                                         <button type="button" onclick="document.getElementById('sa-comm-image-upload').click()" class="bg-slate-100 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition border border-slate-200"><i class="fa-solid fa-camera mr-1"></i> העלה תמונה</button>
-                                        <input type="file" id="sa-comm-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleCommImageUpload === 'function') handleCommImageUpload(event, 'create')">
+                                        <input type="file" id="sa-comm-image-upload" accept="image/*" class="hidden" onchange="handleCommImageUpload(event, 'create')">
                                         <input type="hidden" id="sa-comm-image-base64">
                                     </div>
                                 </div>
@@ -202,19 +202,19 @@
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-list text-orange-500 mr-2"></i> טבלת קהילות פעילות</h3>
                             <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                               <select id="sa-filter-comm-count" onchange="if(typeof filterSACommunities === 'function') filterSACommunities()" class="modern-input py-2 text-sm bg-slate-50 border-slate-200 shadow-sm w-full sm:w-auto outline-none focus:border-blue-500">
+                               <select id="sa-filter-comm-count" onchange="filterSACommunities()" class="modern-input py-2 text-sm bg-slate-50 border-slate-200 shadow-sm w-full sm:w-auto outline-none focus:border-blue-500">
                                 <option value="all">כל הקהילות</option>
                                 <option value="with_families">עם משפחות מחוברות</option>
                                 <option value="empty">ללא משפחות בכלל</option>
                                 <option value="sort_desc">לפי כמות (מהגבוה לנמוך)</option>
                             </select>
                             <label class="flex items-center gap-2 text-sm text-slate-600 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer shadow-sm w-full sm:w-auto whitespace-nowrap">
-                                <input type="checkbox" id="sa-filter-comm-multi" onchange="if(typeof filterSACommunities === 'function') filterSACommunities()" class="w-4 h-4 accent-orange-500">
+                                <input type="checkbox" id="sa-filter-comm-multi" onchange="filterSACommunities()" class="w-4 h-4 accent-orange-500">
                                 <span class="font-bold text-xs">פיזור מרובה (מעל 2 אזורים)</span>
                             </label>
                                 <div class="relative w-full sm:w-64">
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="sa-search-comm" onkeyup="if(typeof filterSACommunities === 'function') filterSACommunities()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש עיר/שם/קוד...">
+                                    <input type="text" id="sa-search-comm" onkeyup="filterSACommunities()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש עיר/שם/קוד...">
                                 </div>
                             </div>
                         </div>
@@ -241,7 +241,7 @@
                             <h2 class="text-2xl font-black text-slate-800"><i class="fa-solid fa-store text-blue-500 mr-2"></i> ניהול עסקים במערכת</h2>
                             <div class="relative w-full sm:w-64">
                                 <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="sa-search-businesses" onkeyup="if(typeof filterSABusinessesTable === 'function') filterSABusinessesTable()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש עסק או קוד...">
+                                <input type="text" id="sa-search-businesses" onkeyup="filterSABusinessesTable()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש עסק או קוד...">
                             </div>
                         </div>
                         <div class="overflow-x-auto pb-4">
@@ -323,7 +323,7 @@
                             <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-users text-indigo-500 mr-2"></i> סביבות ומשתמשים רשומים</h2>
                             <div class="relative w-full sm:w-64">
                                 <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm" placeholder="חיפוש לפי קוד או שם...">
+                                <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2 pr-10 text-sm shadow-sm" placeholder="חיפוש לפי קוד או שם...">
                             </div>
                         </div>
                         <div id="sa-groups-list" class="space-y-3"></div>
@@ -453,6 +453,6 @@
         </div>
     </div>
 
-    <script src="sa-app.js?v=3"></script>
+    <script src="sa-app.js?v=1"></script>
 </body>
 </html>
