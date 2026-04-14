@@ -6444,109 +6444,115 @@ async function analyzeFoodCostAI() {
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
 }
-// --- מסופון שליחים ---
+// --- מסופון שליחים חכם ---
 function switchDeliveryTab(tab) {
-    ['active', 'transit', 'history'].forEach(t => {
-        const view = getEl(`del-view-${t}`);
-        const btn = getEl(`btn-del-${t}`);
-        if(view) view.classList.add('hidden');
-        if(btn) {
-            btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-            btn.classList.add('text-slate-500', 'hover:text-slate-700');
+    const views = ['active', 'transit', 'history'];
+    views.forEach(v => {
+        const viewEl = getEl(`del-view-${v}`);
+        const btnEl = getEl(`btn-del-${v}`);
+        if(viewEl) viewEl.classList.add('hidden');
+        if(btnEl) {
+            btnEl.className = 'flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
         }
     });
+
     const targetView = getEl(`del-view-${tab}`);
     const targetBtn = getEl(`btn-del-${tab}`);
     if(targetView) targetView.classList.remove('hidden');
     if(targetBtn) {
-        targetBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
-        targetBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+        targetBtn.className = 'flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200';
     }
+    
+    // טעינת נתונים רק אם הטאב גלוי
     loadCourierData();
 }
 
 async function loadCourierData() {
-    if (!currentUser.permissions || !currentUser.permissions.tabs || !currentUser.permissions.tabs.includes('deliveries') && currentUser.role !== 'ADMIN') return;
+    // מניעת הרצה אם המשתמש לא מורשה או אם הטאב לא פעיל
+    const hasAccess = (currentUser.permissions?.tabs?.includes('deliveries') || currentUser.role === 'ADMIN');
+    if (!hasAccess) return;
     
     try {
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
-        let data = await res.json();
-        if (Array.isArray(data)) {
-            // ממיין מהישן לחדש כדי שהשליח יראה את הראשונים למעלה
-            data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            
-            // "ready" = ממתין לאיסוף מהעסק
-            // "shipped" = כרגע אצל השליח (או מישהו אחר בססטוס במשלוח)
-            // "completed" = נמסר בהצלחה (נציג רק כאלו שנמסרו היום)
-            
-            const activeOrders = data.filter(o => o.status === 'ready' && (o.is_delivery === true || o.is_delivery === 1));
-            const transitOrders = data.filter(o => o.status === 'shipped' && (o.is_delivery === true || o.is_delivery === 1));
-            
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const historyOrders = data.filter(o => o.status === 'completed' && (o.is_delivery === true || o.is_delivery === 1) && new Date(o.created_at) >= today);
+        const data = await res.json();
+        
+        if (data && Array.isArray(data)) {
+            // זיהוי הזמנת משלוח דרך ה-Metadata שהזרקנו בחנות
+            const checkIsDelivery = (o) => {
+                if (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true') return true;
+                try {
+                    const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                    return items.some(i => i.is_delivery_metadata === true);
+                } catch(e) { return false; }
+            };
 
-            renderCourierList('active', activeOrders, 'ready');
-            renderCourierList('transit', transitOrders, 'shipped');
-            renderCourierList('history', historyOrders, 'completed');
+            const allDeliveries = data.filter(checkIsDelivery);
+            
+            // סינון לפי סטטוסים
+            const active = allDeliveries.filter(o => o.status === 'ready');
+            const transit = allDeliveries.filter(o => o.status === 'shipped');
+            
+            const today = new Date(); today.setHours(0,0,0,0);
+            const history = allDeliveries.filter(o => o.status === 'completed' && new Date(o.created_at) >= today);
+
+            renderCourierList('active', active, 'ready');
+            renderCourierList('transit', transit, 'shipped');
+            renderCourierList('history', history, 'completed');
         }
-    } catch(e) { console.error('Courier load error:', e); }
+    } catch(e) { 
+        console.error('Courier Data Load Error', e);
+        getEl('courier-active-list').innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינת נתונים</p>';
+    }
 }
 
 function renderCourierList(type, orders, statusType) {
-    const list = getEl(`courier-${type}-list`);
-    if (!list) return;
+    const container = getEl(`courier-${type}-list`);
+    if (!container) return;
     
     if (orders.length === 0) {
-        list.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין משלוחים בקטגוריה זו כרגע.</p>`;
+        container.innerHTML = `<div class="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200"><i class="fa-solid fa-box-open text-3xl text-slate-200 mb-2"></i><p class="text-[11px] text-slate-400 font-bold">אין הזמנות בקטגוריה זו</p></div>`;
         return;
     }
 
-    list.innerHTML = orders.map(o => {
-        let details = {};
-        try { details = typeof o.delivery_details === 'string' ? JSON.parse(o.delivery_details) : o.delivery_details; } catch(e){}
-        if (!details) details = {};
+    container.innerHTML = orders.map(o => {
+        let deliveryData = {};
+        try {
+            const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+            const meta = items.find(i => i.is_delivery_metadata === true);
+            deliveryData = meta ? meta.delivery_details : {};
+        } catch(e) { deliveryData = {}; }
 
-        const address = `${safeStr(details.street || '')} ${safeStr(details.house || '')}, ${safeStr(details.city || '')}`;
-        const cleanPhone = (o.customer_phone || '').replace(/\D/g,'');
-        let fullAddress = address;
-        if (details.apt) fullAddress += ` דירה ${safeStr(details.apt)}`;
-        if (details.floor) fullAddress += ` קומה ${safeStr(details.floor)}`;
+        const addr = `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}`;
+        const waze = `https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
         
-        const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
-        const waUrl = `https://wa.me/${cleanPhone.startsWith('0') ? '972'+cleanPhone.substring(1) : cleanPhone}?text=${encodeURIComponent('היי! השליח בדרך אליך עם ההזמנה מ-'+currentGroup.name)}`;
-
-        let actionHtml = '';
+        let actionBtn = '';
         if (statusType === 'ready') {
-            actionHtml = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-3 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fa-solid fa-box-open"></i> אספתי מהעסק - יציאה ללקוח</button>`;
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-4 py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-motorcycle"></i> יציאה למשלוח</button>`;
         } else if (statusType === 'shipped') {
-            actionHtml = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-3 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> נמסר בהצלחה ללקוח</button>`;
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3.5 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה ללקוח</button>`;
         }
 
         return `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col hover:shadow-md transition relative overflow-hidden">
-            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
-            <div class="flex justify-between items-start mb-2">
-                <div class="flex-1">
-                    <h4 class="font-bold text-slate-800 text-base">הזמנה #${o.id}</h4>
-                    <p class="text-sm font-bold text-indigo-700 mt-0.5"><i class="fa-solid fa-location-dot text-red-500 ml-1"></i> ${address}</p>
-                    <p class="text-[11px] text-slate-500 mt-1">${safeStr(o.customer_name)} | ${safeStr(o.customer_phone)}</p>
+        <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm mb-3 relative overflow-hidden">
+            <div class="flex justify-between items-start">
+                <div class="flex-1 pr-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#${o.id}</span>
+                        <span class="text-[10px] text-slate-400">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}</span>
+                    </div>
+                    <h4 class="font-black text-slate-800 text-lg mb-1">${addr}</h4>
+                    <p class="text-xs font-bold text-slate-500">${safeStr(o.customer_name)} | <span dir="ltr">${safeStr(o.customer_phone)}</span></p>
                 </div>
-                <div class="text-left shrink-0">
-                    <span class="font-black text-lg text-slate-800 dir-ltr block">₪${o.total_amount}</span>
-                    <span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">${new Date(o.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>
-                </div>
+                <div class="text-left"><span class="text-xl font-black text-slate-900">₪${o.total_amount}</span></div>
             </div>
-            
-            ${details.notes ? `<div class="bg-yellow-50 border border-yellow-100 p-2 rounded-lg mt-2 mb-2"><p class="text-[10px] font-bold text-yellow-800"><i class="fa-solid fa-comment-dots ml-1"></i> הערות לשליח:</p><p class="text-xs text-yellow-900 mt-1">${safeStr(details.notes)}</p></div>` : ''}
-            
-            <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
-                <a href="${wazeUrl}" target="_blank" class="flex flex-col items-center justify-center p-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition"><i class="fa-brands fa-waze text-lg mb-1"></i><span class="text-[9px] font-bold">Waze</span></a>
-                <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center p-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg mb-1"></i><span class="text-[9px] font-bold">חייג</span></a>
-                <a href="${waUrl}" target="_blank" class="flex flex-col items-center justify-center p-2 bg-[#25D366]/10 text-[#25D366] rounded-xl hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg mb-1"></i><span class="text-[9px] font-bold">הודעה</span></a>
+
+            ${deliveryData.notes ? `<div class="mt-3 bg-amber-50 p-2.5 rounded-xl border border-amber-100 text-[11px] text-amber-900 font-medium"><i class="fa-solid fa-comment-dots ml-1"></i> ${safeStr(deliveryData.notes)}</div>` : ''}
+
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <a href="${waze}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-bold text-xs border border-blue-100"><i class="fa-brands fa-waze text-lg"></i> ניווט בוויז</a>
+                <a href="tel:${o.customer_phone}" class="flex items-center justify-center gap-2 py-2.5 bg-slate-50 text-slate-700 rounded-xl font-bold text-xs border border-slate-100"><i class="fa-solid fa-phone"></i> התקשר ללקוח</a>
             </div>
-            
-            ${actionHtml}
+            ${actionBtn}
         </div>`;
     }).join('');
 }
