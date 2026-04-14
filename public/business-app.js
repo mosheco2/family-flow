@@ -106,7 +106,14 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
+function logoutSA() { 
+    saToken = null; localStorage.removeItem('ofl_sa_token'); 
+    getEl('sa-dashboard-container').classList.add('hidden'); 
+    getEl('auth-container').classList.remove('hidden'); 
+    const mainWrap = getEl('main-wrapper'); 
+    if (mainWrap) { mainWrap.classList.add('items-center'); mainWrap.classList.remove('items-start'); }
+    switchView('login'); 
+}
 
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
