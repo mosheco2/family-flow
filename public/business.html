@@ -1813,21 +1813,29 @@
 
                     <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 shadow-sm">
                         <label class="text-xs font-bold text-indigo-800 block mb-1">סוג תבנית מוצר:</label>
-                                                <select id="sp-product-type" onchange="onProductTypeChange()" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
-                            <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
-                            <option value="food">🍔 מנת מזון / מסעדה</option>
-                            <option value="service">✂️ שירות / טיפול</option>
-                            <option value="apparel">👕 ביגוד והנעלה (מידות)</option>
-                            <option value="bundle">🎁 חבילה / סט מוצרים</option>
-                        </select>
-                        <p class="text-[9px] text-indigo-500 mt-1">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
-                    </div>
+<select id="sp-product-type" onchange="onProductTypeChange()" class="modern-input py-2 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                                                <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                                                <option value="food">🍔 מנת מזון / מסעדה</option>
+                                                <option value="service">✂️ שירות / טיפול</option>
+                                                <option value="apparel">👕 ביגוד והנעלה (מידות)</option>
+                                                <option value="bundle">🎁 חבילה / סט מוצרים</option>
+                                                <option value="pizza_builder">🍕 הרכבת פיצה ויזואלית (רבעים)</option>
+                                            </select>
+                                            <p class="text-[9px] text-indigo-500 mt-1">משנה את תצוגת המוצר ללקוח ואת אפשרויות הבחירה.</p>
+                                        </div>
 
-                    <div id="sp-bundle-section" class="hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm">
-                        <label class="text-xs font-bold text-amber-800 block mb-2"><i class="fa-solid fa-cubes-stacked ml-1"></i> פריטים בחבילה:</label>
-                        <div id="sp-bundle-items-list" class="space-y-1.5 max-h-52 overflow-y-auto modal-scroll pr-1"></div>
-                        <p class="text-[9px] text-amber-600 mt-2">סמן את המוצרים שיצרו את החבילה וקבע כמות לכל פריט.</p>
-                    </div>
+                                        <div id="sp-bundle-section" class="hidden bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-sm mt-4">
+                                            <label class="text-xs font-bold text-amber-800 block mb-2"><i class="fa-solid fa-cubes-stacked ml-1"></i> פריטים בחבילה:</label>
+                                            <div id="sp-bundle-items-list" class="space-y-1.5 max-h-52 overflow-y-auto modal-scroll pr-1"></div>
+                                            <p class="text-[9px] text-amber-600 mt-2">סמן את המוצרים שיצרו את החבילה וקבע כמות לכל פריט.</p>
+                                        </div>
+
+                                        <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                                            <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                                            <p class="text-[9px] text-red-600 mb-3 font-medium">הגדירו את התוספות לבחירה ומחיר לכל תוספת על מגש שלם. המערכת בחנות תאפשר ללקוח לבחור רבעים/חצאים ותחשב את המחיר היחסי אוטומטית.</p>
+                                            <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                                            <button type="button" onclick="addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                                        </div>
 
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
