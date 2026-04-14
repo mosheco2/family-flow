@@ -4005,10 +4005,12 @@ function updateModOptionName(gIndex, optIndex, v) { currentModifiersUI[gIndex].o
 function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; }
 
 let currentBundleStepsUI = [];
+let currentPizzaToppingsUI = [];
 
 function openStoreProductModal(id = null) {
     currentModifiersUI = []; 
     currentBundleStepsUI = [];
+    currentPizzaToppingsUI = [];
     
     // הזרקת הממשק להרכבת באנדל (אם לא קיים ב-HTML)
     let bundleContainer = getEl('bundle-builder-container');
@@ -4053,6 +4055,8 @@ function openStoreProductModal(id = null) {
                 const parsed = JSON.parse(p.options_text); 
                 if (parsed && parsed.isBundle) {
                     currentBundleStepsUI = parsed.steps || [];
+                } else if (parsed && parsed.isPizza) {
+                    currentPizzaToppingsUI = parsed.toppings || [];
                 } else {
                     currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
                 }
@@ -4077,17 +4081,64 @@ function toggleProductTypeUI(type) {
     const modContainer = getEl('modifiers-builder-container');
     const bundleContainer = getEl('bundle-builder-container');
     const presetContainer = getEl('preset-selector') ? getEl('preset-selector').parentNode : null;
+    const pizzaContainer = getEl('sp-pizza-section');
     
     if (type === 'bundle') {
         if (modContainer) modContainer.classList.add('hidden');
         if (presetContainer) presetContainer.classList.add('hidden');
         if (bundleContainer) bundleContainer.classList.remove('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    } else if (type === 'pizza_builder') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (presetContainer) presetContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+        renderPizzaToppingsUI();
     } else {
         if (modContainer) modContainer.classList.remove('hidden');
         if (presetContainer) presetContainer.classList.remove('hidden');
         if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
     }
 }
+
+window.onProductTypeChange = function() {
+    const type = val('sp-product-type');
+    toggleProductTypeUI(type);
+};
+
+function renderPizzaToppingsUI() {
+    const list = getEl('pizza-toppings-list');
+    if (!list) return;
+    if (currentPizzaToppingsUI.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-500 text-center py-4 bg-white rounded-lg border border-dashed border-red-200">לא הוגדרו תוספות. לחצו למטה כדי להוסיף תוספת ראשונה.</p>';
+        return;
+    }
+    
+    let html = '';
+    currentPizzaToppingsUI.forEach((top, idx) => {
+        html += `
+        <div class="flex gap-2 items-center mb-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm fade-in">
+            <input type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 outline-none focus:border-red-400 text-slate-700 font-bold" value="${safeStr(top.name)}" onchange="currentPizzaToppingsUI[${idx}].name = this.value" placeholder="שם התוספת (למשל: זיתים ירוקים)">
+            <div class="w-24 relative">
+                <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2 outline-none focus:border-red-400 text-slate-700 text-center dir-ltr font-bold" value="${top.price}" onchange="currentPizzaToppingsUI[${idx}].price = parseFloat(this.value) || 0" placeholder="0">
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪</span>
+            </div>
+            <button type="button" onclick="removePizzaTopping(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg"><i class="fa-solid fa-times text-xs"></i></button>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+window.addPizzaTopping = function() {
+    currentPizzaToppingsUI.push({ name: '', price: 0 });
+    renderPizzaToppingsUI();
+};
+
+window.removePizzaTopping = function(idx) {
+    currentPizzaToppingsUI.splice(idx, 1);
+    renderPizzaToppingsUI();
+};
 
 function addBundleStep() {
     currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
@@ -4191,9 +4242,12 @@ async function submitStoreProduct() {
         const validSteps = currentBundleStepsUI.filter(s => s.name.trim() !== '');
         if(validSteps.length === 0) return showToast('error', 'מארז (Bundle) חייב להכיל לפחות שלב בחירה אחד עבור הלקוח.');
         finalOptionsText = JSON.stringify({ isBundle: true, steps: validSteps });
+    } else if (pType === 'pizza_builder') {
+        const validToppings = currentPizzaToppingsUI.filter(t => t.name.trim() !== '');
+        finalOptionsText = JSON.stringify({ isPizza: true, toppings: validToppings });
     } else {
         let validOptions = [];
-        currentModifiersUI.forEach(mod => { 
+        currentModifiersUI.forEach(mod => {
             if (mod.name.trim()) {
                 const cleanOpts = mod.options.filter(o => o.name.trim() !== '');
                 if (cleanOpts.length > 0) validOptions.push({ name: mod.name.trim(), type: mod.type, options: cleanOpts });
