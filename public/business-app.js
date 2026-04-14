@@ -5942,79 +5942,6 @@ window.generateLogoAI = async function() {
     });
 };
 
-window.generateBannerAI = async function() {
-    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
-    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
-    
-    let logoBase64 = val('wizard-logo-base64');
-    if (!logoBase64) {
-        logoBase64 = val('store-logo-base64');
-    }
-
-    if (!logoBase64) {
-        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
-    }
-    
-    if (typeof executeWithAIWarning === 'function') {
-        executeWithAIWarning(runBannerAI);
-    } else {
-        runBannerAI();
-    }
-
-    async function runBannerAI() {
-        // נעילת הכפתורים והצגת חיווי טעינה
-        const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
-        btns.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...';
-        });
-
-        showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
-        try {
-            const res = await fetch(`${API}/ai/generate-image`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: businessName,
-                    groupId: groupId, 
-                    type: 'banner',
-                    logoBase64: logoBase64
-                })
-            });
-            const data = await res.json();
-            if (data.success && data.imageUrl) {
-                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
-                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-                const img = new Image();
-                
-                img.onload = () => {
-                    // שימוש ב-querySelectorAll וב-display block לכיסוי כל המקרים
-                    document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
-                        el.src = freshUrl;
-                        el.classList.remove('hidden');
-                        el.style.display = 'block';
-                    });
-                    document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
-                    
-                    showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
-                    try { triggerConfetti(); } catch(e){}
-                };
-                img.onerror = () => showToast('error', 'שגיאה בטעינת הבאנר מהשרת. נסו שוב.');
-                img.src = freshUrl;
-            } else { 
-                showToast('error', data.error || 'שגיאה ביצירת באנר'); 
-            }
-        } catch (e) { 
-            showToast('error', 'שגיאת רשת מול שרת ה-AI'); 
-        } finally {
-            // החזרת הכפתורים למצב פעיל
-            btns.forEach(btn => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)';
-            });
-        }
-    }
-};
 window.handleStoreLogoUpload = function(event) {
     const file = event.target.files[0]; 
     if(!file) return; 
@@ -6060,6 +5987,24 @@ window.clearImage = function(targetIdPrefix) {
     }
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 };
+window.generateBannerAI = async function() {
+    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
+    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
+    
+    let logoBase64 = val('wizard-logo-base64');
+    if (!logoBase64) {
+        logoBase64 = val('store-logo-base64');
+    }
+
+    if (!logoBase64) {
+        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
+    }
+    
+    if (typeof executeWithAIWarning === 'function') {
+        executeWithAIWarning(runBannerAI);
+    } else {
+        runBannerAI();
+    }
 
     async function runBannerAI() {
         // נעילת הכפתורים והצגת חיווי טעינה
@@ -6082,22 +6027,24 @@ window.clearImage = function(targetIdPrefix) {
             });
             const data = await res.json();
             if (data.success && data.imageUrl) {
+                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן במקום להציג מהזיכרון
+                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
                 const img = new Image();
+                
                 img.onload = () => {
-                    // שימוש ב-querySelectorAll וב-display block לכיסוי כל המקרים
                     document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
-                        el.src = data.imageUrl;
+                        el.src = freshUrl;
                         el.classList.remove('hidden');
                         el.style.display = 'block';
                     });
                     document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = data.imageUrl);
+                    document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
                     
                     showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
                     try { triggerConfetti(); } catch(e){}
                 };
                 img.onerror = () => showToast('error', 'שגיאה בטעינת הבאנר מהשרת. נסו שוב.');
-                img.src = data.imageUrl;
+                img.src = freshUrl;
             } else { 
                 showToast('error', data.error || 'שגיאה ביצירת באנר'); 
             }
@@ -6110,7 +6057,8 @@ window.clearImage = function(targetIdPrefix) {
                 btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)';
             });
         }
-
+    }
+};
 window.openStoreImageModal = function(src) {
     if (!src || src.length < 10) return;
     const existing = document.getElementById('store-img-modal');
