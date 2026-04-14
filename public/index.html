@@ -1964,10 +1964,31 @@
                         bannerTitle.innerText = `קהילת ${name} 🏘️`;
                     }
                 });
-                // מאזין לכל שינוי טקסטואלי בשם הקהילה
+             // מאזין לכל שינוי טקסטואלי בשם הקהילה
                 observer.observe(nameDisplay, { childList: true, characterData: true, subtree: true });
             }
         });
+
+        window.saTogglePremium = async function(id, enable) {
+            if(!confirm(`האם אתה בטוח שברצונך ${enable ? 'להפעיל' : 'לבטל'} את מנוי ה-PRO לסביבה זו?`)) return;
+            try {
+                const token = localStorage.getItem('ofl_sa_token');
+                const res = await fetch('/api/superadmin/groups/' + id + '/premium', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': token },
+                    body: JSON.stringify({ is_premium: enable, isPremium: enable, enable: enable })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast('success', `מנוי PRO ${enable ? 'הופעל' : 'בוטל'} בהצלחה!`);
+                    if (typeof loadSAData === 'function') loadSAData();
+                } else {
+                    showToast('error', data.error || 'שגיאה בעדכון הסטטוס');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת רשת בעדכון סטטוס מנוי');
+            }
+        };
     </script>
 </body>
-</html>
+</html>  
