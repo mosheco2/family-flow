@@ -506,14 +506,52 @@
 
         <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
        
-            <a id="app-banner-top"
-               href="#"
-               target="_blank"
-               class="hidden bg-gradient-to-r from-slate-700 to-slate-900 mx-0 mt-0 w-full items-center justify-center text-sm font-medium border-b border-slate-100 text-slate-700 sm:rounded-t-[2rem] shadow-sm overflow-hidden min-h-[140px] relative z-40 shrink-0">
-            </a>
             <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <header class="glass-header rounded-b-[1.5rem] sm:rounded-t-none sm:rounded-b-[1.5rem] px-5 py-4 mb-4 flex justify-between items-center sticky top-0 z-30 shadow-sm w-full" id="tour-header">
-                    <div class="flex items-center gap-3">
+                <div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
+                    
+                    <div class="w-full flex h-14 sm:h-20 border-b border-slate-50 overflow-hidden">
+                        <div class="w-2/3 h-full bg-slate-100 relative overflow-hidden flex">
+                            <a id="app-banner-top" class="hidden w-full h-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden text-white"></a>
+                            <div id="app-banner-placeholder" class="w-full h-full flex items-center justify-center text-slate-300 text-[9px] font-bold">
+                                <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
+                            </div>
+                        </div>
+                        
+                        <div class="w-1/3 h-full bg-slate-200 border-r border-slate-200 flex items-center justify-center relative group cursor-pointer overflow-hidden" onclick="openProfileModal()">
+                            <div id="header-group-logo-container" class="w-full h-full flex items-center justify-center bg-slate-300">
+                                <i class="fa-solid fa-store text-white text-2xl" id="header-group-icon-fallback"></i>
+                                <img id="header-group-img" src="" class="w-full h-full object-cover hidden">
+                            </div>
+                            <button onclick="logout(); event.stopPropagation();" class="absolute top-1 left-1 w-6 h-6 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg flex items-center justify-center hover:bg-red-50 transition z-10" title="התנתק">
+                                <i class="fa-solid fa-power-off text-[11px]"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <header class="px-4 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md" id="tour-header">
+                        
+                        <div class="flex flex-col items-start text-right">
+                            <h2 id="dash-group-name" class="font-black text-slate-800 text-sm sm:text-base leading-tight"></h2>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter" id="dash-group-subtitle">Business Control Center</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="flex flex-col items-end">
+                                <div class="flex items-center gap-1.5">
+                                    <img src="/logo.png" alt="Oneflow" class="h-5 object-contain">
+                                    <span class="font-black text-slate-800 text-xs tracking-tighter">ONEFLOW <span class="text-blue-600">BIZ</span></span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <p class="text-[9px] text-slate-400">שלום, <span id="dash-nickname" class="font-bold text-slate-600"></span></p>
+                                    <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[8px] font-bold px-1.5 py-0.5 rounded-full border border-purple-100 bg-purple-50 text-purple-600 cursor-pointer hover:bg-purple-100 transition flex items-center gap-1"></button>
+                                </div>
+                            </div>
+                            <button onclick="openProfileModal()" class="bg-slate-900 rounded-xl flex items-center justify-center shadow-lg text-white hover:bg-slate-800 transition cursor-pointer w-10 h-10 shrink-0">
+                                <i class="fa-solid fa-bars-staggered"></i>
+                            </button>
+                        </div>
+                    </header>
+                </div>
                         <button onclick="openProfileModal()" class="bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer px-3 py-2 gap-2 text-xs font-bold">
                             <i class="fa-solid fa-bars"></i> תפריט
                         </button>
