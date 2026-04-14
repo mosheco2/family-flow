@@ -192,6 +192,12 @@
         let searchQuery = '';
         let currentModifierProduct = null;
         let currentModifierBasePrice = 0;
+        
+        // משתני מערכת הפיצה
+        let isCurrentProductPizza = false;
+        let currentPizzaToppings = [];
+        let pizzaState = {};
+        let activePizzaTopping = null;
 
         const getEl = id => document.getElementById(id);
         const val = id => getEl(id) ? getEl(id).value : '';
@@ -527,11 +533,23 @@ function renderCatalog() {
 
         function calculateModTotal() {
             let totalOptions = 0;
-            document.querySelectorAll('.mod-checkbox, .mod-radio').forEach(input => {
-                if (input.checked) totalOptions += parseFloat(input.dataset.price) || 0;
-            });
+            
+            if (isCurrentProductPizza) {
+                currentPizzaToppings.forEach(t => {
+                    if (pizzaState[t.name]) {
+                        const activeQuarters = pizzaState[t.name].filter(Boolean).length;
+                        totalOptions += (parseFloat(t.price) / 4) * activeQuarters;
+                    }
+                });
+            } else {
+                document.querySelectorAll('.mod-checkbox, .mod-radio').forEach(input => {
+                    if (input.checked) totalOptions += parseFloat(input.dataset.price) || 0;
+                });
+            }
+            
             const grandTotal = (currentModifierBasePrice + totalOptions) * currentModalQty;
-            getEl('mod-total-display').innerText = `(₪${grandTotal.toFixed(2)})`;
+            const displayEl = getEl('mod-total-display');
+            if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
         }
 
 function openProductModal(itemId) {
@@ -555,12 +573,13 @@ function openProductModal(itemId) {
             else { imgPreview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
 
             const pType = item.product_type || 'retail';
-            getEl('prod-btn-text').innerText = pType === 'bundle' ? 'הוסף מארז לסל' : 'הוסף לסל';
+            getEl('prod-btn-text').innerText = pType === 'bundle' ? 'הוסף מארז לסל' : (pType === 'pizza_builder' ? 'הוסף מגש לסל' : 'הוסף לסל');
 
             let options = [];
             try { options = JSON.parse(item.options_text); } catch(e) { options = []; }
             
             let html = '';
+            isCurrentProductPizza = false;
 
             // --- לוגיקה למארז (Bundle) ---
             if (pType === 'bundle' && options.isBundle) {
@@ -575,7 +594,7 @@ function openProductModal(itemId) {
                     
                     let itemsInStep = [];
                     if (step.selectionType === 'category') {
-                        itemsInStep = storeData.catalog.filter(p => p.category === step.category && p.product_type !== 'bundle');
+                        itemsInStep = storeData.catalog.filter(p => p.category === step.category && p.product_type !== 'bundle' && p.product_type !== 'pizza_builder');
                     } else {
                         itemsInStep = storeData.catalog.filter(p => (step.items || []).includes(p.id));
                     }
@@ -595,6 +614,16 @@ function openProductModal(itemId) {
                     html += `</div></div>`;
                 });
             } 
+            // --- לוגיקה לפיצה (Pizza Builder) ---
+            else if (pType === 'pizza_builder' && options.isPizza) {
+                isCurrentProductPizza = true;
+                currentPizzaToppings = options.toppings || [];
+                pizzaState = {};
+                currentPizzaToppings.forEach(t => pizzaState[t.name] = [false, false, false, false]);
+                activePizzaTopping = currentPizzaToppings.length > 0 ? currentPizzaToppings[0].name : null;
+                
+                html = `<div id="pizza-builder-wrapper"></div>`;
+            }
             // --- לוגיקה למוצר רגיל עם תוספות (Modifiers) ---
             else {
                 const mods = Array.isArray(options) ? options : [];
@@ -617,6 +646,11 @@ function openProductModal(itemId) {
             }
 
             getEl('mod-options-container').innerHTML = html;
+            
+            if (isCurrentProductPizza) {
+                window.renderPizzaBuilderUI();
+            }
+
             calculateModTotal();
             
             getEl('btn-add-with-mod').onclick = () => {
@@ -634,6 +668,16 @@ function openProductModal(itemId) {
                         checked.forEach(c => selections.push(c.value));
                     });
                     if (!isValid) return;
+                } else if (isCurrentProductPizza) {
+                    // סידור ההזמנה של הרכבת הפיצה להדפסה ולמטבח
+                    currentPizzaToppings.forEach(t => {
+                        const activeQuarters = pizzaState[t.name].filter(Boolean).length;
+                        if (activeQuarters > 0) {
+                            totalPrice += (parseFloat(t.price) / 4) * activeQuarters;
+                            let amountStr = activeQuarters === 4 ? 'מגש שלם' : (activeQuarters === 2 ? 'חצי מגש' : (activeQuarters === 1 ? 'רבע מגש' : '3 רבעים'));
+                            selections.push(`${t.name} (${amountStr})`);
+                        }
+                    });
                 } else {
                     const mods = Array.isArray(options) ? options : [];
                     mods.forEach((g, i) => {
@@ -663,8 +707,99 @@ function openProductModal(itemId) {
             }
         };
 
-        function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
+        window.renderPizzaBuilderUI = function() {
+            const wrapper = getEl('pizza-builder-wrapper');
+            if(!wrapper) return;
+            
+            const isActive = (qIdx) => pizzaState[activePizzaTopping] && pizzaState[activePizzaTopping][qIdx];
+            
+            let toppingsHtml = currentPizzaToppings.map(t => `
+                <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition border ${t.name === activePizzaTopping ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50'}" onclick="window.selectPizzaTopping('${safeStr(t.name)}')">
+                    ${safeStr(t.name)} (+₪${t.price})
+                </button>
+            `).join('');
 
+            let summaryArr = [];
+            currentPizzaToppings.forEach(t => {
+                const activeCount = pizzaState[t.name].filter(Boolean).length;
+                if (activeCount > 0) {
+                    let amountStr = activeCount === 4 ? 'מגש שלם' : (activeCount === 2 ? 'חצי' : (activeCount === 1 ? 'רבע' : '3 רבעים'));
+                    summaryArr.push(`<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold m-1 inline-block">${t.name} (${amountStr})</span>`);
+                }
+            });
+            const summaryHtml = summaryArr.length > 0 ? summaryArr.join('') : '<p class="text-[10px] text-slate-400">פיצה חלקה (ללא תוספות)</p>';
+
+            wrapper.innerHTML = `
+            <div class="bg-red-50/50 rounded-2xl p-4 border border-red-100 shadow-sm mb-4 fade-in">
+                <h4 class="font-bold text-red-900 text-center mb-1 text-sm"><i class="fa-solid fa-pizza-slice text-red-500 mr-1"></i> הרכבת מגש פיצה</h4>
+                <p class="text-[10px] text-red-600 text-center mb-4">בחרו תוספת מהסרגל, ולחצו על חלקי הפיצה כדי לפזר אותה.</p>
+                
+                <div class="flex overflow-x-auto gap-2 mb-6 pb-2 modal-scroll hide-scrollbar" style="scroll-snap-type: x mandatory;">
+                    ${toppingsHtml}
+                </div>
+
+                <div class="relative w-52 h-52 mx-auto mb-6">
+                    <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
+                        <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+                        <path d="M 50 50 L 50 2 A 48 48 0 0 1 98 50 Z" fill="${isActive(0) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(0)" />
+                        <path d="M 50 50 L 98 50 A 48 48 0 0 1 50 98 Z" fill="${isActive(1) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(1)" />
+                        <path d="M 50 50 L 50 98 A 48 48 0 0 1 2 50 Z" fill="${isActive(2) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(2)" />
+                        <path d="M 50 50 L 2 50 A 48 48 0 0 1 50 2 Z" fill="${isActive(3) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(3)" />
+                        
+                        <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2"/>
+                        <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2"/>
+                    </svg>
+                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div class="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-red-800 text-[10px] font-black shadow-sm border border-red-100">
+                            ${activePizzaTopping ? 'פעיל: ' + activePizzaTopping : 'בחרו תוספת'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 justify-center mb-5 flex-wrap">
+                    <button type="button" onclick="window.fillPizza('whole')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">מגש שלם</button>
+                    <button type="button" onclick="window.fillPizza('right')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי ימין</button>
+                    <button type="button" onclick="window.fillPizza('left')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי שמאל</button>
+                    <button type="button" onclick="window.fillPizza('clear')" class="bg-white border border-slate-200 text-slate-500 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition">נקה הכל</button>
+                </div>
+
+                <div class="bg-white p-3 rounded-xl border border-red-100 min-h-[50px]">
+                    <p class="text-[9px] font-bold text-slate-400 mb-1">סיכום בחירה למטבח:</p>
+                    ${summaryHtml}
+                </div>
+            </div>`;
+        };
+
+        window.selectPizzaTopping = function(name) {
+            activePizzaTopping = name;
+            window.renderPizzaBuilderUI();
+        };
+
+        window.togglePizzaSlice = function(qIdx) {
+            if (!activePizzaTopping) return showToast('info', 'יש לבחור תוספת מתוך הרשימה מעלה!');
+            pizzaState[activePizzaTopping][qIdx] = !pizzaState[activePizzaTopping][qIdx];
+            window.renderPizzaBuilderUI();
+            calculateModTotal();
+        };
+
+        window.fillPizza = function(action) {
+            if (!activePizzaTopping && action !== 'clear') return showToast('info', 'יש לבחור תוספת מתוך הרשימה מעלה!');
+            if (action === 'clear') {
+                currentPizzaToppings.forEach(t => pizzaState[t.name] = [false, false, false, false]);
+            } else if (action === 'whole') {
+                pizzaState[activePizzaTopping] = [true, true, true, true];
+            } else if (action === 'right') {
+                pizzaState[activePizzaTopping][0] = true;
+                pizzaState[activePizzaTopping][1] = true;
+            } else if (action === 'left') {
+                pizzaState[activePizzaTopping][2] = true;
+                pizzaState[activePizzaTopping][3] = true;
+            }
+            window.renderPizzaBuilderUI();
+            calculateModTotal();
+        };
+
+        function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
         function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
             const catId = originalCatalogId || cartKey; 
             if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
