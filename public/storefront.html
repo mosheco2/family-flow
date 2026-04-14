@@ -765,12 +765,11 @@ function calculateModTotal() {
             const wrapper = getEl('pizza-builder-wrapper');
             if(!wrapper) return;
             
-            // Helper to get fill color based on state (0=transparent, 1=regular, 2=double)
             const getFill = (qIdx) => {
                 if(!activePizzaTopping || !pizzaState[activePizzaTopping]) return 'transparent';
                 const val = pizzaState[activePizzaTopping][qIdx];
-                if (val === 2) return '#ef4444'; // Strong red for double
-                if (val === 1) return '#fca5a5'; // Light red for regular
+                if (val === 2) return '#ef4444'; 
+                if (val === 1) return '#fca5a5'; 
                 return 'transparent';
             };
 
@@ -900,122 +899,7 @@ function calculateModTotal() {
         };
 
         function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
-        function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
-            const catId = originalCatalogId || cartKey; 
-            if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
-            
-            cart[cartKey].qty += delta;
-            if (cart[cartKey].qty <= 0) delete cart[cartKey];
-
-            renderCatalog(); updateCartFooter();
-        }
-
-        function calculateCartDetails() {
-            let baseTotal = 0; let totalQty = 0;
-            let itemsForPromo = [];
-            
-            Object.values(cart).forEach(item => {
-                baseTotal += (item.qty * item.price);
-                totalQty += item.qty;
-                const catalogItem = storeData.catalog.find(c => String(c.id) === String(item.catalogId));
-                itemsForPromo.push({ ...item, category: catalogItem ? catalogItem.category : '' });
-            });
-
-            let finalTotal = baseTotal;
-            let discountAmount = 0;
-
-            if (storeData.promotions && storeData.promotions.length > 0) {
-                storeData.promotions.forEach(promo => {
-                    let relevantItems = itemsForPromo;
-                    if (promo.target_type === 'category') {
-                        let cats = [];
-                        if(Array.isArray(promo.target_ids)) cats = promo.target_ids;
-                        else if(typeof promo.target_ids === 'string') { try { cats = JSON.parse(promo.target_ids); } catch(e){} }
-                        if(cats.length > 0) relevantItems = itemsForPromo.filter(i => cats.includes(i.category));
-                    }
-
-                    if (relevantItems.length > 0) {
-                        let promoItemsTotal = relevantItems.reduce((sum, i) => sum + (i.qty * i.price), 0);
-                        let promoItemsQty = relevantItems.reduce((sum, i) => sum + i.qty, 0);
-
-                        if (promo.promo_type === 'discount_pct') {
-                            discountAmount += promoItemsTotal * (parseFloat(promo.promo_value) / 100);
-                        } else if (promo.promo_type === 'fixed_price') {
-                            const fixedP = parseFloat(promo.promo_value);
-                            relevantItems.forEach(ri => {
-                                if (ri.price > fixedP) discountAmount += (ri.price - fixedP) * ri.qty;
-                            });
-                        } else if (promo.promo_type === 'bogo') {
-                            let freeItems = Math.floor(promoItemsQty / 2);
-                            let expandedItems = [];
-                            relevantItems.forEach(i => { for(let j=0; j<i.qty; j++) expandedItems.push(i.price); });
-                            expandedItems.sort((a,b) => a - b);
-                            for(let i=0; i<freeItems; i++) discountAmount += expandedItems[i];
-                        }
-                    }
-                });
-            }
-
-            if (discountAmount > baseTotal) discountAmount = baseTotal;
-            finalTotal = baseTotal - discountAmount;
-            return { baseTotal, finalTotal, discountAmount, totalQty };
-        }
-
-        function updateCartFooter() {
-            const calc = calculateCartDetails();
-            const footer = getEl('cart-footer');
-            if (calc.totalQty > 0) { 
-                getEl('cart-count').innerText = calc.totalQty; 
-                getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`; 
-                footer.classList.remove('hidden'); 
-            } else footer.classList.add('hidden');
-        }
-
-        function openCheckoutModal() {
-            const calc = calculateCartDetails();
-            let itemsHtml = '';
-            Object.values(cart).forEach((item, index) => {
-                const itemTotal = item.qty * item.price;
-                itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
-            });
-            getEl('checkout-items').innerHTML = itemsHtml; 
-            
-            if (calc.discountAmount > 0) {
-                getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${calc.baseTotal.toFixed(2)}</span>₪${calc.finalTotal.toFixed(2)}`;
-                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
-                getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-left w-max mr-auto mt-1 mb-3">חסכת ₪${calc.discountAmount.toFixed(2)} במבצעים!</div>`);
-            } else {
-                getEl('checkout-total').innerText = `₪${calc.finalTotal.toFixed(2)}`;
-                const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
-            }
-
-            const minOrder = parseFloat(storeData.settings.min_order) || 0; const btnSubmit = getEl('btn-submit-order'); const warning = getEl('checkout-min-warning');
-            if (minOrder > 0 && calc.finalTotal < minOrder) { getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden'); btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); } 
-            else { warning.classList.add('hidden'); btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); }
-            getEl('checkout-modal').classList.remove('hidden');
-        }
-
-        function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
-
-        async function submitOrder(e) {
-            e.preventDefault(); const btn = getEl('btn-submit-order'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
-
-            const calc = calculateCartDetails();
-            const items = [];
-            Object.values(cart).forEach(i => { items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
-
-            try {
-                const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: calc.finalTotal }) });
-                const data = await res.json();
-                
-                if (data.success) { confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); getEl('checkout-modal').classList.add('hidden'); getEl('cart-footer').classList.add('hidden'); getEl('success-order-id').innerText = `#${data.orderId}`; getEl('success-screen').classList.remove('hidden'); cart = {}; } 
-                else showToast('error', data.error || 'אירעה שגיאה');
-            } catch(err) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = 'שליחת הזמנה <i class="fa-solid fa-check ml-1"></i>'; }
-        }
-
-// ==========================================
-        // לוגיקת חצי גלילה לקטגוריות החנות (משימה 1.1)
-        // ==========================================
+        
         function scrollCategories(direction) {
             const container = document.getElementById('categories-container');
             if (container) {
@@ -1049,7 +933,7 @@ function calculateModTotal() {
             const container = document.getElementById('categories-container');
             if (container) {
                 container.addEventListener('scroll', updateScrollButtonsVisibility);
-                setTimeout(updateScrollButtonsVisibility, 800); // טריגר מושהה לוודא טעינת קטגוריות
+                setTimeout(updateScrollButtonsVisibility, 800);
             }
         });
 
