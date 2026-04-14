@@ -6311,7 +6311,282 @@ function skipWizardStep() {
     if (currentWizardStep === 4) nextWizardStep(); // סיום
     else { currentWizardStep++; updateWizardUI(); }
 }
+// --- מנגנון מחשבון תמחיר מנה (Food Cost) ---
+let fcIngredients = [];
 
+function openFoodCostModal() {
+    fcIngredients = [];
+    renderFCIngredients();
+    populateFCPantrySelect();
+    calculateFC();
+    getEl('food-cost-modal').classList.remove('hidden');
+}
+
+function populateFCPantrySelect() {
+    const select = getEl('fc-ingredient-select');
+    if (!select) return;
+    
+    let html = '<option value="">בחר מוצר מהמלאי...</option>';
+    if (typeof pantryCache !== 'undefined' && pantryCache.length > 0) {
+        pantryCache.forEach(item => {
+            const cost = parseFloat(item.price) || 0; // בהנחה שהשדה הוא price
+            html += `<option value="${item.id}" data-name="${safeStr(item.item_name)}" data-cost="${cost}">${safeStr(item.item_name)} (₪${cost}/${item.unit || "יח'"})</option>`;
+        });
+    }
+    html += '<option value="custom">-- הזנה ידנית של חומר גלם --</option>';
+    select.innerHTML = html;
+}
+
+function addFCIngredient() {
+    const select = getEl('fc-ingredient-select');
+    const qtyInput = getEl('fc-ingredient-qty');
+    const qty = parseFloat(qtyInput.value);
+    
+    if (select.value === '') return showToast('error', 'יש לבחור מוצר מהמלאי');
+    if (!qty || qty <= 0) return showToast('error', 'יש להזין כמות תקינה (למשל: 1, 0.5)');
+
+    const option = select.options[select.selectedIndex];
+    let name = option.getAttribute('data-name');
+    let costPerUnit = parseFloat(option.getAttribute('data-cost')) || 0;
+
+    if (select.value === 'custom') {
+        name = prompt('שם חומר הגלם:');
+        if (!name) return;
+        const costInput = prompt(`מהי העלות ליחידה אחת של ${name}? (₪)`);
+        costPerUnit = parseFloat(costInput) || 0;
+    }
+
+    fcIngredients.push({ name: name, qty: qty, costPerUnit: costPerUnit });
+    qtyInput.value = '';
+    select.value = '';
+    renderFCIngredients();
+    calculateFC();
+}
+
+function removeFCIngredient(index) {
+    fcIngredients.splice(index, 1);
+    renderFCIngredients();
+    calculateFC();
+}
+
+function renderFCIngredients() {
+    const list = getEl('fc-ingredients-list');
+    if (!list) return;
+    if (fcIngredients.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-emerald-600/70 text-center py-2 font-medium">טרם הוספו מרכיבים.</p>';
+        return;
+    }
+    let html = '';
+    fcIngredients.forEach((ing, idx) => {
+        const total = ing.qty * ing.costPerUnit;
+        html += `
+        <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-100 text-xs shadow-sm">
+            <span>${safeStr(ing.name)} <span class="text-slate-400 mx-1">x${ing.qty}</span></span>
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-700">₪${total.toFixed(2)}</span>
+                <button onclick="removeFCIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function calculateFC() {
+    let totalMatCost = 0;
+    fcIngredients.forEach(ing => totalMatCost += (ing.qty * ing.costPerUnit));
+    
+    const overhead = parseFloat(val('fc-overhead')) || 0;
+    const targetPct = parseFloat(val('fc-target-pct')) || 30;
+    
+    const totalCost = totalMatCost + overhead;
+    let recPrice = 0;
+    
+    if (targetPct > 0) {
+        recPrice = totalCost / (targetPct / 100);
+    }
+    
+    getEl('fc-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
+    getEl('fc-recommended-price').innerText = `₪${recPrice.toFixed(0)}`; // מעגלים לשקל שלם
+    getEl('fc-recommended-price').dataset.raw = recPrice.toFixed(2);
+}
+
+function applyFCPrice() {
+    const recPriceEl = getEl('fc-recommended-price');
+    const priceStr = recPriceEl.dataset.raw || recPriceEl.innerText.replace('₪', '');
+    const price = parseFloat(priceStr);
+    
+    if (price > 0) {
+        const priceInput = getEl('sp-price');
+        if (priceInput) {
+            priceInput.value = Math.ceil(price); // מעגל כלפי מעלה בחנות
+            showToast('success', 'המחיר עודכן בטופס!');
+        }
+    }
+    getEl('food-cost-modal').classList.add('hidden');
+}
+
+async function analyzeFoodCostAI() {
+    executeWithAIWarning(async () => {
+        showAIModal('אנליסט התמחור AI', null); getEl('familai-loading-text').innerText = 'מנתח אפשרויות להוזלת המנה...';
+        try {
+            const ingredientsData = fcIngredients.map(i => `${i.name}: ${i.qty} יח' (₪${i.costPerUnit}/יח')`).join(', ');
+            const promptText = `נתח את עלות המנה הבאה והצע חלופות לחומרי גלם כדי להוריד את ה-Food Cost:\n${ingredientsData}\nהוצאות עקיפות: ₪${val('fc-overhead')}\nיעד רצוי: ${val('fc-target-pct')}%`;
+            
+            const res = await fetch(`${API}/biz/chat-assistant`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "יועץ קולינרי וכלכלי למסעדות" }), groupId: currentGroup.id }) 
+            });
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.answer) { showAIModal('אנליסט התמחור AI', data.answer); }
+            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
+        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
+}
+// --- מסופון שליחים ---
+function switchDeliveryTab(tab) {
+    ['active', 'transit', 'history'].forEach(t => {
+        const view = getEl(`del-view-${t}`);
+        const btn = getEl(`btn-del-${t}`);
+        if(view) view.classList.add('hidden');
+        if(btn) {
+            btn.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+            btn.classList.add('text-slate-500', 'hover:text-slate-700');
+        }
+    });
+    const targetView = getEl(`del-view-${tab}`);
+    const targetBtn = getEl(`btn-del-${tab}`);
+    if(targetView) targetView.classList.remove('hidden');
+    if(targetBtn) {
+        targetBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        targetBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+    }
+    loadCourierData();
+}
+
+async function loadCourierData() {
+    if (!currentUser.permissions || !currentUser.permissions.tabs || !currentUser.permissions.tabs.includes('deliveries') && currentUser.role !== 'ADMIN') return;
+    
+    try {
+        const res = await fetch(`${API}/store/orders/${currentGroup.id}`);
+        let data = await res.json();
+        if (Array.isArray(data)) {
+            // ממיין מהישן לחדש כדי שהשליח יראה את הראשונים למעלה
+            data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            // "ready" = ממתין לאיסוף מהעסק
+            // "shipped" = כרגע אצל השליח (או מישהו אחר בססטוס במשלוח)
+            // "completed" = נמסר בהצלחה (נציג רק כאלו שנמסרו היום)
+            
+            const activeOrders = data.filter(o => o.status === 'ready' && (o.is_delivery === true || o.is_delivery === 1));
+            const transitOrders = data.filter(o => o.status === 'shipped' && (o.is_delivery === true || o.is_delivery === 1));
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const historyOrders = data.filter(o => o.status === 'completed' && (o.is_delivery === true || o.is_delivery === 1) && new Date(o.created_at) >= today);
+
+            renderCourierList('active', activeOrders, 'ready');
+            renderCourierList('transit', transitOrders, 'shipped');
+            renderCourierList('history', historyOrders, 'completed');
+        }
+    } catch(e) { console.error('Courier load error:', e); }
+}
+
+function renderCourierList(type, orders, statusType) {
+    const list = getEl(`courier-${type}-list`);
+    if (!list) return;
+    
+    if (orders.length === 0) {
+        list.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין משלוחים בקטגוריה זו כרגע.</p>`;
+        return;
+    }
+
+    list.innerHTML = orders.map(o => {
+        let details = {};
+        try { details = typeof o.delivery_details === 'string' ? JSON.parse(o.delivery_details) : o.delivery_details; } catch(e){}
+        if (!details) details = {};
+
+        const address = `${safeStr(details.street || '')} ${safeStr(details.house || '')}, ${safeStr(details.city || '')}`;
+        const cleanPhone = (o.customer_phone || '').replace(/\D/g,'');
+        let fullAddress = address;
+        if (details.apt) fullAddress += ` דירה ${safeStr(details.apt)}`;
+        if (details.floor) fullAddress += ` קומה ${safeStr(details.floor)}`;
+        
+        const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+        const waUrl = `https://wa.me/${cleanPhone.startsWith('0') ? '972'+cleanPhone.substring(1) : cleanPhone}?text=${encodeURIComponent('היי! השליח בדרך אליך עם ההזמנה מ-'+currentGroup.name)}`;
+
+        let actionHtml = '';
+        if (statusType === 'ready') {
+            actionHtml = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-3 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fa-solid fa-box-open"></i> אספתי מהעסק - יציאה ללקוח</button>`;
+        } else if (statusType === 'shipped') {
+            actionHtml = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-3 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> נמסר בהצלחה ללקוח</button>`;
+        }
+
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col hover:shadow-md transition relative overflow-hidden">
+            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-base">הזמנה #${o.id}</h4>
+                    <p class="text-sm font-bold text-indigo-700 mt-0.5"><i class="fa-solid fa-location-dot text-red-500 ml-1"></i> ${address}</p>
+                    <p class="text-[11px] text-slate-500 mt-1">${safeStr(o.customer_name)} | ${safeStr(o.customer_phone)}</p>
+                </div>
+                <div class="text-left shrink-0">
+                    <span class="font-black text-lg text-slate-800 dir-ltr block">₪${o.total_amount}</span>
+                    <span class="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">${new Date(o.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span>
+                </div>
+            </div>
+            
+            ${details.notes ? `<div class="bg-yellow-50 border border-yellow-100 p-2 rounded-lg mt-2 mb-2"><p class="text-[10px] font-bold text-yellow-800"><i class="fa-solid fa-comment-dots ml-1"></i> הערות לשליח:</p><p class="text-xs text-yellow-900 mt-1">${safeStr(details.notes)}</p></div>` : ''}
+            
+            <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
+                <a href="${wazeUrl}" target="_blank" class="flex flex-col items-center justify-center p-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition"><i class="fa-brands fa-waze text-lg mb-1"></i><span class="text-[9px] font-bold">Waze</span></a>
+                <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center p-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg mb-1"></i><span class="text-[9px] font-bold">חייג</span></a>
+                <a href="${waUrl}" target="_blank" class="flex flex-col items-center justify-center p-2 bg-[#25D366]/10 text-[#25D366] rounded-xl hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg mb-1"></i><span class="text-[9px] font-bold">הודעה</span></a>
+            </div>
+            
+            ${actionHtml}
+        </div>`;
+    }).join('');
+}
+
+async function updateStoreOrderStatusCourier(orderId, status) {
+    try {
+        const res = await fetch(`${API}/store/orders/status`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ orderId, status }) });
+        const data = await res.json();
+        if(data.success) { 
+            if(status === 'completed') triggerConfetti();
+            showToast('success', status === 'completed' ? 'המשלוח נמסר!' : 'נאסף! נסיעה טובה'); 
+            loadCourierData(); 
+            // רענון ברקע גם למסך המנהל אם הוא פתוח
+            if(typeof fetchStoreOrders === 'function') fetchStoreOrders(); 
+        } else { showToast('error', data.error || 'שגיאה בעדכון'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+window.updateCustomTabsByRoles = function() {
+    // אוסף את התפקידים שנבחרו
+    const checkboxes = document.querySelectorAll('.role-cb:checked');
+    const selectedRoles = Array.from(checkboxes).map(cb => cb.value);
+    
+    // בונה רשימת טאבים מאוחדת
+    let combinedTabs = new Set();
+    
+    selectedRoles.forEach(role => {
+        if (role === 'COURIER') {
+            combinedTabs.add('deliveries');
+        } else if (ROLE_DEFAULTS[role]) {
+            ROLE_DEFAULTS[role].forEach(t => combinedTabs.add(t));
+        }
+    });
+    
+    // מעדכן את הצ'קבוקסים של הטאבים למטה לפי האיחוד
+    document.querySelectorAll('.perm-tab-cb').forEach(cb => {
+        if (cb.value !== 'feed') { // feed תמיד נשאר
+            cb.checked = combinedTabs.has(cb.value);
+        }
+    });
+};
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
