@@ -4329,58 +4329,36 @@ async function generateStoreProductAI() {
     });
 }
 
-function handleStoreLogoUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
+window.handleStoreLogoUpload = function(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת לוגו...');
     compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
-        getEl('store-logo-preview').src = compressedDataUrl;
-        getEl('store-logo-preview').classList.remove('hidden');
-        getEl('store-logo-placeholder').classList.add('hidden');
-        getEl('store-logo-base64').value = compressedDataUrl;
-        const clearBtn = getEl('btn-clear-logo');
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        const aiBgBtn = getEl('btn-generate-bg-ai');
-        if (aiBgBtn) aiBgBtn.classList.remove('hidden');
-        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
+        // עוקף כפילויות HTML ע"י עדכון כל האלמנטים הרלוונטיים במסך
+        document.querySelectorAll('#store-logo-preview').forEach(el => {
+            el.src = compressedDataUrl;
+            el.classList.remove('hidden');
+        });
+        document.querySelectorAll('#store-logo-placeholder').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('#store-logo-base64').forEach(el => el.value = compressedDataUrl);
+        
+        // עדכון מיידי של הלוגו בסרגל העליון (Header)
+        const headerImg = document.getElementById('header-group-img');
+        const headerFallback = document.getElementById('header-group-icon-fallback');
+        if (headerImg) { headerImg.src = compressedDataUrl; headerImg.classList.remove('hidden'); }
+        if (headerFallback) headerFallback.classList.add('hidden');
+        
+        if (currentGroup) currentGroup.logo_url = compressedDataUrl;
+        
+        showToast('success', 'הלוגו הועלה בהצלחה ומוכן לשמירה!');
     });
-}
+};
 
-function clearStoreLogo() {
-    getEl('store-logo-preview').src = '';
-    getEl('store-logo-preview').classList.add('hidden');
-    getEl('store-logo-placeholder').classList.remove('hidden');
-    getEl('store-logo-base64').value = '';
-    const clearBtn = getEl('btn-clear-logo');
-    if (clearBtn) clearBtn.classList.add('hidden');
-    const aiBgBtn = getEl('btn-generate-bg-ai');
-    if (aiBgBtn) aiBgBtn.classList.add('hidden');
-    showToast('info', 'הלוגו הוסר. שמור הגדרות כדי לאשר.');
-}
-
-function handleStoreBgUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת רקע...');
-    compressImage(file, 1200, 600, 0.85, (compressedDataUrl) => {
-        const bgPreview = getEl('store-bg-preview');
-        const bgPlaceholder = getEl('store-bg-placeholder');
-        bgPreview.src = compressedDataUrl;
-        bgPreview.classList.remove('hidden');
-        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
-        getEl('store-bg-base64').value = compressedDataUrl;
-        const clearBtn = getEl('btn-clear-bg');
-        if (clearBtn) clearBtn.classList.remove('hidden');
-        showToast('success', 'תמונת הרקע הועלתה ומוכנה לשמירה!');
-    });
-}
-
-function clearStoreBg() {
-    const bgPreview = getEl('store-bg-preview');
-    const bgPlaceholder = getEl('store-bg-placeholder');
-    if (bgPreview) { bgPreview.src = ''; bgPreview.classList.add('hidden'); }
-    if (bgPlaceholder) bgPlaceholder.classList.remove('hidden');
-    getEl('store-bg-base64').value = '';
-    const clearBtn = getEl('btn-clear-bg');
-    if (clearBtn) clearBtn.classList.add('hidden');
-    showToast('info', 'הרקע הוסר. שמור הגדרות כדי לאשר.');
-}
+window.clearImage = function(targetIdPrefix) {
+    document.querySelectorAll(`#${targetIdPrefix}-preview`).forEach(el => { el.src = ''; el.classList.add('hidden'); });
+    document.querySelectorAll(`#${targetIdPrefix}-icon, #${targetIdPrefix}-placeholder`).forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll(`#${targetIdPrefix}-base64`).forEach(el => el.value = '');
+    document.querySelectorAll(`#${targetIdPrefix}-upload`).forEach(el => el.value = '');
+    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
+};
 
 async function generateStoreBgAI() {
     const logoBase64 = val('store-logo-base64');
