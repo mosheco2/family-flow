@@ -532,13 +532,13 @@ function renderCatalog() {
             calculateModTotal();
         }
 
-        function calculateModTotal() {
+function calculateModTotal() {
             let totalOptions = 0;
             
             if (isCurrentProductPizza) {
                 currentPizzaToppings.forEach(t => {
                     if (pizzaState[t.name]) {
-                        const activeQuarters = pizzaState[t.name].filter(Boolean).length;
+                        const activeQuarters = pizzaState[t.name].reduce((sum, val) => sum + Number(val || 0), 0);
                         totalOptions += (parseFloat(t.price) / 4) * activeQuarters;
                     }
                 });
@@ -553,7 +553,7 @@ function renderCatalog() {
             if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
         }
 
-function openProductModal(itemId) {
+        function openProductModal(itemId) {
             const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
             currentModifierProduct = item; 
             currentModifierBasePrice = parseFloat(item.price) || 0;
@@ -582,17 +582,16 @@ function openProductModal(itemId) {
             let html = '';
             isCurrentProductPizza = false;
 
-            // --- התאמת גודל החלונית לפי סוג המוצר כדי למנוע גלילה מיותרת ---
             const panel = getEl('product-modal-panel');
             const headerImg = getEl('prod-modal-header-img');
             const altClose = getEl('prod-modal-close-alt');
             
             if (pType === 'pizza_builder' && options.isPizza) {
                 panel.classList.remove('max-w-md');
-                panel.classList.add('max-w-lg'); // חלונית רחבה יותר לפיצה
-                headerImg.classList.add('hidden'); // הסתרת התמונה העליונה כדי להרוויח גובה
-                altClose.classList.remove('hidden'); // הצגת כפתור סגירה חלופי משמאל
-                getEl('prod-modal-name').classList.add('pl-8'); // פינוי מקום לכפתור
+                panel.classList.add('max-w-lg'); 
+                headerImg.classList.add('hidden'); 
+                altClose.classList.remove('hidden'); 
+                getEl('prod-modal-name').classList.add('pl-8'); 
             } else {
                 panel.classList.add('max-w-md');
                 panel.classList.remove('max-w-lg');
@@ -601,7 +600,6 @@ function openProductModal(itemId) {
                 getEl('prod-modal-name').classList.remove('pl-8');
             }
 
-            // --- לוגיקה למארז (Bundle) ---
             if (pType === 'bundle' && options.isBundle) {
                 options.steps.forEach((step, sIdx) => {
                     const stepQty = step.qty || 1;
@@ -634,17 +632,16 @@ function openProductModal(itemId) {
                     html += `</div></div>`;
                 });
             } 
-            // --- לוגיקה לפיצה (Pizza Builder) ---
             else if (pType === 'pizza_builder' && options.isPizza) {
                 isCurrentProductPizza = true;
                 currentPizzaToppings = options.toppings || [];
                 pizzaState = {};
-                currentPizzaToppings.forEach(t => pizzaState[t.name] = [false, false, false, false]);
+                // Initialize state as integers (0)
+                currentPizzaToppings.forEach(t => pizzaState[t.name] = [0, 0, 0, 0]);
                 activePizzaTopping = currentPizzaToppings.length > 0 ? currentPizzaToppings[0].name : null;
                 
                 html = `<div id="pizza-builder-wrapper"></div>`;
             }
-            // --- לוגיקה למוצר רגיל עם תוספות (Modifiers) ---
             else {
                 const mods = Array.isArray(options) ? options : [];
                 mods.forEach((optGroup, idx) => {
@@ -690,11 +687,28 @@ function openProductModal(itemId) {
                     if (!isValid) return;
                 } else if (isCurrentProductPizza) {
                     currentPizzaToppings.forEach(t => {
-                        const activeQuarters = pizzaState[t.name].filter(Boolean).length;
+                        const activeQuarters = pizzaState[t.name].reduce((sum, val) => sum + Number(val || 0), 0);
                         if (activeQuarters > 0) {
                             totalPrice += (parseFloat(t.price) / 4) * activeQuarters;
-                            let amountStr = activeQuarters === 4 ? 'מגש שלם' : (activeQuarters === 2 ? 'חצי' : (activeQuarters === 1 ? 'רבע' : '3 רבעים'));
-                            selections.push(`${t.name} (${amountStr})`);
+                            
+                            let activeQ1 = [];
+                            let activeQ2 = [];
+                            pizzaState[t.name].forEach((val, idx) => {
+                                if (val === 1) activeQ1.push(idx + 1);
+                                if (val === 2) activeQ2.push(idx + 1);
+                            });
+                            
+                            let parts = [];
+                            if (activeQ1.length > 0) {
+                                if (activeQ1.length === 4) parts.push('מגש שלם');
+                                else parts.push(`ברבעים ${activeQ1.join(', ')}`);
+                            }
+                            if (activeQ2.length > 0) {
+                                if (activeQ2.length === 4) parts.push('כפול על הכל');
+                                else parts.push(`כפול ברבעים ${activeQ2.join(', ')}`);
+                            }
+                            
+                            selections.push(`${t.name} (${parts.join(' | ')})`);
                         }
                     });
                 } else {
@@ -717,7 +731,6 @@ function openProductModal(itemId) {
             getEl('product-modal').classList.remove('hidden');
         }
 
-        // פונקציית עזר להגבלת בחירה בבאנדלים
         window.checkBundleSelection = function(stepIdx, max, input) {
             const checked = document.querySelectorAll(`input[name="bundle_step_${stepIdx}"]:checked`);
             if (checked.length > max) {
@@ -730,7 +743,22 @@ function openProductModal(itemId) {
             const wrapper = getEl('pizza-builder-wrapper');
             if(!wrapper) return;
             
-            const isActive = (qIdx) => pizzaState[activePizzaTopping] && pizzaState[activePizzaTopping][qIdx];
+            // Helper to get fill color based on state (0=transparent, 1=regular, 2=double)
+            const getFill = (qIdx) => {
+                if(!activePizzaTopping || !pizzaState[activePizzaTopping]) return 'transparent';
+                const val = pizzaState[activePizzaTopping][qIdx];
+                if (val === 2) return '#ef4444'; // Strong red for double
+                if (val === 1) return '#fca5a5'; // Light red for regular
+                return 'transparent';
+            };
+
+            const getX2Text = (qIdx, x, y) => {
+                if(!activePizzaTopping || !pizzaState[activePizzaTopping]) return '';
+                if(pizzaState[activePizzaTopping][qIdx] === 2) {
+                    return `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#ffffff" class="pointer-events-none" text-anchor="middle">X2</text>`;
+                }
+                return '';
+            };
             
             let toppingsHtml = currentPizzaToppings.map(t => `
                 <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition border ${t.name === activePizzaTopping ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50'}" onclick="window.selectPizzaTopping('${safeStr(t.name)}')">
@@ -740,10 +768,26 @@ function openProductModal(itemId) {
 
             let summaryArr = [];
             currentPizzaToppings.forEach(t => {
-                const activeCount = pizzaState[t.name].filter(Boolean).length;
-                if (activeCount > 0) {
-                    let amountStr = activeCount === 4 ? 'מגש שלם' : (activeCount === 2 ? 'חצי' : (activeCount === 1 ? 'רבע' : '3 רבעים'));
-                    summaryArr.push(`<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold m-1 inline-block">${t.name} (${amountStr})</span>`);
+                const activeQuarters = pizzaState[t.name].reduce((sum, val) => sum + Number(val || 0), 0);
+                if (activeQuarters > 0) {
+                    let activeQ1 = [];
+                    let activeQ2 = [];
+                    pizzaState[t.name].forEach((val, idx) => {
+                        if (val === 1) activeQ1.push(idx + 1);
+                        if (val === 2) activeQ2.push(idx + 1);
+                    });
+                    
+                    let parts = [];
+                    if (activeQ1.length > 0) {
+                        if (activeQ1.length === 4) parts.push('מגש שלם');
+                        else parts.push(`רבעים ${activeQ1.join(', ')}`);
+                    }
+                    if (activeQ2.length > 0) {
+                        if (activeQ2.length === 4) parts.push('כפול על הכל');
+                        else parts.push(`כפול רבעים ${activeQ2.join(', ')}`);
+                    }
+                    
+                    summaryArr.push(`<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-[10px] font-bold m-1 inline-block">${t.name} - ${parts.join(' | ')}</span>`);
                 }
             });
             const summaryHtml = summaryArr.length > 0 ? summaryArr.join('') : '<p class="text-[10px] text-slate-400">פיצה חלקה (ללא תוספות)</p>';
@@ -751,7 +795,7 @@ function openProductModal(itemId) {
             wrapper.innerHTML = `
             <div class="bg-red-50/50 rounded-2xl p-4 border border-red-100 shadow-sm mb-4 fade-in">
                 <h4 class="font-bold text-red-900 text-center mb-1 text-sm"><i class="fa-solid fa-pizza-slice text-red-500 mr-1"></i> הרכבת מגש פיצה</h4>
-                <p class="text-[10px] text-red-600 text-center mb-4">בחרו תוספת מהסרגל, ולחצו על חלקי הפיצה כדי לפזר אותה.</p>
+                <p class="text-[10px] text-red-600 text-center mb-4">בחרו תוספת מהסרגל, ולחצו על חלקי הפיצה. <br><span class="font-bold">לחיצה כפולה תשים כמות כפולה (X2).</span></p>
                 
                 <div class="flex overflow-x-auto gap-2 mb-6 pb-2 modal-scroll hide-scrollbar" style="scroll-snap-type: x mandatory;">
                     ${toppingsHtml}
@@ -760,16 +804,26 @@ function openProductModal(itemId) {
                 <div class="relative w-52 h-52 mx-auto mb-6">
                     <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-lg">
                         <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
-                        <path d="M 50 50 L 50 2 A 48 48 0 0 1 98 50 Z" fill="${isActive(0) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(0)" />
-                        <path d="M 50 50 L 98 50 A 48 48 0 0 1 50 98 Z" fill="${isActive(1) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(1)" />
-                        <path d="M 50 50 L 50 98 A 48 48 0 0 1 2 50 Z" fill="${isActive(2) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(2)" />
-                        <path d="M 50 50 L 2 50 A 48 48 0 0 1 50 2 Z" fill="${isActive(3) ? '#fca5a5' : 'transparent'}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(3)" />
+                        <path d="M 50 50 L 50 2 A 48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(0)" />
+                        <path d="M 50 50 L 98 50 A 48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(1)" />
+                        <path d="M 50 50 L 50 98 A 48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(2)" />
+                        <path d="M 50 50 L 2 50 A 48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="cursor-pointer transition hover:fill-red-200" onclick="window.togglePizzaSlice(3)" />
                         
-                        <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2"/>
-                        <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2"/>
+                        <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" class="pointer-events-none"/>
+                        <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" class="pointer-events-none"/>
+                        
+                        <text x="75" y="25" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none drop-shadow-sm" text-anchor="middle" dominant-baseline="middle">1</text>
+                        <text x="75" y="75" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none drop-shadow-sm" text-anchor="middle" dominant-baseline="middle">2</text>
+                        <text x="25" y="75" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none drop-shadow-sm" text-anchor="middle" dominant-baseline="middle">3</text>
+                        <text x="25" y="25" font-size="14" font-weight="900" fill="#b45309" class="pointer-events-none drop-shadow-sm" text-anchor="middle" dominant-baseline="middle">4</text>
+                        
+                        ${getX2Text(0, 75, 40)}
+                        ${getX2Text(1, 75, 90)}
+                        ${getX2Text(2, 25, 90)}
+                        ${getX2Text(3, 25, 40)}
                     </svg>
                     <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div class="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full text-red-800 text-[10px] font-black shadow-sm border border-red-100">
+                        <div class="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-red-900 text-[11px] font-black shadow-md border border-red-200">
                             ${activePizzaTopping ? 'פעיל: ' + activePizzaTopping : 'בחרו תוספת'}
                         </div>
                     </div>
@@ -777,8 +831,8 @@ function openProductModal(itemId) {
 
                 <div class="flex gap-2 justify-center mb-5 flex-wrap">
                     <button type="button" onclick="window.fillPizza('whole')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">מגש שלם</button>
-                    <button type="button" onclick="window.fillPizza('right')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי ימין</button>
-                    <button type="button" onclick="window.fillPizza('left')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי שמאל</button>
+                    <button type="button" onclick="window.fillPizza('right')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי ימין (1+2)</button>
+                    <button type="button" onclick="window.fillPizza('left')" class="bg-white border border-red-200 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition">חצי שמאל (3+4)</button>
                     <button type="button" onclick="window.fillPizza('clear')" class="bg-white border border-slate-200 text-slate-500 text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-slate-50 transition">נקה הכל</button>
                 </div>
 
@@ -796,7 +850,12 @@ function openProductModal(itemId) {
 
         window.togglePizzaSlice = function(qIdx) {
             if (!activePizzaTopping) return showToast('info', 'יש לבחור תוספת מתוך הרשימה מעלה!');
-            pizzaState[activePizzaTopping][qIdx] = !pizzaState[activePizzaTopping][qIdx];
+            let currentVal = Number(pizzaState[activePizzaTopping][qIdx] || 0);
+            
+            if (currentVal === 0) pizzaState[activePizzaTopping][qIdx] = 1;
+            else if (currentVal === 1) pizzaState[activePizzaTopping][qIdx] = 2; // Double topping!
+            else pizzaState[activePizzaTopping][qIdx] = 0; // Reset
+            
             window.renderPizzaBuilderUI();
             calculateModTotal();
         };
@@ -804,15 +863,15 @@ function openProductModal(itemId) {
         window.fillPizza = function(action) {
             if (!activePizzaTopping && action !== 'clear') return showToast('info', 'יש לבחור תוספת מתוך הרשימה מעלה!');
             if (action === 'clear') {
-                currentPizzaToppings.forEach(t => pizzaState[t.name] = [false, false, false, false]);
+                currentPizzaToppings.forEach(t => pizzaState[t.name] = [0, 0, 0, 0]);
             } else if (action === 'whole') {
-                pizzaState[activePizzaTopping] = [true, true, true, true];
+                pizzaState[activePizzaTopping] = [1, 1, 1, 1];
             } else if (action === 'right') {
-                pizzaState[activePizzaTopping][0] = true;
-                pizzaState[activePizzaTopping][1] = true;
+                pizzaState[activePizzaTopping][0] = 1;
+                pizzaState[activePizzaTopping][1] = 1;
             } else if (action === 'left') {
-                pizzaState[activePizzaTopping][2] = true;
-                pizzaState[activePizzaTopping][3] = true;
+                pizzaState[activePizzaTopping][2] = 1;
+                pizzaState[activePizzaTopping][3] = 1;
             }
             window.renderPizzaBuilderUI();
             calculateModTotal();
