@@ -797,7 +797,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','sales','customers','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','shop','sales','customers','deliveries','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -816,6 +816,7 @@ function switchTab(t) {
     if (t === 'shifts') try { renderShifts(); } catch(e) {}
     if (t === 'sales') { try { switchSalesTab('orders'); } catch(e) {} }
     if (t === 'customers') { try { if(typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {} }
+    if (t === 'deliveries') { try { if(typeof switchDeliveryTab === 'function') switchDeliveryTab('active'); } catch(e) {} }
     if (t === 'budget') { try { fetchBudget(); } catch(e) {} }
     if (t === 'academy') { try { if(currentUser.role === 'ADMIN') renderAdminAcademy(); else { renderMyAssignments(bundlesCache); renderLibrary(); } } catch(e) {} }
     if (t === 'bank') { try { fetchLoans(); } catch(e) {} }
@@ -1192,6 +1193,7 @@ const ALL_TABS = [
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
     { id: 'customers', name: 'לקוחות 🤝' },
+    { id: 'deliveries', name: 'שליחויות 🛵' },
     { id: 'bank', name: 'כספים 💳' },
     { id: 'cashflow', name: 'תזרים מזומנים 💸' },
     { id: 'budget', name: 'תקציבים 📊' },
