@@ -3785,7 +3785,6 @@ async function deleteStorePromotion(id) {
 async function toggleStorePromotion(id, isActive) {
     try { await fetch(`${API}/store/promotions/toggle/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({isActive}) }); fetchStorePromotions(); } catch(e) {}
 }
-
 async function fetchStoreSettings() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -3802,24 +3801,25 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
-if (data.settings.logo_url) {
-                getEl('store-logo-preview').src = data.settings.logo_url;
-                getEl('store-logo-preview').classList.remove('hidden');
-                getEl('store-logo-placeholder').classList.add('hidden');
-                getEl('store-logo-base64').value = data.settings.logo_url;
-                const aiBannerBtn = getEl('btn-generate-banner-ai');
-                if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
+            if (data.settings.logo_url) {
+                document.querySelectorAll('[id="store-logo-preview"]').forEach(el => {
+                    el.src = data.settings.logo_url;
+                    el.classList.remove('hidden');
+                    el.style.display = 'block';
+                });
+                document.querySelectorAll('[id="store-logo-placeholder"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
+                document.querySelectorAll('[id="btn-generate-banner-ai"]').forEach(el => el.classList.remove('hidden'));
             }
     
             if (data.settings.banner_url) {
-                const bannerPreview = getEl('store-banner-preview');
-                const bannerPlaceholder = getEl('store-banner-placeholder');
-                if(bannerPreview) {
-                    bannerPreview.src = data.settings.banner_url;
-                    bannerPreview.classList.remove('hidden');
-                    if(bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
-                    getEl('store-banner-base64').value = data.settings.banner_url;
-                }
+                document.querySelectorAll('[id="store-banner-preview"]').forEach(el => {
+                    el.src = data.settings.banner_url;
+                    el.classList.remove('hidden');
+                    el.style.display = 'block';
+                });
+                document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
             }
 
             if (data.settings.modifier_presets) {
