@@ -4332,38 +4332,6 @@ async function generateStoreProductAI() {
     });
 }
 
-function handleStoreLogoUpload(event) {
-    const file = event.target.files[0]; 
-    if(!file) return; 
-    showToast('info', 'מכווץ תמונה...');
-    
-    compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
-        // עדכון תצוגה
-        const preview = getEl('store-logo-preview');
-        const placeholder = getEl('store-logo-placeholder');
-        const base64Input = getEl('store-logo-base64');
-        
-        if (preview) {
-            preview.src = compressedDataUrl;
-            preview.classList.remove('hidden');
-            preview.style.display = 'block'; // הבטחת תצוגה
-        }
-        
-        if (placeholder) {
-            placeholder.classList.add('hidden');
-        }
-        
-        if (base64Input) {
-            base64Input.value = compressedDataUrl;
-        }
-
-        const aiBannerBtn = getEl('btn-generate-banner-ai');
-        if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
-        
-        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
-    });
-}
-
 function clearStoreLogo() {
     getEl('store-logo-preview').src = '';
     getEl('store-logo-preview').classList.add('hidden');
@@ -5939,72 +5907,6 @@ function showOnboardingWizard() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-function handleWizardLogo(event) {
-    const file = event.target.files[0]; 
-    if(!file) return;
-    showToast('info', 'טוען ומכווץ לוגו...');
-    
-    compressImage(file, 300, 300, 0.8, (base64) => {
-        // עדכון כל התצוגות האפשריות של הלוגו (Wizard + Store Settings)
-        ['wizard', 'store'].forEach(prefix => {
-            const preview = getEl(`${prefix}-logo-preview`);
-            const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
-            const input = getEl(`${prefix}-logo-base64`);
-            
-            if(preview) { 
-                preview.src = base64; 
-                preview.classList.remove('hidden'); 
-                preview.style.display = 'block'; // הבטחת תצוגה עוקפת Tailwind
-            }
-            if(icon) icon.classList.add('hidden');
-            if(input) input.value = base64;
-        });
-
-        const aiBannerBtnWiz = getEl('btn-generate-banner-ai-wiz');
-        if (aiBannerBtnWiz) aiBannerBtnWiz.classList.remove('hidden');
-        const aiBannerBtn = getEl('btn-generate-banner-ai');
-        if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
-        
-        showToast('success', 'הלוגו הועלה בהצלחה!');
-    });
-}
-
-function handleWizardBanner(event) {
-    const file = event.target.files[0]; 
-    if(!file) return;
-    showToast('info', 'טוען ומכווץ באנר...');
-    
-    compressImage(file, 800, 400, 0.8, (base64) => {
-        // עדכון כל התצוגות האפשריות של הבאנר (Wizard + Store Settings)
-        ['wizard', 'store'].forEach(prefix => {
-            const preview = getEl(`${prefix}-banner-preview`);
-            const icon = getEl(`${prefix}-banner-icon`) || getEl(`${prefix}-banner-placeholder`);
-            const input = getEl(`${prefix}-banner-base64`);
-            
-            if(preview) { 
-                preview.src = base64; 
-                preview.classList.remove('hidden'); 
-                preview.style.display = 'block'; // הבטחת תצוגה
-            }
-            if(icon) icon.classList.add('hidden');
-            if(input) input.value = base64;
-        });
-        
-        showToast('success', 'הבאנר הועלה בהצלחה!');
-    });
-}
-
-function handleStoreBannerUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת באנר...');
-    compressImage(file, 800, 400, 0.8, (compressedDataUrl) => { 
-        getEl('store-banner-preview').src = compressedDataUrl; 
-        getEl('store-banner-preview').classList.remove('hidden'); 
-        if(getEl('store-banner-placeholder')) getEl('store-banner-placeholder').classList.add('hidden'); 
-        getEl('store-banner-base64').value = compressedDataUrl; 
-        showToast('success', 'הבאנר הועלה ומוכן לשמירה!'); 
-    });
-}
-
 async function generateLogoAI() {
     const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
     const slogan = val('wizard-slogan') || val('store-slogan') || '';
@@ -6036,6 +5938,51 @@ async function generateLogoAI() {
     });
 }
 
+window.handleStoreLogoUpload = function(event) {
+    const file = event.target.files[0]; 
+    if(!file) return; 
+    showToast('info', 'מכווץ תמונה...');
+    compressImage(file, 300, 300, 0.8, (base64) => {
+        document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { 
+            el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
+        });
+        document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = base64);
+        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
+        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
+    });
+};
+
+window.handleStoreBannerUpload = function(event) {
+    const file = event.target.files[0]; 
+    if(!file) return; 
+    showToast('info', 'מכווץ תמונת באנר...');
+    compressImage(file, 800, 400, 0.8, (base64) => {
+        document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { 
+            el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
+        });
+        document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = base64);
+        showToast('success', 'הבאנר הועלה ומוכן לשמירה!');
+    });
+};
+
+// הפניה של פונקציות האשף לאותה לוגיקה בדיוק
+window.handleWizardLogo = window.handleStoreLogoUpload;
+window.handleWizardBanner = window.handleStoreBannerUpload;
+
+window.clearImage = function(targetIdPrefix) {
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
+        el.src = ''; el.classList.add('hidden'); el.style.display = ''; 
+    });
+    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
+    
+    if (targetIdPrefix.includes('logo')) {
+        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
+    }
+    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
+};
 window.generateBannerAI = async function() {
     const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
     const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
@@ -6096,29 +6043,6 @@ window.generateBannerAI = async function() {
             } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     }
-};
-
-window.clearImage = function(targetIdPrefix) {
-    const preview = getEl(`${targetIdPrefix}-preview`);
-    const icon = getEl(`${targetIdPrefix}-icon`) || getEl(`${targetIdPrefix}-placeholder`);
-    const base64Input = getEl(`${targetIdPrefix}-base64`);
-    const fileInput = getEl(`${targetIdPrefix}-upload`);
-    
-    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
-    if (icon) { icon.classList.remove('hidden'); }
-    if (base64Input) { base64Input.value = ''; }
-    if (fileInput) { fileInput.value = ''; }
-    
-    if (targetIdPrefix === 'store-logo') {
-        const aiBannerBtn = getEl('btn-generate-banner-ai');
-        if (aiBannerBtn) aiBannerBtn.classList.add('hidden');
-    }
-    if (targetIdPrefix === 'wizard-logo') {
-        const aiBannerBtnWiz = getEl('btn-generate-banner-ai-wiz');
-        if (aiBannerBtnWiz) aiBannerBtnWiz.classList.add('hidden');
-    }
-    
-    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 };
 
 window.openStoreImageModal = function(src) {
