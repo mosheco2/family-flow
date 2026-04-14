@@ -179,6 +179,9 @@ async function fetchBanners() {
 }
 
 async function loadSAData() {
+    const mainWrap = getEl('main-wrapper'); 
+    if (mainWrap) { mainWrap.classList.remove('items-center'); mainWrap.classList.add('items-start'); }
+
     fetchBanners();
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
@@ -868,17 +871,22 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
-            const authContainer = document.getElementById('auth-container');
-            if (authContainer) authContainer.classList.remove('hidden');
-            return;
-        }
+    try {
+        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
+            const authContainer = document.getElementById('auth-container');
+            if (authContainer) authContainer.classList.remove('hidden');
+            return;
+        }
 
-        const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
-        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
+        const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
         
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
+        // תיקון המסך הלבן - ביטול המרכוז האנכי במסך ארוך
+        const mainWrap = getEl('main-wrapper'); 
+        if (mainWrap) { mainWrap.classList.remove('items-center'); mainWrap.classList.add('items-start'); }
+
+        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
+        
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
         
         // חשיפת כפתורי פעולה לאחר כניסה
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
