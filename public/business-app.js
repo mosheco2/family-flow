@@ -648,6 +648,31 @@ if(!getEl('content-customers')) {
         `);
     }
 }
+function startEmployeeTour() {
+    switchTab('feed'); const intro = introJs();
+    intro.setOptions({
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        steps: [
+            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
+            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
+            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
+            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
+            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
+        ]
+    });
+    intro.onbeforechange(function(targetElement) { 
+        if(!targetElement) return; const id = targetElement.id;
+        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
+        if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
+        return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
+    });
+    intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
+}
 
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
@@ -770,6 +795,22 @@ function updateBatteryUI() {
         if (tokens > 3) indicator.classList.add('bg-slate-100', 'text-slate-600', 'border-slate-200'); else if (tokens > 0) indicator.classList.add('bg-orange-100', 'text-orange-600', 'border-orange-200'); else indicator.classList.add('bg-red-100', 'text-red-600', 'border-red-200');
     }
 }
+function handleAIResponseCheck(data) {
+    if (data.error === 'BATTERY_EMPTY') {
+        const modal = getEl('ai-battery-modal'); const upgradeSec = getEl('ai-upgrade-section');
+        if (currentUser.role === 'ADMIN') upgradeSec.classList.remove('hidden'); else upgradeSec.classList.add('hidden');
+        if (modal) { 
+            modal.style.setProperty('z-index', '9999999', 'important'); 
+            modal.classList.remove('hidden'); 
+        }
+        return false;
+    }
+    return true;
+}
+
+function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
+function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
+
 // *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
 window.executeWithAIWarning = function(callback) {
     if (currentGroup && currentGroup.is_premium) {
@@ -794,6 +835,7 @@ window.executeWithAIWarning = function(callback) {
 
     const btnContinue = getEl('btn-ai-warning-continue');
     if (btnContinue) {
+        // הסרת מאזינים קודמים כדי למנוע כפילויות של קריאות (Deduplication)
         const newBtn = btnContinue.cloneNode(true);
         btnContinue.parentNode.replaceChild(newBtn, btnContinue);
         
@@ -801,6 +843,7 @@ window.executeWithAIWarning = function(callback) {
             const dontShow = getEl('ai-warning-dont-show');
             if (dontShow && dontShow.checked) {
                 localStorage.setItem('ofl_hide_ai_warning', 'true');
+                // אתחול האזהרה בסוף היום
                 setTimeout(() => localStorage.removeItem('ofl_hide_ai_warning'), 24 * 60 * 60 * 1000);
             }
             modal.classList.add('hidden');
@@ -823,13 +866,8 @@ function handleAIResponseCheck(data) {
 }
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
+function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
-window.upgradeToPremium = function() { 
-    closeAiBatteryModal(); 
-    const profileModal = getEl('profile-modal'); 
-    if(profileModal) profileModal.classList.add('hidden'); 
-    window.open('https://wa.me/972504000024?text=' + encodeURIComponent('שלום, אני מעוניין לשדרג למסלול ה-PRO העסקי של המערכת כדי לקבל AI ללא הגבלה.'), '_blank');
-};
 async function loadDashboard() {
     try {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
@@ -6260,7 +6298,7 @@ function skipWizardStep() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.2.1 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
+        badge.innerHTML = 'גרסה 2.2.0 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
