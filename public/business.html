@@ -568,9 +568,10 @@
                             <button onclick="switchTab('customers')" id="tab-customers" class="tab-btn">לקוחות 🤝</button>
                             <button onclick="switchTab('bank')" id="tab-bank" class="tab-btn">כספים 💳</button>
                             <button onclick="switchTab('cashflow')" id="tab-cashflow" class="tab-btn">תזרים 💸</button>
-                            <button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
+<button onclick="switchTab('budget')" id="tab-budget" class="tab-btn">תקציב 📊</button>
                             <button onclick="switchTab('forecast')" id="tab-forecast" class="tab-btn">תשקיף 📅</button>
                             <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-btn">משימות ✅</button>
+                            <button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-transparent shadow-md">שליחויות 🛵</button>
                             <button onclick="switchTab('academy')" id="tab-academy" class="tab-btn">הכשרות 🎓</button>
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn bg-gradient-to-r from-orange-400 to-pink-500 text-white border-transparent shadow-md">קהילות 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn">צוות 👥</button>
@@ -856,6 +857,45 @@
                                 </div>
 
                                 <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
+                            </div>
+                        </div>
+                    </div>
+                   <div id="content-deliveries" class="hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden">
+                            <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-helmet-safety"></i> מסופון חלוקה</h3>
+                            <p class="text-blue-100 text-xs opacity-90">ניהול פיזורים, ניווט ואישורי מסירה</p>
+                            <i class="fa-solid fa-route absolute -left-4 -bottom-4 text-8xl text-white opacity-10 rotate-12"></i>
+                        </div>
+
+                        <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
+                            <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">ממתין לאיסוף 📦</button>
+                            <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">במשלוח 🛵</button>
+                            <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית מסירות ✅</button>
+                        </div>
+
+                        <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative min-h-[400px] mb-8 pb-20">
+                            <div id="del-view-active" class="space-y-4">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-2">
+                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות הממתינות לאיסוף מהעסק</h4>
+                                    <button onclick="loadCourierData()" class="text-blue-600 text-xs font-bold hover:underline"><i class="fa-solid fa-rotate-right"></i> רענן רשימה</button>
+                                </div>
+                                <div id="courier-active-list" class="space-y-3">
+                                    <p class="text-xs text-slate-400 text-center py-8">טוען הזמנות...</p>
+                                </div>
+                            </div>
+
+                            <div id="del-view-transit" class="hidden space-y-4">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-2">
+                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות אצלי בארגז (בחלוקה)</h4>
+                                </div>
+                                <div id="courier-transit-list" class="space-y-3"></div>
+                            </div>
+
+                            <div id="del-view-history" class="hidden space-y-4">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-2">
+                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות שנמסרו בהצלחה (המשמרת)</h4>
+                                </div>
+                                <div id="courier-history-list" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
@@ -2023,13 +2063,29 @@
                 <input type="hidden" id="perm-user-id">
 
                 <div class="mb-4">
-                    <label class="text-xs font-bold text-slate-500 block mb-2">סיווג העובד/ת (משנה תבנית אוטומטית):</label>
-                    <select id="perm-role-select" onchange="applyRoleDefaults(this.value)" class="modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold">
-                        <option value="MEMBER">עובד רגיל / איש צוות</option>
-                        <option value="SENIOR">עובד בכיר / אחראי</option>
-                        <option value="MANAGER">מנהל משמרת (אחמ"ש)</option>
-                        <option value="ADMIN">בעלים / מנהל ראשי (הרשאה מלאה)</option>
-                    </select>
+                    <label class="text-xs font-bold text-slate-500 block mb-2">תפקידי העובד/ת (ניתן לבחור יותר מאחד):</label>
+                    <div id="perm-role-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="ADMIN" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">מנהל ראשי</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="MANAGER" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">מנהל משמרת</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="SENIOR" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">אחראי/ת משמרת</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:border-indigo-400 transition shadow-sm">
+                            <input type="checkbox" value="MEMBER" class="role-cb w-4 h-4 accent-indigo-600" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-bold text-slate-700">איש צוות (רגיל)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-blue-100 p-2 rounded-lg border border-blue-300 hover:border-blue-500 transition shadow-sm sm:col-span-2">
+                            <input type="checkbox" value="COURIER" class="role-cb w-4 h-4 accent-blue-700" onchange="updateCustomTabsByRoles()"> 
+                            <span class="text-xs font-black text-blue-900"><i class="fa-solid fa-motorcycle mr-1"></i> שליח (גישה למסופון חלוקה)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <label class="text-xs font-bold text-slate-500 block mb-2">טאבים מורשים למשתמש (התאמה אישית):</label>
