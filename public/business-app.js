@@ -4333,14 +4333,33 @@ async function generateStoreProductAI() {
 }
 
 function handleStoreLogoUpload(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
+    const file = event.target.files[0]; 
+    if(!file) return; 
+    showToast('info', 'מכווץ תמונה...');
+    
     compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
-        getEl('store-logo-preview').src = compressedDataUrl;
-        getEl('store-logo-preview').classList.remove('hidden');
-        getEl('store-logo-placeholder').classList.add('hidden');
-        getEl('store-logo-base64').value = compressedDataUrl;
+        // עדכון תצוגה
+        const preview = getEl('store-logo-preview');
+        const placeholder = getEl('store-logo-placeholder');
+        const base64Input = getEl('store-logo-base64');
+        
+        if (preview) {
+            preview.src = compressedDataUrl;
+            preview.classList.remove('hidden');
+            preview.style.display = 'block'; // הבטחת תצוגה
+        }
+        
+        if (placeholder) {
+            placeholder.classList.add('hidden');
+        }
+        
+        if (base64Input) {
+            base64Input.value = compressedDataUrl;
+        }
+
         const aiBannerBtn = getEl('btn-generate-banner-ai');
         if (aiBannerBtn) aiBannerBtn.classList.remove('hidden');
+        
         showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
     });
 }
