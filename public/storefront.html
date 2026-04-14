@@ -110,9 +110,9 @@
         </button>
     </div>
 
-    <div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
-            <div class="relative w-full h-48 sm:h-56 bg-slate-100 shrink-0">
+<div id="product-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div id="product-modal-panel" class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden transition-all duration-300">
+            <div id="prod-modal-header-img" class="relative w-full h-48 sm:h-56 bg-slate-100 shrink-0 transition-all duration-300">
                 <img id="prod-modal-image" src="" class="w-full h-full object-cover hidden">
                 <div id="prod-modal-placeholder" class="w-full h-full flex items-center justify-center text-slate-300">
                     <i class="fa-solid fa-image text-5xl"></i>
@@ -120,9 +120,10 @@
                 <button onclick="closeProductModal()" class="absolute top-4 right-4 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="p-5 flex-1 overflow-y-auto modal-scroll flex flex-col">
+            <div class="p-5 flex-1 overflow-y-auto modal-scroll flex flex-col relative">
+                <button id="prod-modal-close-alt" onclick="closeProductModal()" class="absolute top-4 left-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition hidden z-10"><i class="fa-solid fa-xmark"></i></button>
                 <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-2xl font-black text-slate-900 leading-tight" id="prod-modal-name"></h3>
+                    <h3 class="text-2xl font-black text-slate-900 leading-tight transition-all" id="prod-modal-name"></h3>
                     <span id="prod-modal-price" class="text-xl font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 shrink-0 mr-3"></span>
                 </div>
                 <p class="text-sm text-slate-500 mb-4 leading-relaxed" id="prod-modal-desc"></p>
@@ -581,6 +582,25 @@ function openProductModal(itemId) {
             let html = '';
             isCurrentProductPizza = false;
 
+            // --- התאמת גודל החלונית לפי סוג המוצר כדי למנוע גלילה מיותרת ---
+            const panel = getEl('product-modal-panel');
+            const headerImg = getEl('prod-modal-header-img');
+            const altClose = getEl('prod-modal-close-alt');
+            
+            if (pType === 'pizza_builder' && options.isPizza) {
+                panel.classList.remove('max-w-md');
+                panel.classList.add('max-w-lg'); // חלונית רחבה יותר לפיצה
+                headerImg.classList.add('hidden'); // הסתרת התמונה העליונה כדי להרוויח גובה
+                altClose.classList.remove('hidden'); // הצגת כפתור סגירה חלופי משמאל
+                getEl('prod-modal-name').classList.add('pl-8'); // פינוי מקום לכפתור
+            } else {
+                panel.classList.add('max-w-md');
+                panel.classList.remove('max-w-lg');
+                headerImg.classList.remove('hidden');
+                altClose.classList.add('hidden');
+                getEl('prod-modal-name').classList.remove('pl-8');
+            }
+
             // --- לוגיקה למארז (Bundle) ---
             if (pType === 'bundle' && options.isBundle) {
                 options.steps.forEach((step, sIdx) => {
@@ -669,12 +689,11 @@ function openProductModal(itemId) {
                     });
                     if (!isValid) return;
                 } else if (isCurrentProductPizza) {
-                    // סידור ההזמנה של הרכבת הפיצה להדפסה ולמטבח
                     currentPizzaToppings.forEach(t => {
                         const activeQuarters = pizzaState[t.name].filter(Boolean).length;
                         if (activeQuarters > 0) {
                             totalPrice += (parseFloat(t.price) / 4) * activeQuarters;
-                            let amountStr = activeQuarters === 4 ? 'מגש שלם' : (activeQuarters === 2 ? 'חצי מגש' : (activeQuarters === 1 ? 'רבע מגש' : '3 רבעים'));
+                            let amountStr = activeQuarters === 4 ? 'מגש שלם' : (activeQuarters === 2 ? 'חצי' : (activeQuarters === 1 ? 'רבע' : '3 רבעים'));
                             selections.push(`${t.name} (${amountStr})`);
                         }
                     });
