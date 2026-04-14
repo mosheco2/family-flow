@@ -106,14 +106,7 @@ async function handleSALogin(e) {
         if(data.success) { saToken = data.token; localStorage.setItem('ofl_sa_token', saToken); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden'); loadSAData(); } else { showToast('error', data.error); }
     } catch(err) { showToast('error', 'שגיאת תקשורת'); }
 }
-function logoutSA() { 
-    saToken = null; localStorage.removeItem('ofl_sa_token'); 
-    getEl('sa-dashboard-container').classList.add('hidden'); 
-    getEl('auth-container').classList.remove('hidden'); 
-    const mainWrap = getEl('main-wrapper'); 
-    if (mainWrap) { mainWrap.classList.add('items-center'); mainWrap.classList.remove('items-start'); }
-    switchView('login'); 
-}
+function logoutSA() { saToken = null; localStorage.removeItem('ofl_sa_token'); getEl('sa-dashboard-container').classList.add('hidden'); getEl('auth-container').classList.remove('hidden'); switchView('login'); }
 
 async function updateSACredentials() {
     const newUsername = val('sa-new-username'); const newPassword = val('sa-new-password');
@@ -186,9 +179,6 @@ async function fetchBanners() {
 }
 
 async function loadSAData() {
-    const mainWrap = getEl('main-wrapper'); 
-    if (mainWrap) { mainWrap.classList.remove('items-center'); mainWrap.classList.add('items-start'); }
-
     fetchBanners();
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken }}); const data = await res.json();
@@ -878,22 +868,17 @@ function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 async function loadDashboard() {
-    try {
-        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
-            const authContainer = document.getElementById('auth-container');
-            if (authContainer) authContainer.classList.remove('hidden');
-            return;
-        }
+    try {
+        if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) {
+            const authContainer = document.getElementById('auth-container');
+            if (authContainer) authContainer.classList.remove('hidden');
+            return;
+        }
 
-        const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+        const authContainer = getEl('auth-container'); if (authContainer) authContainer.classList.add('hidden');
+        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
         
-        // תיקון המסך הלבן - ביטול המרכוז האנכי במסך ארוך
-        const mainWrap = getEl('main-wrapper'); 
-        if (mainWrap) { mainWrap.classList.remove('items-center'); mainWrap.classList.add('items-start'); }
-
-        try { if(typeof injectBusinessUI === 'function') injectBusinessUI(); } catch(e) {}
-        
-        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden');
+        const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         
         // חשיפת כפתורי פעולה לאחר כניסה
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
@@ -4344,36 +4329,58 @@ async function generateStoreProductAI() {
     });
 }
 
-window.handleStoreLogoUpload = function(event) {
-    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת לוגו...');
+function handleStoreLogoUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונה...');
     compressImage(file, 300, 300, 0.8, (compressedDataUrl) => {
-        // עוקף כפילויות HTML ע"י עדכון כל האלמנטים הרלוונטיים במסך
-        document.querySelectorAll('#store-logo-preview').forEach(el => {
-            el.src = compressedDataUrl;
-            el.classList.remove('hidden');
-        });
-        document.querySelectorAll('#store-logo-placeholder').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll('#store-logo-base64').forEach(el => el.value = compressedDataUrl);
-        
-        // עדכון מיידי של הלוגו בסרגל העליון (Header)
-        const headerImg = document.getElementById('header-group-img');
-        const headerFallback = document.getElementById('header-group-icon-fallback');
-        if (headerImg) { headerImg.src = compressedDataUrl; headerImg.classList.remove('hidden'); }
-        if (headerFallback) headerFallback.classList.add('hidden');
-        
-        if (currentGroup) currentGroup.logo_url = compressedDataUrl;
-        
-        showToast('success', 'הלוגו הועלה בהצלחה ומוכן לשמירה!');
+        getEl('store-logo-preview').src = compressedDataUrl;
+        getEl('store-logo-preview').classList.remove('hidden');
+        getEl('store-logo-placeholder').classList.add('hidden');
+        getEl('store-logo-base64').value = compressedDataUrl;
+        const clearBtn = getEl('btn-clear-logo');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        const aiBgBtn = getEl('btn-generate-bg-ai');
+        if (aiBgBtn) aiBgBtn.classList.remove('hidden');
+        showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
     });
-};
+}
 
-window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`#${targetIdPrefix}-preview`).forEach(el => { el.src = ''; el.classList.add('hidden'); });
-    document.querySelectorAll(`#${targetIdPrefix}-icon, #${targetIdPrefix}-placeholder`).forEach(el => el.classList.remove('hidden'));
-    document.querySelectorAll(`#${targetIdPrefix}-base64`).forEach(el => el.value = '');
-    document.querySelectorAll(`#${targetIdPrefix}-upload`).forEach(el => el.value = '');
-    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
-};
+function clearStoreLogo() {
+    getEl('store-logo-preview').src = '';
+    getEl('store-logo-preview').classList.add('hidden');
+    getEl('store-logo-placeholder').classList.remove('hidden');
+    getEl('store-logo-base64').value = '';
+    const clearBtn = getEl('btn-clear-logo');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    const aiBgBtn = getEl('btn-generate-bg-ai');
+    if (aiBgBtn) aiBgBtn.classList.add('hidden');
+    showToast('info', 'הלוגו הוסר. שמור הגדרות כדי לאשר.');
+}
+
+function handleStoreBgUpload(event) {
+    const file = event.target.files[0]; if(!file) return; showToast('info', 'מכווץ תמונת רקע...');
+    compressImage(file, 1200, 600, 0.85, (compressedDataUrl) => {
+        const bgPreview = getEl('store-bg-preview');
+        const bgPlaceholder = getEl('store-bg-placeholder');
+        bgPreview.src = compressedDataUrl;
+        bgPreview.classList.remove('hidden');
+        if (bgPlaceholder) bgPlaceholder.classList.add('hidden');
+        getEl('store-bg-base64').value = compressedDataUrl;
+        const clearBtn = getEl('btn-clear-bg');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        showToast('success', 'תמונת הרקע הועלתה ומוכנה לשמירה!');
+    });
+}
+
+function clearStoreBg() {
+    const bgPreview = getEl('store-bg-preview');
+    const bgPlaceholder = getEl('store-bg-placeholder');
+    if (bgPreview) { bgPreview.src = ''; bgPreview.classList.add('hidden'); }
+    if (bgPlaceholder) bgPlaceholder.classList.remove('hidden');
+    getEl('store-bg-base64').value = '';
+    const clearBtn = getEl('btn-clear-bg');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    showToast('info', 'הרקע הוסר. שמור הגדרות כדי לאשר.');
+}
 
 async function generateStoreBgAI() {
     const logoBase64 = val('store-logo-base64');
