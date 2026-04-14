@@ -128,46 +128,34 @@ async function saveAllBanners() {
 
 function applyBannersToDOM(banners) {
     const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
-    const placeholder = getEl('app-banner-placeholder'); // במידה וקיים
-    
-    const renderBanner = (el, text, link, img, isTop = false) => {
+    const renderBanner = (el, text, link, img) => {
         if(!el) return;
         if(text || img) { 
             let html = ''; 
             if(img) { 
                 const imgSrc = img.startsWith('http') ? img : `/${img}`; 
-                html += `<img src="${imgSrc}" alt="Ad" class="absolute inset-0 w-full h-full object-cover z-0">`; 
+                html += `<img src="${imgSrc}" alt="Banner" class="absolute inset-0 w-full h-full object-cover z-0">`; 
             }
             if(text) {
                 html += `<div class="absolute inset-0 bg-black/20 z-0"></div>`; 
-                const padding = img ? 'p-1' : 'p-3';
-                html += `<span class="${padding} relative z-10 block w-full text-center text-white drop-shadow-md">${text}</span>`; 
+                html += `<span class="relative z-10 py-3 px-4 block w-full text-center drop-shadow-md text-white font-bold">${text}</span>`; 
             }
-            el.innerHTML = html; 
-            el.href = link || '#'; 
+            el.innerHTML = html; el.href = link || '#'; 
             if(!link) { el.removeAttribute('target'); el.style.cursor = 'default'; } else { el.target = '_blank'; el.style.cursor = 'pointer'; } 
-            
-            el.classList.remove('hidden'); 
-            el.classList.add('flex', 'relative'); // חשוב: relative כדי שה-absolute של התמונה יעבוד בתוכו
-            el.style.display = 'flex';
-            if(isTop && placeholder) placeholder.classList.add('hidden');
+            el.classList.remove('hidden'); el.classList.add('flex'); el.style.width = '100%'; 
 
-            if (!isTop && el.id === 'app-banner-bottom') {
+            if (el.id === 'app-banner-bottom') {
                 setTimeout(() => {
                     const h = el.offsetHeight || 60;
-                    const cf = getEl('cart-footer'); if(cf) cf.style.bottom = (h + 16) + 'px';
-                    const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = (h + 16) + 'px';
+                    const cf = getEl('cart-footer'); if(cf) cf.style.bottom = h + 'px';
+                    const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = h + 'px';
                 }, 100);
             }
         } else { 
-            el.classList.add('hidden'); 
-            el.classList.remove('flex', 'relative'); 
-            el.style.display = 'none'; // העלמה מוחלטת שלא תופסת חלל
-            if(isTop && placeholder) placeholder.classList.remove('hidden');
-            
-            if (!isTop && el.id === 'app-banner-bottom') {
-                const cf = getEl('cart-footer'); if(cf) cf.style.bottom = '16px';
-                const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = '16px';
+            el.classList.add('hidden'); el.classList.remove('flex'); 
+            if (el.id === 'app-banner-bottom') {
+                const cf = getEl('cart-footer'); if(cf) cf.style.bottom = '0px';
+                const b2bf = getEl('b2b-cart-floating'); if(b2bf) b2bf.style.bottom = '0px';
             }
         }
     };
@@ -179,8 +167,8 @@ function applyBannersToDOM(banners) {
     const bottomLink = banners.biz_banner_link_bottom || banners.bizBannerLinkBottom || banners.biz_banner_bottom_link || banners.banner_bottom_link;
     const bottomImg = banners.biz_banner_img_bottom || banners.bizBannerImgBottom || banners.biz_banner_bottom_img || banners.banner_bottom_img;
 
-    renderBanner(appTop, topText, topLink, topImg, true); 
-    renderBanner(appBottom, bottomText, bottomLink, bottomImg, false);
+    renderBanner(appTop, topText, topLink, topImg); 
+    renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
 async function fetchBanners() {
     try {
