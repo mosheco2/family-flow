@@ -5907,7 +5907,7 @@ function showOnboardingWizard() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-async function generateLogoAI() {
+window.generateLogoAI = async function() {
     const businessName = currentGroup ? currentGroup.name : 'העסק שלי';
     const slogan = val('wizard-slogan') || val('store-slogan') || '';
     
@@ -5923,21 +5923,98 @@ async function generateLogoAI() {
             });
             const data = await res.json();
             if (data.success && data.imageUrl) {
-                const preview = getEl('wizard-logo-preview') || getEl('store-logo-preview');
-                const icon = getEl('wizard-logo-icon') || getEl('store-logo-placeholder');
-                const hiddenInput = getEl('wizard-logo-base64') || getEl('store-logo-base64');
+                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
+                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
                 
-                if(preview) { preview.src = data.imageUrl; preview.classList.remove('hidden'); }
-                if(icon) icon.classList.add('hidden');
-                if(hiddenInput) hiddenInput.value = data.imageUrl;
-                
+                ['wizard', 'store'].forEach(prefix => {
+                    const preview = getEl(`${prefix}-logo-preview`);
+                    const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
+                    const input = getEl(`${prefix}-logo-base64`);
+                    
+                    if(preview) { preview.src = freshUrl; preview.classList.remove('hidden'); preview.style.display = 'block'; }
+                    if(icon) icon.classList.add('hidden');
+                    if(input) input.value = freshUrl;
+                });
                 showToast('success', 'הלוגו עוצב בהצלחה!');
                 triggerConfetti();
             } else { showToast('error', data.error || 'שגיאה ביצירת לוגו'); }
         } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); }
     });
-}
+};
 
+window.generateBannerAI = async function() {
+    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
+    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
+    
+    let logoBase64 = val('wizard-logo-base64');
+    if (!logoBase64) {
+        logoBase64 = val('store-logo-base64');
+    }
+
+    if (!logoBase64) {
+        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
+    }
+    
+    if (typeof executeWithAIWarning === 'function') {
+        executeWithAIWarning(runBannerAI);
+    } else {
+        runBannerAI();
+    }
+
+    async function runBannerAI() {
+        // נעילת הכפתורים והצגת חיווי טעינה
+        const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
+        btns.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...';
+        });
+
+        showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
+        try {
+            const res = await fetch(`${API}/ai/generate-image`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: businessName,
+                    groupId: groupId, 
+                    type: 'banner',
+                    logoBase64: logoBase64
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.imageUrl) {
+                // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
+                const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+                const img = new Image();
+                
+                img.onload = () => {
+                    // שימוש ב-querySelectorAll וב-display block לכיסוי כל המקרים
+                    document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
+                        el.src = freshUrl;
+                        el.classList.remove('hidden');
+                        el.style.display = 'block';
+                    });
+                    document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
+                    document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
+                    
+                    showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
+                    try { triggerConfetti(); } catch(e){}
+                };
+                img.onerror = () => showToast('error', 'שגיאה בטעינת הבאנר מהשרת. נסו שוב.');
+                img.src = freshUrl;
+            } else { 
+                showToast('error', data.error || 'שגיאה ביצירת באנר'); 
+            }
+        } catch (e) { 
+            showToast('error', 'שגיאת רשת מול שרת ה-AI'); 
+        } finally {
+            // החזרת הכפתורים למצב פעיל
+            btns.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)';
+            });
+        }
+    }
+};
 window.handleStoreLogoUpload = function(event) {
     const file = event.target.files[0]; 
     if(!file) return; 
@@ -5983,24 +6060,6 @@ window.clearImage = function(targetIdPrefix) {
     }
     showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
 };
-window.generateBannerAI = async function() {
-    const businessName = (currentGroup && currentGroup.name) ? currentGroup.name : 'העסק שלי';
-    const groupId = (currentGroup && currentGroup.id) ? currentGroup.id : 0;
-    
-    let logoBase64 = val('wizard-logo-base64');
-    if (!logoBase64) {
-        logoBase64 = val('store-logo-base64');
-    }
-
-    if (!logoBase64) {
-        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך את צבעי הרקע!');
-    }
-    
-    if (typeof executeWithAIWarning === 'function') {
-        executeWithAIWarning(runBannerAI);
-    } else {
-        runBannerAI();
-    }
 
     async function runBannerAI() {
         // נעילת הכפתורים והצגת חיווי טעינה
