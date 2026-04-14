@@ -173,10 +173,33 @@
             </div>
 
             <form onsubmit="submitOrder(event)" class="space-y-3 shrink-0" id="checkout-form">
-                <input type="text" id="cust-name" required class="modern-input py-3 text-sm bg-white" placeholder="שם מלא">
-                <input type="tel" id="cust-phone" required class="modern-input py-3 text-sm text-left dir-ltr bg-white" placeholder="מספר טלפון">
-                <button type="submit" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-xl mt-4 text-lg hover:bg-black transition">
-                    שליחת הזמנה <i class="fa-solid fa-check ml-1"></i>
+                <div class="flex bg-slate-100 p-1 rounded-xl mb-2">
+                    <button type="button" id="btn-delivery-false" onclick="toggleDelivery(false)" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">איסוף עצמי</button>
+                    <button type="button" id="btn-delivery-true" onclick="toggleDelivery(true)" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">משלוח עד הבית</button>
+                </div>
+                <input type="hidden" id="is-delivery" value="false">
+
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="cust-name" required class="modern-input py-3 text-sm bg-white" placeholder="שם מלא">
+                    <input type="tel" id="cust-phone" required class="modern-input py-3 text-sm text-left dir-ltr bg-white" placeholder="מספר טלפון">
+                </div>
+                
+                <div id="delivery-fields" class="hidden space-y-3 mt-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner fade-in">
+                    <h4 class="font-bold text-sm text-slate-700 mb-1"><i class="fa-solid fa-motorcycle text-indigo-500 mr-1"></i> לאן להגיע?</h4>
+                    <input type="text" id="cust-city" class="modern-input py-2.5 text-sm bg-white" placeholder="עיר / יישוב">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="cust-street" class="modern-input py-2.5 text-sm bg-white" placeholder="רחוב">
+                        <input type="text" id="cust-house" class="modern-input py-2.5 text-sm bg-white" placeholder="מספר בית">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="cust-floor" class="modern-input py-2.5 text-sm bg-white" placeholder="קומה (אופציונלי)">
+                        <input type="text" id="cust-apt" class="modern-input py-2.5 text-sm bg-white" placeholder="דירה (אופציונלי)">
+                    </div>
+                    <textarea id="cust-notes" class="modern-input py-2.5 text-sm bg-white h-16" placeholder="הערות לשליח (קוד כניסה, להשאיר ליד הדלת...)"></textarea>
+                </div>
+
+                <button type="submit" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold shadow-xl mt-4 text-lg hover:bg-slate-800 transition flex justify-center items-center gap-2">
+                    <span>שליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1"></span> <i class="fa-solid fa-paper-plane"></i>
                 </button>
             </form>
         </div>
@@ -940,6 +963,30 @@
             } else footer.classList.add('hidden');
         }
 
+        window.toggleDelivery = function(isDel) {
+            getEl('is-delivery').value = isDel;
+            const btnDel = getEl('btn-delivery-true');
+            const btnPick = getEl('btn-delivery-false');
+            const fields = getEl('delivery-fields');
+            
+            if (isDel) {
+                btnDel.className = 'flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200';
+                btnPick.className = 'flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent';
+                fields.classList.remove('hidden');
+                getEl('cust-city').required = true;
+                getEl('cust-street').required = true;
+                getEl('cust-house').required = true;
+            } else {
+                btnPick.className = 'flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200';
+                btnDel.className = 'flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent';
+                fields.classList.add('hidden');
+                getEl('cust-city').required = false;
+                getEl('cust-street').required = false;
+                getEl('cust-house').required = false;
+            }
+            openCheckoutModal(); // חישוב מחדש של הסה"כ עם דמי משלוח
+        };
+
         function openCheckoutModal() {
             const calc = calculateCartDetails();
             let itemsHtml = '';
@@ -947,39 +994,111 @@
                 const itemTotal = item.qty * item.price;
                 itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
+            
+            // תוספת דמי משלוח
+            let delFee = 0;
+            const isDelivery = getEl('is-delivery').value === 'true';
+            if (isDelivery) {
+                // שולף מהגדרות החנות (או 30 ש"ח דיפולט אם לא הוגדר)
+                delFee = parseFloat(storeData.settings?.delivery_fee) || 30; 
+                itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">דמי משלוח</span></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
+            }
+            
             getEl('checkout-items').innerHTML = itemsHtml; 
             
+            const totalWithDelivery = calc.finalTotal + delFee;
+
             if (calc.discountAmount > 0) {
-                getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${calc.baseTotal.toFixed(2)}</span>₪${calc.finalTotal.toFixed(2)}`;
+                getEl('checkout-total').innerHTML = `<span class="text-sm text-slate-400 line-through mr-2 font-normal">₪${(calc.baseTotal + delFee).toFixed(2)}</span>₪${totalWithDelivery.toFixed(2)}`;
                 const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend', `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-left w-max mr-auto mt-1 mb-3">חסכת ₪${calc.discountAmount.toFixed(2)} במבצעים!</div>`);
             } else {
-                getEl('checkout-total').innerText = `₪${calc.finalTotal.toFixed(2)}`;
+                getEl('checkout-total').innerText = `₪${totalWithDelivery.toFixed(2)}`;
                 const oldMsg = getEl('checkout-discount-msg'); if(oldMsg) oldMsg.remove();
             }
+            
+            getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
 
-            const minOrder = parseFloat(storeData.settings.min_order) || 0; const btnSubmit = getEl('btn-submit-order'); const warning = getEl('checkout-min-warning');
-            if (minOrder > 0 && calc.finalTotal < minOrder) { getEl('min-order-val').innerText = minOrder; warning.classList.remove('hidden'); btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); } 
-            else { warning.classList.add('hidden'); btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+            const minOrder = parseFloat(storeData.settings.min_order) || 0; 
+            const btnSubmit = getEl('btn-submit-order'); 
+            const warning = getEl('checkout-min-warning');
+            
+            // המינימום חל רק על מוצרים, ללא דמי המשלוח
+            if (minOrder > 0 && calc.finalTotal < minOrder) { 
+                getEl('min-order-val').innerText = minOrder; 
+                warning.classList.remove('hidden'); 
+                btnSubmit.disabled = true; 
+                btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); 
+            } else { 
+                warning.classList.add('hidden'); 
+                btnSubmit.disabled = false; 
+                btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); 
+            }
+            
             getEl('checkout-modal').classList.remove('hidden');
         }
 
         function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
 
         async function submitOrder(e) {
-            e.preventDefault(); const btn = getEl('btn-submit-order'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
+            e.preventDefault(); 
+            const btn = getEl('btn-submit-order'); 
+            btn.disabled = true; 
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
 
             const calc = calculateCartDetails();
             const items = [];
             Object.values(cart).forEach(i => { items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
 
+            const isDelivery = getEl('is-delivery').value === 'true';
+            const delFee = isDelivery ? (parseFloat(storeData.settings?.delivery_fee) || 30) : 0;
+            const finalTotalWithDelivery = calc.finalTotal + delFee;
+
+            let deliveryData = null;
+            if (isDelivery) {
+                deliveryData = {
+                    city: val('cust-city'),
+                    street: val('cust-street'),
+                    house: val('cust-house'),
+                    floor: val('cust-floor'),
+                    apt: val('cust-apt'),
+                    notes: val('cust-notes')
+                };
+            }
+
             try {
-                const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: calc.finalTotal }) });
+                const res = await fetch(`${API}/store/orders`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        groupId: storeData.groupId, 
+                        customerName: val('cust-name'), 
+                        customerPhone: val('cust-phone'), 
+                        items: items, 
+                        totalAmount: finalTotalWithDelivery,
+                        isDelivery: isDelivery,
+                        deliveryFee: delFee,
+                        deliveryDetails: deliveryData
+                    }) 
+                });
+                
                 const data = await res.json();
                 
-                if (data.success) { confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); getEl('checkout-modal').classList.add('hidden'); getEl('cart-footer').classList.add('hidden'); getEl('success-order-id').innerText = `#${data.orderId}`; getEl('success-screen').classList.remove('hidden'); cart = {}; } 
-                else showToast('error', data.error || 'אירעה שגיאה');
-            } catch(err) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = 'שליחת הזמנה <i class="fa-solid fa-check ml-1"></i>'; }
+                if (data.success) { 
+                    confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); 
+                    getEl('checkout-modal').classList.add('hidden'); 
+                    getEl('cart-footer').classList.add('hidden'); 
+                    getEl('success-order-id').innerText = `#${data.orderId}`; 
+                    getEl('success-screen').classList.remove('hidden'); 
+                    cart = {}; 
+                } 
+                else { showToast('error', data.error || 'אירעה שגיאה'); }
+            } catch(err) { 
+                showToast('error', 'שגיאת תקשורת'); 
+            } finally { 
+                btn.disabled = false; 
+                btn.innerHTML = `<span>שליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
+            }
         }
 
         function scrollCategories(direction) {
