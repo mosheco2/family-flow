@@ -6110,7 +6110,6 @@ window.clearImage = function(targetIdPrefix) {
                 btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)';
             });
         }
-};
 
 window.openStoreImageModal = function(src) {
     if (!src || src.length < 10) return;
