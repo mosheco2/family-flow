@@ -873,16 +873,16 @@
                             <i class="fa-solid fa-route absolute -left-4 -bottom-4 text-8xl text-white opacity-10 rotate-12"></i>
                         </div>
 
-                        <div class="flex flex-col gap-3 px-1 mb-4">
+                        <div class="flex flex-col gap-2 px-1 mb-4">
                             <div class="relative w-full">
-                                <i class="fa-solid fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                                <input type="text" id="courier-search-id" oninput="loadCourierData()" class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition" placeholder="חיפוש הזמנה (לפי שם, טלפון או מס')...">
+                                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" id="courier-search-id" oninput="loadCourierData()" class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pr-9 pl-3 text-sm shadow-sm outline-none focus:border-indigo-400 transition text-slate-700 placeholder-slate-400" placeholder="חיפוש לפי שם, טלפון או מס' הזמנה...">
                             </div>
 
-                            <div class="flex bg-slate-100 p-1.5 rounded-xl overflow-x-auto modal-scroll whitespace-nowrap w-full">
-                                <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">ממתין לאיסוף 📦</button>
-                                <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">במשלוח 🛵</button>
-                                <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריה ✅</button>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl w-full">
+                                <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-2 px-1 sm:px-3 text-xs sm:text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200 text-center">ממתין 📦</button>
+                                <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-2 px-1 sm:px-3 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition text-center">במשלוח 🛵</button>
+                                <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-2 px-1 sm:px-3 text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition text-center">היסטוריה ✅</button>
                             </div>
                         </div>
 
