@@ -724,21 +724,21 @@
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
-                                <div class="flex flex-col gap-2 mb-2">
+                                <div class="flex flex-col gap-3 mb-2 px-1">
                                     <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
                                     
                                     <div class="relative w-full">
-                                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                                        <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-1.5 pr-8 pl-2 text-xs bg-slate-50 flex-1 h-auto" placeholder="חיפוש לפי שם לקוח או מספר הזמנה...">
+                                        <i class="fa-solid fa-search absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-3 pr-10 pl-4 text-xs bg-white shadow-sm border-slate-200" placeholder="חיפוש חופשי (שם לקוח, מספר הזמנה)...">
                                     </div>
 
-                                    <div class="flex gap-2">
-                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                    <div class="flex gap-2 w-full">
+                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-2 px-2 text-xs font-bold bg-white text-slate-600 shadow-sm border-slate-200 flex-1">
                                             <option value="all">כל הסוגים</option>
                                             <option value="from_store">הזמנת חנות</option>
                                             <option value="from_quote">הזמנת לקוח (מהצעה)</option>
                                         </select>
-                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-2 px-2 text-xs font-bold bg-white text-slate-600 shadow-sm border-slate-200 flex-1">
                                             <option value="all">כל הסטטוסים</option>
                                             <option value="new">חדשות</option>
                                             <option value="processing">בהכנה</option>
