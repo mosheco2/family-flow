@@ -1775,13 +1775,14 @@ app.post('/api/store/quotes', async (req, res) => {
 app.get('/api/store/quotes/:groupId', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT * FROM store_orders WHERE group_id = $1 AND status = 'quote' ORDER BY created_at DESC`, 
+            `SELECT * FROM store_orders 
+             WHERE group_id = $1 AND (status = 'quote' OR quote_status IS NOT NULL)
+             ORDER BY created_at DESC`, 
             [req.params.groupId]
         );
         res.json({ success: true, quotes: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
 app.put('/api/store/quotes/:id', async (req, res) => {
     try {
         const { customerName, customerPhone, items, totalAmount, notes } = req.body;
