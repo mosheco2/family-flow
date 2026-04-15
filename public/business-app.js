@@ -22,6 +22,33 @@ let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 let isPunchedIn = false;
 
+// איחוד כל משתני המודולים למעלה כדי למנוע שגיאות Initialization
+let storeCatalogCache = [];
+let storeOrdersCache = [];
+let currentModifiersUI = []; 
+let storeModifierPresets = [];
+let currentStoreOrderId = null;
+let storeQuotesCache = [];
+let storeCustomersCache = [];
+let storePromotionsCache = [];
+
+let suppliersList = [];
+let currentSupplierProducts = [];
+let b2bCatalogCache = [];
+let b2bCart = {}; 
+let b2bOrdersHistory = [];
+
+let myConnectedCommunitiesCache = [];
+let myCommunityBusinessesCache = [];
+let myInitiativesCache = [];
+let bizAvailableCommCache = [];
+
+let foodCostData = [];
+let foodCostPrices = {};
+let rbCurrentItem = null;
+let rbIngredients = [];
+let rbOverheads = [];
+
 // משתני החנות
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
@@ -1524,14 +1551,17 @@ async function generateAITasks() {
         if(!topic) return showToast('error', 'תארו בקצרה את הפרויקט...');
         btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפרק למשימות...';
         try {
-            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic + " (בסביבת עבודה ארגונית)", groupId: currentGroup.id }) }); const data = await res.json();
-            if(!handleAIResponseCheck(data)) return;
-            if(data.success && data.tasks && data.tasks.length > 0) {
-                const resultsContainer = getEl('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על הטיקט שתרצו להוסיף לצוות:</p>';
-                data.tasks.forEach(task => { const t = safeStr(task.title); resultsContainer.innerHTML += `<div onclick="selectAITask('${t}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-slate-200 hover:bg-slate-50 transition"><span class="text-sm font-bold text-slate-700">${safeStr(task.title)}</span><span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; });
-                resultsContainer.classList.remove('hidden'); fetchData();
-            } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
-        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> הצע תכנית עבודה'; }
+            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic + " (בסביבת עבודה ארגונית)", groupId: currentGroup.id }) }); const data = await res.json();
+            if(!handleAIResponseCheck(data)) return;
+            if(data.success && data.tasks && data.tasks.length > 0) {
+                const resultsContainer = getEl('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על הטיקט שתרצו להוסיף לצוות:</p>';
+                data.tasks.forEach(task => { 
+                    const safeTitle = safeStr(task.title); 
+                    resultsContainer.innerHTML += `<div onclick="selectAITask('${safeTitle}', ${task.reward || 0})" class="p-3 rounded-xl flex justify-between items-center bg-white shadow-sm mb-2 cursor-pointer border border-slate-200 hover:bg-slate-50 transition"><span class="text-sm font-bold text-slate-700">${safeTitle}</span><span class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">₪${task.reward || 0}</span></div>`; 
+                });
+                resultsContainer.classList.remove('hidden'); fetchData();
+            } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
+        } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> הצע תכנית עבודה'; }
     });
 }
 
@@ -2705,12 +2735,6 @@ async function submitForgotCode() {
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
 
-let storeCatalogCache = [];
-let storeOrdersCache = [];
-let currentModifiersUI = []; 
-let storeModifierPresets = [];
-let currentStoreOrderId = null;
-
 function switchSalesTab(subTab) {
     ['orders', 'catalog', 'marketing', 'settings', 'quotes'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
@@ -2725,8 +2749,6 @@ function switchSalesTab(subTab) {
     if(subTab === 'settings') fetchStoreSettings();
     if(subTab === 'quotes') fetchStoreQuotes();
 }
-
-let storeQuotesCache = [];
 
 async function fetchStoreQuotes() {
     try {
@@ -2822,8 +2844,6 @@ async function editOrderTargetDate(orderId, currentDate) {
     getEl('target-date-modal-desc').innerText = 'בחר תאריך ושעה מעודכנים ליעד מסירת ההזמנה ללקוח:';
     getEl('target-datetime-modal').classList.remove('hidden');
 }
-
-let storeCustomersCache = [];
 
 window.switchCustomerTab = async function(tab) {
     getEl('cust-view-details').classList.add('hidden');
@@ -3485,8 +3505,6 @@ async function openEditQuoteModal(id) {
     getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 }
 // === Marketing (Promotions & Coupons) ===
-let storePromotionsCache = [];
-
 async function fetchStoreMarketing() {
     fetchStoreCoupons();
     fetchStorePromotions();
@@ -4715,8 +4733,6 @@ async function loadBizCommunities() {
     } catch(e) { console.error("Error loading biz communities", e); }
 }
 
-let bizAvailableCommCache = [];
-
 async function loadBizAvailableCommunities() {
     try {
         if (!currentGroup || !currentGroup.id) return;
@@ -4847,11 +4863,6 @@ if(originalLoadSADashboard && !window.saCommLoaded) {
 // ==========================================
 // --- ניהול רכש וספקים מורחב (B2B Procurement) ---
 // ==========================================
-let suppliersList = [];
-let currentSupplierProducts = [];
-let b2bCatalogCache = [];
-let b2bCart = {}; // מבנה: { productId: quantity }
-let b2bOrdersHistory = [];
 
 function switchProcurementTab(tab) {
     ['list', 'rfq', 'suppliers'].forEach(t => {
@@ -6539,12 +6550,6 @@ window.updateCustomTabsByRoles = function() {
 // ============================================================
 // --- FOOD COST MODULE ---
 // ============================================================
-let foodCostData = [];
-let foodCostPrices = {};
-let rbCurrentItem = null;
-let rbIngredients = [];
-let rbOverheads = [];
-
 async function fetchFoodCost() {
     const list = getEl('fc-list');
     if(!list) return;
