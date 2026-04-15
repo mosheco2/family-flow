@@ -503,24 +503,39 @@ app.post('/api/superadmin/banners', verifySA, async (req, res) => {
 // =========================================================
 
 app.post('/api/groups', async (req, res) => {
-    let dbClient;
-    try {
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
-        
-        let code = generateGroupCode();
-        
-        // איתור קהילה אם הוזן קוד הפניה (Referral)
-        let commId = null;
-        if (req.body.inviteCommunityCode) {
-            const cRes = await dbClient.query('SELECT id FROM communities WHERE code = $1', [req.body.inviteCommunityCode.toUpperCase().trim()]);
-            if (cRes.rows.length > 0) commId = cRes.rows[0].id;
-        }
-        
-        const gRes = await dbClient.query(
-            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id) VALUES ($1, $2, LOWER($3), $4, $5) RETURNING *`, 
-            [req.body.type, req.body.groupName, req.body.adminEmail, code, commId]
-        );
+    let dbClient;
+    try {
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+
+        const reqEmail = (req.body.adminEmail || '').toLowerCase().trim();
+
+        // 1. משיכת המייל של הסופר אדמין כדי לאפשר לו לפתוח סביבות ללא הגבלה
+        const saEmailRes = await dbClient.query("SELECT value FROM system_settings WHERE key = 'sa_email'");
+        const saEmail = saEmailRes.rows.length > 0 ? saEmailRes.rows[0].value.toLowerCase().trim() : '';
+
+        // 2. אכיפת מגבלת 2 סביבות ללקוח רגיל (שאינו הסופר אדמין)
+        if (reqEmail !== saEmail && saEmail !== '') {
+            const countRes = await dbClient.query('SELECT COUNT(*) FROM family_groups WHERE LOWER(admin_email) = $1', [reqEmail]);
+            if (parseInt(countRes.rows[0].count) >= 2) {
+                await dbClient.query('ROLLBACK');
+                return res.status(400).json({ error: 'ניתן לפתוח עד 2 סביבות (משפחות או עסקים) תחת אותה כתובת מייל.' });
+            }
+        }
+        
+        let code = generateGroupCode();
+        
+        // איתור קהילה אם הוזן קוד הפניה (Referral)
+        let commId = null;
+        if (req.body.inviteCommunityCode) {
+            const cRes = await dbClient.query('SELECT id FROM communities WHERE code = $1', [req.body.inviteCommunityCode.toUpperCase().trim()]);
+            if (cRes.rows.length > 0) commId = cRes.rows[0].id;
+        }
+        
+        const gRes = await dbClient.query(
+            `INSERT INTO family_groups (type, name, admin_email, group_code, community_id) VALUES ($1, $2, LOWER($3), $4, $5) RETURNING *`, 
+            [req.body.type, req.body.groupName, reqEmail, code, commId]
+        );
         const group = gRes.rows[0];
         const birthYear = parseInt(req.body.birthYear) || null;
         
