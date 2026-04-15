@@ -3711,15 +3711,19 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
-            // --- טעינת נתונים להדר העליון החדש (Cover Style) ---
-            const headerLogo = getEl('main-header-logo');
-            const headerLogoPlaceholder = getEl('main-header-logo-placeholder');
+            // --- טעינת נתונים להדר העליון החדש ---
             if (data.settings.logo_url) {
-                if (headerLogo) { headerLogo.src = data.settings.logo_url; headerLogo.classList.remove('hidden'); }
-                if (headerLogoPlaceholder) headerLogoPlaceholder.classList.add('hidden');
-            } else {
-                if (headerLogo) headerLogo.classList.add('hidden');
-                if (headerLogoPlaceholder) headerLogoPlaceholder.classList.remove('hidden');
+                // Desktop
+                const deskLogo = getEl('main-header-logo-desktop');
+                const deskPlace = getEl('main-header-logo-placeholder-desktop');
+                if(deskLogo) { deskLogo.src = data.settings.logo_url; deskLogo.classList.remove('hidden'); }
+                if(deskPlace) deskPlace.classList.add('hidden');
+                
+                // Mobile
+                const mobLogo = getEl('main-header-logo-mobile');
+                const mobPlace = getEl('main-header-logo-placeholder-mobile');
+                if(mobLogo) { mobLogo.src = data.settings.logo_url; mobLogo.classList.remove('hidden'); }
+                if(mobPlace) mobPlace.classList.add('hidden');
             }
 
             const headerBanner = getEl('main-header-banner');
@@ -3729,9 +3733,9 @@ async function fetchStoreSettings() {
             
             const headerSlogan = getEl('main-header-slogan');
             if (headerSlogan) {
-                headerSlogan.innerText = data.settings.slogan || 'ניהול חכם לעסק שלך';
+                headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
             }
-            // ----------------------------------------------------
+            // ------------------------------------
 
             if (data.settings.logo_url) {
                 document.querySelectorAll('[id="store-logo-preview"]').forEach(el => {
