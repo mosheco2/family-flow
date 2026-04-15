@@ -724,27 +724,25 @@
                             </div>
 
                           <div id="sales-view-orders" class="space-y-4">
-                                <div class="flex flex-col gap-2 mb-2">
-                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                                    <div class="flex gap-2">
-                                        <div class="relative flex-[2]">
-                                            <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                                            <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-1.5 pr-8 pl-2 text-xs bg-white shadow-sm border-slate-200 h-full w-full" placeholder="חיפוש חופשי...">
-                                        </div>
-                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-[11px] font-bold bg-slate-50 border-slate-200 text-slate-600 flex-[1.5] h-auto">
-                                            <option value="all">מקור: הכל</option>
-                                            <option value="from_store">מקור: חנות</option>
-                                            <option value="from_quote">מקור: הצעה</option>
-                                        </select>
-                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-[11px] font-bold bg-slate-50 border-slate-200 text-slate-600 flex-[1.5] h-auto">
-                                            <option value="all">סטטוס: הכל</option>
-                                            <option value="new">חדשות</option>
-                                            <option value="processing">בהכנה</option>
-                                            <option value="ready">מוכנות</option>
-                                            <option value="shipped">משלוח</option>
-                                            <option value="completed">הושלמו</option>
-                                        </select>
+                                <h4 class="font-bold text-slate-700 text-sm mb-1 px-1">הזמנות מהלקוחות</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 px-1">
+                                    <div class="relative w-full">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                                        <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-2 pr-8 pl-2 text-xs bg-white shadow-sm border-slate-200 h-full w-full" placeholder="חיפוש חופשי...">
                                     </div>
+                                    <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-2 px-3 text-xs font-bold bg-slate-50 border-slate-200 text-slate-600 h-full w-full">
+                                        <option value="all">מקור: הכל</option>
+                                        <option value="from_store">מקור: חנות</option>
+                                        <option value="from_quote">מקור: הצעה</option>
+                                    </select>
+                                    <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-2 px-3 text-xs font-bold bg-slate-50 border-slate-200 text-slate-600 h-full w-full">
+                                        <option value="all">סטטוס: הכל</option>
+                                        <option value="new">חדשות</option>
+                                        <option value="processing">בהכנה</option>
+                                        <option value="ready">מוכנות</option>
+                                        <option value="shipped">משלוח</option>
+                                        <option value="completed">הושלמו</option>
+                                    </select>
                                 </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
                             </div>
