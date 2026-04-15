@@ -2766,24 +2766,38 @@ function switchSalesTab(subTab) {
 
 async function fetchStoreQuotes() {
     try {
+        console.log(`Fetching quotes for group: ${currentGroup.id}`);
         const res = await fetch(`${API}/store/quotes/${currentGroup.id}`);
         const data = await res.json();
-        const list = getEl('store-quotes-list');
-        if(!list) return;
+        console.log("Quotes data from server:", data);
         
-        if (!data || !data.success || data.quotes.length === 0) {
+        const list = getEl('store-quotes-list');
+        if(!list) {
+            console.warn("store-quotes-list element not found in DOM");
+            return;
+        }
+        
+        if (!data || !data.success || !data.quotes || data.quotes.length === 0) {
             list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
+            storeQuotesCache = []; // איפוס הקאש
             return;
         }
 
         storeQuotesCache = data.quotes;
         renderStoreQuotes();
-    } catch(e) {}
+    } catch(e) {
+        console.error("Error fetching quotes:", e);
+    }
 }
 
 function renderStoreQuotes() {
     const list = getEl('store-quotes-list');
     if(!list) return;
+    
+    if(!storeQuotesCache || storeQuotesCache.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
+        return;
+    }
     
     const statuses = {
         'draft': 'טיוטה (טרם נשלחה)',
@@ -2793,32 +2807,45 @@ function renderStoreQuotes() {
         'cancelled': 'בוטלה ע"י הלקוח'
     };
 
-    list.innerHTML = storeQuotesCache.map(q => {
-        const currentStatus = q.quote_status || 'draft';
-        const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
-        
-        return `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name)}</h4>
-                    <p class="text-lg font-black text-indigo-600 mt-0.5">₪${parseFloat(q.total_amount).toFixed(2)}</p>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${new Date(q.created_at).toLocaleDateString('he-IL')} | ${safeStr(q.customer_phone)}</p>
+    let html = '';
+    
+    // שימוש ב-forEach במקום map כדי למנוע שגיאות אם אלמנט אחד נכשל
+    storeQuotesCache.forEach(q => {
+        try {
+            const currentStatus = q.quote_status || 'draft';
+            const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
+            
+            // הגנה על שדות ריקים
+            const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
+            const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : "תאריך לא ידוע";
+            
+            html += `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3 hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm truncate">הצעה #${q.id} — ${safeStr(q.customer_name || 'לקוח ללא שם')}</h4>
+                        <p class="text-lg font-black text-indigo-600 mt-0.5">₪${totalAmount}</p>
+                        <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} | ${safeStr(q.customer_phone || 'ללא טלפון')}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2 shrink-0">
+                        <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;">
+                            ${optionsHtml}
+                        </select>
+                        <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
+                    </div>
                 </div>
-                <div class="flex flex-col items-end gap-2 shrink-0">
-                    <select onchange="updateQuoteStatus(${q.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm focus:border-indigo-400" style="width:140px;">
-                        ${optionsHtml}
-                    </select>
-                    <button onclick="approveQuoteToOrder(${q.id})" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-green-600 transition flex items-center gap-1.5 w-full justify-center"><i class="fa-solid fa-check-double"></i> אישור והזמנה</button>
+                <div class="flex gap-2 border-t border-slate-100 pt-3">
+                    <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
+                    <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
+                    <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone || '')}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
                 </div>
-            </div>
-            <div class="flex gap-2 border-t border-slate-100 pt-3">
-                <button onclick="openEditQuoteModal(${q.id})" class="flex-1 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-pen"></i> ערוך</button>
-                <button onclick="openQuotePreview(${q.id})" class="flex-1 bg-slate-50 text-slate-600 hover:text-red-600 hover:bg-red-50 py-2 rounded-xl text-xs font-bold transition shadow-sm border border-slate-100"><i class="fa-solid fa-file-pdf"></i> מסמך PDF</button>
-                <button onclick="shareQuoteWhatsApp('${q.id}', '${safeStr(q.customer_phone)}')" class="flex-[0.5] bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 py-2 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center"><i class="fa-brands fa-whatsapp text-lg"></i></button>
-            </div>
-        </div>
-    `}).join('');
+            </div>`;
+        } catch(err) {
+            console.error("Error rendering specific quote:", err, q);
+        }
+    });
+    
+    list.innerHTML = html || '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">שגיאה ברינדור הצעות מחיר.</p>';
 }
 
 async function updateQuoteStatus(id, status) {
