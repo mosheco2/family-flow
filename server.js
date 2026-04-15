@@ -93,11 +93,23 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
-      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
+try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
+      
+      // --- תוספות פוד-קוסט לחנות ---
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS overhead_details JSONB DEFAULT '[]'::jsonb`); } catch(err){}
+      try { await client.query(`
+          CREATE TABLE IF NOT EXISTS product_ingredients (
+              id SERIAL PRIMARY KEY,
+              catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+              ingredient_name VARCHAR(100),
+              quantity DECIMAL(10,3),
+              unit VARCHAR(20)
+          )
+      `); } catch(err){}
 
-     try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
@@ -2923,6 +2935,110 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
         
         res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ============================================================
+// --- FOOD COST & RECIPE ENDPOINTS ---
+// ============================================================
+
+app.get('/api/food-cost/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        // 1. נשלוף את כל המוצרים בקטלוג
+        const catalogRes = await pool.query('SELECT id, name, price, category, overhead_details FROM store_catalog WHERE group_id = $1 AND is_available = TRUE ORDER BY category, name', [groupId]);
+        
+        // 2. נשלוף את כל המרכיבים ששויכו למוצרים אלו
+        const ingredientsRes = await pool.query('SELECT pi.* FROM product_ingredients pi JOIN store_catalog sc ON pi.catalog_id = sc.id WHERE sc.group_id = $1', [groupId]);
+        
+        // 3. נשלוף מחירי רכש עדכניים כדי לחשב עלות בזמן אמת (נמשוך מהיסטוריית הקניות של העסק את המחיר האחרון לכל פריט)
+        const pricesRes = await pool.query(`
+            SELECT DISTINCT ON (item_name) item_name, price_per_unit, unit 
+            FROM shopping_trip_items sti 
+            JOIN shopping_trips st ON sti.trip_id = st.id 
+            WHERE st.group_id = $1 
+            ORDER BY item_name, st.trip_date DESC
+        `, [groupId]);
+        
+        const priceMap = {};
+        pricesRes.rows.forEach(p => {
+            priceMap[p.item_name] = { price: parseFloat(p.price_per_unit), unit: p.unit };
+        });
+
+        // חיבור הנתונים
+        const catalog = catalogRes.rows.map(item => {
+            const itemIngredients = ingredientsRes.rows.filter(i => i.catalog_id === item.id);
+            let totalIngredientsCost = 0;
+            
+            const enrichedIngredients = itemIngredients.map(ing => {
+                const knownPrice = priceMap[ing.ingredient_name];
+                let cost = 0;
+                // חישוב פשוט (בהנחה שהיחידות זהות. בשדרוג עתידי ניתן לבצע המרת יחידות)
+                if (knownPrice) cost = knownPrice.price * parseFloat(ing.quantity);
+                totalIngredientsCost += cost;
+                return { ...ing, calculated_cost: cost, known_price: knownPrice ? knownPrice.price : 0 };
+            });
+
+            let overheadTotal = 0;
+            let overheads = [];
+            try {
+                overheads = typeof item.overhead_details === 'string' ? JSON.parse(item.overhead_details) : (item.overhead_details || []);
+                overheads.forEach(o => overheadTotal += parseFloat(o.cost) || 0);
+            } catch(e) {}
+
+            const finalCost = totalIngredientsCost + overheadTotal;
+            const salePrice = parseFloat(item.price) || 0;
+            const foodCostPct = salePrice > 0 ? (finalCost / salePrice) * 100 : 0;
+            const profit = salePrice - finalCost;
+
+            return {
+                ...item,
+                ingredients: enrichedIngredients,
+                overheads: overheads,
+                costs: {
+                    ingredients: totalIngredientsCost,
+                    overhead: overheadTotal,
+                    total: finalCost,
+                    foodCostPct: foodCostPct,
+                    profit: profit
+                }
+            };
+        });
+
+        res.json({ success: true, catalog, priceMap });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
+    let dbClient;
+    try {
+        const { catalogId } = req.params;
+        const { ingredients, overheads } = req.body;
+        
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        
+        // עדכון הוצאות עקיפות בקטלוג
+        await dbClient.query('UPDATE store_catalog SET overhead_details = $1 WHERE id = $2', [JSON.stringify(overheads || []), catalogId]);
+        
+        // מחיקת עץ מוצר ישן והכנסת החדש
+        await dbClient.query('DELETE FROM product_ingredients WHERE catalog_id = $1', [catalogId]);
+        
+        for (let ing of ingredients) {
+            await dbClient.query(
+                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit) VALUES ($1, $2, $3, $4)',
+                [catalogId, ing.name, parseFloat(ing.quantity) || 0, ing.unit || "יח'"]
+            );
+        }
+        
+        await dbClient.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) {
+        if(dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally {
+        if(dbClient) dbClient.release();
+    }
 });
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
