@@ -605,8 +605,6 @@ if(!getEl('content-customers')) {
         </div>
         `);
     }
-}
-}
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
