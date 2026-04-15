@@ -466,6 +466,12 @@ function renderMyOrders() {
         let statusIcon = '';
         
         switch(o.status) {
+            case 'quote':
+                statusColor = 'border-slate-300 bg-slate-100'; 
+                statusText = o.quote_status === 'approved' ? 'הצעת מחיר אושרה' : 'הצעת מחיר'; 
+                progressPct = 10; 
+                statusIcon = 'fa-file-invoice';
+                break;
             case 'new': 
                 statusColor = 'border-blue-200 bg-blue-50'; 
                 statusText = 'התקבל בעסק'; 
@@ -486,9 +492,9 @@ function renderMyOrders() {
                 break;
             case 'shipped': 
                 statusColor = 'border-indigo-200 bg-indigo-50'; 
-                statusText = 'בדרך אליך! 🛵'; 
+                statusText = o.is_delivery ? 'בדרך אליך! 🛵' : 'בדרך אלייך!'; 
                 progressPct = 90; 
-                statusIcon = 'fa-motorcycle';
+                statusIcon = o.is_delivery ? 'fa-motorcycle' : 'fa-truck-fast';
                 break;
             case 'completed': 
                 statusColor = 'border-green-200 bg-green-50'; 
@@ -524,7 +530,7 @@ function renderMyOrders() {
             </div>
             
             <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
-                <div class="mb-4">
+                <div class="mb-4 ${o.status === 'quote' ? 'hidden' : ''}">
                     <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
                         <span>התקבל</span>
                         <span>בהכנה</span>
@@ -536,8 +542,9 @@ function renderMyOrders() {
                     </div>
                 </div>
                 <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p class="font-bold mb-2">פירוט ההזמנה:</p>
-                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json)}</div>
+                    <p class="font-bold mb-2">פירוט ההזמנה/ההצעה:</p>
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json || o.items)}</div>
+                    ${o.notes ? `<p class="mt-2 pt-2 border-t border-slate-200"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
                 </div>
             </div>
         </div>
