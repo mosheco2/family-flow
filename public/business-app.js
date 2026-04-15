@@ -706,6 +706,28 @@ function handleAIResponseCheck(data) {
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
+// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
+window.toggleDesktopView = function() {
+    const dashContainer = getEl('dashboard-container');
+    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
+    
+    if (dashContainer.classList.contains('max-w-lg')) {
+        // מעבר לתצוגת מחשב רחבה
+        dashContainer.classList.remove('max-w-lg');
+        dashContainer.classList.add('max-w-7xl', 'w-full');
+        iconBtn.classList.remove('fa-desktop');
+        iconBtn.classList.add('fa-mobile-screen');
+        showToast('info', 'עברת לתצוגת מחשב מורחבת');
+    } else {
+        // מעבר חזרה לתצוגת מובייל (צרה)
+        dashContainer.classList.remove('max-w-7xl', 'w-full');
+        dashContainer.classList.add('max-w-lg');
+        iconBtn.classList.remove('fa-mobile-screen');
+        iconBtn.classList.add('fa-desktop');
+        showToast('info', 'עברת לתצוגה ממוקדת');
+    }
+};
+
 // *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
 window.executeWithAIWarning = function(callback) {
     if (currentGroup && currentGroup.is_premium) {
@@ -721,6 +743,9 @@ window.executeWithAIWarning = function(callback) {
 
     const modal = getEl('ai-warning-modal');
     if (!modal) { callback(); return; } // הגנה במקרה שה-HTML חסר
+
+    // מסדרים את ה-Z-Index כדי שיופיע מעל מודאלים אחרים (כמו הוויזארד)
+    modal.style.setProperty('z-index', '9999999', 'important');
 
     const tokens = currentGroup ? (currentGroup.ai_tokens !== undefined ? currentGroup.ai_tokens : 10) : 10;
     const tokensEl = getEl('ai-warning-left');
