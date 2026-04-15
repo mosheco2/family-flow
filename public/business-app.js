@@ -317,6 +317,10 @@ function injectBusinessUI() {
                                 <option value="completed">הושלמו</option>
                             </select>
                         </div>
+                        <div class="relative mb-3">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="number" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-xl py-2 pr-9 pl-3 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                        </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
                     <div id="sales-view-quotes" class="hidden space-y-4"><div id="store-quotes-list" class="space-y-3 pb-8"></div></div>
@@ -328,8 +332,8 @@ function injectBusinessUI() {
     }
 
     if(!getEl('content-deliveries')) {
-        const contentSales = getEl('content-sales');
-        if(contentSales) contentSales.insertAdjacentHTML('afterend', `
+        const contentSales2 = getEl('content-sales');
+        if(contentSales2) contentSales2.insertAdjacentHTML('afterend', `
             <div id="content-deliveries" class="hidden">
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden mt-4">
                     <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-helmet-safety"></i> מסופון חלוקה</h3>
@@ -340,7 +344,7 @@ function injectBusinessUI() {
                 <div class="px-2 mb-4">
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="number" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
+                        <input type="number" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
                     </div>
                 </div>
 
@@ -367,143 +371,21 @@ function injectBusinessUI() {
                 </div>
             </div>`);
     }
-}
-        if(!getEl('sales-view-quotes')) {
-        const ordersView = getEl('sales-view-orders');
-        if(ordersView) ordersView.insertAdjacentHTML('afterend', `
-        <div id="sales-view-quotes" class="hidden space-y-4">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
-                <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-file-invoice-dollar"></i> הצעה חדשה</button>
-            </div>
-            <div id="store-quotes-list" class="space-y-3 pb-8"></div>
-        </div>`);
-    }
-if(!getEl('content-customers')) {
-        const contentSales = getEl('content-sales') || getEl('content-feed');
-        if(contentSales) {
-            contentSales.insertAdjacentHTML('afterend', `
-            <div id="content-customers" class="hidden">
-                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-slate-800 text-lg">מועדון לקוחות 🤝</h3>
-                        <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
-                    </div>
-                    <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <input type="text" id="filter-customer-search" oninput="renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
-                        <select id="filter-customer-type" onchange="fetchStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
-                            <option value="all">כל הלקוחות</option>
-                            <option value="order">רוכשים בחנות</option>
-                            <option value="quote">מבקשי הצעות מחיר</option>
-                        </select>
-                    </div>
-                    <div id="store-customers-list" class="space-y-3 pb-8"></div>
-                </div>
-            </div>
-            `);
-        }
-    }
 
-   if(!getEl('customer-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
-                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                    <h3 id="customer-modal-title" class="text-lg font-black text-indigo-900">ניהול לקוח</h3>
-                    <button onclick="getEl('customer-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                
-                <div class="flex bg-slate-100 p-1.5 shrink-0 mx-4 mt-4 rounded-xl">
-                    <button id="btn-cust-tab-details" onclick="switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים אישיים</button>
-                    <button id="btn-cust-tab-history" onclick="switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
-                </div>
-
-                <div class="flex-1 overflow-y-auto modal-scroll p-5">
-                    <div id="cust-view-details" class="space-y-4">
-                        <input type="hidden" id="cust-id">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח / חברה (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-slate-50"></div>
-                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
-                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
-                            <div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm dir-ltr text-left bg-slate-50"></div>
-                        </div>
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות ותיעוד לקוח:</label><textarea id="cust-notes" class="modern-input py-2 text-sm h-20 bg-slate-50"></textarea></div>
-                        <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition mt-4">שמור פרטי לקוח</button>
-                    </div>
-
-                    <div id="cust-view-history" class="hidden h-full flex flex-col">
-                        <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-4 text-xs font-bold text-indigo-800 text-center" id="cust-history-summary">
-                            מציג היסטוריה עבור לקוח זה
-                        </div>
-                        <div class="space-y-3 pb-4" id="cust-history-list"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-    if(!getEl('quote-preview-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="quote-preview-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-3">
-            <div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
-                <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                    <h3 class="text-base font-black text-indigo-900">תצוגה מקדימה — הצעת מחיר</h3>
-                    <button onclick="getEl('quote-preview-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div id="quote-preview-content" class="flex-1 overflow-y-auto modal-scroll p-1 bg-slate-100"></div>
-                <div class="p-4 border-t border-slate-100 bg-white flex flex-wrap gap-2 justify-end shrink-0">
-                    <button onclick="editQuoteFromPreview()" class="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition"><i class="fa-solid fa-pen mr-1"></i> ערוך</button>
-                    <button onclick="shareQuoteWhatsAppFromPreview()" class="bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-4 py-2.5 rounded-xl font-bold text-sm transition"><i class="fa-brands fa-whatsapp mr-1"></i> שלח בווצאפ</button>
-                    <button onclick="downloadCurrentQuotePDF()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-download mr-1"></i> הורד PDF</button>
-                </div>
-            </div>
-        </div>`);
-    }
-
-    if(!getEl('quote-modal')) {
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="quote-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-                <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                    <h3 class="text-lg font-black text-indigo-900">הצעת מחיר חדשה</h3>
-                    <button onclick="getEl('quote-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-white rounded-full"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div class="p-5 overflow-y-auto modal-scroll space-y-4 flex-1">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שם הלקוח:</label><input type="text" id="quote-cust-name" class="modern-input py-2 text-sm" placeholder="שם מלא / חברה"></div>
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טלפון:</label><input type="tel" id="quote-cust-phone" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="050-0000000"></div>
-                    </div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">טקסט פתיחה (ניתן לעריכה):</label><textarea id="quote-intro-text" class="modern-input py-2 text-sm h-16" placeholder="להלן הצעת המחיר שלנו עבורכם..."></textarea></div>
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-list-check"></i> פריטים ומחירים (ניתן לשנות):</label>
-                        <div id="quote-items-selector" class="space-y-2 max-h-48 overflow-y-auto pr-1 modal-scroll"></div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כללית (%):</label><input type="number" min="0" max="100" id="quote-discount" oninput="calcQuoteTotal()" class="modern-input py-2 text-sm text-center" placeholder="0"></div>
-                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label><input type="text" id="quote-validity" class="modern-input py-2 text-sm" placeholder="14 יום"></div>
-                    </div>
-                    <div><label class="text-[10px] font-bold text-slate-500 block mb-1">הערות נוספות:</label><textarea id="quote-notes" class="modern-input py-2 text-sm h-14" placeholder="תנאי תשלום, הערות משלוח..."></textarea></div>
-                </div>
-                <div class="p-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
-                    <div>
-                        <span id="quote-before-discount" class="text-[10px] text-slate-400 font-bold block"></span>
-                        <span id="quote-total-display" class="text-2xl font-black text-slate-900">₪0</span>
-                    </div>
-                    <button id="btn-generate-quote" onclick="submitNewQuote()" class="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">שמור והפק <i class="fa-solid fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
-        `);
-    }
-
-    if(!getEl('tab-shifts')) {
-        const tabPantry = getEl('tab-pantry');
-        if(tabPantry) tabPantry.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>`);
-    }
+    // מיקום כפתור שליחויות מיד אחרי כפתור המכירות (עובר למיקום הנכון בתפריט העליון)
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
-        if(tabBank) tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+        if(tabBank) {
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+        }
     }
+    if(!getEl('tab-deliveries')) {
+        const tabSales = getEl('tab-sales');
+        if(tabSales) {
+            tabSales.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+        }
+    }
+}
 
     if(!getEl('shift-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
@@ -4242,14 +4124,73 @@ function getDeliveryMeta(order) {
     } catch(e) { return null; }
 }
 
+// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח)
+function buildOrderLogHtml(status, createdAt) {
+    const createdTime = new Date(createdAt).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+    const isProcessing = ['processing', 'ready', 'shipped', 'completed'].includes(status);
+    const isReady = ['ready', 'shipped', 'completed'].includes(status);
+    const isShipped = ['shipped', 'completed'].includes(status);
+    const isCompleted = status === 'completed';
+
+    return `
+        <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
+            <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">מעקב סטטוסים (Log):</p>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
+                <span class="text-xs text-slate-600 font-bold">הזמנה התקבלה במערכת</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono">${createdTime}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500' : 'bg-slate-200'}"></div>
+                <span class="text-xs ${isProcessing ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">בטיפול במטבח/הכנה</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isProcessing ? 'V' : '---'}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
+                <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isReady ? 'V' : '---'}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
+                <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isShipped ? 'V' : '---'}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
+                <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isCompleted ? 'V' : '---'}</span>
+            </div>
+        </div>
+    `;
+}
+
+function toggleCardCollapse(cardId) {
+    const details = getEl(`order-details-${cardId}`);
+    const icon = getEl(`card-icon-${cardId}`);
+    if(details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    } else {
+        details.classList.add('hidden');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    }
+}
+
 function renderStoreOrders() {
     const list = getEl('store-orders-list');
     const statusFilter = val('store-orders-filter') || 'all';
     const typeFilter = val('store-orders-type-filter') || 'all';
+    const searchId = val('orders-search-id');
+
     let filteredOrders = storeOrdersCache;
+    
+    if (searchId) filteredOrders = filteredOrders.filter(o => String(o.id).includes(searchId));
     if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
+    
     if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
 
     let html = '';
@@ -4260,85 +4201,41 @@ function renderStoreOrders() {
         'shipped': { text: 'במשלוח 🚚', color: 'bg-purple-100 text-purple-700 border-purple-200' },
         'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } 
     };
+    
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
         const meta = getDeliveryMeta(o);
-        const deliveryTag = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta) ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1 border border-indigo-200"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md ml-1 border border-slate-200"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
+        const isDelivery = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta);
+        const deliveryTag = isDelivery ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1 border border-indigo-200"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md ml-1 border border-slate-200"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
         
-        html += `<div onclick="openStoreOrderModal(${o.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-3 cursor-pointer hover:bg-slate-50 transition"><div class="flex-1 pr-2"><h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4><p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p></div><span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span></div>`;
-    }); list.innerHTML = html;
-}
+        let deliveryData = {};
+        if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
 
-// --- מערכת קופונים ---
-let storeCouponsCache = [];
+        const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
 
-async function fetchStoreCoupons() {
-    try {
-        const res = await fetch(`${API}/store/coupons/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            storeCouponsCache = data.coupons || [];
-            renderStoreCoupons();
-        }
-    } catch(e) { console.error(e); }
-}
-
-function renderStoreCoupons() {
-    const list = getEl('store-coupons-list');
-    if (storeCouponsCache.length === 0) {
-        list.innerHTML = '<p class="text-[11px] text-slate-400 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">לא הוגדרו קופונים בחנות.</p>';
-        return;
-    }
-    
-    let html = '';
-    storeCouponsCache.forEach(c => {
-        const isExpired = c.valid_until && new Date(c.valid_until) < new Date();
-        const dateStr = c.valid_until ? new Date(c.valid_until).toLocaleDateString('he-IL') : 'ללא תפוגה';
-        const expiredTag = isExpired ? '<span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded ml-2">פג תוקף</span>' : '';
-        
         html += `
-        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm ${isExpired ? 'opacity-60' : ''}">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-50 text-indigo-700 font-mono font-bold px-3 py-1.5 rounded-lg text-sm border border-indigo-100">${safeStr(c.code)}</div>
-                <div class="flex flex-col">
-                    <span class="text-xs font-bold text-slate-800">${c.discount_pct}% הנחה ${expiredTag}</span>
-                    <span class="text-[10px] text-slate-500">תוקף: ${dateStr}</span>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 relative overflow-hidden fade-in">
+            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleCardCollapse('mng-${o.id}')">
+                <div class="flex-1 pr-2">
+                    <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
+                    <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
+                    <i id="card-icon-mng-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform"></i>
                 </div>
             </div>
-            <button onclick="deleteStoreCoupon(${c.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            
+            <div id="order-details-mng-${o.id}" class="hidden">
+                ${isDelivery ? `<div class="mt-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
+                ${buildOrderLogHtml(o.status, o.created_at)}
+                <div class="flex justify-end mt-4">
+                    <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full">ניהול ופרטים מלאים</button>
+                </div>
+            </div>
         </div>`;
-    });
+    }); 
     list.innerHTML = html;
-}
-
-async function createStoreCoupon() {
-    const code = val('coupon-code');
-    const discountPct = val('coupon-discount');
-    const validUntil = val('coupon-date');
-    
-    if (!code || !discountPct) return showToast('error', 'חובה להזין קוד ואחוז הנחה');
-    
-    try {
-        const res = await fetch(`${API}/store/coupons`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, code, discountPct, validUntil })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'קופון נוצר בהצלחה!');
-            getEl('coupon-code').value = ''; getEl('coupon-discount').value = ''; getEl('coupon-date').value = '';
-            fetchStoreCoupons();
-        } else { showToast('error', data.error || 'שגיאה ביצירת קופון'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-async function deleteStoreCoupon(id) {
-    if(!confirm('האם אתה בטוח שברצונך למחוק את הקופון?')) return;
-    try {
-        await fetch(`${API}/store/coupons/${id}`, { method: 'DELETE' });
-        showToast('success', 'קופון נמחק');
-        fetchStoreCoupons();
-    } catch(e) { showToast('error', 'שגיאה במחיקה'); }
 }
 
 function openStoreOrderModal(orderId) {
@@ -4351,7 +4248,6 @@ function openStoreOrderModal(orderId) {
     const targetEl = getEl('so-modal-target');
     if (targetEl) targetEl.innerText = order.target_datetime ? new Date(order.target_datetime).toLocaleString('he-IL') : 'לא נקבע';
     
-    // סינון פריטי המטא-דאטה מהתצוגה למנהל
     const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : [];
     let itemsHtml = '';
     if (rawItems.length > 0) {
@@ -6407,7 +6303,7 @@ async function analyzeFoodCostAI() {
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
 }
-// --- מסופון שליחים משופר ---
+// --- מסופון שליחים משופר (Dropdown UI) ---
 window.switchDeliveryTab = function(tab) {
     const views = ['active', 'transit', 'history'];
     views.forEach(v => {
@@ -6435,7 +6331,6 @@ window.loadCourierData = async function() {
         const searchId = val('courier-search-id');
         
         if (data && Array.isArray(data)) {
-            // זיהוי משלוח
             const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null);
 
             let filtered = data.filter(checkIsDelivery);
@@ -6474,68 +6369,50 @@ window.renderCourierList = function(type, orders, statusType) {
         const waMsg = encodeURIComponent(`היי ${safeStr(o.customer_name)}, השליח בדרך אליך! 🛵`);
         const waLink = `https://wa.me/${waPhone}?text=${waMsg}`;
 
-        const createdTime = new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-        
-        let logHtml = `
-            <div class="mt-4 pt-4 border-t border-slate-50 space-y-2">
-                <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">סטטוס הזמנה (Log):</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
-                    <span class="text-[11px] text-slate-600 font-medium">הזמנה התקבלה במערכת</span>
-                    <span class="text-[10px] text-slate-400 mr-auto font-mono">${createdTime}</span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full ${o.status !== 'new' ? 'bg-green-500' : 'bg-slate-300'}"></div>
-                    <span class="text-[11px] ${o.status !== 'new' ? 'text-slate-600' : 'text-slate-400'} font-medium">עברה לטיפול במטבח/חנות</span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full ${['ready', 'shipped', 'completed'].includes(o.status) ? 'bg-green-500' : 'bg-slate-300'}"></div>
-                    <span class="text-[11px] ${['ready', 'shipped', 'completed'].includes(o.status) ? 'text-slate-600' : 'text-slate-400'} font-medium">הזמנה מוכנה - ממתינה לשליח</span>
-                </div>
-                ${o.status === 'shipped' || o.status === 'completed' ? `
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                    <span class="text-[11px] text-blue-600 font-bold">השליח אסף את ההזמנה - בדרך ללקוח</span>
-                </div>` : ''}
-                ${o.status === 'completed' ? `
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full bg-green-600"></div>
-                    <span class="text-[11px] text-green-700 font-black">סופקה בהצלחה ללקוח ✅</span>
-                </div>` : ''}
-            </div>
-        `;
-
         let actionBtn = '';
         if (statusType === 'ready') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-4 py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-motorcycle"></i> יציאה למשלוח</button>`;
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'shipped')" class="w-full mt-4 py-3 bg-indigo-600 text-white font-black rounded-2xl shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-motorcycle"></i> יציאה למשלוח</button>`;
         } else if (statusType === 'shipped') {
-            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3.5 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה ללקוח</button>`;
+            actionBtn = `<button onclick="updateStoreOrderStatusCourier(${o.id}, 'completed')" class="w-full mt-4 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check-double"></i> אישור מסירה</button>`;
         }
 
         return `
-        <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm mb-4 relative overflow-hidden fade-in">
-            <div class="flex justify-between items-start">
+        <div class="bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm mb-4 relative overflow-hidden fade-in">
+            ${statusType === 'shipped' ? '<div class="absolute top-0 right-0 left-0 h-1 bg-blue-500 animate-pulse"></div>' : ''}
+            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleCardCollapse('cour-${o.id}')">
                 <div class="flex-1 pr-1">
                     <div class="flex items-center gap-2 mb-1">
                         <span class="bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">#${o.id}</span>
-                        <span class="text-[10px] text-slate-400 font-mono">${createdTime}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}</span>
                     </div>
-                    <h4 class="font-black text-slate-800 text-lg mb-1">${addr}</h4>
-                    <p class="text-xs font-bold text-slate-500">${safeStr(o.customer_name)} | <span dir="ltr">${safeStr(o.customer_phone)}</span></p>
+                    <h4 class="font-black text-slate-800 text-sm mb-0.5 truncate pr-1">${safeStr(deliveryData.street || 'כתובת')} ${safeStr(deliveryData.house || '')}</h4>
                 </div>
-                <div class="text-left"><span class="text-xl font-black text-slate-900">₪${o.total_amount}</span></div>
-            </div>
-
-            ${deliveryData.notes ? `<div class="mt-3 bg-amber-50 p-2.5 rounded-xl border border-amber-100 text-[11px] text-amber-900 font-medium"><i class="fa-solid fa-comment-dots ml-1"></i> ${safeStr(deliveryData.notes)}</div>` : ''}
-
-            <div class="grid grid-cols-3 gap-2 mt-4">
-                <a href="${waze}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-bold text-[10px] border border-blue-100 hover:bg-blue-100 transition"><i class="fa-brands fa-waze text-lg"></i> Waze</a>
-                <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-slate-50 text-slate-700 rounded-xl font-bold text-[10px] border border-slate-100 hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg"></i> חייג</a>
-                <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
+                <div class="flex items-center gap-3">
+                    <span class="font-black text-slate-900 text-base dir-ltr">₪${o.total_amount}</span>
+                    <i id="card-icon-cour-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform"></i>
+                </div>
             </div>
             
-            ${logHtml}
-            ${actionBtn}
+            <div id="order-details-cour-${o.id}" class="hidden">
+                <div class="mt-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100 flex items-start gap-2">
+                    <i class="fa-solid fa-location-dot mt-0.5"></i> 
+                    <div>
+                        <div class="leading-tight">${addr}</div>
+                        ${deliveryData.notes ? `<div class="text-[10px] text-amber-700 font-medium mt-1.5 pt-1.5 border-t border-indigo-200/50">${safeStr(deliveryData.notes)}</div>` : ''}
+                    </div>
+                </div>
+
+                <p class="text-xs font-bold text-slate-600 mt-3 text-center">${safeStr(o.customer_name)} | <span dir="ltr">${safeStr(o.customer_phone)}</span></p>
+
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                    <a href="${waze}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-bold text-[10px] border border-blue-100 hover:bg-blue-100 transition"><i class="fa-brands fa-waze text-lg"></i> Waze</a>
+                    <a href="tel:${o.customer_phone}" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-slate-50 text-slate-700 rounded-xl font-bold text-[10px] border border-slate-100 hover:bg-slate-100 transition"><i class="fa-solid fa-phone text-lg"></i> חייג</a>
+                    <a href="${waLink}" target="_blank" class="flex flex-col items-center justify-center gap-1 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-[10px] border border-[#25D366]/20 hover:bg-[#25D366]/20 transition"><i class="fa-brands fa-whatsapp text-lg"></i> הודעה</a>
+                </div>
+                
+                ${buildOrderLogHtml(o.status, o.created_at)}
+                ${actionBtn}
+            </div>
         </div>`;
     }).join('');
 };
