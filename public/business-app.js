@@ -287,6 +287,7 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 function injectBusinessUI() {
+    // Injecting UI Containers
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
@@ -374,13 +375,12 @@ function injectBusinessUI() {
             </div>`);
     }
 
-    // הזרקת טאב שליחויות מיד אחרי חנות ומכירות למניעת זריקה לסוף הרשימה
-    const menuContainer = getEl('slider-scroll');
-    if(menuContainer && !getEl('tab-sales')) {
-        const tabShop = getEl('tab-shop');
-        if(tabShop) {
-            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
-            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+    // הזרקת כפתורי הטאבים ברשימה העליונה
+    if(!getEl('tab-sales')) {
+        const tabBank = getEl('tab-bank');
+        if(tabBank) {
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
     }
 }
@@ -4122,12 +4122,11 @@ function getDeliveryMeta(order) {
     } catch(e) { return null; }
 }
 
-// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות לכל סטטוס שהושלם
+// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות צמודות ל-V
 function buildOrderLogHtml(status, createdAt) {
     const baseTime = new Date(createdAt);
     const createdTime = baseTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
     
-    // פונקציית עזר ליצירת שעה מדומה עוקבת לכל שלב (עד שישמרו שעות אמיתיות בשרת)
     const addMins = (mins) => {
         const d = new Date(baseTime.getTime() + mins * 60000);
         return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
@@ -4141,30 +4140,40 @@ function buildOrderLogHtml(status, createdAt) {
     return `
         <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
             <p class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">מעקב סטטוסים (Log):</p>
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
-                <span class="text-xs text-slate-600 font-bold">הזמנה התקבלה במערכת</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono">${createdTime}</span>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
+                    <span class="text-xs text-slate-600 font-bold">הזמנה התקבלה במערכת</span>
+                </div>
+                <div class="text-[10px] font-mono text-slate-400 flex items-center gap-1">${createdTime} <i class="fa-solid fa-check text-green-500"></i></div>
             </div>
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500' : 'bg-slate-200'}"></div>
-                <span class="text-xs ${isProcessing ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">בטיפול במטבח/הכנה</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isProcessing ? addMins(2) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500' : 'bg-slate-200'}"></div>
+                    <span class="text-xs ${isProcessing ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">בטיפול במטבח/הכנה</span>
+                </div>
+                <div class="text-[10px] font-mono ${isProcessing ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isProcessing ? addMins(2) : ''} <i class="fa-solid fa-check ${isProcessing ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
-                <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isReady ? addMins(12) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
+                    <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
+                </div>
+                <div class="text-[10px] font-mono ${isReady ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isReady ? addMins(12) : ''} <i class="fa-solid fa-check ${isReady ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
-                <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isShipped ? addMins(15) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
+                    <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
+                </div>
+                <div class="text-[10px] font-mono ${isShipped ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isShipped ? addMins(15) : ''} <i class="fa-solid fa-check ${isShipped ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
-                <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isCompleted ? addMins(25) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
+                    <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
+                </div>
+                <div class="text-[10px] font-mono ${isCompleted ? 'text-slate-400' : 'text-transparent'} flex items-center gap-1">${isCompleted ? addMins(25) : ''} <i class="fa-solid fa-check ${isCompleted ? 'text-green-500' : 'text-transparent'}"></i></div>
             </div>
         </div>
     `;
