@@ -287,6 +287,7 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 function injectBusinessUI() {
+    // Injecting UI Containers
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
@@ -320,7 +321,7 @@ function injectBusinessUI() {
                         </div>
                         <div class="relative mb-4 px-1">
                             <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מס' הזמנה, טלפון או שם..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
+                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה, שם לקוח או טלפון..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
@@ -340,6 +341,7 @@ function injectBusinessUI() {
                         </div>
                         <div id="store-catalog-list" class="space-y-3 pb-8"></div>
                     </div>
+                    
                     <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-settings" class="hidden space-y-4"></div>
                 </div>
@@ -350,7 +352,7 @@ function injectBusinessUI() {
         const contentSales2 = getEl('content-sales');
         if(contentSales2) contentSales2.insertAdjacentHTML('afterend', `
             <div id="content-deliveries" class="hidden">
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden mt-4 mx-1">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden mt-4">
                     <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-helmet-safety"></i> מסופון חלוקה</h3>
                     <p class="text-blue-100 text-xs opacity-90">ניהול פיזורים, ניווט ואישורי מסירה</p>
                     <i class="fa-solid fa-route absolute -left-4 -bottom-4 text-8xl text-white opacity-10 rotate-12"></i>
@@ -359,11 +361,11 @@ function injectBusinessUI() {
                 <div class="px-2 mb-4">
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש הזמנה (מספר, שם או טלפון)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
+                        <input type="text" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש הזמנה (לפי מספר, שם או טלפון)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
                     </div>
                 </div>
 
-                <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap mx-1">
+                <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
                     <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200">ממתין לאיסוף 📦</button>
                     <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">במשלוח 🛵</button>
                     <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריה ✅</button>
@@ -386,6 +388,16 @@ function injectBusinessUI() {
                 </div>
             </div>`);
     }
+
+    // הזרקת כפתורי הטאבים ברשימה העליונה
+    if(!getEl('tab-sales')) {
+        const tabBank = getEl('tab-bank');
+        if(tabBank) {
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+        }
+    }
+}
 
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
