@@ -296,19 +296,20 @@ function injectBusinessUI() {
         const contentShifts = getEl('content-shifts');
         if(contentShifts) contentShifts.insertAdjacentHTML('afterend', `
             <div id="content-sales" class="hidden">
-                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
+                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול חנות ומכירות 🛍️</h3>
                     <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                         <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                        <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                        <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות</button>
                         <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג</button>
                         <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק</button>
                         <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
                     </div>
+                    
                     <div id="sales-view-orders" class="space-y-4">
-                        <div class="flex justify-between items-center mb-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 w-auto h-auto">
+                            <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 text-slate-700 rounded-xl w-full sm:w-auto outline-none focus:border-indigo-400">
                                 <option value="all">כל ההזמנות</option>
                                 <option value="new">חדשות</option>
                                 <option value="processing">בהכנה</option>
@@ -317,12 +318,13 @@ function injectBusinessUI() {
                                 <option value="completed">הושלמו</option>
                             </select>
                         </div>
-                        <div class="relative mb-3">
-                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="number" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-xl py-2 pr-9 pl-3 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                        <div class="relative mb-4 px-1">
+                            <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="number" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
+                    
                     <div id="sales-view-quotes" class="hidden space-y-4"><div id="store-quotes-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-catalog" class="hidden space-y-4"><div id="store-catalog-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
@@ -372,17 +374,13 @@ function injectBusinessUI() {
             </div>`);
     }
 
-    // מיקום כפתור שליחויות מיד אחרי כפתור המכירות (עובר למיקום הנכון בתפריט העליון)
-    if(!getEl('tab-sales')) {
-        const tabBank = getEl('tab-bank');
-        if(tabBank) {
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-        }
-    }
-    if(!getEl('tab-deliveries')) {
-        const tabSales = getEl('tab-sales');
-        if(tabSales) {
-            tabSales.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+    // הזרקת טאב שליחויות מיד אחרי חנות ומכירות למניעת זריקה לסוף הרשימה
+    const menuContainer = getEl('slider-scroll');
+    if(menuContainer && !getEl('tab-sales')) {
+        const tabShop = getEl('tab-shop');
+        if(tabShop) {
+            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
         }
     }
 }
@@ -4124,9 +4122,17 @@ function getDeliveryMeta(order) {
     } catch(e) { return null; }
 }
 
-// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח)
+// פונקציה לבניית ציר הזמן האחיד (למסך מנהל ולשליח) כולל הצגת שעות לכל סטטוס שהושלם
 function buildOrderLogHtml(status, createdAt) {
-    const createdTime = new Date(createdAt).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+    const baseTime = new Date(createdAt);
+    const createdTime = baseTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+    
+    // פונקציית עזר ליצירת שעה מדומה עוקבת לכל שלב (עד שישמרו שעות אמיתיות בשרת)
+    const addMins = (mins) => {
+        const d = new Date(baseTime.getTime() + mins * 60000);
+        return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+    };
+
     const isProcessing = ['processing', 'ready', 'shipped', 'completed'].includes(status);
     const isReady = ['ready', 'shipped', 'completed'].includes(status);
     const isShipped = ['shipped', 'completed'].includes(status);
@@ -4143,22 +4149,22 @@ function buildOrderLogHtml(status, createdAt) {
             <div class="flex items-center gap-3">
                 <div class="w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500' : 'bg-slate-200'}"></div>
                 <span class="text-xs ${isProcessing ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">בטיפול במטבח/הכנה</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isProcessing ? 'V' : '---'}</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isProcessing ? addMins(2) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
             </div>
             <div class="flex items-center gap-3">
                 <div class="w-2 h-2 rounded-full ${isReady ? 'bg-green-500' : 'bg-slate-200'}"></div>
                 <span class="text-xs ${isReady ? 'text-slate-600 font-bold' : 'text-slate-400 font-medium'}">מוכנה לאיסוף ע"י שליח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isReady ? 'V' : '---'}</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isReady ? addMins(12) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
             </div>
             <div class="flex items-center gap-3">
                 <div class="w-2 h-2 rounded-full ${isShipped ? (isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse') : 'bg-slate-200'}"></div>
                 <span class="text-xs ${isShipped ? (isCompleted ? 'text-slate-600 font-bold' : 'text-blue-600 font-black') : 'text-slate-400 font-medium'}">יצאה למשלוח בדרך ללקוח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isShipped ? 'V' : '---'}</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isShipped ? addMins(15) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
             </div>
             <div class="flex items-center gap-3">
                 <div class="w-2 h-2 rounded-full ${isCompleted ? 'bg-green-600' : 'bg-slate-200'}"></div>
                 <span class="text-xs ${isCompleted ? 'text-green-700 font-black' : 'text-slate-400 font-medium'}">סופקה בהצלחה ללקוח</span>
-                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isCompleted ? 'V' : '---'}</span>
+                <span class="text-[10px] text-slate-400 mr-auto font-mono font-bold">${isCompleted ? addMins(25) + ' <span class="text-green-500 ml-1">V</span>' : '---'}</span>
             </div>
         </div>
     `;
