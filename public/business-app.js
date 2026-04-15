@@ -620,16 +620,22 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
-function switchTab(t) { 
-    // רשימה מעודכנת של כל הקונטיינרים - כולל deliveries
-    const allViews = ['feed','timeclock','shifts','shop','sales','customers','deliveries','pantry','bank','cashflow','budget','forecast','tasks','academy','community','members'];
-    
-    allViews.forEach(x => { 
-        const el = getEl(`content-${x}`); 
-        if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); 
-        if(btn) btn.classList.remove('tab-active'); 
-    }); 
+function switchTab(t) { 
+    ['feed','timeclock','shifts','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
+    
+    if (t === 'shop') try { renderShopList(); } catch(e) {}
+    if (t === 'pantry') try { renderPantry(); } catch(e) {}
+    if (t === 'forecast') try { renderForecast(); } catch(e) {}
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'deliveries') try { loadCourierData(); } catch(e) {}
+    if (t === 'sales') try { renderStoreOrders(); renderStoreCoupons(); } catch(e) {}
+    if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
+}
 
     const targetContent = getEl(`content-${t}`); 
     if(targetContent) targetContent.classList.remove('hidden'); 
@@ -6530,12 +6536,241 @@ window.updateCustomTabsByRoles = function() {
         }
     });
 };
+// ============================================================
+// --- FOOD COST MODULE ---
+// ============================================================
+let foodCostData = [];
+let foodCostPrices = {};
+let rbCurrentItem = null;
+let rbIngredients = [];
+let rbOverheads = [];
+
+async function fetchFoodCost() {
+    const list = getEl('fc-list');
+    if(!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin mr-1"></i> שואב נתוני עלות מחירונים...</p>';
+    
+    try {
+        const res = await fetch(`${API}/food-cost/${currentGroup.id}`);
+        const data = await res.json();
+        
+        if(data.success) {
+            foodCostData = data.catalog;
+            foodCostPrices = data.priceMap;
+            renderFoodCostList();
+        } else {
+            list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאה בטעינת נתונים</p>';
+        }
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת</p>';
+    }
+}
+
+function renderFoodCostList() {
+    const list = getEl('fc-list');
+    const query = val('fc-search').toLowerCase().trim();
+    
+    let filtered = foodCostData;
+    if (query) {
+        filtered = filtered.filter(item => item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query));
+    }
+    
+    if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-white rounded-xl border border-dashed">לא נמצאו מנות תואמות.</p>';
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(item => {
+        const fc = item.costs.foodCostPct;
+        let fcColor = 'text-green-600 bg-green-50 border-green-200';
+        let statusIcon = '<i class="fa-solid fa-check-circle"></i>';
+        
+        if (fc === 0 && item.costs.total === 0) {
+            fcColor = 'text-slate-500 bg-slate-100 border-slate-200';
+            statusIcon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        } else if (fc > 40) {
+            fcColor = 'text-red-600 bg-red-50 border-red-200';
+            statusIcon = '<i class="fa-solid fa-arrow-trend-down"></i> הפסדי';
+        } else if (fc > 30) {
+            fcColor = 'text-orange-600 bg-orange-50 border-orange-200';
+            statusIcon = '<i class="fa-solid fa-scale-balanced"></i> גבולי';
+        } else {
+            statusIcon = '<i class="fa-solid fa-arrow-trend-up"></i> רווחי';
+        }
+
+        html += `
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-3 flex flex-col hover:border-emerald-200 transition">
+            <div class="flex justify-between items-start mb-2 border-b border-slate-50 pb-2">
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(item.name)}</h4>
+                    <p class="text-[10px] text-slate-400">${safeStr(item.category)} | מכירה: ₪${parseFloat(item.price).toFixed(2)}</p>
+                </div>
+                <div class="text-left flex flex-col items-end">
+                    <span class="text-xs font-black ${fcColor.split(' ')[0]} bg-slate-50 px-2 py-1 rounded-lg border shadow-sm" dir="ltr">${fc > 0 ? fc.toFixed(1) + '%' : 'לא חושב'}</span>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-end mt-1">
+                <div class="flex gap-4 text-[10px] font-bold">
+                    <div class="flex flex-col"><span class="text-slate-400">עלות יצור</span><span class="text-slate-700 text-xs">₪${item.costs.total.toFixed(2)}</span></div>
+                    <div class="flex flex-col"><span class="text-slate-400">רווח גולמי</span><span class="text-green-600 text-xs">₪${item.costs.profit.toFixed(2)}</span></div>
+                </div>
+                <button onclick="openRecipeBuilder(${item.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-pen mr-1"></i> עץ מוצר</button>
+            </div>
+        </div>`;
+    });
+    
+    list.innerHTML = html;
+}
+
+function openRecipeBuilder(catalogId) {
+    const item = foodCostData.find(i => i.id === catalogId);
+    if(!item) return;
+    
+    rbCurrentItem = item;
+    rbIngredients = JSON.parse(JSON.stringify(item.ingredients));
+    rbOverheads = JSON.parse(JSON.stringify(item.overheads));
+    
+    getEl('rb-title').innerText = `עץ מוצר: ${item.name}`;
+    getEl('rb-sale-price').innerText = `₪${parseFloat(item.price).toFixed(2)}`;
+    getEl('rb-catalog-id').value = item.id;
+    
+    getEl('recipe-builder-modal').classList.remove('hidden');
+    refreshRBUI();
+}
+
+function closeRecipeBuilder() {
+    getEl('recipe-builder-modal').classList.add('hidden');
+    rbCurrentItem = null;
+}
+
+function addRBIngredient() {
+    const name = val('rb-add-ing-name');
+    const qty = parseFloat(val('rb-add-ing-qty'));
+    const unit = val('rb-add-ing-unit');
+    
+    if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
+    
+    const knownPrice = foodCostPrices[name] ? foodCostPrices[name].price : 0;
+    
+    rbIngredients.push({
+        ingredient_name: name,
+        quantity: qty,
+        unit: unit,
+        calculated_cost: knownPrice * qty,
+        known_price: knownPrice
+    });
+    
+    getEl('rb-add-ing-name').value = '';
+    getEl('rb-add-ing-qty').value = '';
+    refreshRBUI();
+}
+
+function removeRBIngredient(index) {
+    rbIngredients.splice(index, 1);
+    refreshRBUI();
+}
+
+function addRBOverhead() {
+    const name = val('rb-add-ovh-name');
+    const cost = parseFloat(val('rb-add-ovh-cost'));
+    
+    if(!name || !cost || cost <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
+    
+    rbOverheads.push({ name: name, cost: cost });
+    
+    getEl('rb-add-ovh-name').value = '';
+    getEl('rb-add-ovh-cost').value = '';
+    refreshRBUI();
+}
+
+function removeRBOverhead(index) {
+    rbOverheads.splice(index, 1);
+    refreshRBUI();
+}
+
+function refreshRBUI() {
+    const ingList = getEl('rb-ingredients-list');
+    const ovhList = getEl('rb-overhead-list');
+    
+    let ingTotal = 0;
+    if (rbIngredients.length === 0) {
+        ingList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">לא הוזנו חומרי גלם.</p>';
+    } else {
+        ingList.innerHTML = rbIngredients.map((ing, idx) => {
+            ingTotal += ing.calculated_cost;
+            const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
+            return `
+            <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                <div class="flex items-center gap-2"><button onclick="removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
+                <div class="font-mono text-slate-600">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
+            </div>`;
+        }).join('');
+    }
+    
+    let ovhTotal = 0;
+    if (rbOverheads.length === 0) {
+        ovhList.innerHTML = '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded text-center">אין הוצאות נלוות למנה זו.</p>';
+    } else {
+        ovhList.innerHTML = rbOverheads.map((ovh, idx) => {
+            ovhTotal += parseFloat(ovh.cost);
+            return `
+            <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                <div class="flex items-center gap-2"><button onclick="removeRBOverhead(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ovh.name)}</span></div>
+                <div class="font-mono text-slate-600">₪${parseFloat(ovh.cost).toFixed(2)}</div>
+            </div>`;
+        }).join('');
+    }
+    
+    const totalCost = ingTotal + ovhTotal;
+    const salePrice = parseFloat(rbCurrentItem.price) || 0;
+    const profit = salePrice - totalCost;
+    const fcPct = salePrice > 0 ? (totalCost / salePrice) * 100 : 0;
+    
+    getEl('rb-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
+    getEl('rb-gross-profit').innerText = `₪${profit.toFixed(2)}`;
+    getEl('rb-gross-profit').className = profit >= 0 ? 'text-green-600 font-black' : 'text-red-600 font-black';
+    
+    getEl('rb-fc-pct').innerText = fcPct.toFixed(1) + '%';
+    
+    const bar = getEl('rb-fc-bar');
+    bar.style.width = `${Math.min(100, fcPct)}%`;
+    if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
+    else if (fcPct > 30) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
+    else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
+}
+
+async function saveRecipeBuilder() {
+    const catalogId = val('rb-catalog-id');
+    const btn = document.querySelector('#recipe-builder-modal button.bg-slate-900');
+    btn.disabled = true; btn.innerText = 'שומר...';
+    
+    try {
+        const res = await fetch(`${API}/food-cost/recipe/${catalogId}`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ ingredients: rbIngredients, overheads: rbOverheads })
+        });
+        
+        if((await res.json()).success) {
+            showToast('success', 'עץ המוצר עודכן בהצלחה!');
+            closeRecipeBuilder();
+            fetchFoodCost(); // רענון הנתונים
+        } else {
+            showToast('error', 'שגיאה בשמירת הנתונים');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+    } finally {
+        btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+    }
+}
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.2.0 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
+        badge.innerHTML = 'גרסה 2.2.5 (באנר מבוסס תמונה ב-AI, מחיקת קבצים ומנוי PRO)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
