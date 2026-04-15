@@ -1425,17 +1425,17 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
         try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
         
         // טעינת נתוני רכש מראש כדי למנוע טאבים ריקים בפתיחה ראשונה
-        try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
-        try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
-        try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
+        try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
+        try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
+        try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
 
-        // טעינת לקוחות והצעות מחיר כדי שלא יהיו ריקים
+        // טעינת לקוחות והצעות מחיר מראש כדי שלא יהיו ריקים
         try { if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
         try { if (typeof fetchStoreQuotes === 'function') fetchStoreQuotes(); } catch(e) {}
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+    } catch(e) {
+        console.error("Fetch data error:", e);
+    }
 }
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
@@ -3711,6 +3711,28 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
+            // --- טעינת נתונים להדר העליון החדש (Cover Style) ---
+            const headerLogo = getEl('main-header-logo');
+            const headerLogoPlaceholder = getEl('main-header-logo-placeholder');
+            if (data.settings.logo_url) {
+                if (headerLogo) { headerLogo.src = data.settings.logo_url; headerLogo.classList.remove('hidden'); }
+                if (headerLogoPlaceholder) headerLogoPlaceholder.classList.add('hidden');
+            } else {
+                if (headerLogo) headerLogo.classList.add('hidden');
+                if (headerLogoPlaceholder) headerLogoPlaceholder.classList.remove('hidden');
+            }
+
+            const headerBanner = getEl('main-header-banner');
+            if (data.settings.banner_url && headerBanner) {
+                headerBanner.style.backgroundImage = `url('${data.settings.banner_url}')`;
+            }
+            
+            const headerSlogan = getEl('main-header-slogan');
+            if (headerSlogan) {
+                headerSlogan.innerText = data.settings.slogan || 'ניהול חכם לעסק שלך';
+            }
+            // ----------------------------------------------------
+
             if (data.settings.logo_url) {
                 document.querySelectorAll('[id="store-logo-preview"]').forEach(el => {
                     el.src = data.settings.logo_url;
