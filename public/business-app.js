@@ -287,7 +287,6 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 function injectBusinessUI() {
-    // Injecting UI Containers
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
@@ -321,13 +320,26 @@ function injectBusinessUI() {
                         </div>
                         <div class="relative mb-4 px-1">
                             <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="number" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מס' הזמנה, טלפון או שם..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
                     
-                    <div id="sales-view-quotes" class="hidden space-y-4"><div id="store-quotes-list" class="space-y-3 pb-8"></div></div>
-                    <div id="sales-view-catalog" class="hidden space-y-4"><div id="store-catalog-list" class="space-y-3 pb-8"></div></div>
+                    <div id="sales-view-quotes" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
+                            <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
+                        </div>
+                        <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+                    </div>
+                    
+                    <div id="sales-view-catalog" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">קטלוג מוצרים</h4>
+                            <button onclick="openStoreProductModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מוצר חדש</button>
+                        </div>
+                        <div id="store-catalog-list" class="space-y-3 pb-8"></div>
+                    </div>
                     <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-settings" class="hidden space-y-4"></div>
                 </div>
@@ -347,7 +359,7 @@ function injectBusinessUI() {
                 <div class="px-2 mb-4">
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="number" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש מהיר לפי מספר הזמנה..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
+                        <input type="text" id="courier-search-id" oninput="loadCourierData()" placeholder="חיפוש הזמנה (מספר, שם או טלפון)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-blue-500 transition">
                     </div>
                 </div>
 
@@ -374,6 +386,16 @@ function injectBusinessUI() {
                 </div>
             </div>`);
     }
+
+    const menuContainer = getEl('slider-scroll');
+    if(menuContainer && !getEl('tab-sales')) {
+        const tabShop = getEl('tab-shop');
+        if(tabShop) {
+            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+            tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+        }
+    }
+}
 
     // הזרקת כפתורי הטאבים ברשימה העליונה
     if(!getEl('tab-sales')) {
