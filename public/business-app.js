@@ -4237,28 +4237,30 @@ function toggleCardCollapse(cardId) {
 }
 
 function renderStoreOrders() {
-    const list = getEl('store-orders-list');
-    const statusFilter = val('store-orders-filter') || 'all';
-    const typeFilter = val('store-orders-type-filter') || 'all';
-    const searchId = val('orders-search-id');
+    const list = getEl('store-orders-list');
+    const statusFilter = val('store-orders-filter') || 'all';
+    const typeFilter = val('store-orders-type-filter') || 'all';
+    const searchId = val('orders-search-id');
+    const storeOrdersSearch = val('store-orders-search');
 
-    let filteredOrders = storeOrdersCache;
-    
-    if (searchId) {
-        const s = searchId.toLowerCase();
-        filteredOrders = filteredOrders.filter(o => 
-            String(o.id).includes(s) || 
-            (o.customer_phone && String(o.customer_phone).includes(s)) ||
-            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
-        );
-    }
-    
-    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
-    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
-    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
-    
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
+    let filteredOrders = storeOrdersCache;
+    
+    const activeSearch = storeOrdersSearch || searchId;
 
+    if (activeSearch) {
+        const s = activeSearch.toLowerCase();
+        filteredOrders = filteredOrders.filter(o => 
+            String(o.id).includes(s) || 
+            (o.customer_phone && String(o.customer_phone).includes(s)) ||
+            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
+        );
+    }
+    
+    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
+    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
+    
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
