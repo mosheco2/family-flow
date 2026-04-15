@@ -1425,13 +1425,17 @@ try { if (typeof buildAndRenderFeed === 'function') buildAndRenderFeed(); } catc
         try { if (typeof loadBizCommunities === 'function') loadBizCommunities(); } catch(e) {} 
         
         // טעינת נתוני רכש מראש כדי למנוע טאבים ריקים בפתיחה ראשונה
-        try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
-        try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
-        try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
+        try { if (typeof fetchSuppliers === 'function') fetchSuppliers(); } catch(e) {}
+        try { if (typeof fetchB2BCatalog === 'function') fetchB2BCatalog(); } catch(e) {}
+        try { if (typeof fetchB2BOrders === 'function') fetchB2BOrders(); } catch(e) {}
 
-    } catch(e) {
-        console.error("Fetch data error:", e);
-    }
+        // טעינת לקוחות והצעות מחיר כדי שלא יהיו ריקים
+        try { if (typeof fetchStoreCustomers === 'function') fetchStoreCustomers(); } catch(e) {}
+        try { if (typeof fetchStoreQuotes === 'function') fetchStoreQuotes(); } catch(e) {}
+
+    } catch(e) {
+        console.error("Fetch data error:", e);
+    }
 }
 function showAIModal(title, text) {
     getEl('familai-advisor-modal').classList.remove('hidden'); getEl('familai-modal-subtitle').innerText = title;
@@ -1537,6 +1541,7 @@ async function generateAITasks() {
         if(!topic) return showToast('error', 'תארו בקצרה את הפרויקט...');
         btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפרק למשימות...';
         try {
+try {
             const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic + " (בסביבת עבודה ארגונית)", groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success && data.tasks && data.tasks.length > 0) {
@@ -5780,7 +5785,7 @@ async function submitReceiveGoods() {
 // --- ONBOARDING WIZARD (אשף הקמה לעסקים) ---
 // ==========================================
 let currentWizardStep = 1;
-let wizardProducts = [];
+wizardProducts = []; // כבר מוגדר בראש הקובץ, רק מאפסים פה
 
 function showOnboardingWizard() {
     if (document.getElementById('onboarding-wizard-modal')) {
