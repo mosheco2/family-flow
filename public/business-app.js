@@ -1553,7 +1553,6 @@ try {
                 resultsContainer.classList.remove('hidden'); fetchData();
             } else showToast('error', 'מערכת ה-AI עמוסה כרגע. אנא המתינו ונסו שוב.');
         } catch(e) { showToast('error', 'תקלה בתקשורת עם השרת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> הצע תכנית עבודה'; }
-});
 function selectAITask(title, reward) { getEl('task-title').value = title; getEl('task-reward').value = reward; setTaskMode('manual'); }
 
 async function submitTask() { 
