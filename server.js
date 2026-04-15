@@ -1992,6 +1992,36 @@ app.get('/api/store/customers/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/store/customers', async (req, res) => {
+    try {
+        const { groupId, name, phone, email, businessId, notes } = req.body;
+        const result = await pool.query(
+            `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP) RETURNING id`,
+            [groupId, name, phone || '', email || '', businessId || '', notes || '']
+        );
+        res.json({ success: true, customerId: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/store/customers/:id', async (req, res) => {
+    try {
+        const { name, phone, email, businessId, notes } = req.body;
+        await pool.query(
+            `UPDATE store_customers SET name=$1, phone=$2, email=$3, business_id=$4, notes=$5 WHERE id=$6`,
+            [name, phone || '', email || '', businessId || '', notes || '', req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/store/customers/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM store_customers WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/store/customers/:id', async (req, res) => {
     try {
         const { name, phone, email, businessId, notes } = req.body;
