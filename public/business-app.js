@@ -1060,6 +1060,14 @@ function enforcePermissions() {
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none') switchTab('feed');
     });
+
+    // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
+    const scrollContainer = getEl('slider-scroll');
+    const tabSales = getEl('tab-sales');
+    const tabDeliveries = getEl('tab-deliveries');
+    if (scrollContainer && tabSales && tabDeliveries) {
+        scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
+    }
     
     if (!isAdmin) {
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
