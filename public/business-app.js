@@ -407,7 +407,6 @@ function injectBusinessUI() {
             tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
         }
     }
-}
 
     if(!getEl('shift-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
