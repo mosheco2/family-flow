@@ -403,22 +403,147 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
-function switchTab(t) { 
-    ['feed','tasks','shop','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-    }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
-    else { try { renderShopList(); } catch(e) {} }
-    
-    if (t === 'pantry') try { renderPantry(); } catch(e) {}
-    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
-    if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
-    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
+function switchTab(t) { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
+    
+    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    else { try { renderShopList(); } catch(e) {} }
+    
+    if (t === 'pantry') try { renderPantry(); } catch(e) {}
+    if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
+    if (t === 'forecast') try { renderForecast(); } catch(e) {}
+    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
+    if (t === 'community') try { fetchCommunityData(); } catch(e) {}
+    if (t === 'myorders') try { fetchMyOrders(); } catch(e) {}
+}
+
+let myOrdersCache = [];
+
+async function fetchMyOrders() {
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">טוען הזמנות מהעסקים... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
+    
+    try {
+        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            myOrdersCache = data.orders || [];
+            renderMyOrders();
+        } else {
+            list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה בטעינת ההזמנות'}</p>`;
+        }
+    } catch (e) {
+        list.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאת תקשורת מול השרת</p>';
+    }
+}
+
+function renderMyOrders() {
+    const list = getEl('my-orders-list');
+    if (!list) return;
+    
+    if (myOrdersCache.length === 0) {
+        list.innerHTML = `
+        <div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center shadow-sm">
+            <i class="fa-solid fa-basket-shopping text-4xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-500">אין לכם הזמנות פעילות מעסקים מקומיים.</p>
+            <p class="text-xs text-slate-400 mt-1">כנסו לקהילה והתחילו להנות ממשלוחים והטבות!</p>
+        </div>`;
+        return;
+    }
+
+    let html = '';
+    myOrdersCache.forEach(o => {
+        let statusColor = '';
+        let statusText = '';
+        let progressPct = 0;
+        let statusIcon = '';
+        
+        switch(o.status) {
+            case 'new': 
+                statusColor = 'border-blue-200 bg-blue-50'; 
+                statusText = 'התקבל בעסק'; 
+                progressPct = 25; 
+                statusIcon = 'fa-clock';
+                break;
+            case 'processing': 
+                statusColor = 'border-orange-200 bg-orange-50'; 
+                statusText = 'באריזה / הכנה'; 
+                progressPct = 50; 
+                statusIcon = 'fa-box';
+                break;
+            case 'ready': 
+                statusColor = 'border-purple-200 bg-purple-50'; 
+                statusText = 'מוכן לאיסוף'; 
+                progressPct = 75; 
+                statusIcon = 'fa-bag-shopping';
+                break;
+            case 'shipped': 
+                statusColor = 'border-indigo-200 bg-indigo-50'; 
+                statusText = 'בדרך אליך! 🛵'; 
+                progressPct = 90; 
+                statusIcon = 'fa-motorcycle';
+                break;
+            case 'completed': 
+                statusColor = 'border-green-200 bg-green-50'; 
+                statusText = 'הושלם ונמסר'; 
+                progressPct = 100; 
+                statusIcon = 'fa-check-double';
+                break;
+            default: 
+                statusColor = 'border-slate-200 bg-slate-50'; 
+                statusText = 'בטיפול'; 
+                progressPct = 10;
+                statusIcon = 'fa-spinner fa-spin';
+        }
+
+        const dateStr = new Date(o.created_at).toLocaleDateString('he-IL', {hour: '2-digit', minute:'2-digit'});
+        
+        html += `
+        <div class="bg-white rounded-2xl shadow-sm border ${statusColor} overflow-hidden transition-all hover:shadow-md cursor-pointer" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')">
+            <div class="p-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-400 shadow-sm shrink-0 border border-slate-100">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(o.store_name || 'עסק מקומי')}</h4>
+                        <p class="text-[10px] text-slate-500"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} • ${dateStr}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="font-black text-slate-800 dir-ltr text-sm">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                    <span class="text-[9px] text-slate-400 font-mono tracking-widest mt-0.5">#${o.id}</span>
+                </div>
+            </div>
+            
+            <div id="order-details-${o.id}" class="hidden border-t border-slate-100/50 bg-white/50 p-4">
+                <div class="mb-4">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                        <span>התקבל</span>
+                        <span>בהכנה</span>
+                        <span>במשלוח</span>
+                        <span>נמסר</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden shadow-inner">
+                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-1000" style="width: ${progressPct}%"></div>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p class="font-bold mb-2">פירוט ההזמנה:</p>
+                    <div class="whitespace-pre-line leading-relaxed">${safeStr(o.items_json)}</div>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    list.innerHTML = html;
 }
 
 function updateBatteryUI() {
