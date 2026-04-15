@@ -97,14 +97,13 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
-      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e) {}
-      
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
-
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e) {}
+      
+      try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
       client.release();
@@ -1638,35 +1637,35 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 });
 
 app.post('/api/store/settings', async (req, res) => {
-    try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee } = req.body;
-        
-        // וידוא שהעמודות קיימות, כולל תמיכה בבאנר החדש ודמי משלוח
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+    try {
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee } = req.body;
+        
+        // וידוא שהעמודות קיימות, כולל תמיכה בבאנר החדש ודמי משלוח
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
 
-        await pool.query(`
-            INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
-            ON CONFLICT (group_id) DO UPDATE SET 
-                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
-                logo_url=COALESCE($8, store_settings.logo_url), 
-                banner_url=COALESCE($9, store_settings.banner_url),
-                open_time=$10, close_time=$11, whatsapp_number=$12, delivery_fee=$13
-        `, [
-            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            logoUrl, bannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0
-        ]);
-        
-        res.json({ success: true });
-    } catch(e) { 
-        console.error("Error saving store settings:", e);
-        res.status(500).json({ error: e.message }); 
-    }
+        await pool.query(`
+            INSERT INTO store_settings (
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+            ON CONFLICT (group_id) DO UPDATE SET 
+                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
+                logo_url=COALESCE($8, store_settings.logo_url), 
+                banner_url=COALESCE($9, store_settings.banner_url),
+                open_time=$10, close_time=$11, whatsapp_number=$12, delivery_fee=$13
+        `, [
+            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
+            logoUrl, bannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0
+        ]);
+        
+        res.json({ success: true });
+    } catch(e) { 
+        console.error("Error saving store settings:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 app.post('/api/store/settings/presets', async (req, res) => {
     try {
@@ -1779,22 +1778,35 @@ app.post('/api/store/orders', async (req, res) => {
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
         
+        // נוודא שהעמודות החדשות קיימות בטבלה כדי למנוע קריסה
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
+        
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
+        const actualDeliveryFee = parseFloat(deliveryFee) || 0;
+        const isDeliv = isDelivery === true || isDelivery === 'true';
         
         const oRes = await dbClient.query(
             'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8) RETURNING id', 
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, 'new', isDelivery || false, parseFloat(deliveryFee)||0, deliveryDetailsStr]
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, 'new', isDeliv, actualDeliveryFee, deliveryDetailsStr]
         );
         const orderId = oRes.rows[0].id;
         
         let itemsHtmlList = '';
+        // נשמור את פריטי ההזמנה גם בעמודת items כ-JSONB כדי שהשליח יראה אותם וגם בטבלת store_order_items
+        await dbClient.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
+        
         for (let item of items) {
+            // התעלמות מפריט מטא של משלוח אם נשלח בטעות
+            if (item.catalogId === 999999 || item.is_delivery_metadata) continue;
+            
             await dbClient.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)', [orderId, item.catalogId, item.name, item.quantity, item.price]);
             itemsHtmlList += `<li>${item.name} - כמות: ${item.quantity} - ₪${item.price}</li>`;
         }
         
-        if (isDelivery && deliveryFee > 0) {
-            itemsHtmlList += `<li><strong>דמי משלוח</strong> - ₪${deliveryFee}</li>`;
+        if (isDeliv && actualDeliveryFee > 0) {
+            itemsHtmlList += `<li><strong>דמי משלוח</strong> - ₪${actualDeliveryFee}</li>`;
         }
         
         await dbClient.query('COMMIT');
@@ -1816,7 +1828,7 @@ app.post('/api/store/orders', async (req, res) => {
         
         const gRes = await pool.query('SELECT admin_email, name FROM family_groups WHERE id=$1', [groupId]);
         if(gRes.rows.length > 0 && gRes.rows[0].admin_email) {
-            const deliveryHtml = isDelivery ? `<p style="margin-top: 10px; padding: 10px; background: #e0e7ff; border-radius: 8px;"><strong>כתובת למשלוח:</strong> ${deliveryDetails?.street || ''} ${deliveryDetails?.house || ''}, ${deliveryDetails?.city || ''}</p>` : '';
+            const deliveryHtml = isDeliv ? `<p style="margin-top: 10px; padding: 10px; background: #e0e7ff; border-radius: 8px;"><strong>כתובת למשלוח:</strong> ${deliveryDetails?.street || ''} ${deliveryDetails?.house || ''}, ${deliveryDetails?.city || ''}</p>` : '';
             const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
                 <h2 style="color:#0f172a;">הזמנה חדשה בחנות שלך! 🛍️</h2>
                 <p>התקבלה הזמנה חדשה מאת: <strong>${customerName}</strong> (טלפון: ${customerPhone})</p>
