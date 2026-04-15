@@ -3576,10 +3576,10 @@ async function openEditQuoteModal(id) {
 }
 // === Marketing (Promotions & Coupons) ===
 async function fetchStoreMarketing() {
-    fetchStoreCoupons();
+    // השורה הבעייתית הוסרה מכאן.
+    // fetchStoreCoupons();
     fetchStorePromotions();
 }
-
 async function fetchStorePromotions() {
     try {
         const res = await fetch(`${API}/store/promotions/${currentGroup.id}`);
@@ -3792,21 +3792,79 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
-            // --- טעינת נתונים להדר העליון החדש ---
-            if (data.settings.logo_url) {
-                // Desktop
-                const deskLogo = getEl('main-header-logo-desktop');
-                const deskPlace = getEl('main-header-logo-placeholder-desktop');
-                if(deskLogo) { deskLogo.src = data.settings.logo_url; deskLogo.classList.remove('hidden'); }
-                if(deskPlace) deskPlace.classList.add('hidden');
-                
-                // Mobile
-                const mobLogo = getEl('main-header-logo-mobile');
-                const mobPlace = getEl('main-header-logo-placeholder-mobile');
-                if(mobLogo) { mobLogo.src = data.settings.logo_url; mobLogo.classList.remove('hidden'); }
-                if(mobPlace) mobPlace.classList.add('hidden');
+            // --- טיפול חכם בלוגו ---
+            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
+            
+            // העלמת או הצגת הלוגו בתפריט העליון (Desktop)
+            const deskLogo = getEl('main-header-logo-desktop');
+            const deskPlace = getEl('main-header-logo-placeholder-desktop');
+            if (deskLogo && deskPlace) {
+                if (hasLogo) {
+                    deskLogo.src = data.settings.logo_url; 
+                    deskLogo.style.display = 'block'; 
+                    deskLogo.classList.remove('hidden');
+                    deskPlace.style.display = 'none'; 
+                    deskPlace.classList.add('hidden');
+                } else {
+                    deskLogo.src = ''; 
+                    deskLogo.style.display = 'none'; 
+                    deskLogo.classList.add('hidden');
+                    deskPlace.style.display = 'flex'; 
+                    deskPlace.classList.remove('hidden');
+                }
             }
 
+            // העלמת או הצגת הלוגו בתפריט העליון (Mobile)
+            const mobLogo = getEl('main-header-logo-mobile');
+            const mobPlace = getEl('main-header-logo-placeholder-mobile');
+            if (mobLogo && mobPlace) {
+                if (hasLogo) {
+                    mobLogo.src = data.settings.logo_url; 
+                    mobLogo.style.display = 'block'; 
+                    mobLogo.classList.remove('hidden');
+                    mobPlace.style.display = 'none'; 
+                    mobPlace.classList.add('hidden');
+                } else {
+                    mobLogo.src = ''; 
+                    mobLogo.style.display = 'none'; 
+                    mobLogo.classList.add('hidden');
+                    mobPlace.style.display = 'flex'; 
+                    mobPlace.classList.remove('hidden');
+                }
+            }
+            
+            // עדכון הלוגו בתצוגות הניהול / הגדרות החנות
+            if (hasLogo) {
+                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => {
+                    el.src = data.settings.logo_url; el.classList.remove('hidden'); el.style.display = 'block';
+                });
+                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
+                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = '');
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            // --- טיפול חכם בבאנר רקע ---
+            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
+            const headerBanner = getEl('main-header-banner');
+            
+            if (hasBanner) {
+                if(headerBanner) headerBanner.style.backgroundImage = `url('${data.settings.banner_url}')`;
+                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
+                    el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block';
+                });
+                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
+            } else {
+                if(headerBanner) headerBanner.style.backgroundImage = `none`;
+                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
+                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = '');
+            }
             const headerBanner = getEl('main-header-banner');
             if (data.settings.banner_url && headerBanner) {
                 headerBanner.style.backgroundImage = `url('${data.settings.banner_url}')`;
