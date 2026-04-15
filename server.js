@@ -1907,15 +1907,12 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
         if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
         const familyGroupId = uRes.rows[0].group_id;
 
-        // אנחנו שולפים הזמנות שיש להן את ה-family_group_id (אם קיים)
-        // או מקשרים דרך מספר טלפון אם רשום. למען הפשטות, בשלב זה כיוון שאנחנו מייצרים API 
-        // אנו נשלוף רק אם המשפחה מקושרת או שהיא שייכת לאותו group_id (אם הלקוח הזמין).
-        // כדי שהלקוח באמת יראה הזמנות, נשלוף את כל ההזמנות שבהן ה-family_group_id הוא ה-ID שלו.
+        // שולפים את כל ההזמנות של המשפחה - כולל הצעות מחיר, איסוף עצמי ומשלוחים
         const orders = await pool.query(`
             SELECT so.*, fg.name as store_name 
             FROM store_orders so 
             JOIN family_groups fg ON so.group_id = fg.id 
-            WHERE so.family_group_id = $1 AND so.status != 'quote' 
+            WHERE so.family_group_id = $1
             ORDER BY so.created_at DESC
         `, [familyGroupId]);
 
