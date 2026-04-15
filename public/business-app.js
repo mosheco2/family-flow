@@ -667,7 +667,7 @@ function switchTab(t) { 
     if (t === 'bank') try { fetchLoans(); } catch(e) {}
     if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
-}
+
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
     indicator.classList.remove('hidden', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-purple-100', 'text-purple-600', 'border-purple-200', 'bg-red-100', 'text-red-600', 'border-red-200');
