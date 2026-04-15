@@ -745,6 +745,18 @@ async function loadDashboard() {
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
+        // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
+        setTimeout(() => {
+            const scrollContainer = getEl('slider-scroll');
+            const tabSales = getEl('tab-sales');
+            const tabDeliveries = getEl('tab-deliveries');
+            if (scrollContainer && tabSales && tabDeliveries) {
+                // העברת אלמנט שליחויות אלמנט אחד אחרי מכירות וחנות
+                scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
+            }
+        }, 150);
+        // =========================================================================
+
         const isAdmin = currentUser.role === 'ADMIN';
         if(isAdmin) { 
             ['admin-panel','btn-add-task','budget-filter','bank-admin-view','academy-admin-view','btn-scan-receipt','admin-shop-tools','btn-budget-insight', 'btn-pantry-insight', 'admin-tasks-hint', 'profile-upgrade-section', 'admin-members-tools', 'timeclock-admin-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
