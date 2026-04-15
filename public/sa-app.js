@@ -84,7 +84,9 @@ async function loadSAData() {
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
 
         const setVal = (id, v) => { const e = getEl(id); if (e) e.value = v || ''; };
-        setVal('sa-welcome-msg', data.welcomeMsg);
+        setVal('sa-new-username', data.saUsername);
+        setVal('sa-new-email', data.saEmail);
+        setVal('sa-welcome-msg', data.welcomeMsg);
         setVal('sa-biz-welcome-msg', data.businessWelcomeMsg);
         setVal('sa-banner-top-text', data.adBannerTextTop);
         setVal('sa-banner-top-link', data.adBannerLinkTop);
@@ -123,19 +125,18 @@ async function loadSAData() {
 }
 
 async function updateSACredentials() {
-    const newUsername = val('sa-new-username');
-    const newPassword = val('sa-new-password');
-    if (!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
-    if (!confirm('האם אתה בטוח שברצונך לשנות את פרטי הגישה של המנהל הראשי?')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword }) });
-        const data = await res.json();
-        if (data.success) {
-            showToast('success', 'פרטי ההתחברות שונו בהצלחה!');
-            getEl('sa-new-username').value = '';
-            getEl('sa-new-password').value = '';
-        } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
-    } catch (e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+    const newUsername = val('sa-new-username');
+    const newPassword = val('sa-new-password');
+    const newEmail = val('sa-new-email');
+    if (!newUsername || !newPassword) return showToast('error', 'יש להזין שם משתמש וסיסמה חדשים');
+    if (!confirm('האם אתה בטוח שברצונך לשנות את פרטי המנהל הראשי?')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/credentials`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ newUsername, newPassword, newEmail }) });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'פרטי המנהל הראשי עודכנו בהצלחה!');
+        } else { showToast('error', data.error || 'שגיאה בעדכון פרטים'); }
+    } catch (e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 async function saveAllBanners() {
@@ -201,9 +202,9 @@ function renderSAGroups() {
             </div>
             <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
                 <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
-                    <div class="flex gap-2">
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך שם</button>
+                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
+                    <div class="flex gap-2">
+                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${proToggleBtn}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                     </div>
@@ -251,24 +252,26 @@ async function saTogglePremium(id, enable) {
     }
 }
 
-function openSAEditGroupModal(id, name) {
-    getEl('sa-edit-group-id').value = id;
-    getEl('sa-edit-group-name').value = name;
-    getEl('sa-edit-group-modal').classList.remove('hidden');
+function openSAEditGroupModal(id, name, email) {
+    getEl('sa-edit-group-id').value = id;
+    getEl('sa-edit-group-name').value = name;
+    getEl('sa-edit-group-email').value = email || '';
+    getEl('sa-edit-group-modal').classList.remove('hidden');
 }
 
 async function saveSAEditGroup() {
-    const id = val('sa-edit-group-id');
-    const name = val('sa-edit-group-name');
-    if (!name) return showToast('error', 'שם לא יכול להיות ריק');
-    try {
-        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-        if ((await res.json()).success) {
-            showToast('success', 'שם עודכן בהצלחה');
-            getEl('sa-edit-group-modal').classList.add('hidden');
-            loadSAData();
-        } else showToast('error', 'שגיאה בעדכון השם');
-    } catch (e) { showToast('error', 'שגיאת רשת'); }
+    const id = val('sa-edit-group-id');
+    const name = val('sa-edit-group-name');
+    const adminEmail = val('sa-edit-group-email');
+    if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
+    try {
+        const res = await fetch(`${API}/sa/groups/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken }, body: JSON.stringify({ name, adminEmail }) });
+        if ((await res.json()).success) {
+            showToast('success', 'פרטי הסביבה עודכנו בהצלחה');
+            getEl('sa-edit-group-modal').classList.add('hidden');
+            loadSAData();
+        } else showToast('error', 'שגיאה בעדכון הנתונים');
+    } catch (e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function openSAEditUserModal(id, nickname) {
