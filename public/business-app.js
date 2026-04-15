@@ -2908,8 +2908,30 @@ window.switchCustomerTab = async function(tab) {
 };
 
 window.openCustomerModal = function(id = null) {
-    const modal = getEl('customer-modal');
-    if (!modal) return;
+    let modal = getEl('customer-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
+                <button onclick="document.getElementById('customer-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3">הוספת לקוח חדש</h3>
+                <input type="hidden" id="cust-id">
+                <div class="space-y-3">
+                    <div><label class="text-xs font-bold text-slate-500">שם לקוח / עסק (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white"></div>
+                    <div><label class="text-xs font-bold text-slate-500">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label class="text-xs font-bold text-slate-500">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm bg-white h-20"></textarea></div>
+                </div>
+                <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button id="btn-submit-customer" onclick="submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
+                </div>
+            </div>
+        </div>
+        `);
+        modal = getEl('customer-modal');
+    }
     
     switchCustomerTab('details');
 
@@ -2939,7 +2961,6 @@ window.openCustomerModal = function(id = null) {
     }
     modal.classList.remove('hidden');
 };
-
 window.submitTargetDatetime = async function() {
     const datetime = getEl('target-datetime-input').value;
     const finalDatetime = datetime ? datetime.replace('T', ' ') : null; 
