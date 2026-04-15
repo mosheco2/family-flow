@@ -724,26 +724,30 @@
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
-                                <div class="flex flex-col gap-2 mb-2">
-                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                                    <div class="flex gap-2">
-                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
-                                            <option value="all">כל הסוגים</option>
-                                            <option value="from_store">הזמנת חנות</option>
-                                            <option value="from_quote">הזמנת לקוח (מהצעה)</option>
-                                        </select>
-                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
-                                            <option value="all">כל הסטטוסים</option>
-                                            <option value="new">חדשות</option>
-                                            <option value="processing">בהכנה</option>
-                                            <option value="ready">מוכנות</option>
-                                            <option value="shipped">במשלוח</option>
-                                            <option value="completed">הושלמו</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div id="store-orders-list" class="space-y-3 pb-8"></div>
-                            </div>
+                                <div class="flex flex-col gap-2 mb-2">
+                                    <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
+                                    <div class="relative w-full">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                                        <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-2 pr-8 text-xs bg-white shadow-sm border-slate-200" placeholder="חיפוש לפי שם לקוח או מס' הזמנה...">
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <select id="store-orders-type-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                            <option value="all">כל הסוגים</option>
+                                            <option value="from_store">הזמנת חנות</option>
+                                            <option value="from_quote">הזמנת לקוח (מהצעה)</option>
+                                        </select>
+                                        <select id="store-orders-filter" onchange="renderStoreOrders()" class="modern-input py-1 px-2 text-xs bg-slate-50 flex-1 h-auto">
+                                            <option value="all">כל הסטטוסים</option>
+                                            <option value="new">חדשות</option>
+                                            <option value="processing">בהכנה</option>
+                                            <option value="ready">מוכנות</option>
+                                            <option value="shipped">במשלוח</option>
+                                            <option value="completed">הושלמו</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="store-orders-list" class="space-y-3 pb-8"></div>
+                            </div>
 
                             <div id="sales-view-catalog" class="hidden space-y-4">
                                 <div class="flex justify-between items-center mb-4">
