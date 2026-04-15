@@ -22,32 +22,31 @@ let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
 let isPunchedIn = false;
 
-// איחוד כל משתני המודולים למעלה כדי למנוע שגיאות Initialization
-let storeCatalogCache = [];
-let storeOrdersCache = [];
-let currentModifiersUI = []; 
-let storeModifierPresets = [];
-let currentStoreOrderId = null;
-let storeQuotesCache = [];
-let storeCustomersCache = [];
-let storePromotionsCache = [];
+var storeCatalogCache = [];
+var storeOrdersCache = [];
+var currentModifiersUI = []; 
+var storeModifierPresets = [];
+var currentStoreOrderId = null;
+var storeQuotesCache = [];
+var storeCustomersCache = [];
+var storePromotionsCache = [];
 
-let suppliersList = [];
-let currentSupplierProducts = [];
-let b2bCatalogCache = [];
-let b2bCart = {}; 
-let b2bOrdersHistory = [];
+var suppliersList = [];
+var currentSupplierProducts = [];
+var b2bCatalogCache = [];
+var b2bCart = {}; 
+var b2bOrdersHistory = [];
 
-let myConnectedCommunitiesCache = [];
-let myCommunityBusinessesCache = [];
-let myInitiativesCache = [];
-let bizAvailableCommCache = [];
+var myConnectedCommunitiesCache = [];
+var myCommunityBusinessesCache = [];
+var myInitiativesCache = [];
+var bizAvailableCommCache = [];
 
-let foodCostData = [];
-let foodCostPrices = {};
-let rbCurrentItem = null;
-let rbIngredients = [];
-let rbOverheads = [];
+var foodCostData = [];
+var foodCostPrices = {};
+var rbCurrentItem = null;
+var rbIngredients = [];
+var rbOverheads = [];
 
 // משתני החנות
 let deferredPrompt = null;
@@ -647,28 +646,13 @@ async function handleJoin(e) {
 function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
-function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
-        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
-        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
-    }); 
-    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
-    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
-    
-    if (t === 'shop') try { renderShopList(); } catch(e) {}
-    if (t === 'pantry') try { renderPantry(); } catch(e) {}
-    if (t === 'forecast') try { renderForecast(); } catch(e) {}
-    if (t === 'cashflow') try { renderCashflow(); } catch(e) {}
-    if (t === 'deliveries') try { loadCourierData(); } catch(e) {}
-    if (t === 'sales') try { renderStoreOrders(); renderStoreCoupons(); } catch(e) {}
-    if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
-}
-
-    const targetContent = getEl(`content-${t}`); 
-    if(targetContent) targetContent.classList.remove('hidden'); 
-    
-    const targetBtn = getEl(`tab-${t}`); 
-    if(targetBtn) targetBtn.classList.add('tab-active'); 
+function switchTab(t) { 
+    ['feed','timeclock','shifts','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
+        const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
+        const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
+    }); 
+    const targetContent = getEl(`content-${t}`); if(targetContent) targetContent.classList.remove('hidden'); 
+    const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
     // ניהול פוטר עגלה ו-FAB
     if (t !== 'shop') { 
@@ -694,6 +678,8 @@ function switchTab(t) { 
     if (t === 'bank') try { fetchLoans(); } catch(e) {}
     if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
+    if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
+}
 
 function updateBatteryUI() {
     const indicator = getEl('ai-battery-indicator'); if(!indicator || !currentGroup) return;
