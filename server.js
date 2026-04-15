@@ -96,13 +96,14 @@ pool.connect()
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
 
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+     try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e) {}
-      
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS family_group_id INT`); } catch(e) {}
+    
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
 
@@ -1784,14 +1785,17 @@ app.post('/api/store/orders', async (req, res) => {
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
         
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
-        const actualDeliveryFee = parseFloat(deliveryFee) || 0;
-        const isDeliv = isDelivery === true || isDelivery === 'true';
-        
-        const oRes = await dbClient.query(
-            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8) RETURNING id', 
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, 'new', isDeliv, actualDeliveryFee, deliveryDetailsStr]
-        );
-        const orderId = oRes.rows[0].id;
+        const actualDeliveryFee = parseFloat(deliveryFee) || 0;
+        const isDeliv = isDelivery === true || isDelivery === 'true';
+        
+        // מושך את המזהה המשפחתי אם נשלח מה-storefront
+        const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
+        
+        const oRes = await dbClient.query(
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9) RETURNING id', 
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, 'new', isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId]
+        );
+        const orderId = oRes.rows[0].id;
         
         let itemsHtmlList = '';
         // נשמור את פריטי ההזמנה גם בעמודת items כ-JSONB כדי שהשליח יראה אותם וגם בטבלת store_order_items
@@ -1873,7 +1877,30 @@ app.patch('/api/store/quotes/:id/status', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+// --- שליפת הזמנות ללקוח קצה (משפחה) ---
+app.get('/api/store/orders/my/:userId', async (req, res) => {
+    try {
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.params.userId]);
+        if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        const familyGroupId = uRes.rows[0].group_id;
 
+        // אנחנו שולפים הזמנות שיש להן את ה-family_group_id (אם קיים)
+        // או מקשרים דרך מספר טלפון אם רשום. למען הפשטות, בשלב זה כיוון שאנחנו מייצרים API 
+        // אנו נשלוף רק אם המשפחה מקושרת או שהיא שייכת לאותו group_id (אם הלקוח הזמין).
+        // כדי שהלקוח באמת יראה הזמנות, נשלוף את כל ההזמנות שבהן ה-family_group_id הוא ה-ID שלו.
+        const orders = await pool.query(`
+            SELECT so.*, fg.name as store_name 
+            FROM store_orders so 
+            JOIN family_groups fg ON so.group_id = fg.id 
+            WHERE so.family_group_id = $1 AND so.status != 'quote' 
+            ORDER BY so.created_at DESC
+        `, [familyGroupId]);
+
+        res.json({ success: true, orders: orders.rows });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
+});
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
 app.post('/api/store/quotes/:id/approve', async (req, res) => {
     try {
