@@ -505,53 +505,64 @@
             </div>
         </div>
 
-        <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
+<div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4">
        
             <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <div class="sticky top-0 z-40 w-full shadow-md rounded-b-[1.5rem] sm:rounded-none overflow-hidden bg-white flex flex-col">
+                <div class="w-full shadow-sm bg-white flex flex-col">
+                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden min-h-[40px]"></a>
+                    <div id="app-banner-placeholder" class="hidden w-full h-10 flex items-center justify-center text-slate-300 text-[9px] font-bold">
+                        <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-b-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-6 relative fade-in z-30">
                     
-                    <div class="w-full flex h-14 sm:h-20 border-b border-slate-50 overflow-hidden">
-                        <div class="w-2/3 h-full bg-slate-100 relative overflow-hidden flex">
-                            <a id="app-banner-top" class="hidden w-full h-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden"></a>
-                            <div id="app-banner-placeholder" class="w-full h-full flex items-center justify-center text-slate-300 text-[9px] font-bold">
-                                <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
-                            </div>
+                    <div id="main-header-banner" class="h-32 sm:h-40 w-full bg-slate-800 bg-cover bg-center bg-no-repeat relative cursor-pointer" onclick="openProfileModal()">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent"></div>
+                        
+                        <div class="absolute top-4 left-4 flex gap-2 z-20">
+                            <button onclick="logout(); event.stopPropagation();" class="bg-white/90 hover:bg-white text-red-500 w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition" title="התנתקות">
+                                <i class="fa-solid fa-power-off text-sm"></i>
+                            </button>
+                            <button onclick="openProfileModal(); event.stopPropagation();" class="bg-white/90 hover:bg-white text-slate-700 w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition" title="הגדרות פרופיל">
+                                <i class="fa-solid fa-gear text-sm"></i>
+                            </button>
                         </div>
                         
-                        <div class="w-1/3 h-full bg-slate-200 border-r border-slate-200 flex items-center justify-center relative group cursor-pointer overflow-hidden" onclick="openProfileModal()">
-                            <div id="header-group-logo-container" class="w-full h-full flex items-center justify-center bg-slate-300">
-                                <i class="fa-solid fa-store text-white text-2xl" id="header-group-icon-fallback"></i>
-                                <img id="header-group-img" src="" class="w-full h-full object-cover hidden">
+                        <div class="absolute -bottom-8 right-6 w-24 h-24 bg-white rounded-2xl p-1 shadow-lg border border-slate-100 z-20 hidden sm:block">
+                            <img id="main-header-logo-desktop" src="" class="w-full h-full object-cover rounded-xl hidden">
+                            <div id="main-header-logo-placeholder-desktop" class="w-full h-full bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center text-3xl">
+                                <i class="fa-solid fa-store"></i>
                             </div>
-                            <button onclick="logout(); event.stopPropagation();" class="absolute top-1 left-1 w-6 h-6 bg-white/90 backdrop-blur rounded-full text-red-500 shadow-lg flex items-center justify-center hover:bg-red-50 transition z-10" title="התנתק">
-                                <i class="fa-solid fa-power-off text-[11px]"></i>
-                            </button>
                         </div>
                     </div>
 
-                    <header class="px-4 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md" id="tour-header">
+                    <div class="px-5 pt-3 pb-5 relative flex flex-col justify-between items-start gap-2">
                         
-                        <div class="flex flex-col items-start text-right">
-                            <h2 id="dash-group-name" class="font-black text-slate-800 text-sm sm:text-base leading-tight"></h2>
-                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter" id="dash-group-subtitle">Business Control Center</p>
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <div class="flex flex-col items-end">
-                                <div class="flex items-center gap-1.5">
-                                    <img src="/logo.png" alt="Oneflow" class="h-5 object-contain">
-                                    <span class="font-black text-slate-800 text-xs tracking-tighter">ONEFLOW <span class="text-blue-600">BIZ</span></span>
-                                </div>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <p class="text-[9px] text-slate-400">שלום, <span id="dash-nickname" class="font-bold text-slate-600"></span></p>
-                                    <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[8px] font-bold px-1.5 py-0.5 rounded-full border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1"></button>
+                        <div class="flex items-center gap-4 w-full">
+                            <div class="w-16 h-16 bg-white rounded-2xl p-1 shadow-md border border-slate-100 shrink-0 sm:hidden -mt-10 relative z-20">
+                                <img id="main-header-logo-mobile" src="" class="w-full h-full object-cover rounded-xl hidden">
+                                <div id="main-header-logo-placeholder-mobile" class="w-full h-full bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-store"></i>
                                 </div>
                             </div>
-                            <button onclick="openProfileModal()" class="bg-slate-900 rounded-xl flex items-center justify-center shadow-lg text-white hover:bg-slate-800 transition cursor-pointer w-10 h-10 shrink-0">
-                                <i class="fa-solid fa-bars-staggered"></i>
-                            </button>
+                            
+                            <div class="flex-1 sm:pr-28">
+                                <h1 class="text-xl sm:text-2xl font-black text-slate-800 tracking-tight leading-none" id="dash-group-name">טוען...</h1>
+                                <p class="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider" id="main-header-slogan">Business Control Center</p>
+                            </div>
                         </div>
-                    </header>
+
+                        <div class="flex items-center justify-between w-full mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-black"><i class="fa-solid fa-user"></i></div>
+                                <span class="text-[11px] font-bold text-slate-600">שלום, <span id="dash-nickname" class="text-indigo-700"></span></span>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <button type="button" onclick="openProfileModal()" id="ai-battery-indicator" class="hidden text-[9px] font-bold px-2 py-1 rounded border cursor-pointer hover:bg-purple-100 transition flex items-center gap-1 shadow-sm"></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <!-- שאר התוכן (tabs + content) – נשאר בדיוק כמו אצלך -->
                 <div class="relative px-2 mb-6 group shrink-0">
@@ -609,6 +620,39 @@
 
                         <div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
+                    
+                    <div id="content-customers" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">לקוחות 🤝</h3>
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4">
+                                <button id="btn-cust-tab-details" onclick="switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים</button>
+                                <button id="btn-cust-tab-history" onclick="switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">היסטוריית רכישות</button>
+                            </div>
+                            <div id="cust-view-details" class="space-y-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="relative flex-1 max-w-[200px]">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="filter-customer-search" onkeyup="renderStoreCustomers()" class="modern-input py-2 pr-9 pl-3 text-sm bg-slate-50 shadow-sm" placeholder="חיפוש לפי שם, טלפון...">
+                                    </div>
+                                    <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                                </div>
+                                <select id="filter-customer-type" onchange="renderStoreCustomers()" class="modern-input py-2 px-3 text-xs bg-slate-50 font-bold text-slate-600 mb-4 w-full">
+                                    <option value="all">כל הלקוחות במאגר</option>
+                                    <option value="order">לקוחות שביצעו קנייה</option>
+                                    <option value="quote">לקוחות עם הצעת מחיר</option>
+                                </select>
+                                <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                            </div>
+                            <div id="cust-view-history" class="hidden space-y-4 pb-8">
+                                <h4 class="font-bold text-indigo-700 text-sm mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100" id="cust-history-summary"></h4>
+                                <div id="cust-history-list" class="space-y-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="content-quotes" class="hidden">
+                        </div>
+
 <div id="content-timeclock" class="hidden">
                         <div id="timeclock-admin-view" class="hidden mb-6">
                             <div class="flex justify-between items-center px-2 mb-4">
