@@ -2997,6 +2997,7 @@ window.submitNewCustomer = async function() {
     
     try {
         const payload = { groupId: currentGroup.id, name, phone: val('cust-phone'), email: val('cust-email'), businessId: val('cust-business-id'), notes: val('cust-notes') };
+        console.log("Sending Payload:", payload); // נדפיס את הנתונים שנשלחים
         const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
         const method = id ? 'PUT' : 'POST';
         
@@ -3004,16 +3005,23 @@ window.submitNewCustomer = async function() {
             method: method, headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
+        
         const data = await res.json();
+        console.log("Server Response:", data); // נדפיס את התשובה מהשרת
+        
         if(data.success) {
             showToast('success', id ? 'לקוח עודכן בהצלחה!' : 'לקוח חדש נשמר במאגר!');
             getEl('customer-modal').classList.add('hidden');
             if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers(); 
-        } else { showToast('error', data.error); }
-    } catch(e) { showToast('error', 'שגיאת רשת בשמירה'); }
+        } else { 
+            showToast('error', data.error || 'שגיאה כללית מהשרת'); 
+        }
+    } catch(e) { 
+        console.error("Network Error Details:", e); // נדפיס את פרטי שגיאת הרשת
+        showToast('error', 'שגיאת רשת בשמירה - בדוק את הקונסול לפרטים'); 
+    }
     finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
 };
-
 window.fetchStoreCustomers = async function() {
     try {
         const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
