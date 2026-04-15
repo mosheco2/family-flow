@@ -606,6 +606,7 @@ if(!getEl('content-customers')) {
         `);
     }
 }
+}
 function startEmployeeTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
