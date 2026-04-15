@@ -320,7 +320,7 @@ function injectBusinessUI() {
                         </div>
                         <div class="relative mb-4 px-1">
                             <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מס' הזמנה, טלפון או שם..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מס' הזמנה, טלפון או שם..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
@@ -350,7 +350,7 @@ function injectBusinessUI() {
         const contentSales2 = getEl('content-sales');
         if(contentSales2) contentSales2.insertAdjacentHTML('afterend', `
             <div id="content-deliveries" class="hidden">
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden mt-4">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl mb-4 relative overflow-hidden mt-4 mx-1">
                     <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-helmet-safety"></i> מסופון חלוקה</h3>
                     <p class="text-blue-100 text-xs opacity-90">ניהול פיזורים, ניווט ואישורי מסירה</p>
                     <i class="fa-solid fa-route absolute -left-4 -bottom-4 text-8xl text-white opacity-10 rotate-12"></i>
@@ -363,7 +363,7 @@ function injectBusinessUI() {
                     </div>
                 </div>
 
-                <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
+                <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap mx-1">
                     <button id="btn-del-active" onclick="switchDeliveryTab('active')" class="flex-1 py-2 px-3 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition border border-slate-200">ממתין לאיסוף 📦</button>
                     <button id="btn-del-transit" onclick="switchDeliveryTab('transit')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">במשלוח 🛵</button>
                     <button id="btn-del-history" onclick="switchDeliveryTab('history')" class="flex-1 py-2 px-3 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריה ✅</button>
@@ -393,16 +393,6 @@ function injectBusinessUI() {
         if(tabShop) {
             tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
             tabShop.insertAdjacentHTML('afterend', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-        }
-    }
-}
-
-    // הזרקת כפתורי הטאבים ברשימה העליונה
-    if(!getEl('tab-sales')) {
-        const tabBank = getEl('tab-bank');
-        if(tabBank) {
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
     }
 }
@@ -4243,7 +4233,15 @@ function renderStoreOrders() {
 
     let filteredOrders = storeOrdersCache;
     
-    if (searchId) filteredOrders = filteredOrders.filter(o => String(o.id).includes(searchId));
+    if (searchId) {
+        const s = searchId.toLowerCase();
+        filteredOrders = filteredOrders.filter(o => 
+            String(o.id).includes(s) || 
+            (o.customer_phone && String(o.customer_phone).includes(s)) ||
+            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
+        );
+    }
+    
     if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
@@ -6391,7 +6389,14 @@ window.loadCourierData = async function() {
             const checkIsDelivery = (o) => (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || getDeliveryMeta(o) !== null);
 
             let filtered = data.filter(checkIsDelivery);
-            if (searchId) filtered = filtered.filter(o => String(o.id).includes(searchId));
+            if (searchId) {
+                const s = searchId.toLowerCase();
+                filtered = filtered.filter(o => 
+                    String(o.id).includes(s) || 
+                    (o.customer_phone && String(o.customer_phone).includes(s)) ||
+                    (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
+                );
+            }
 
             const active = filtered.filter(o => o.status === 'ready');
             const transit = filtered.filter(o => o.status === 'shipped');
