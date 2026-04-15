@@ -53,10 +53,10 @@ pool.connect()
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
       try { await client.query('ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS customer_number VARCHAR(50)'); } catch(e) {}
       
-      try {
-          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
-          await client.query('ALTER TABLE family_groups ADD CONSTRAINT family_groups_email_type_key UNIQUE (admin_email, type)');
-      } catch(e) { console.log('Email constraint exists or error:', e.message); }
+     try {
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_key CASCADE');
+          await client.query('ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_email_type_key CASCADE');
+      } catch(e) { console.log('Email constraint removal error:', e.message); }
 
       try {
           await client.query(`CREATE TABLE IF NOT EXISTS time_clock (
@@ -336,69 +336,73 @@ app.post('/api/superadmin/login', async (req, res) => {
 });
 
 app.post('/api/superadmin/credentials', verifySA, async (req, res) => {
-    try {
-        const { newUsername, newPassword } = req.body;
-        if (!newUsername || !newPassword) return res.status(400).json({error: 'חסרים נתונים'});
-        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]);
-        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]);
-        res.json({success: true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    try {
+        const { newUsername, newPassword, newEmail } = req.body;
+        if (!newUsername || !newPassword) return res.status(400).json({error: 'חסרים פרטי גישה (שם משתמש או סיסמה)'});
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newUsername]);
+        await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_password', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newPassword]);
+        if (newEmail !== undefined) {
+            await pool.query("INSERT INTO system_settings (key, value) VALUES ('sa_email', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [newEmail]);
+        }
+        res.json({success: true});
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/superadmin/data', verifySA, async (req, res) => {
-    try {
-        // ריענון מכסות ה-AI גלובלית לכלל העסקים במערכת (פעם ביום) כדי שתצוגת האדמין תהיה מדויקת
-        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE last_token_reset IS NULL OR last_token_reset < CURRENT_DATE`);
-        
-        const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
-        const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
-        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
-        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom')");
-        
-        let unifiedActivity = [];
-        activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
-        
-        groups.rows.forEach(g => {
-            const hasActivity = unifiedActivity.some(act => act.group_name === g.name);
-            if (!hasActivity) {
-                 const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
-                 unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
-            }
-        });
-        
-        unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
-        const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
+    try {
+        // ריענון מכסות ה-AI גלובלית לכלל העסקים במערכת (פעם ביום) כדי שתצוגת האדמין תהיה מדויקת
+        await pool.query(`UPDATE family_groups SET ai_tokens = 10, last_token_reset = CURRENT_DATE WHERE last_token_reset IS NULL OR last_token_reset < CURRENT_DATE`);
+        
+        const groups = await pool.query('SELECT * FROM family_groups ORDER BY created_at DESC');
+        const users = await pool.query('SELECT * FROM users ORDER BY group_id, id');
+        const activity = await pool.query('SELECT t.amount, t.description, t.date, t.type, u.nickname as user_name, f.name as group_name FROM transactions t JOIN users u ON t.user_id = u.id JOIN family_groups f ON t.group_id = f.id ORDER BY t.date DESC LIMIT 50');
+        const settings = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('welcome_msg', 'business_welcome_msg', 'ad_banner_text_top', 'ad_banner_link_top', 'ad_banner_img_top', 'ad_banner_text_bottom', 'ad_banner_link_bottom', 'ad_banner_img_bottom', 'business_ad_banner_text_top', 'business_ad_banner_link_top', 'business_ad_banner_img_top', 'business_ad_banner_text_bottom', 'business_ad_banner_link_bottom', 'business_ad_banner_img_bottom', 'sa_email', 'sa_username')");
+        
+        let unifiedActivity = [];
+        activity.rows.forEach(a => { unifiedActivity.push({ date: a.date, group_name: a.group_name, user_name: a.user_name, description: a.description, amount: a.amount, is_financial: true }); });
+        
+        groups.rows.forEach(g => {
+            const hasActivity = unifiedActivity.some(act => act.group_name === g.name);
+            if (!hasActivity) {
+                 const adminUser = users.rows.find(u => u.group_id === g.id && u.role === 'ADMIN');
+                 unifiedActivity.push({ date: g.created_at, group_name: g.name, user_name: adminUser ? adminUser.nickname : 'מנהל', description: '🎉 פתח/ה סביבה חדשה', amount: 0, is_financial: false });
+            }
+        });
+        
+        unifiedActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const getSet = (k) => settings.rows.find(r => r.key === k)?.value || '';
 
-        // ספירת חיבורים פעילים (דרישה 6)
-        const connectionsRes = await pool.query("SELECT COUNT(*) FROM community_businesses WHERE status = 'approved'");
-        const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
+        // ספירת חיבורים פעילים (דרישה 6)
+        const connectionsRes = await pool.query("SELECT COUNT(*) FROM community_businesses WHERE status = 'approved'");
+        const totalConnections = parseInt(connectionsRes.rows[0].count) || 0;
 
-        const stats = {
-            families: groups.rows.filter(g => g.type === 'FAMILY').length,
-            businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
-            familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
-            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
-            activeConnections: totalConnections
-        };
-        
-        res.json({
-            groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
-            welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
-            adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
-            adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
-            bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
-            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
-        });
-    } catch(e) { res.status(500).json({error: e.message}); }
+        const stats = {
+            families: groups.rows.filter(g => g.type === 'FAMILY').length,
+            businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
+            familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
+            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
+            activeConnections: totalConnections
+        };
+        
+        res.json({
+            groups: groups.rows, users: users.rows, activity: unifiedActivity.slice(0, 50), stats: stats,
+            saEmail: getSet('sa_email'), saUsername: getSet('sa_username') || 'admin',
+            welcomeMsg: getSet('welcome_msg'), businessWelcomeMsg: getSet('business_welcome_msg'),
+            adBannerTextTop: getSet('ad_banner_text_top'), adBannerLinkTop: getSet('ad_banner_link_top'), adBannerImgTop: getSet('ad_banner_img_top'),
+            adBannerTextBottom: getSet('ad_banner_text_bottom'), adBannerLinkBottom: getSet('ad_banner_link_bottom'), adBannerImgBottom: getSet('ad_banner_img_bottom'),
+            bizBannerTextTop: getSet('business_ad_banner_text_top'), bizBannerLinkTop: getSet('business_ad_banner_link_top'), bizBannerImgTop: getSet('business_ad_banner_img_top'),
+            bizBannerTextBottom: getSet('business_ad_banner_text_bottom'), bizBannerLinkBottom: getSet('business_ad_banner_link_bottom'), bizBannerImgBottom: getSet('business_ad_banner_img_bottom')
+        });
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- עריכת שם סביבה (משפחה/עסק) מהאדמין ---
+// --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין ---
 app.put('/api/sa/groups/:id', async (req, res) => {
-    try {
-        const { name } = req.body;
-        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    try {
+        const { name, adminEmail } = req.body;
+        await pool.query('UPDATE family_groups SET name=$1, admin_email=$2 WHERE id=$3', [name, adminEmail, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- עריכת שם משתמש וסיסמה מהאדמין ---
