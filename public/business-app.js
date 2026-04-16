@@ -2761,7 +2761,11 @@ function switchSalesTab(subTab) {
     if(subTab === 'catalog') fetchStoreCatalog();
     if(subTab === 'marketing') fetchStoreMarketing(); 
     if(subTab === 'settings') fetchStoreSettings();
-    if(subTab === 'quotes') fetchStoreQuotes();
+    if(subTab === 'quotes') {
+        const list = getEl('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        fetchStoreQuotes();
+    }
 }
 
 async function fetchStoreQuotes() {
@@ -2779,7 +2783,7 @@ async function fetchStoreQuotes() {
         
         if (!data || !data.success || !data.quotes || data.quotes.length === 0) {
             list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">טרם הופקו הצעות מחיר במערכת.</p>';
-            storeQuotesCache = []; // איפוס הקאש
+            storeQuotesCache = []; 
             return;
         }
 
@@ -2787,6 +2791,8 @@ async function fetchStoreQuotes() {
         renderStoreQuotes();
     } catch(e) {
         console.error("Error fetching quotes:", e);
+        const list = getEl('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-red-500 py-8 bg-red-50 rounded-2xl border border-dashed border-red-200">שגיאה בטעינת הנתונים.</p>';
     }
 }
 
@@ -2809,13 +2815,11 @@ function renderStoreQuotes() {
 
     let html = '';
     
-    // שימוש ב-forEach במקום map כדי למנוע שגיאות אם אלמנט אחד נכשל
     storeQuotesCache.forEach(q => {
         try {
             const currentStatus = q.quote_status || 'draft';
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
             
-            // הגנה על שדות ריקים
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
             const dateStr = q.created_at ? new Date(q.created_at).toLocaleDateString('he-IL') : "תאריך לא ידוע";
             
@@ -2845,7 +2849,7 @@ function renderStoreQuotes() {
         }
     });
     
-    list.innerHTML = html || '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">שגיאה ברינדור הצעות מחיר.</p>';
+    list.innerHTML = html;
 }
 
 async function updateQuoteStatus(id, status) {
