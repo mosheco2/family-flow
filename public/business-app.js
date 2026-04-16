@@ -7038,25 +7038,27 @@ async function saveRecipeBuilder() {
 // --- קריאות שירות (Support Tickets) ---
 // ==========================================
 async function submitSupportTicket() {
-    const subject = val('support-ticket-subject');
-    const desc = val('support-ticket-desc');
+    const subject = document.getElementById('support-ticket-subject').value;
+    const desc = document.getElementById('support-ticket-desc').value;
     
-    if(!desc || desc.length < 5) return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
+    if(!desc || desc.trim().length < 5) {
+        return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
+    }
     
-    const btn = getEl('btn-submit-ticket');
-    if (btn) {
+    const btn = document.getElementById('btn-submit-ticket');
+    if (btn) { 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר קריאה...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר קריאה...'; 
     }
     
     try {
         const payload = {
-            groupId: currentGroup ? currentGroup.id : null,
-            groupName: currentGroup ? currentGroup.name : 'לא ידוע',
-            userId: currentUser ? currentUser.id : null,
-            userName: currentUser ? currentUser.nickname : 'אורח',
-            userEmail: (currentUser && currentUser.email) ? currentUser.email : ((currentGroup && currentGroup.admin_email) ? currentGroup.admin_email : 'לא סופק'),
-            subject: subject,
+            groupId: (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : null,
+            groupName: (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.name : 'לא ידוע',
+            userId: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null,
+            userName: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.nickname : 'אורח',
+            userEmail: (typeof currentGroup !== 'undefined' && currentGroup && currentGroup.admin_email) ? currentGroup.admin_email : 'לא סופק',
+            subject: subject || 'פנייה כללית',
             description: desc
         };
 
@@ -7069,22 +7071,19 @@ async function submitSupportTicket() {
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', 'קריאתך התקבלה במערכת. נציג יחזור אליך בהקדם!');
-            getEl('support-ticket-modal').classList.add('hidden');
-            getEl('support-ticket-desc').value = '';
-            
-            try { triggerConfetti(); } catch(e) {}
+            showToast('success', 'קריאתך התקבלה בהצלחה! נחזור אליך בהקדם.');
+            document.getElementById('support-ticket-modal').classList.add('hidden');
+            document.getElementById('support-ticket-desc').value = '';
         } else {
-            showToast('error', data.error || 'שגיאה בשליחת הקריאה. נסו שנית.');
+            showToast('error', data.error || 'שגיאה בשליחת הקריאה.');
         }
     } catch(e) {
-        console.error("Error submitting ticket:", e);
-        showToast('error', 'שגיאת תקשורת מול מוקד השירות. בדוק חיבור רשת.');
+        console.error("Ticket Error:", e);
+        showToast('error', 'שגיאת תקשורת מול השרת.');
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>';
+        if (btn) { 
+            btn.disabled = false; 
+            btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>'; 
         }
     }
-}
-})();
+}})();
