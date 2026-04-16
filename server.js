@@ -291,7 +291,8 @@ app.get('/setup-db', async (req, res) => {
             DROP TABLE IF EXISTS time_clock CASCADE; DROP TABLE IF EXISTS users CASCADE; DROP TABLE IF EXISTS family_groups CASCADE;
             DROP TABLE IF EXISTS system_settings CASCADE; DROP TABLE IF EXISTS global_products CASCADE;
             DROP TABLE IF EXISTS communities CASCADE; DROP TABLE IF EXISTS community_businesses CASCADE; DROP TABLE IF EXISTS store_coupons CASCADE;
-
+            DROP TABLE IF EXISTS store_customers CASCADE; DROP TABLE IF EXISTS store_orders CASCADE; DROP TABLE IF EXISTS store_order_items CASCADE;
+            
             CREATE TABLE system_settings (key VARCHAR(50) PRIMARY KEY, value TEXT);
             CREATE TABLE family_groups (
                 id SERIAL PRIMARY KEY, name VARCHAR(100), type VARCHAR(20) DEFAULT 'FAMILY', admin_email VARCHAR(100), group_code VARCHAR(10) UNIQUE, 
