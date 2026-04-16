@@ -4494,24 +4494,18 @@ function renderStoreOrders() {
 
     let filteredOrders = [...storeOrdersCache];
     
-    // -- לוגיקת תעדוף (סעיף 7) - מיון הזמנות פתוחות לפי תאריך יעד / target_datetime --
+    // מיון הזמנות פתוחות לפי תאריך יעד
     filteredOrders.sort((a, b) => {
-        // אם שניהם הושלמו - למיין מהחדש לישן
         if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
-        // אם אחד הושלם ואחד לא, ההושלם יורד למטה
         if (a.status === 'completed') return 1;
         if (b.status === 'completed') return -1;
 
-        // מיון עדיפות לפי זמני אספקה להזמנות פתוחות
         let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
         let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
 
-        // אם לשניהם אין זמן יעד - לסדר לפי מי שהזמין קודם (הוותיק למעלה)
         if (timeA === Infinity && timeB === Infinity) return new Date(a.created_at) - new Date(b.created_at);
-
         return timeA - timeB;
     });
-    // ----------------------------------------------------------------------
 
     const activeSearch = storeOrdersSearch || searchId;
 
@@ -4528,8 +4522,7 @@ function renderStoreOrders() {
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
     
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לסינון.</p>'; return; }
-    
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
@@ -4552,7 +4545,6 @@ function renderStoreOrders() {
 
         const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
 
-        // הוספת חיווי ויזואלי להזמנות דחופות
         let urgencyBadge = '';
         if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
              const targetTime = new Date(o.target_datetime);
