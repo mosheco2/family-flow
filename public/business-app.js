@@ -7037,6 +7037,9 @@ async function saveRecipeBuilder() {
 // ==========================================
 // --- קריאות שירות והיסטוריה (Support Tickets) ---
 // ==========================================
+let myTicketsCache = [];
+let myCurrentTicketId = null;
+
 window.openSupportTicketModal = function() {
     document.getElementById('support-ticket-subject').value = 'תקלה טכנית (באג במערכת)';
     document.getElementById('support-ticket-desc').value = '';
@@ -7045,7 +7048,6 @@ window.openSupportTicketModal = function() {
     const profileModal = document.getElementById('profile-modal');
     if (profileModal) profileModal.classList.add('hidden');
     
-    // מיד עם פתיחת החלון - טוען את היסטוריית הקריאות
     window.fetchMyTickets();
 };
 
@@ -7053,15 +7055,10 @@ window.submitSupportTicket = async function() {
     const subject = document.getElementById('support-ticket-subject').value;
     const desc = document.getElementById('support-ticket-desc').value;
     
-    if(!desc || desc.trim().length < 5) {
-        return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
-    }
+    if(!desc || desc.trim().length < 5) return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
     
     const btn = document.getElementById('btn-submit-ticket');
-    if (btn) { 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; 
-    }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
     
     try {
         const payload = {
@@ -7075,79 +7072,130 @@ window.submitSupportTicket = async function() {
         };
 
         const res = await fetch(`${API}/support/ticket`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
         });
-        
         const data = await res.json();
         
         if (data.success) {
             showToast('success', 'קריאתך התקבלה בהצלחה! נחזור אליך בהקדם.');
             document.getElementById('support-ticket-desc').value = '';
-            window.fetchMyTickets(); // מרענן את הרשימה כדי לראות את הקריאה החדשה
+            window.fetchMyTickets(); 
             try { triggerConfetti(); } catch(e) {}
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הקריאה.');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת תקשורת מול השרת.');
-    } finally {
-        if (btn) { 
-            btn.disabled = false; 
-            btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>'; 
-        }
-    }
+        } else { showToast('error', data.error || 'שגיאה בשליחת הקריאה.'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת.'); } 
+    finally { if (btn) { btn.disabled = false; btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>'; } }
 };
 
 window.fetchMyTickets = async function() {
     const list = document.getElementById('my-tickets-list');
     if (!list) return;
-    
-    if (typeof currentGroup === 'undefined' || !currentGroup || !currentGroup.id) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center">לא ניתן לטעון נתונים.</p>';
-        return;
-    }
+    if (typeof currentGroup === 'undefined' || !currentGroup || !currentGroup.id) { list.innerHTML = '<p class="text-xs text-slate-400 text-center">לא ניתן לטעון נתונים.</p>'; return; }
     
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> טוען היסטוריה...</p>';
-    
     try {
         const res = await fetch(`${API}/support/tickets/my/${currentGroup.id}`);
         const data = await res.json();
-        
         if (data.success) {
-            if (data.tickets.length === 0) {
-                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">לא נפתחו קריאות שירות בעבר.</p>';
-                return;
-            }
-            
-            const statusMap = {
-                'open': { text: 'ממתין למענה', color: 'bg-red-50 text-red-600 border-red-200' },
-                'in_progress': { text: 'בטיפול תמיכה', color: 'bg-orange-50 text-orange-600 border-orange-200' },
-                'resolved': { text: 'טופל / נסגר', color: 'bg-green-50 text-green-600 border-green-200' }
-            };
+            myTicketsCache = data.tickets || [];
+            window.renderMyTickets();
+        } else { list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאה בטעינת קריאות.</p>'; }
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת בטעינה.</p>'; }
+};
 
-            let html = '';
-            data.tickets.forEach(t => {
-                const st = statusMap[t.status] || statusMap['open'];
-                const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
-                html += `
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-sm transition hover:border-blue-200">
-                    <div class="flex justify-between items-start mb-2 border-b border-slate-50 pb-2">
-                        <div class="flex-1 pr-2">
-                            <h5 class="font-bold text-slate-800 text-xs">${safeStr(t.subject)}</h5>
-                            <p class="text-[9px] text-slate-400 mt-0.5">${dateStr}</p>
-                        </div>
-                        <span class="text-[9px] font-bold px-2 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
-                    </div>
-                    <div class="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg whitespace-pre-wrap">${safeStr(t.description)}</div>
-                </div>`;
-            });
-            list.innerHTML = html;
-        } else {
-            list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאה בטעינת קריאות.</p>';
-        }
-    } catch(e) {
-        list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת בטעינה.</p>';
+window.filterMyTickets = function() { window.renderMyTickets(); };
+
+window.renderMyTickets = function() {
+    const list = document.getElementById('my-tickets-list');
+    if (!list) return;
+    
+    const query = (document.getElementById('my-tickets-search')?.value || '').toLowerCase().trim();
+    let filtered = myTicketsCache;
+    
+    if (query) {
+        filtered = filtered.filter(t => 
+            String(t.id).includes(query) || 
+            (t.subject && t.subject.toLowerCase().includes(query)) ||
+            (t.description && t.description.toLowerCase().includes(query))
+        );
     }
+    
+    if (filtered.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">${query ? 'לא נמצאו תוצאות לחיפוש.' : 'לא נפתחו קריאות שירות בעבר.'}</p>`;
+        return;
+    }
+            
+    const statusMap = {
+        'open': { text: 'ממתין לתמיכה', color: 'bg-red-50 text-red-600 border-red-200' },
+        'in_progress': { text: 'בטיפול', color: 'bg-orange-50 text-orange-600 border-orange-200' },
+        'resolved': { text: 'טופל / נסגר', color: 'bg-green-50 text-green-600 border-green-200 opacity-80' }
+    };
+
+    let html = '';
+    filtered.forEach(t => {
+        const st = statusMap[t.status] || statusMap['open'];
+        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
+        
+        let logArr = [];
+        try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
+        
+        // יצירת היסטוריית השיחה
+        const logHtml = logArr.map(entry => {
+            const isMe = !entry.isStaff;
+            const alignClass = isMe ? 'self-start bg-indigo-50 border-indigo-100 text-indigo-900 rounded-tl-none mr-4' : 'self-end bg-slate-100 border-slate-200 text-slate-700 rounded-tr-none ml-4';
+            const iconHtml = isMe ? '<i class="fa-solid fa-user text-indigo-400 text-[10px] ml-1"></i>' : '<i class="fa-solid fa-headset text-slate-500 text-[10px] ml-1"></i>';
+            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+            return `
+            <div class="flex flex-col ${isMe ? 'items-start' : 'items-end'} mb-2 fade-in">
+                <div class="p-2.5 rounded-lg border shadow-sm text-xs whitespace-pre-wrap leading-relaxed ${alignClass}">${safeStr(entry.message)}</div>
+                <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">${iconHtml} ${safeStr(entry.sender)} • ${timeStr}</div>
+            </div>`;
+        }).join('');
+
+        const replyHtml = t.status !== 'resolved' ? `
+            <div class="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                <input type="text" id="my-ticket-reply-${t.id}" class="modern-input py-2 text-xs flex-1 bg-white shadow-sm" placeholder="הקלד תגובה או עדכון כאן...">
+                <button onclick="submitClientTicketReply(${t.id})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        ` : `<div class="mt-3 pt-3 border-t border-slate-100 text-center text-[10px] text-slate-400 font-bold"><i class="fa-solid fa-lock mr-1"></i> פנייה זו נסגרה. במידת הצורך פתחו פנייה חדשה.</div>`;
+
+        html += `
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm transition hover:shadow-md mb-3">
+            <div class="flex justify-between items-start mb-3 border-b border-slate-50 pb-2 cursor-pointer select-none" onclick="document.getElementById('my-ticket-log-${t.id}').classList.toggle('hidden')">
+                <div class="flex-1 pr-2">
+                    <span class="text-[9px] font-black text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md mb-1 inline-block">#${t.id}</span>
+                    <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(t.subject)}</h5>
+                    <p class="text-[9px] text-slate-400 mt-1"><i class="fa-regular fa-clock mr-0.5"></i> נפתח: ${dateStr}</p>
+                </div>
+                <div class="flex flex-col items-end gap-1.5">
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-300"></i>
+                </div>
+            </div>
+            
+            <div id="my-ticket-log-${t.id}" class="hidden">
+                <div class="bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 max-h-48 overflow-y-auto modal-scroll flex flex-col">
+                    ${logHtml}
+                </div>
+                ${replyHtml}
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+};
+
+window.submitClientTicketReply = async function(ticketId) {
+    const text = document.getElementById(`my-ticket-reply-${ticketId}`).value;
+    if(!text || text.trim().length < 2) return showToast('error', 'אנא הקלידו הודעה.');
+    
+    try {
+        const payload = { message: text, userName: currentUser ? currentUser.nickname : 'לקוח', isStaff: false, newStatus: 'open' };
+        const res = await fetch(`${API}/support/tickets/${ticketId}/reply`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        if((await res.json()).success) {
+            showToast('success', 'תגובתך נשלחה בהצלחה!');
+            window.fetchMyTickets();
+        } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
+    } catch(e) { showToast('error', 'שגיאת רשת.'); }
+};
 }})();
