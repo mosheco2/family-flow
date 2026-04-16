@@ -240,7 +240,17 @@ app.post('/api/support/ticket', async (req, res) => {
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
-
+// שליפת קריאות שירות ללקוח (לפי מזהה קבוצה/עסק)
+app.get('/api/support/tickets/my/:groupId', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT * FROM support_tickets 
+            WHERE group_id = $1 
+            ORDER BY created_at DESC
+        `, [req.params.groupId]);
+        res.json({ success: true, tickets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // שליפת הקריאות עבור פאנל ה-Super Admin
 app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
     try {
