@@ -3941,7 +3941,7 @@ window.clearImage = function(targetIdPrefix) {
 
 // --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
 function updateSalesDashboardStats() {
-    if (!storeOrdersCache || !storeQuotesCache) return;
+    if (!storeOrdersCache) return;
     
     let currentMonthOrders = 0;
     let currentMonthRevenue = 0;
@@ -3950,159 +3950,37 @@ function updateSalesDashboardStats() {
     let todayRevenue = 0;
     
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const todayStr = now.toLocaleDateString('he-IL');
+    const currMonth = now.getMonth();
+    const currYear = now.getFullYear();
+    const currDate = now.getDate();
 
     storeOrdersCache.forEach(o => {
-        const orderDate = new Date(o.created_at);
-        const isPaid = (o.status === 'completed' || o.status === 'shipped');
+        // מתעלמים מהזמנות שבוטלו בחישוב ההכנסות
+        if (o.status === 'cancelled') return;
+        if (o.status === 'quote' || (o.quote_status && o.quote_status !== 'approved')) return;
+
+        const d = new Date(o.created_at);
+        const orderAmount = parseFloat(o.total_amount) || 0;
         
-        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+        // בדיקת חודש נוכחי
+        if (d.getMonth() === currMonth && d.getFullYear() === currYear) {
             currentMonthOrders++;
-            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
+            currentMonthRevenue += orderAmount;
         }
         
-        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
+        // בדיקת היום הנוכחי (מדויק לפי תאריכים ולא טקסט מחרוזת שעלול להשתבש בשרת)
+        if (d.getDate() === currDate && d.getMonth() === currMonth && d.getFullYear() === currYear) {
             todayOrdersCount++;
-            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
+            todayRevenue += orderAmount;
         }
         
-        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
+        // הזמנות פתוחות
+        if (o.status !== 'completed' && o.status !== 'shipped') {
             openOrdersCount++;
         }
     });
 
-    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
-
-    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
-    setTxt('stat-orders-count', currentMonthOrders);
-    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
-    setTxt('stat-open-orders', openOrdersCount);
-    setTxt('stat-pending-quotes', pendingQuotesCount);
-    setTxt('stat-orders-today', todayOrdersCount);
-    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
-}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
-function updateSalesDashboardStats() {
-    if (!storeOrdersCache || !storeQuotesCache) return;
-    
-    let currentMonthOrders = 0;
-    let currentMonthRevenue = 0;
-    let openOrdersCount = 0;
-    let todayOrdersCount = 0;
-    let todayRevenue = 0;
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const todayStr = now.toLocaleDateString('he-IL');
-
-    storeOrdersCache.forEach(o => {
-        const orderDate = new Date(o.created_at);
-        const isPaid = (o.status === 'completed' || o.status === 'shipped');
-        
-        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
-            currentMonthOrders++;
-            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
-            todayOrdersCount++;
-            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
-            openOrdersCount++;
-        }
-    });
-
-    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
-
-    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
-    setTxt('stat-orders-count', currentMonthOrders);
-    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
-    setTxt('stat-open-orders', openOrdersCount);
-    setTxt('stat-pending-quotes', pendingQuotesCount);
-    setTxt('stat-orders-today', todayOrdersCount);
-    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
-}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
-function updateSalesDashboardStats() {
-    if (!storeOrdersCache || !storeQuotesCache) return;
-    
-    let currentMonthOrders = 0;
-    let currentMonthRevenue = 0;
-    let openOrdersCount = 0;
-    let todayOrdersCount = 0;
-    let todayRevenue = 0;
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const todayStr = now.toLocaleDateString('he-IL');
-
-    storeOrdersCache.forEach(o => {
-        const orderDate = new Date(o.created_at);
-        const isPaid = (o.status === 'completed' || o.status === 'shipped');
-        
-        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
-            currentMonthOrders++;
-            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
-            todayOrdersCount++;
-            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
-            openOrdersCount++;
-        }
-    });
-
-    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
-
-    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
-    setTxt('stat-orders-count', currentMonthOrders);
-    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
-    setTxt('stat-open-orders', openOrdersCount);
-    setTxt('stat-pending-quotes', pendingQuotesCount);
-    setTxt('stat-orders-today', todayOrdersCount);
-    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
-}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
-function updateSalesDashboardStats() {
-    if (!storeOrdersCache || !storeQuotesCache) return;
-    
-    let currentMonthOrders = 0;
-    let currentMonthRevenue = 0;
-    let openOrdersCount = 0;
-    let todayOrdersCount = 0;
-    let todayRevenue = 0;
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const todayStr = now.toLocaleDateString('he-IL');
-
-    storeOrdersCache.forEach(o => {
-        const orderDate = new Date(o.created_at);
-        const isPaid = (o.status === 'completed' || o.status === 'shipped');
-        
-        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
-            currentMonthOrders++;
-            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
-            todayOrdersCount++;
-            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
-        }
-        
-        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
-            openOrdersCount++;
-        }
-    });
-
-    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
+    const pendingQuotesCount = storeQuotesCache ? storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length : 0;
 
     const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
     setTxt('stat-orders-count', currentMonthOrders);
@@ -7345,8 +7223,10 @@ window.renderAnalytics = function() {
         cutoff.setHours(0,0,0,0);
     }
 
+    // הכללת כל ההזמנות שלא בוטלו כדי שיהיה דאטה בגרפים
     const relevantOrders = storeOrdersCache.filter(o => 
-        (o.status === 'completed' || o.status === 'shipped') && 
+        o.status !== 'cancelled' && 
+        o.status !== 'quote' &&
         new Date(o.created_at) >= cutoff
     );
 
@@ -7355,13 +7235,13 @@ window.renderAnalytics = function() {
 
     relevantOrders.forEach(o => {
         const d = new Date(o.created_at).toLocaleDateString('he-IL');
-        revMap[d] = (revMap[d] || 0) + parseFloat(o.total_amount);
+        revMap[d] = (revMap[d] || 0) + (parseFloat(o.total_amount) || 0);
         
         try {
             const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
             items.forEach(i => {
                 if(i.name && !i.is_delivery_metadata && !i.is_quote_metadata) {
-                    prodMap[i.name] = (prodMap[i.name] || 0) + parseFloat(i.quantity);
+                    prodMap[i.name] = (prodMap[i.name] || 0) + (parseFloat(i.quantity) || 1);
                 }
             });
         } catch(e) {}
@@ -7379,27 +7259,37 @@ window.renderAnalytics = function() {
 
     const ctxRev = getEl('analyticsRevenueChart');
     const ctxProd = getEl('analyticsProductsChart');
-    
-    if(ctxRev) ctxRev.previousElementSibling.style.display = 'none';
-    if(ctxProd) ctxProd.previousElementSibling.style.display = 'none';
 
-    if(analyticsRevChart) analyticsRevChart.destroy();
-    if(ctxRev) {
-        analyticsRevChart = new Chart(ctxRev, {
-            type: 'line',
-            data: { labels: revLabels, datasets: [{ label: 'הכנסות (₪)', data: revData, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-    }
+    // הסרת טקסט ה"טוען גרף..." אם הוא קיים
+    if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
+    if(ctxProd && ctxProd.previousElementSibling) ctxProd.previousElementSibling.style.display = 'none';
 
-    if(analyticsProdChart) analyticsProdChart.destroy();
-    if(ctxProd) {
-        analyticsProdChart = new Chart(ctxProd, {
-            type: 'doughnut',
-            data: { labels: prodLabels, datasets: [{ data: prodData, backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:10}} } } }
-        });
-    }
+    // המתנה קלה כדי לוודא שהטאב נפתח לגמרי והדפדפן חישב את הרוחב של ה-Canvas
+    setTimeout(() => {
+        if(analyticsRevChart) analyticsRevChart.destroy();
+        if(ctxRev) {
+            analyticsRevChart = new Chart(ctxRev, {
+                type: 'line',
+                data: { 
+                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], 
+                    datasets: [{ label: 'הכנסות צפויות (₪)', data: revData.length > 0 ? revData : [0], borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }] 
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        if(analyticsProdChart) analyticsProdChart.destroy();
+        if(ctxProd) {
+            analyticsProdChart = new Chart(ctxProd, {
+                type: 'doughnut',
+                data: { 
+                    labels: prodLabels.length > 0 ? prodLabels : ['אין מכירות'], 
+                    datasets: [{ data: prodData.length > 0 ? prodData : [1], backgroundColor: prodData.length > 0 ? ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] : ['#e2e8f0'] }] 
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:10}} } } }
+            });
+        }
+    }, 50);
 };
 
 // עדכון טאב החנות הראשי
