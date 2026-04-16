@@ -508,8 +508,10 @@
 <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4 transition-all duration-300">
        
             <div class="flex-1 pb-28 relative flex flex-col w-full">
-                <div class="w-full shadow-sm bg-white flex flex-col">
-                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex items-center justify-center text-[10px] font-bold text-center overflow-hidden min-h-[40px]"></a>
+                
+                <div class="w-full shadow-sm bg-white flex flex-col z-40 relative">
+                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex-col items-center justify-center text-[10px] font-bold text-center overflow-hidden min-h-[40px] relative">
+                        </a>
                     <div id="app-banner-placeholder" class="hidden w-full h-10 flex items-center justify-center text-slate-300 text-[9px] font-bold">
                         <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
                     </div>
@@ -527,7 +529,7 @@
                             <button onclick="openProfileModal(); event.stopPropagation();" class="bg-white/90 hover:bg-white text-slate-700 w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg transition" title="הגדרות פרופיל">
                                 <i class="fa-solid fa-gear text-sm"></i>
                             </button>
-                            <button onclick="toggleDesktopView(); event.stopPropagation();" class="hidden sm:flex bg-white/90 hover:bg-white text-blue-600 w-10 h-10 rounded-full items-center justify-center font-bold shadow-lg transition" title="מצב מחשב/נייד" id="btn-toggle-desktop">
+                            <button onclick="toggleDesktopView(); event.stopPropagation();" class="hidden sm:flex bg-white/90 hover:bg-white text-blue-600 w-10 h-10 rounded-full items-center justify-center font-bold shadow-lg transition" title="הרחב תצוגה למסך מלא" id="btn-toggle-desktop">
                                 <i class="fa-solid fa-desktop text-sm"></i>
                             </button>
                         </div>
@@ -788,6 +790,25 @@
 <div id="content-sales" class="hidden">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
+                            
+                            <div id="sales-stats-dashboard" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                                <div class="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">הזמנות החודש</span>
+                                    <span id="stat-orders-count" class="text-2xl font-black text-blue-900">0</span>
+                                </div>
+                                <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">הכנסות החודש</span>
+                                    <span id="stat-revenue-month" class="text-xl font-black text-emerald-900">₪0</span>
+                                </div>
+                                <div class="bg-orange-50 p-3 rounded-2xl border border-orange-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-1">הזמנות פתוחות</span>
+                                    <span id="stat-open-orders" class="text-2xl font-black text-orange-900">0</span>
+                                </div>
+                                <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">הצעות ממתינות</span>
+                                    <span id="stat-pending-quotes" class="text-2xl font-black text-indigo-900">0</span>
+                                </div>
+                            </div>
                             
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
