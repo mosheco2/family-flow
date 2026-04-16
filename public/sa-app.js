@@ -1037,3 +1037,163 @@ window.handleCommImageUpload = function(event, type) {
     };
     reader.readAsDataURL(file);
 }
+// ==========================================
+// --- ניהול קריאות שירות (Super Admin) ---
+// ==========================================
+let saCurrentTicketId = null;
+
+async function loadSATickets() {
+    const list = getEl('sa-tickets-full-list');
+    if(!list) return;
+    list.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i><p>טוען קריאות שירות...</p></div>';
+    try {
+        const res = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            saTicketsCache = data.tickets || [];
+            renderSATickets();
+        } else {
+            list.innerHTML = '<div class="col-span-full text-center text-red-500">שגיאה בטעינת קריאות</div>';
+        }
+    } catch(e) { list.innerHTML = '<div class="col-span-full text-center text-red-500">שגיאת תקשורת</div>'; }
+}
+
+function filterSATickets() { renderSATickets(); }
+
+function renderSATickets() {
+    const list = getEl('sa-tickets-full-list');
+    if (!list) return;
+    
+    const query = val('sa-search-tickets').toLowerCase().trim();
+    let filtered = saTicketsCache;
+    
+    if (query) {
+        filtered = filtered.filter(t => 
+            String(t.id).includes(query) || 
+            (t.subject && t.subject.toLowerCase().includes(query)) ||
+            (t.group_name && t.group_name.toLowerCase().includes(query)) ||
+            (t.user_name && t.user_name.toLowerCase().includes(query))
+        );
+    }
+    
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="col-span-full text-center text-slate-400 py-10 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">לא נמצאו קריאות התואמות לחיפוש.</div>';
+        return;
+    }
+
+    let html = '';
+    const statusMap = {
+        'open': { text: 'פתוח (ממתין)', color: 'bg-red-100 text-red-700 border-red-200' },
+        'in_progress': { text: 'בטיפול', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+        'resolved': { text: 'סגור', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' }
+    };
+
+    filtered.forEach(t => {
+        const st = statusMap[t.status] || statusMap['open'];
+        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
+        
+        html += `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition cursor-pointer" onclick="openSATicketModal(${t.id})">
+            <div>
+                <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
+                    <div class="pr-2">
+                        <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mb-2 inline-block">קריאה #${t.id}</span>
+                        <h4 class="font-bold text-slate-800 text-base leading-tight">${safeStr(t.subject)}</h4>
+                        <p class="text-[11px] text-slate-500 mt-1.5"><i class="fa-solid fa-building mr-1 text-slate-300"></i> ${safeStr(t.group_name)}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-2.5 py-1 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
+                </div>
+                <p class="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed">${safeStr(t.description)}</p>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold bg-slate-50 p-2 rounded-lg border border-slate-100">
+                <span><i class="fa-solid fa-user mr-1"></i> ${safeStr(t.user_name)}</span>
+                <span><i class="fa-regular fa-clock mr-1"></i> ${dateStr}</span>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function openSATicketModal(id) {
+    const t = saTicketsCache.find(x => x.id === id);
+    if(!t) return;
+    
+    saCurrentTicketId = id;
+    getEl('sa-ticket-modal-id').innerText = t.id;
+    getEl('sa-ticket-modal-subject').innerText = t.subject;
+    getEl('sa-ticket-modal-group').innerText = t.group_name || 'לא ידוע';
+    getEl('sa-ticket-modal-user').innerText = t.user_name || 'לא ידוע';
+    
+    getEl('sa-ticket-reply-text').value = '';
+    getEl('sa-ticket-reply-status').value = t.status;
+    
+    let logArr = [];
+    try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
+    
+    const logContainer = getEl('sa-ticket-log');
+    if (logArr.length === 0) {
+        logContainer.innerHTML = `<div class="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm">${safeStr(t.description)}</div>`;
+    } else {
+        logContainer.innerHTML = logArr.map(entry => {
+            const isStaff = entry.isStaff;
+            const alignClass = isStaff ? 'self-end bg-blue-100 border-blue-200 text-blue-900 rounded-tr-none ml-8' : 'self-start bg-white border-slate-200 text-slate-700 rounded-tl-none mr-8';
+            const iconHtml = isStaff ? '<i class="fa-solid fa-headset text-blue-500 text-xs ml-1"></i>' : '<i class="fa-solid fa-user text-slate-400 text-xs ml-1"></i>';
+            const timeStr = new Date(entry.date).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+            
+            return `
+            <div class="flex flex-col ${isStaff ? 'items-end' : 'items-start'} mb-3 fade-in">
+                <div class="p-3 rounded-xl border shadow-sm text-sm whitespace-pre-wrap leading-relaxed ${alignClass}">
+                    ${safeStr(entry.message)}
+                </div>
+                <div class="text-[9px] text-slate-400 mt-1 font-bold flex items-center gap-1">
+                    ${iconHtml} ${safeStr(entry.sender)} • ${timeStr}
+                </div>
+            </div>`;
+        }).join('');
+    }
+    
+    getEl('sa-ticket-modal').classList.remove('hidden');
+    setTimeout(() => { logContainer.scrollTop = logContainer.scrollHeight; }, 50);
+}
+
+async function submitSATicketReply() {
+    const text = val('sa-ticket-reply-text');
+    const status = val('sa-ticket-reply-status');
+    
+    if(!text.trim() && !status) return showToast('error', 'יש להזין טקסט או לשנות סטטוס');
+    
+    const btn = getEl('btn-sa-ticket-reply');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...';
+    
+    try {
+        const payload = { message: text || `(סטטוס שונה ל-${status})`, userName: 'צוות תמיכה', isStaff: true, newStatus: status || null };
+        const res = await fetch(`${API}/support/tickets/${saCurrentTicketId}/reply`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify(payload)
+        });
+        if((await res.json()).success) {
+            showToast('success', 'התגובה נשלחה והסטטוס עודכן!');
+            getEl('sa-ticket-reply-text').value = '';
+            await loadSATickets();
+            openSATicketModal(saCurrentTicketId); 
+        } else { showToast('error', 'שגיאה בעדכון'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    finally { btn.disabled = false; btn.innerHTML = 'שלח תגובה ועדכן <i class="fa-solid fa-paper-plane"></i>'; }
+}
+
+async function updateSATicketStatus(id, status) {
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'סטטוס קריאה עודכן בהצלחה');
+            loadSATickets();
+        } else {
+            showToast('error', 'שגיאה בעדכון הסטטוס');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }
+}
