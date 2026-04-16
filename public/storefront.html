@@ -204,8 +204,24 @@
                         </div>
                         <textarea id="cust-notes" class="modern-input py-2 text-sm bg-white border-indigo-100 h-16" placeholder="הערות לשליח..."></textarea>
                     </div>
+
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4">
+                        <h4 class="font-bold text-sm text-slate-800 mb-3"><i class="fa-regular fa-clock text-indigo-500 mr-1"></i> מתי תרצו את ההזמנה?</h4>
+                        <div class="flex bg-slate-200/50 p-1 rounded-xl mb-3">
+                            <button type="button" id="btn-time-asap" onclick="toggleTargetTime('asap')" class="flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200">בהקדם האפשרי</button>
+                            <button type="button" id="btn-time-future" onclick="toggleTargetTime('future')" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent">הזמנה עתידית</button>
+                        </div>
+                        <div id="target-time-container" class="hidden fade-in">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1.5">בחרו תאריך ושעה רצויים:</label>
+                            <input type="datetime-local" id="target-time-input" class="modern-input py-2.5 text-sm bg-white border-slate-200 dir-ltr text-center font-bold">
+                        </div>
+                        <input type="hidden" id="target-time-type" value="asap">
+                    </div>
+
                 </form>
             </div>
+
+            <div class="p-5 border-t border-slate-100 bg-white shrink-0">
 
             <div class="p-5 border-t border-slate-100 bg-white shrink-0">
                 <button type="button" onclick="submitOrder(event)" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl text-lg hover:bg-black transition active:scale-95 flex justify-center items-center gap-2">
@@ -1058,7 +1074,32 @@
             getEl('checkout-modal').classList.remove('hidden');
         }
 
-        function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
+function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
+
+        window.toggleTargetTime = function(type) {
+            getEl('target-time-type').value = type;
+            const btnAsap = getEl('btn-time-asap');
+            const btnFuture = getEl('btn-time-future');
+            const container = getEl('target-time-container');
+            
+            if (type === 'future') {
+                btnFuture.className = 'flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200';
+                btnAsap.className = 'flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent';
+                container.classList.remove('hidden');
+                
+                // הזרקת תאריך ברירת מחדל (עוד שעה מעכשיו) מתוך נוחות
+                if (!getEl('target-time-input').value) {
+                    const d = new Date();
+                    d.setHours(d.getHours() + 1);
+                    d.setMinutes(Math.ceil(d.getMinutes() / 15) * 15); 
+                    getEl('target-time-input').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+                }
+            } else {
+                btnAsap.className = 'flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200';
+                btnFuture.className = 'flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent';
+                container.classList.add('hidden');
+            }
+        };
 
         async function submitOrder(e) {
             e.preventDefault(); 
@@ -1072,7 +1113,6 @@
 
             const isDelivery = getEl('is-delivery').value === 'true';
             
-            // ולידציה של כתובת אם משלוח נבחר
             if (isDelivery) {
                 if (!val('cust-city') || !val('cust-street') || !val('cust-house')) {
                     showToast('error', 'חובה למלא עיר, רחוב ומספר בית למשלוח');
@@ -1087,59 +1127,47 @@
 
             let deliveryData = null;
             if (isDelivery) {
-                deliveryData = {
-                    city: val('cust-city'),
-                    street: val('cust-street'),
-                    house: val('cust-house'),
-                    floor: val('cust-floor'),
-                        apt: val('cust-apt'),
-                        notes: val('cust-notes')
-                    };
-                }
+                deliveryData = { city: val('cust-city'), street: val('cust-street'), house: val('cust-house'), floor: val('cust-floor'), apt: val('cust-apt'), notes: val('cust-notes') };
+            }
 
-                // זיהוי המשפחה כדי לקשר את ההזמנה לטאב "הזמנות שלי" באפליקציית האם!
-                let familyId = null;
-                try {
-                    const session = JSON.parse(localStorage.getItem('ofl_session'));
-                    if (session && session.group && session.group.id && session.group.type === 'FAMILY') {
-                        familyId = session.group.id;
-                    }
-                } catch(e) {}
+            let familyId = null;
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session && session.group && session.group.id && session.group.type === 'FAMILY') {
+                    familyId = session.group.id;
+                }
+            } catch(e) {}
 
-                try {
-                    const res = await fetch(`${API}/store/orders`, { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ 
-                            groupId: storeData.groupId, 
-                            customerName: val('cust-name'), 
-                            customerPhone: val('cust-phone'), 
-                            items: items, 
-                            totalAmount: finalTotalWithDelivery,
-                            isDelivery: isDelivery,
-                            deliveryFee: delFee,
-                            deliveryDetails: deliveryData,
-                            familyGroupId: familyId
-                        }) 
-                    });
+            try {
+                const res = await fetch(`${API}/store/orders`, { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ groupId: storeData.groupId, customerName: val('cust-name'), customerPhone: val('cust-phone'), items: items, totalAmount: finalTotalWithDelivery, isDelivery: isDelivery, deliveryFee: delFee, deliveryDetails: deliveryData, familyGroupId: familyId }) 
+                });
                 
                 const data = await res.json();
                 
                 if (data.success) { 
+                    // שידור מועד ההזמנה העתידי במידה ונבחר
+                    const timeType = getEl('target-time-type').value;
+                    const targetTimeVal = getEl('target-time-input').value;
+                    if (timeType === 'future' && targetTimeVal) {
+                        try {
+                            const formattedDate = targetTimeVal.replace('T', ' ') + ':00';
+                            await fetch(`${API}/store/orders/${data.orderId}/target-date`, {
+                                method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ targetDatetime: formattedDate })
+                            });
+                        } catch(e) { console.warn("Failed to set target date"); }
+                    }
+
                     confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); 
                     getEl('checkout-modal').classList.add('hidden'); 
                     getEl('cart-footer').classList.add('hidden'); 
                     getEl('success-order-id').innerText = `#${data.orderId}`; 
                     getEl('success-screen').classList.remove('hidden'); 
                     cart = {}; 
-                } 
-                else { showToast('error', data.error || 'אירעה שגיאה'); }
-            } catch(err) { 
-                showToast('error', 'שגיאת תקשורת מול השרת'); 
-            } finally { 
-                btn.disabled = false; 
-                btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
-            }
+                } else { showToast('error', data.error || 'אירעה שגיאה'); }
+            } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת'); } 
+            finally { btn.disabled = false; btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; }
         }
 
         function scrollCategories(direction) {
