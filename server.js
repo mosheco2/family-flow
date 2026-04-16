@@ -76,7 +76,8 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
-
+      // מערכת קריאות שירות
+      try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       
@@ -205,46 +206,60 @@ async function sendSystemEmail(to, subject, htmlContent) {
 }
 
 // =========================================================
-// פונקציית שליחת קריאת שירות תמיכה
+// --- מערכת קריאות שירות (תמיכה) ---
 // =========================================================
 app.post('/api/support/ticket', async (req, res) => {
     try {
         const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
-        
-        if (!description || description.length < 5) {
-            return res.status(400).json({ success: false, error: 'תיאור קצר מדי.' });
-        }
+        if (!description || description.length < 5) return res.status(400).json({ success: false, error: 'תיאור קצר מדי.' });
 
-        // המייל אליו נשלח את קריאות השירות
+        // שמירה למסד הנתונים כדי שהאדמין יראה את הקריאה בפאנל
+        await pool.query('INSERT INTO support_tickets (group_id, user_id, subject, description, status) VALUES ($1, $2, $3, $4, $5)', [groupId, userId, subject, description, 'open']);
+
+        // בנוסף - שליחת התראה למייל!
         const supportEmail = 'mcgames1978@gmail.com'; 
-        
         const ticketHtml = `
             <div dir="rtl" style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
                 <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה - Oneflow</h2>
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                    <p style="margin: 5px 0;"><strong>נושא:</strong> ${safeStr(subject)}</p>
-                    <p style="margin: 5px 0;"><strong>שם לקוח:</strong> ${safeStr(userName)}</p>
-                    <p style="margin: 5px 0;"><strong>ארגון/סביבה:</strong> ${safeStr(groupName)} (ID: ${groupId})</p>
-                    <p style="margin: 5px 0;"><strong>מייל לחזרה:</strong> ${safeStr(userEmail)}</p>
+                    <p style="margin: 5px 0;"><strong>נושא:</strong> ${subject}</p>
+                    <p style="margin: 5px 0;"><strong>שם לקוח:</strong> ${userName}</p>
+                    <p style="margin: 5px 0;"><strong>ארגון/סביבה:</strong> ${groupName} (ID: ${groupId})</p>
+                    <p style="margin: 5px 0;"><strong>מייל לחזרה:</strong> ${userEmail}</p>
                 </div>
                 <h3 style="color: #1e293b;">תוכן הפנייה:</h3>
                 <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; white-space: pre-wrap;">
-                    ${safeStr(description)}
+                    ${description}
                 </div>
             </div>
         `;
-
-        const sent = await sendSystemEmail(supportEmail, `קריאת שירות: ${safeStr(subject)} מ-${safeStr(userName)}`, ticketHtml);
+        // לא חוסם את התגובה ללקוח במקרה של עיכוב בשליחת המייל
+        sendSystemEmail(supportEmail, `קריאת שירות: ${subject} מ-${userName}`, ticketHtml).catch(e => console.log('Mail error:', e));
         
-        if (sent) {
-            res.json({ success: true });
-        } else {
-            res.status(500).json({ success: false, error: 'תקלה בשליחת המייל' });
-        }
-    } catch (e) {
-        console.error('Support ticket error:', e);
-        res.status(500).json({ success: false, error: 'שגיאת שרת פנימית' });
-    }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// שליפת הקריאות עבור פאנל ה-Super Admin
+app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.*, f.name as group_name, u.nickname as user_name 
+            FROM support_tickets t 
+            LEFT JOIN family_groups f ON t.group_id = f.id 
+            LEFT JOIN users u ON t.user_id = u.id 
+            ORDER BY t.created_at DESC
+        `);
+        res.json({ success: true, tickets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס הקריאה ע"י ה-Super Admin
+app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE support_tickets SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.get('/api/test-email', async (req, res) => {
     try {
