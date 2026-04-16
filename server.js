@@ -32,7 +32,7 @@ pool.connect()
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS target_datetime VARCHAR(50)'); } catch(e) {}
       try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'); } catch(e) {}
-      try { await client.query('ALTER TABLE store_quotes ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
+      try { await client.query('ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS quote_status VARCHAR(50) DEFAULT \'draft\''); } catch(e) {}
       
       await client.query(`CREATE TABLE IF NOT EXISTS store_customers (
           id SERIAL PRIMARY KEY,
