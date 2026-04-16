@@ -1228,7 +1228,7 @@ async function submitPermissions() {
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הרשאות'; } }
 }
 
-const originalSwitchTab = window.switchTab;
+var originalSwitchTab = window.switchTab;
 if (originalSwitchTab && !window.switchTabOverridden) {
     window.switchTab = function(tabId) {
         originalSwitchTab(tabId);
@@ -2862,8 +2862,8 @@ async function updateQuoteStatus(id, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-let currentActionTargetId = null;
-let currentActionType = null; 
+var currentActionTargetId = null;
+var currentActionType = null; 
 
 window.approveQuoteToOrder = function(id) {
     currentActionTargetId = id;
@@ -3372,7 +3372,7 @@ function shareQuoteWhatsApp(id, phone) {
     window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
 }
 
-let currentPreviewQuoteId = null;
+var currentPreviewQuoteId = null;
 
 async function openQuotePreview(id) {
     const quote = storeQuotesCache.find(q => q.id == id);
@@ -5332,7 +5332,7 @@ async function submitGlobalAI() {
 // ============================================================
 
 let saCommunitiesCache = [];
-let saBusinessesCache = [];
+var saCommunitiesCache = [];
 
 async function loadSACommunityData() {
     try {
@@ -5699,7 +5699,7 @@ async function leaveBizCommunity(commId) {
     } catch(e) { showToast('error', 'תקלת רשת'); }
 }
 
-const originalLoadSADashboard = window.loadSADashboard;
+var originalLoadSADashboard = window.loadSADashboard;
 if(originalLoadSADashboard && !window.saCommLoaded) {
     window.loadSADashboard = async function() {
         const userDash = document.getElementById('dashboard-container');
@@ -6582,7 +6582,7 @@ async function updateB2BOrderStatus(orderId, status) {
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
 
-let _receiveGoodsOrderId = null;
+var _receiveGoodsOrderId = null;
 
 function openReceiveGoodsModal(orderId) {
     const order = b2bOrdersHistory.find(o => String(o.id) === String(orderId));
@@ -6648,7 +6648,7 @@ async function submitReceiveGoods() {
 // ==========================================
 // --- ONBOARDING WIZARD (אשף הקמה לעסקים) ---
 // ==========================================
-let currentWizardStep = 1;
+var currentWizardStep = 1;
 wizardProducts = []; // כבר מוגדר בראש הקובץ, רק מאפסים פה
 
 function showOnboardingWizard() {
@@ -7111,7 +7111,7 @@ function skipWizardStep() {
     else { currentWizardStep++; updateWizardUI(); }
 }
 // --- מנגנון מחשבון תמחיר מנה (Food Cost) ---
-let fcIngredients = [];
+var fcIngredients = [];
 
 function openFoodCostModal() {
     fcIngredients = [];
