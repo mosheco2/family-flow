@@ -189,7 +189,8 @@ async function saveAllBanners() {
 }
 
 function applyBannersToDOM(banners) {
-    const appTop = getEl('app-banner-top'); const appBottom = getEl('app-banner-bottom');
+    const appTop = getEl('app-banner-top'); 
+    const appBottom = getEl('app-banner-bottom');
     const renderBanner = (el, text, link, img) => {
         if(!el) return;
         if(text || img) { 
@@ -232,6 +233,7 @@ function applyBannersToDOM(banners) {
     renderBanner(appTop, topText, topLink, topImg); 
     renderBanner(appBottom, bottomText, bottomLink, bottomImg);
 }
+
 async function fetchBanners() {
     try {
         const cached = localStorage.getItem('ofl_banners'); if(cached) { try { applyBannersToDOM(JSON.parse(cached)); } catch(e) {} }
@@ -239,6 +241,34 @@ async function fetchBanners() {
         if(data.success && data.banners) { localStorage.setItem('ofl_banners', JSON.stringify(data.banners)); applyBannersToDOM(data.banners); }
     } catch(e) {}
 }
+
+// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
+window.toggleDesktopView = function() {
+    const dashContainer = getEl('dashboard-container');
+    if (!dashContainer) return;
+    
+    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
+    
+    if (dashContainer.classList.contains('max-w-lg')) {
+        // מעבר לתצוגת מחשב רחבה
+        dashContainer.classList.remove('max-w-lg');
+        dashContainer.classList.add('max-w-6xl', 'w-full');
+        if(iconBtn) {
+            iconBtn.classList.remove('fa-desktop');
+            iconBtn.classList.add('fa-mobile-screen');
+        }
+        showToast('info', 'עברת לתצוגת מסך רחבה');
+    } else {
+        // מעבר חזרה לתצוגת מובייל (צרה)
+        dashContainer.classList.remove('max-w-6xl', 'w-full');
+        dashContainer.classList.add('max-w-lg');
+        if(iconBtn) {
+            iconBtn.classList.remove('fa-mobile-screen');
+            iconBtn.classList.add('fa-desktop');
+        }
+        showToast('info', 'עברת לתצוגה ממוקדת');
+    }
+};
 
 async function loadSAData() {
     fetchBanners();
@@ -3848,13 +3878,13 @@ async function fetchStoreSettings() {
             } else {
                 document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
                 document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = '');
+                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = 'DELETE');
                 document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
             }
 
             // --- טיפול חכם בבאנר רקע ---
             const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBannerEl = getEl('main-header-banner'); // שונה השם כדי למנוע התנגשות!
+            const headerBannerEl = getEl('main-header-banner');
             
             if (hasBanner) {
                 if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
@@ -3867,7 +3897,7 @@ async function fetchStoreSettings() {
                 if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
                 document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
                 document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = '');
+                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = 'DELETE');
             }
 
             if (data.settings.modifier_presets) {
@@ -3877,9 +3907,10 @@ async function fetchStoreSettings() {
         }
     } catch(e) { console.error(e); }
 }
+
 async function saveStoreSettings() {
     const btn = getEl('btn-save-store-settings');
-    btn.disabled = true; btn.innerText = 'שומר...';
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -3892,8 +3923,69 @@ async function saveStoreSettings() {
             })
         });
         showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
+        // רענון טעינת ההגדרות כדי לשקף את המחיקה אם בוצעה
+        fetchStoreSettings(); 
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
-    finally { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; }
+    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
+}
+
+window.clearImage = function(targetIdPrefix) {
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
+        el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; 
+    });
+    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
+    
+    // סימון מפורש לשרת למחוק את התמונה
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
+    
+    if (targetIdPrefix.includes('logo')) {
+        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
+    }
+    showToast('info', 'התמונה הוסרה מהמסך. אל תשכחו ללחוץ על "שמור" למטה כדי לעדכן!');
+};
+
+// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
+function updateSalesDashboardStats() {
+    if (!storeOrdersCache || !storeQuotesCache) return;
+    
+    let currentMonthOrders = 0;
+    let currentMonthRevenue = 0;
+    let openOrdersCount = 0;
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // לרוץ על ההזמנות
+    storeOrdersCache.forEach(o => {
+        const orderDate = new Date(o.created_at);
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+            currentMonthOrders++;
+            // רק הזמנות סגורות / ששולמו נחשבות הכנסה
+            if (o.status === 'completed' || o.status === 'shipped') {
+                currentMonthRevenue += parseFloat(o.total_amount) || 0;
+            }
+        }
+        
+        // ספירת הזמנות פתוחות (לא בטיוטה/הצעה ולא סופקו או בוטלו)
+        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
+            openOrdersCount++;
+        }
+    });
+
+    // ספירת הצעות מחיר פתוחות
+    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
+
+    // עדכון ה-DOM
+    const elOrders = getEl('stat-orders-count');
+    const elRevenue = getEl('stat-revenue-month');
+    const elOpen = getEl('stat-open-orders');
+    const elQuotes = getEl('stat-pending-quotes');
+
+    if (elOrders) elOrders.innerText = currentMonthOrders;
+    if (elRevenue) elRevenue.innerText = `₪${currentMonthRevenue.toFixed(0)}`;
+    if (elOpen) elOpen.innerText = openOrdersCount;
+    if (elQuotes) elQuotes.innerText = pendingQuotesCount;
 }
 
 function copyStoreLink() {
@@ -4292,13 +4384,14 @@ async function fetchStoreOrders() {
         const res = await fetch(`${API}/store/orders/${currentGroup.id}`); 
         let data = await res.json(); 
         if (Array.isArray(data)) {
-            // מיון: ההזמנות החדשות ביותר תמיד יופיעו ראשונות (סעיף 1)
             data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             storeOrdersCache = data;
         } else {
             storeOrdersCache = [];
         }
         renderStoreOrders(); 
+        // עדכון סטטיסטיקות מיד לאחר טעינת ההזמנות וההצעות
+        if (typeof updateSalesDashboardStats === 'function') updateSalesDashboardStats();
     } catch(e) {} 
 }
 
