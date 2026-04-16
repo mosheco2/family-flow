@@ -1674,35 +1674,39 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 });
 
 app.post('/api/store/settings', async (req, res) => {
-    try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee } = req.body;
-        
-        // וידוא שהעמודות קיימות, כולל תמיכה בבאנר החדש ודמי משלוח
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
-        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+    try {
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee } = req.body;
+        
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
 
-        await pool.query(`
-            INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
-            ON CONFLICT (group_id) DO UPDATE SET 
-                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
-                logo_url=COALESCE($8, store_settings.logo_url), 
-                banner_url=COALESCE($9, store_settings.banner_url),
-                open_time=$10, close_time=$11, whatsapp_number=$12, delivery_fee=$13
-        `, [
-            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
-            logoUrl, bannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0
-        ]);
-        
-        res.json({ success: true });
-    } catch(e) { 
-        console.error("Error saving store settings:", e);
-        res.status(500).json({ error: e.message }); 
-    }
+        // עיבוד הערכים לתמונות: אם התקבל 'DELETE' נכניס null כדי למחוק במסד
+        const finalLogoUrl = (logoUrl === 'DELETE') ? null : (logoUrl || null);
+        const finalBannerUrl = (bannerUrl === 'DELETE') ? null : (bannerUrl || null);
+        
+        // כאן אנו מבצעים עדכון מלא - גם אם הערך הוא null כדי לאפשר מחיקה.
+        await pool.query(`
+            INSERT INTO store_settings (
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+            ON CONFLICT (group_id) DO UPDATE SET 
+                is_active=$2, welcome_message=$3, phone=$4, min_order=$5, slogan=$6, store_type=$7, 
+                logo_url=EXCLUDED.logo_url, 
+                banner_url=EXCLUDED.banner_url,
+                open_time=$10, close_time=$11, whatsapp_number=$12, delivery_fee=$13
+        `, [
+            groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType, 
+            finalLogoUrl, finalBannerUrl, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0
+        ]);
+        
+        res.json({ success: true });
+    } catch(e) { 
+        console.error("Error saving store settings:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 app.post('/api/store/settings/presets', async (req, res) => {
     try {
@@ -2088,13 +2092,24 @@ app.post('/api/biz/chat-assistant', async (req, res) => {
         if (!genAI) throw new Error('GEMINI_API_KEY is not set');
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const prompt = `You are a helpful AI assistant for a business manager using 'Oneflowlife Pro'.
-        Answer the manager's question in Hebrew based ONLY on this system data (Orders, Employees, Inventory):
+        
+        // בניית פרומפט חזק שמכניס את ה-AI לתפקיד עוזרת עסקית מקיפה
+        const prompt = `You are 'FamliAI', the intelligent and friendly AI assistant for a business manager using the 'Oneflowlife Pro' management system. 
+        Your job is to answer questions, analyze data, and guide the user on how to use the system.
+        
+        Here is the live data from the system (Orders, Employees, Inventory, Tasks, Finance):
         ${context}
         
-        Manager's Question: "${query}"
+        User's Request/Question: "${query}"
         
-        Be very concise, professional, and helpful. Use emojis. Do not invent data that is not in the context.`;
+        Instructions for your response:
+        1. Respond directly in Hebrew.
+        2. Be professional, concise, but highly insightful.
+        3. If the user asks about system data (like "how many open orders do I have" or "what is our budget status"), calculate or infer the answer using the JSON context provided above.
+        4. If the user asks how to perform an action in the system (e.g., "how do I add a product"), guide them briefly based on standard UI knowledge (e.g., "Go to the Shop tab -> click Product Catalog -> Add Product").
+        5. Do not invent data that is not in the context. If you don't know, say you don't have that specific data right now.
+        6. Use emojis occasionally to maintain a friendly tone, but don't overdo it.
+        7. Use Markdown ONLY for bolding (**text**) or simple lists. No complex tables or code blocks unless requested.`;
         
         const result = await model.generateContent(prompt);
         res.json({ success: true, answer: result.response.text().trim() });
