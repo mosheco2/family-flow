@@ -564,26 +564,24 @@ function injectBusinessUI() {
         </div>
         `);
     }
-function startEmployeeTour() {
+function startManagerTour() {
     switchTab('feed'); const intro = introJs();
     intro.setOptions({
-        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
+        nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'סיום סיור', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflowlife Pro! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
-            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
-            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
-            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
-            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
+            { title: "המרכז העסקי שלכם 🚀", intro: "ברוכים הבאים ל-Oneflow BIZ! בואו נערוך סיור קצר כדי להכיר את כל כלי הניהול שלכם." },
+            { element: '#sales-stats-dashboard', title: "לוח מחוונים - חנות 🛍️", intro: "כאן תוכלו לראות בזמן אמת את נתוני המכירות וההזמנות הפתוחות שלכם.", position: 'bottom' },
+            { element: '#tab-sales', title: "מכירות, קטלוג ולקוחות", intro: "בטאב זה (שנמצא גם בתפריט למעלה) תנהלו את כל המוצרים שלכם, הלקוחות, המבצעים והזמנות מהקופה.", position: 'bottom' },
+            { element: '#tab-shop', title: "רכש וספקים 🛒", intro: "מכאן תוכלו לייצר דרישות רכש אוטומטיות לכל הספקים שלכם, לנהל מחירונים ולעקוב אחרי הזמנות יוצאות.", position: 'bottom' },
+            { element: '#tab-foodcost', title: "תמחור ורווחיות 🍽️", intro: "כאן תוכלו לבנות עץ מוצר מלא לכל פריט ולחשב את עלויות הייצור (Food Cost) המדויקות.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "מעקב שעות ונוכחות ⏱️", intro: "שליטה מלאה על שעון הנוכחות של העובדים, עריכת משמרות וסיכומי שכר אוטומטיים להורדה.", position: 'bottom' },
+            { element: '#tab-tasks', title: "ניהול משימות ✅", intro: "צרו טיקטים ומשימות לצוות עם יעדים ותמריצים. תוכלו לאשר סיום רק אחרי שהם יעלו תמונה שתוכיח שסיימו.", position: 'bottom' },
+            { element: '#tab-forecast', title: "ראיית העתיד 📅", intro: "המערכת מנתחת אוטומטית את התזרים וההוצאות הקבועות ובונה לכם תשקיף חכם קדימה.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
+        if(id === 'sales-stats-dashboard') switchTab('sales'); else if(id === 'tab-sales') switchTab('sales'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-foodcost') switchTab('foodcost'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-forecast') switchTab('forecast'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -595,21 +593,18 @@ function startEmployeeTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow life BIZ! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לנהל את המשימות, לבקש ציוד ולעקוב אחרי הבונוסים שלך." },
-            { element: '#user-balance', title: "התקציב / הבונוסים שלך 💳", intro: "כאן יופיע תקציב הפעילות שלך או בונוסים שהרווחת מביצוע פרויקטים והכשרות.", position: 'bottom' },
-            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשרד? לחץ כאן כדי להיכנס למשמרת. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
-            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן אפשר לראות את סידור העבודה שלך ולהגיש בקשות שיבוץ להנהלה.", position: 'bottom' },
-            { element: '#tab-shop', title: "בקשות רכש 🛒", intro: "חסר ציוד משרדי או מחשוב? פתח דרישת רכש כאן, והיא תעבור לאישור ההנהלה.", position: 'bottom' },
-            { element: '#tab-pantry', title: "ניהול מלאי 📦", intro: "כאן אפשר לבדוק איזה ציוד קיים בחברה. אם לקחת משהו מהמלאי, לחץ 'דיווח ניצול' כדי שהמערכת תתעדכן.", position: 'bottom' },
-            { element: '#tab-bank', title: "החזרי הוצאות 🏦", intro: "שילמת על דלק או חניה פגישת לקוח? הגש בקשה להחזר הוצאות כאן.", position: 'bottom' },
-            { element: '#tab-tasks', title: "משימות וטיקטים ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? דווח ביצוע וצרף תמונה - ה-AI יאשר וייתכן שתקבל בונוס!", position: 'bottom' },
-            { element: '#tab-academy', title: "מרכז הכשרות 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת הכשרות יכולה לזכות אותך בתמריצים.", position: 'bottom' },
-            { element: '#tab-forecast', title: "תשקיף פעילות 📅", intro: "צפייה בפעולות והחזרים עתידיים הצפויים להיכנס לתקציב שלך.", position: 'bottom' }
+            { title: "ברוכים הבאים לפורטל הצוות! 🎉", intro: "פורטל העובדים שלך מוכן. כאן תוכל לדווח שעות, לנהל משימות ולעקוב אחרי הבונוסים שלך." },
+            { element: '#user-balance', title: "הבונוסים שלך 💳", intro: "כאן יופיעו הבונוסים שהרווחת מביצוע פרויקטים והכשרות מטעם החברה.", position: 'bottom' },
+            { element: '#tab-timeclock', title: "שעון נוכחות ⏱️", intro: "הגעת למשמרת? לחץ כאן כדי להיכנס. אל תשכח לסמן יציאה בסוף היום!", position: 'bottom' },
+            { element: '#tab-shifts', title: "משמרות 🗓️", intro: "כאן תוכל לראות את סידור העבודה השבועי שלך שנקבע על ידי המנהל.", position: 'bottom' },
+            { element: '#tab-shop', title: "דרישות רכש 🛒", intro: "חסר ציוד למשרד או מלאי לעמדה שלך? פתח דרישה כאן והיא תעבור מיד לאישור.", position: 'bottom' },
+            { element: '#tab-tasks', title: "משימות לביצוע ✅", intro: "רשימת המטלות הפתוחות שלך. סיימת? תעלה תמונה והמנהל יוכל לאשר ולצ'פר אותך בבונוס!", position: 'bottom' },
+            { element: '#tab-academy', title: "הכשרות עובדים 🎓", intro: "רענון נהלים וחפיפות מקצועיות נמצאים כאן. השלמת המבדקים יכולה לזכות אותך בתמריצים.", position: 'bottom' }
         ]
     });
     intro.onbeforechange(function(targetElement) { 
         if(!targetElement) return; const id = targetElement.id;
-        if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-pantry') switchTab('pantry'); else if(id === 'tab-bank') switchTab('bank'); else if(id === 'tab-cashflow') switchTab('cashflow'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else if(id === 'tab-forecast') switchTab('forecast'); else if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else switchTab('feed'); 
+        if(id === 'tab-timeclock') switchTab('timeclock'); else if(id === 'tab-shifts') switchTab('shifts'); else if(id === 'tab-shop') switchTab('shop'); else if(id === 'tab-tasks') switchTab('tasks'); else if(id === 'tab-academy') switchTab('academy'); else switchTab('feed'); 
         if (targetElement.classList && targetElement.classList.contains('tab-btn')) { const scrollContainer = getEl('slider-scroll'); if (scrollContainer) { scrollContainer.style.scrollBehavior = 'auto'; scrollContainer.scrollLeft = targetElement.offsetLeft - (scrollContainer.offsetWidth / 2) + (targetElement.offsetWidth / 2); setTimeout(() => { scrollContainer.style.scrollBehavior = 'smooth'; }, 50); } }
         return new Promise(resolve => setTimeout(() => { intro.refresh(); resolve(); }, 150));
     });
@@ -3951,20 +3946,28 @@ function updateSalesDashboardStats() {
     let currentMonthOrders = 0;
     let currentMonthRevenue = 0;
     let openOrdersCount = 0;
+    let todayOrdersCount = 0; // נוסף משתנה עבור הזמנות היום
     
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const todayStr = now.toLocaleDateString('he-IL');
 
     // לרוץ על ההזמנות
     storeOrdersCache.forEach(o => {
         const orderDate = new Date(o.created_at);
+        
         if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
             currentMonthOrders++;
             // רק הזמנות סגורות / ששולמו נחשבות הכנסה
             if (o.status === 'completed' || o.status === 'shipped') {
                 currentMonthRevenue += parseFloat(o.total_amount) || 0;
             }
+        }
+        
+        // ספירת הזמנות של "היום" (הוספה חדשה)
+        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
+            todayOrdersCount++;
         }
         
         // ספירת הזמנות פתוחות (לא בטיוטה/הצעה ולא סופקו או בוטלו)
@@ -3981,11 +3984,13 @@ function updateSalesDashboardStats() {
     const elRevenue = getEl('stat-revenue-month');
     const elOpen = getEl('stat-open-orders');
     const elQuotes = getEl('stat-pending-quotes');
+    const elToday = getEl('stat-orders-today');
 
     if (elOrders) elOrders.innerText = currentMonthOrders;
     if (elRevenue) elRevenue.innerText = `₪${currentMonthRevenue.toFixed(0)}`;
     if (elOpen) elOpen.innerText = openOrdersCount;
     if (elQuotes) elQuotes.innerText = pendingQuotesCount;
+    if (elToday) elToday.innerText = todayOrdersCount;
 }
 
 function copyStoreLink() {
@@ -4481,30 +4486,50 @@ function toggleCardCollapse(cardId) {
 }
 
 function renderStoreOrders() {
-    const list = getEl('store-orders-list');
-    const statusFilter = val('store-orders-filter') || 'all';
-    const typeFilter = val('store-orders-type-filter') || 'all';
-    const searchId = val('orders-search-id');
+    const list = getEl('store-orders-list');
+    const statusFilter = val('store-orders-filter') || 'all';
+    const typeFilter = val('store-orders-type-filter') || 'all';
+    const searchId = val('orders-search-id');
     const storeOrdersSearch = val('store-orders-search');
 
-    let filteredOrders = storeOrdersCache;
-    
+    let filteredOrders = [...storeOrdersCache];
+    
+    // -- לוגיקת תעדוף (סעיף 7) - מיון הזמנות פתוחות לפי תאריך יעד / target_datetime --
+    filteredOrders.sort((a, b) => {
+        // אם שניהם הושלמו - למיין מהחדש לישן
+        if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
+        // אם אחד הושלם ואחד לא, ההושלם יורד למטה
+        if (a.status === 'completed') return 1;
+        if (b.status === 'completed') return -1;
+
+        // מיון עדיפות לפי זמני אספקה להזמנות פתוחות
+        let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
+        let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
+
+        // אם לשניהם אין זמן יעד - לסדר לפי מי שהזמין קודם (הוותיק למעלה)
+        if (timeA === Infinity && timeB === Infinity) return new Date(a.created_at) - new Date(b.created_at);
+
+        return timeA - timeB;
+    });
+    // ----------------------------------------------------------------------
+
     const activeSearch = storeOrdersSearch || searchId;
 
-    if (activeSearch) {
-        const s = activeSearch.toLowerCase();
-        filteredOrders = filteredOrders.filter(o => 
-            String(o.id).includes(s) || 
-            (o.customer_phone && String(o.customer_phone).includes(s)) ||
-            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
-        );
-    }
-    
-    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
-    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
-    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
-    
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
+    if (activeSearch) {
+        const s = activeSearch.toLowerCase();
+        filteredOrders = filteredOrders.filter(o => 
+            String(o.id).includes(s) || 
+            (o.customer_phone && String(o.customer_phone).includes(s)) ||
+            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
+        );
+    }
+    
+    if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+    if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
+    if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
+    
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לסינון.</p>'; return; }
+    
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
@@ -4514,6 +4539,8 @@ function renderStoreOrders() {
         'completed': { text: 'סופק ✅', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' } 
     };
     
+    const now = new Date();
+
     filteredOrders.forEach(o => {
         const st = statusMap[o.status] || statusMap['new'];
         const meta = getDeliveryMeta(o);
@@ -4525,10 +4552,26 @@ function renderStoreOrders() {
 
         const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
 
+        // הוספת חיווי ויזואלי להזמנות דחופות
+        let urgencyBadge = '';
+        if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
+             const targetTime = new Date(o.target_datetime);
+             const minsDiff = (targetTime - now) / 60000;
+             
+             if (minsDiff < 0) {
+                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)] animate-pulse" title="איחור באספקה!"></div>';
+             } else if (minsDiff < 30) {
+                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-orange-500" title="פחות מחצי שעה לאספקה"></div>';
+             } else {
+                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-blue-400" title="בתור להכנה"></div>';
+             }
+        }
+
         html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 relative overflow-hidden fade-in">
-            <div class="flex justify-between items-center cursor-pointer select-none" onclick="toggleCardCollapse('mng-${o.id}')">
-                <div class="flex-1 pr-2">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 relative overflow-hidden fade-in hover:shadow-md transition">
+            ${urgencyBadge}
+            <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
+                <div class="flex-1 pr-3">
                     <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
                     <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p>
                 </div>
@@ -4538,11 +4581,11 @@ function renderStoreOrders() {
                 </div>
             </div>
             
-            <div id="order-details-mng-${o.id}" class="hidden">
+            <div id="order-details-mng-${o.id}" class="hidden pr-3 pl-1">
                 ${isDelivery ? `<div class="mt-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
                 ${buildOrderLogHtml(o.status, o.created_at)}
                 <div class="flex justify-end mt-4">
-                    <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full">ניהול ופרטים מלאים</button>
+                    <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
                 </div>
             </div>
         </div>`;
@@ -6999,4 +7042,54 @@ async function saveRecipeBuilder() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
+ // ==========================================
+// --- קריאות שירות (Support Tickets) ---
+// ==========================================
+function openSupportTicketModal() {
+    getEl('support-ticket-subject').value = 'תקלה טכנית';
+    getEl('support-ticket-desc').value = '';
+    getEl('support-ticket-modal').classList.remove('hidden');
+    getEl('profile-modal').classList.add('hidden'); // סוגר את חלון הפרופיל אם פתוח
+}
+
+async function submitSupportTicket() {
+    const subject = val('support-ticket-subject');
+    const desc = val('support-ticket-desc');
+    
+    if(!desc || desc.length < 5) return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
+    
+    const btn = getEl('btn-submit-ticket');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר קריאה...';
+    
+    try {
+        const res = await fetch(`${API}/support/ticket`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                groupId: currentGroup.id,
+                groupName: currentGroup.name,
+                userId: currentUser.id,
+                userName: currentUser.nickname,
+                userEmail: currentUser.email || currentGroup.admin_email || 'לא סופק',
+                subject: subject,
+                description: desc
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'קריאתך התקבלה במערכת. נציג Oneflow יחזור אליך בהקדם!');
+            getEl('support-ticket-modal').classList.add('hidden');
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הקריאה. נסו שנית.');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול מוקד השירות. בדוק חיבור רשת.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>';
+    }
+}   
 })();
