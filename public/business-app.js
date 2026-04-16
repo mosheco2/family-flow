@@ -3792,10 +3792,12 @@ async function fetchStoreSettings() {
             getEl('store-whatsapp').value = data.settings.whatsapp_number || '';
             getEl('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
             
+            const headerSlogan = getEl('main-header-slogan');
+            if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
+
             // --- טיפול חכם בלוגו ---
             const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
             
-            // העלמת או הצגת הלוגו בתפריט העליון (Desktop)
             const deskLogo = getEl('main-header-logo-desktop');
             const deskPlace = getEl('main-header-logo-placeholder-desktop');
             if (deskLogo && deskPlace) {
@@ -3814,7 +3816,6 @@ async function fetchStoreSettings() {
                 }
             }
 
-            // העלמת או הצגת הלוגו בתפריט העליון (Mobile)
             const mobLogo = getEl('main-header-logo-mobile');
             const mobPlace = getEl('main-header-logo-placeholder-mobile');
             if (mobLogo && mobPlace) {
@@ -3833,7 +3834,6 @@ async function fetchStoreSettings() {
                 }
             }
             
-            // עדכון הלוגו בתצוגות הניהול / הגדרות החנות
             if (hasLogo) {
                 document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => {
                     el.src = data.settings.logo_url; el.classList.remove('hidden'); el.style.display = 'block';
@@ -3850,51 +3850,20 @@ async function fetchStoreSettings() {
 
             // --- טיפול חכם בבאנר רקע ---
             const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBanner = getEl('main-header-banner');
+            const headerBannerEl = getEl('main-header-banner'); // שונה השם כדי למנוע התנגשות!
             
             if (hasBanner) {
-                if(headerBanner) headerBanner.style.backgroundImage = `url('${data.settings.banner_url}')`;
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
                 document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
                     el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block';
                 });
                 document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
                 document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
             } else {
-                if(headerBanner) headerBanner.style.backgroundImage = `none`;
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
                 document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
                 document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.remove('hidden'));
                 document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = '');
-            }
-            const headerBanner = getEl('main-header-banner');
-            if (data.settings.banner_url && headerBanner) {
-                headerBanner.style.backgroundImage = `url('${data.settings.banner_url}')`;
-            }
-            
-            const headerSlogan = getEl('main-header-slogan');
-            if (headerSlogan) {
-                headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
-            }
-            // ------------------------------------
-
-            if (data.settings.logo_url) {
-                document.querySelectorAll('[id="store-logo-preview"]').forEach(el => {
-                    el.src = data.settings.logo_url;
-                    el.classList.remove('hidden');
-                    el.style.display = 'block';
-                });
-                document.querySelectorAll('[id="store-logo-placeholder"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
-                document.querySelectorAll('[id="btn-generate-banner-ai"]').forEach(el => el.classList.remove('hidden'));
-            }
-    
-            if (data.settings.banner_url) {
-                document.querySelectorAll('[id="store-banner-preview"]').forEach(el => {
-                    el.src = data.settings.banner_url;
-                    el.classList.remove('hidden');
-                    el.style.display = 'block';
-                });
-                document.querySelectorAll('[id="store-banner-placeholder"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
             }
 
             if (data.settings.modifier_presets) {
