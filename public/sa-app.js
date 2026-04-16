@@ -118,10 +118,15 @@ async function loadSAData() {
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
         saAllGroups = data.groups || [];
-        saAllUsers = data.users || [];
-        renderSAGroups();
-        loadSACommunityData();
-    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
+        saAllUsers = data.users || [];
+        renderSAGroups();
+        loadSACommunityData();
+        
+        // טעינת קריאות שירות לסופר אדמין
+        if (typeof loadSATickets === 'function') {
+            loadSATickets();
+        }
+    } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
 async function updateSACredentials() {
@@ -949,4 +954,86 @@ window.handleCommImageUpload = function(event, type) {
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+}
+// ==========================================
+// --- ניהול קריאות שירות (Super Admin) ---
+// ==========================================
+let saTicketsCache = [];
+
+async function loadSATickets() {
+    const list = getEl('sa-tickets-list');
+    if(!list) return;
+    list.innerHTML = '<p class="text-center text-slate-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> טוען קריאות שירות...</p>';
+    try {
+        const res = await fetch(`${API}/superadmin/tickets`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            saTicketsCache = data.tickets || [];
+            renderSATickets();
+        } else {
+            list.innerHTML = '<p class="text-center text-red-500 text-sm">שגיאה בטעינת קריאות</p>';
+        }
+    } catch(e) { list.innerHTML = '<p class="text-center text-red-500 text-sm">שגיאת תקשורת</p>'; }
+}
+
+function renderSATickets() {
+    const list = getEl('sa-tickets-list');
+    if (!list) return;
+    if (saTicketsCache.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8 border border-dashed border-slate-200 rounded-xl bg-white">אין קריאות שירות פתוחות במערכת.</p>';
+        return;
+    }
+
+    let html = '';
+    const statusMap = {
+        'open': { text: 'פתוח (ממתין)', color: 'bg-red-100 text-red-600 border-red-200' },
+        'in_progress': { text: 'בטיפול', color: 'bg-orange-100 text-orange-600 border-orange-200' },
+        'resolved': { text: 'טופל (סגור)', color: 'bg-green-100 text-green-600 border-green-200 opacity-70' }
+    };
+
+    saTicketsCache.forEach(t => {
+        const st = statusMap[t.status] || statusMap['open'];
+        const dateStr = new Date(t.created_at).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'});
+        
+        html += `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-3 relative transition hover:shadow-md">
+            <div class="flex justify-between items-start mb-2 border-b border-slate-100 pb-2">
+                <div class="pr-2">
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(t.subject)}</h4>
+                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-solid fa-building mr-1"></i> ${safeStr(t.group_name)} | <i class="fa-solid fa-user mx-1"></i> ${safeStr(t.user_name)}</p>
+                    <p class="text-[9px] text-slate-400 mt-0.5">${dateStr}</p>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded border ${st.color} whitespace-nowrap">${st.text}</span>
+            </div>
+            
+            <div class="text-xs text-slate-600 whitespace-pre-wrap bg-slate-50 p-3 rounded-lg border border-slate-100 mb-3 max-h-32 overflow-y-auto modal-scroll leading-relaxed">${safeStr(t.description)}</div>
+            
+            <div class="flex gap-2 items-center bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                <span class="text-[10px] font-bold text-slate-500">עדכון סטטוס:</span>
+                <select onchange="updateSATicketStatus(${t.id}, this.value)" class="modern-input py-1.5 px-2 text-xs bg-white flex-1 font-bold shadow-sm" style="width: auto; padding: 5px;">
+                    <option value="open" ${t.status === 'open' ? 'selected' : ''}>פתוח (ממתין)</option>
+                    <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>בטיפול ע"י צוות Oneflow</option>
+                    <option value="resolved" ${t.status === 'resolved' ? 'selected' : ''}>טופל / נסגר</option>
+                </select>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+async function updateSATicketStatus(id, status) {
+    try {
+        const res = await fetch(`${API}/superadmin/tickets/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'סטטוס הקריאה עודכן בהצלחה');
+            loadSATickets();
+        } else {
+            showToast('error', 'שגיאה בעדכון הסטטוס');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }
 }
