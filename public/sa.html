@@ -50,8 +50,8 @@
             </div>
             <div class="px-8 py-8">
                 <form onsubmit="handleSALogin(event)" class="space-y-4">
-                    <input type="text" id="sa-code" required placeholder="שם משתמש (admin)" class="modern-input text-center dir-ltr">
-                    <input type="password" id="sa-password" required placeholder="סיסמה (123456)" class="modern-input text-center dir-ltr">
+                    <input type="text" id="sa-code" required placeholder="שם משתמש" class="modern-input text-center dir-ltr">
+                    <input type="password" id="sa-password" required placeholder="סיסמה" class="modern-input text-center dir-ltr">
                     <button type="submit" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold shadow-lg mt-2 hover:bg-indigo-700 transition">הכנס לניהול</button>
                 </form>
                 <button onclick="window.location.href='/'" class="w-full mt-6 text-slate-400 font-bold hover:text-slate-600 transition">חזור לאתר הראשי</button>
@@ -110,9 +110,19 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
-                        <div id="sa-activity-list" class="space-y-2 h-64 overflow-y-auto pr-2 modal-scroll"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                            <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
+                            <div id="sa-activity-list" class="space-y-2 h-80 overflow-y-auto pr-2 modal-scroll"></div>
+                        </div>
+
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> קריאות שירות (תמיכה)</h2>
+                                <button onclick="loadSATickets()" class="text-sm text-blue-600 font-bold hover:underline"><i class="fa-solid fa-rotate-right"></i> רענן</button>
+                            </div>
+                            <div id="sa-tickets-list" class="space-y-3 h-80 overflow-y-auto pr-2 modal-scroll"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -330,26 +340,26 @@
                     </div>
 
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
-                            <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> פרטי המנהל הראשי (Super Admin)</h2>
-                            <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות וכתובת המייל המרכזית של מנהל המערכת.</p>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
-                                    <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">כתובת אימייל ראשית:</label>
-                                    <input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="admin@oneflow.com">
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
-                                    <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********">
-                                </div>
-                            </div>
-                            <div class="flex justify-end mt-4">
-                                <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-red-600 transition whitespace-nowrap">שמור נתונים</button>
-                            </div>
-                        </div>
+                            <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-key text-red-500 mr-2"></i> פרטי המנהל הראשי (Super Admin)</h2>
+                            <p class="text-xs text-slate-500 mb-3">שנה את פרטי ההתחברות וכתובת המייל המרכזית של מנהל המערכת.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">שם משתמש חדש:</label>
+                                    <input type="text" id="sa-new-username" class="modern-input py-2 text-sm" placeholder="admin">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">כתובת אימייל ראשית:</label>
+                                    <input type="email" id="sa-new-email" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="admin@oneflow.com">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">סיסמה חדשה:</label>
+                                    <input type="password" id="sa-new-password" class="modern-input py-2 text-sm" placeholder="********">
+                                </div>
+                            </div>
+                            <div class="flex justify-end mt-4">
+                                <button onclick="updateSACredentials()" class="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-red-600 transition whitespace-nowrap">שמור נתונים</button>
+                            </div>
+                        </div>
                 </div>
                 
             </div>
@@ -430,19 +440,19 @@
     </div>
 
    <div id="sa-edit-group-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
-            <h3 class="text-xl font-bold mb-4 text-slate-800">עריכת פרטי סביבה</h3>
-            <input type="hidden" id="sa-edit-group-id">
-            <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה:</label>
-            <input type="text" id="sa-edit-group-name" class="modern-input mb-3" placeholder="שם המשפחה או העסק">
-            <label class="text-xs font-bold text-slate-500 mb-1 block">אימייל מנהל הסביבה:</label>
-            <input type="email" id="sa-edit-group-email" class="modern-input mb-6 text-left dir-ltr" placeholder="כתובת המייל של בעל הסביבה">
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
-                <button onclick="saveSAEditGroup()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים</button>
-            </div>
-        </div>
-    </div>
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">עריכת פרטי סביבה</h3>
+            <input type="hidden" id="sa-edit-group-id">
+            <label class="text-xs font-bold text-slate-500 mb-1 block">שם הסביבה:</label>
+            <input type="text" id="sa-edit-group-name" class="modern-input mb-3" placeholder="שם המשפחה או העסק">
+            <label class="text-xs font-bold text-slate-500 mb-1 block">אימייל מנהל הסביבה:</label>
+            <input type="email" id="sa-edit-group-email" class="modern-input mb-6 text-left dir-ltr" placeholder="כתובת המייל של בעל הסביבה">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="saveSAEditGroup()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition">שמור שינויים</button>
+            </div>
+        </div>
+    </div>
 
     <div id="sa-edit-user-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative fade-in">
@@ -459,6 +469,6 @@
         </div>
     </div>
 
-    <script src="sa-app.js?v=1"></script>
+    <script src="sa-app.js?v=2"></script>
 </body>
 </html>
