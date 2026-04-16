@@ -7150,5 +7150,4 @@ window.fetchMyTickets = async function() {
     } catch(e) {
         list.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת בטעינה.</p>';
     }
-};
 }})();
