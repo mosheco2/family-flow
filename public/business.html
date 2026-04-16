@@ -783,7 +783,7 @@
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4">ניהול חנות ומכירות 🛍️</h3>
                             
-                            <div id="sales-stats-dashboard" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+<div id="sales-stats-dashboard" class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
                                 <div class="bg-blue-50 p-3 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
                                     <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">הזמנות החודש</span>
                                     <span id="stat-orders-count" class="text-2xl font-black text-blue-900">0</span>
@@ -800,21 +800,27 @@
                                     <span class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">הצעות ממתינות</span>
                                     <span id="stat-pending-quotes" class="text-2xl font-black text-indigo-900">0</span>
                                 </div>
+                                <div class="bg-fuchsia-50 p-3 rounded-2xl border border-fuchsia-100 flex flex-col items-center justify-center text-center shadow-sm col-span-2 sm:col-span-1">
+                                    <span class="text-[10px] font-bold text-fuchsia-600 uppercase tracking-wider mb-1">הזמנות היום</span>
+                                    <span id="stat-orders-today" class="text-2xl font-black text-fuchsia-900">0</span>
+                                </div>
                             </div>
-                            
+
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
-                               <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                                <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                                 <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
                                 <button id="btn-sales-marketing" onclick="switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
+                                <button id="btn-sales-analytics" onclick="switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">אנליטיקה 📊</button>
                                 <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
-                                <div class="flex flex-col gap-2 mb-2">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                                     <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
-                                    
-                                    <div class="relative w-full">
+                                    <button onclick="openCustomerStatusScreen()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-tv"></i> מסך סטטוס לקוחות (Live)</button>
+                                </div>
+                                <div class="relative w-full">
                                         <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
                                         <input type="text" id="store-orders-search" onkeyup="renderStoreOrders()" class="modern-input py-1.5 pr-8 pl-3 text-xs bg-slate-50 h-auto" placeholder="חיפוש לפי שם, טלפון או מס' הזמנה...">
                                     </div>
@@ -875,7 +881,28 @@
                                     <div id="store-coupons-list" class="space-y-2 pb-8"></div>
                                 </div>
                             </div>
-
+<div id="sales-view-analytics" class="hidden space-y-6 pb-8">
+                                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <h4 class="font-bold text-slate-700 text-sm">סינון נתונים:</h4>
+                                    <select id="analytics-time-filter" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-xs font-bold bg-white text-slate-700 rounded-lg shadow-sm w-auto">
+                                        <option value="7">7 ימים אחרונים</option>
+                                        <option value="30" selected>30 ימים אחרונים</option>
+                                        <option value="90">3 חודשים אחרונים</option>
+                                        <option value="365">שנה אחרונה</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 text-xs mb-4 text-center">הכנסות לאורך זמן</h5>
+                                        <div class="relative h-48 w-full"><canvas id="analyticsRevenueChart"></canvas></div>
+                                    </div>
+                                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                        <h5 class="font-bold text-slate-700 text-xs mb-4 text-center">המוצרים הנמכרים ביותר</h5>
+                                        <div class="relative h-48 w-full flex justify-center"><canvas id="analyticsProductsChart"></canvas></div>
+                                    </div>
+                                </div>
+                            </div>
 <div id="sales-view-settings" class="hidden space-y-5 pb-8">
                                 <div class="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                                     <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600">
@@ -2364,7 +2391,8 @@
                     <button type="submit" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg mt-2 hover:bg-slate-700 transition">עדכון סיסמת גישה</button>
                 </form>
                 
-                <button type="button" onclick="triggerManualTour()" class="mt-4 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> הדרכת משתמש על המערכת</button>
+<button type="button" onclick="triggerManualTour()" class="mt-4 w-full bg-slate-100 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition flex items-center justify-center gap-2"><i class="fa-solid fa-route"></i> הדרכת משתמש על המערכת</button>
+                <button type="button" onclick="openSupportTicketModal()" class="mt-3 w-full bg-blue-50 text-blue-600 border border-blue-100 py-3 rounded-xl font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2"><i class="fa-solid fa-headset"></i> פתח קריאת שירות ל-Oneflow</button>
                 <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="mt-3 w-full bg-white border border-slate-200 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition">חזור ללוח הבקרה</button>
             </div>
         </div>
@@ -2655,6 +2683,34 @@
                     <button onclick="shareQuoteWhatsAppFromPreview()" class="w-full max-w-sm bg-[#25D366] text-white py-3 rounded-xl font-bold shadow-lg hover:bg-[#1ebd58] transition flex items-center justify-center gap-2">
                         <i class="fa-brands fa-whatsapp text-lg"></i> שליחה ללקוח בוואטסאפ
                     </button>
+                </div>
+            </div>
+        </div>
+    <div id="support-ticket-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
+                <button onclick="document.getElementById('support-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-2 text-center"><i class="fa-solid fa-headset text-blue-500 mr-2"></i> מרכז תמיכה ושירות</h3>
+                <p class="text-xs text-slate-500 text-center mb-6">נתקלתם בבעיה? צריכים עזרה עם המערכת? צוות Oneflow כאן בשבילכם.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">נושא הפנייה:</label>
+                        <select id="support-ticket-subject" class="modern-input py-2 text-sm bg-white font-bold text-slate-700">
+                            <option value="תקלה טכנית">תקלה טכנית (באג במערכת)</option>
+                            <option value="שאלה על שימוש">הדרכה ושאלה על שימוש</option>
+                            <option value="בקשת שדרוג/פיצ'ר">בקשת שדרוג או פיצ'ר חדש</option>
+                            <option value="הנהלת חשבונות">הנהלת חשבונות וחיובים</option>
+                            <option value="אחר">אחר</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">פירוט הפנייה:</label>
+                        <textarea id="support-ticket-desc" class="modern-input py-3 text-sm h-32 bg-white" placeholder="תארו לנו את הבעיה בפירוט..."></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button onclick="document.getElementById('support-ticket-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="submitSupportTicket()" id="btn-submit-ticket" class="w-2/3 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">שלח קריאה <i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
         </div>
