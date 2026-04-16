@@ -650,10 +650,6 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div id="content-quotes" class="hidden">
-                        </div>
-                    
                     <div id="content-customers" class="hidden">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">לקוחות 🤝</h3>
@@ -828,7 +824,13 @@
                                 </div>
                                 <div id="store-orders-list" class="space-y-3 pb-8"></div>
                             </div>
-
+                                <div id="sales-view-quotes" class="hidden space-y-4">
+                                <div class="flex justify-between items-center mb-4 px-1">
+                                  <h4 class="font-bold text-slate-700 text-sm">ניהול הצעות מחיר</h4>
+        <button onclick="openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
+    </div>
+    <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+</div>
                             <div id="sales-view-catalog" class="hidden space-y-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <h4 class="font-bold text-slate-700 text-sm">מוצרים בחנות</h4>
