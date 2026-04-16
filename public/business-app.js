@@ -4494,7 +4494,7 @@ function renderStoreOrders() {
 
     let filteredOrders = [...storeOrdersCache];
     
-    // מיון הזמנות פתוחות לפי תאריך יעד
+    // מיון הזמנות פתוחות לפי תאריך יעד (הזמנות עתידיות למטה, קרובות למעלה, ריק=רגיל)
     filteredOrders.sort((a, b) => {
         if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
         if (a.status === 'completed') return 1;
@@ -4503,7 +4503,7 @@ function renderStoreOrders() {
         let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
         let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
 
-        if (timeA === Infinity && timeB === Infinity) return new Date(a.created_at) - new Date(b.created_at);
+        if (timeA === Infinity && timeB === Infinity) return new Date(b.created_at) - new Date(a.created_at); // רגילות - מהחדש לישן
         return timeA - timeB;
     });
 
@@ -4546,16 +4546,23 @@ function renderStoreOrders() {
         const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
 
         let urgencyBadge = '';
+        let targetDisplay = '';
+        
+        // התראת שעת יעד מול זמן נוכחי
         if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
              const targetTime = new Date(o.target_datetime);
              const minsDiff = (targetTime - now) / 60000;
+             const timeStr = targetTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
              
              if (minsDiff < 0) {
                  urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)] animate-pulse" title="איחור באספקה!"></div>';
+                 targetDisplay = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-200 shadow-sm ml-2 animate-pulse"><i class="fa-solid fa-bell"></i> איחור! ל-${timeStr}</span>`;
              } else if (minsDiff < 30) {
                  urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-orange-500" title="פחות מחצי שעה לאספקה"></div>';
+                 targetDisplay = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-orange-200 shadow-sm ml-2"><i class="fa-solid fa-fire"></i> דחוף: ל-${timeStr}</span>`;
              } else {
                  urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-blue-400" title="בתור להכנה"></div>';
+                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[10px] font-bold border border-blue-200 shadow-sm ml-2"><i class="fa-regular fa-clock"></i> עתידי: ל-${timeStr}</span>`;
              }
         }
 
@@ -4564,8 +4571,12 @@ function renderStoreOrders() {
             ${urgencyBadge}
             <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
                 <div class="flex-1 pr-3">
-                    <h4 class="font-bold text-slate-800 text-sm">הזמנה #${o.id} <span class="font-black text-indigo-600 ml-2">₪${o.total_amount}</span></h4>
-                    <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p>
+                    <h4 class="font-bold text-slate-800 text-sm mb-1">הזמנה #${o.id} ${targetDisplay}</h4>
+                    <div class="flex items-center gap-2">
+                        <span class="font-black text-indigo-600">₪${o.total_amount}</span>
+                        <span class="text-xs text-slate-500"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
