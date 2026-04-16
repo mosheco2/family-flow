@@ -7034,16 +7034,9 @@ async function saveRecipeBuilder() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
- // ==========================================
+// ==========================================
 // --- קריאות שירות (Support Tickets) ---
 // ==========================================
-function openSupportTicketModal() {
-    getEl('support-ticket-subject').value = 'תקלה טכנית';
-    getEl('support-ticket-desc').value = '';
-    getEl('support-ticket-modal').classList.remove('hidden');
-    getEl('profile-modal').classList.add('hidden'); // סוגר את חלון הפרופיל אם פתוח
-}
-
 async function submitSupportTicket() {
     const subject = val('support-ticket-subject');
     const desc = val('support-ticket-desc');
@@ -7051,37 +7044,47 @@ async function submitSupportTicket() {
     if(!desc || desc.length < 5) return showToast('error', 'אנא פרטו את בקשתכם (לפחות 5 תווים).');
     
     const btn = getEl('btn-submit-ticket');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר קריאה...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר קריאה...';
+    }
     
     try {
+        const payload = {
+            groupId: currentGroup ? currentGroup.id : null,
+            groupName: currentGroup ? currentGroup.name : 'לא ידוע',
+            userId: currentUser ? currentUser.id : null,
+            userName: currentUser ? currentUser.nickname : 'אורח',
+            userEmail: (currentUser && currentUser.email) ? currentUser.email : ((currentGroup && currentGroup.admin_email) ? currentGroup.admin_email : 'לא סופק'),
+            subject: subject,
+            description: desc
+        };
+
         const res = await fetch(`${API}/support/ticket`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                groupId: currentGroup.id,
-                groupName: currentGroup.name,
-                userId: currentUser.id,
-                userName: currentUser.nickname,
-                userEmail: currentUser.email || currentGroup.admin_email || 'לא סופק',
-                subject: subject,
-                description: desc
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', 'קריאתך התקבלה במערכת. נציג Oneflow יחזור אליך בהקדם!');
+            showToast('success', 'קריאתך התקבלה במערכת. נציג יחזור אליך בהקדם!');
             getEl('support-ticket-modal').classList.add('hidden');
+            getEl('support-ticket-desc').value = '';
+            
+            try { triggerConfetti(); } catch(e) {}
         } else {
             showToast('error', data.error || 'שגיאה בשליחת הקריאה. נסו שנית.');
         }
     } catch(e) {
+        console.error("Error submitting ticket:", e);
         showToast('error', 'שגיאת תקשורת מול מוקד השירות. בדוק חיבור רשת.');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>';
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'שלח קריאה <i class="fa-solid fa-paper-plane"></i>';
+        }
     }
-}   
+}
 })();
