@@ -392,11 +392,10 @@ app.get('/setup-db', async (req, res) => {
 
 // --- SUPER ADMIN ENDPOINTS ---
 
-const verifySA = (req, res, next) => {
+function verifySA(req, res, next) {
     if (req.headers.authorization !== 'SA_SECRET_TOKEN_2026') return res.status(403).json({error: 'Forbidden'});
     next();
-};
-
+}
 app.post('/api/superadmin/login', async (req, res) => {
     try {
         const { code, password } = req.body;
