@@ -7197,5 +7197,4 @@ window.submitClientTicketReply = async function(ticketId) {
             window.fetchMyTickets();
         } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
     } catch(e) { showToast('error', 'שגיאת רשת.'); }
-};
 }})();
