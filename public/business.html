@@ -508,10 +508,11 @@
 <div id="dashboard-container" class="w-full max-w-lg mx-auto hidden fade-in min-h-screen sm:min-h-[95vh] relative flex flex-col bg-slate-50 sm:rounded-[2rem] sm:shadow-2xl overflow-hidden sm:my-4 transition-all duration-300">
        
 <div class="flex-1 pb-28 relative flex flex-col w-full">
+                
                 <div class="w-full shadow-sm bg-white flex flex-col z-40 relative">
-                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex-col items-center justify-center text-[10px] font-bold text-center overflow-hidden min-h-[40px] relative"></a>
-                    <div id="app-banner-placeholder" class="hidden w-full h-10 flex items-center justify-center text-slate-300 text-[9px] font-bold">
-                        <i class="fa-solid fa-rectangle-ad mr-1"></i> מרכז ההטבות
+                    <a id="app-banner-top" class="hidden w-full hover:opacity-90 transition flex-col items-center justify-center text-sm font-bold text-center overflow-hidden min-h-[80px] sm:min-h-[100px] relative"></a>
+                    <div id="app-banner-placeholder" class="hidden w-full min-h-[80px] sm:min-h-[100px] flex items-center justify-center text-slate-400 text-xs font-bold">
+                        <i class="fa-solid fa-rectangle-ad mr-1"></i> באנר פרסומי (סופר אדמין)
                     </div>
                 </div>
 
@@ -523,12 +524,16 @@
                                 <div id="main-header-logo-placeholder-mobile" class="w-full h-full text-slate-300 flex items-center justify-center text-2xl">
                                     <i class="fa-solid fa-store"></i>
                                 </div>
-                                <img id="main-header-logo-desktop" src="" class="hidden">
-                                <div id="main-header-logo-placeholder-desktop" class="hidden"></div>
+                                <div style="display: none !important;">
+                                    <img id="main-header-logo-desktop" src="">
+                                    <div id="main-header-logo-placeholder-desktop"></div>
+                                </div>
                             </div>
                             
                             <div class="flex-1">
-                                <h1 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-none mb-1" id="dash-group-name">טוען...</h1>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h1 class="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-none" id="dash-group-name">טוען...</h1>
+                                </div>
                                 <p class="text-[10px] font-medium text-slate-500 uppercase tracking-wider" id="main-header-slogan">Business Control Center</p>
                             </div>
                         </div>
