@@ -6996,6 +6996,8 @@ async function saveRecipeBuilder() {
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
+})(); // <--- הנה הסגירה שהייתה חסרה ותקעה את המערכת!
+
 // ==========================================
 // --- קריאות שירות והיסטוריה (Support Tickets) ---
 // ==========================================
@@ -7100,7 +7102,6 @@ window.renderMyTickets = function() {
         let logArr = [];
         try { logArr = typeof t.log === 'string' ? JSON.parse(t.log) : (t.log || []); } catch(e) {}
         
-        // יצירת היסטוריית השיחה
         const logHtml = logArr.map(entry => {
             const isMe = !entry.isStaff;
             const alignClass = isMe ? 'self-start bg-indigo-50 border-indigo-100 text-indigo-900 rounded-tl-none mr-4' : 'self-end bg-slate-100 border-slate-200 text-slate-700 rounded-tr-none ml-4';
@@ -7159,6 +7160,8 @@ window.submitClientTicketReply = async function(ticketId) {
             window.fetchMyTickets();
         } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
     } catch(e) { showToast('error', 'שגיאת רשת.'); }
+};
+
 // --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
 function updateSalesDashboardStats() {
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
