@@ -3955,26 +3955,29 @@ function updateSalesDashboardStats() {
     const currDate = now.getDate();
 
     storeOrdersCache.forEach(o => {
-        // מתעלמים מהזמנות שבוטלו בחישוב ההכנסות
-        if (o.status === 'cancelled') return;
-        if (o.status === 'quote' || (o.quote_status && o.quote_status !== 'approved')) return;
+        if (o.status === 'cancelled' || o.status === 'quote' || (o.quote_status && o.quote_status !== 'approved')) return;
 
         const d = new Date(o.created_at);
         const orderAmount = parseFloat(o.total_amount) || 0;
         
-        // בדיקת חודש נוכחי
+        // כל ההזמנות (מלבד מבוטלות וטיוטות) נחשבות לצורך ספירת הזמנות (נפח פעילות)
         if (d.getMonth() === currMonth && d.getFullYear() === currYear) {
             currentMonthOrders++;
-            currentMonthRevenue += orderAmount;
+            // אבל רק הזמנות ששולמו / סופקו ייחשבו להכנסה בפועל (Revenue)
+            if (o.status === 'completed' || o.status === 'shipped') {
+                currentMonthRevenue += orderAmount;
+            }
         }
         
-        // בדיקת היום הנוכחי (מדויק לפי תאריכים ולא טקסט מחרוזת שעלול להשתבש בשרת)
+        // אותו דבר לגבי 'היום'
         if (d.getDate() === currDate && d.getMonth() === currMonth && d.getFullYear() === currYear) {
             todayOrdersCount++;
-            todayRevenue += orderAmount;
+            if (o.status === 'completed' || o.status === 'shipped') {
+                todayRevenue += orderAmount;
+            }
         }
         
-        // הזמנות פתוחות
+        // פתוחות (כל מה שלא הושלם/בוטל)
         if (o.status !== 'completed' && o.status !== 'shipped') {
             openOrdersCount++;
         }
@@ -7210,7 +7213,7 @@ window.submitClientTicketReply = async function(ticketId) {
             window.fetchMyTickets();
         } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
     } catch(e) { showToast('error', 'שגיאת רשת.'); }
-    // --- טאב אנליטיקה ---
+// --- טאב אנליטיקה ---
 let analyticsRevChart = null;
 let analyticsProdChart = null;
 
@@ -7223,10 +7226,9 @@ window.renderAnalytics = function() {
         cutoff.setHours(0,0,0,0);
     }
 
-    // הכללת כל ההזמנות שלא בוטלו כדי שיהיה דאטה בגרפים
+    // מושכים את כל ההזמנות המוצלחות מהתקופה האחרונה
     const relevantOrders = storeOrdersCache.filter(o => 
-        o.status !== 'cancelled' && 
-        o.status !== 'quote' &&
+        (o.status === 'completed' || o.status === 'shipped') && 
         new Date(o.created_at) >= cutoff
     );
 
@@ -7234,7 +7236,7 @@ window.renderAnalytics = function() {
     const prodMap = {};
 
     relevantOrders.forEach(o => {
-        const d = new Date(o.created_at).toLocaleDateString('he-IL');
+        const d = new Date(o.created_at).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'numeric'});
         revMap[d] = (revMap[d] || 0) + (parseFloat(o.total_amount) || 0);
         
         try {
@@ -7247,12 +7249,14 @@ window.renderAnalytics = function() {
         } catch(e) {}
     });
 
+    // מיון התאריכים לגרף ההכנסות
     const revLabels = Object.keys(revMap).sort((a,b) => {
         const [d1,m1,y1] = a.split('.'); const [d2,m2,y2] = b.split('.');
         return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
     });
     const revData = revLabels.map(l => revMap[l]);
 
+    // מיון המוצרים המובילים
     const topProducts = Object.entries(prodMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
     const prodLabels = topProducts.map(p => p[0]);
     const prodData = topProducts.map(p => p[1]);
@@ -7260,44 +7264,73 @@ window.renderAnalytics = function() {
     const ctxRev = getEl('analyticsRevenueChart');
     const ctxProd = getEl('analyticsProductsChart');
 
-    // הסרת טקסט ה"טוען גרף..." אם הוא קיים
     if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
     if(ctxProd && ctxProd.previousElementSibling) ctxProd.previousElementSibling.style.display = 'none';
 
-    // המתנה קלה כדי לוודא שהטאב נפתח לגמרי והדפדפן חישב את הרוחב של ה-Canvas
+    // הבטחת טעינת Chart.js אם זה עתה נכנסנו לטאב
     setTimeout(() => {
         if(analyticsRevChart) analyticsRevChart.destroy();
-        if(ctxRev) {
+        if(ctxRev && window.Chart) {
             analyticsRevChart = new Chart(ctxRev, {
                 type: 'line',
                 data: { 
-                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], 
-                    datasets: [{ label: 'הכנסות צפויות (₪)', data: revData.length > 0 ? revData : [0], borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }] 
+                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים בתקופה זו'], 
+                    datasets: [{ 
+                        label: 'הכנסות (₪)', 
+                        data: revData.length > 0 ? revData : [0], 
+                        borderColor: '#4f46e5', 
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)', 
+                        fill: true, 
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#4f46e5',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }] 
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { dash: [4, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
             });
         }
 
         if(analyticsProdChart) analyticsProdChart.destroy();
-        if(ctxProd) {
+        if(ctxProd && window.Chart) {
             analyticsProdChart = new Chart(ctxProd, {
                 type: 'doughnut',
                 data: { 
-                    labels: prodLabels.length > 0 ? prodLabels : ['אין מכירות'], 
-                    datasets: [{ data: prodData.length > 0 ? prodData : [1], backgroundColor: prodData.length > 0 ? ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] : ['#e2e8f0'] }] 
+                    labels: prodLabels.length > 0 ? prodLabels : ['טרם נמכרו מוצרים'], 
+                    datasets: [{ 
+                        data: prodData.length > 0 ? prodData : [1], 
+                        backgroundColor: prodData.length > 0 ? ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] : ['#e2e8f0'],
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }] 
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:10}} } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '65%',
+                    plugins: { legend: { position: 'left', labels: {font:{family:'Rubik', size:11}, usePointStyle: true, padding: 15} } } 
+                }
             });
         }
-    }, 50);
+    }, 150); // העלנו את זמן ההמתנה כדי שהאנימציה של CSS תסתיים והקנבס יקבל מידות נכונות!
 };
 
-// עדכון טאב החנות הראשי
+// עדכון טאב החנות הראשי - קריאה לרינדור גם כשעוברים טאב וגם כשהנתונים חוזרים
 const originalSwitchSalesTab = window.switchSalesTab;
 window.switchSalesTab = function(subTab) {
     if (originalSwitchSalesTab) originalSwitchSalesTab(subTab);
-    if (subTab === 'analytics' && typeof renderAnalytics === 'function') {
-        renderAnalytics();
+    if (subTab === 'analytics') {
+        setTimeout(window.renderAnalytics, 100); // מוודאים רינדור כשמגיעים לטאב
     }
 };
 
@@ -7308,4 +7341,3 @@ setInterval(() => {
         if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
     }
 }, 20000);
-}})();
