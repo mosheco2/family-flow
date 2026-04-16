@@ -204,6 +204,48 @@ async function sendSystemEmail(to, subject, htmlContent) {
     }
 }
 
+// =========================================================
+// פונקציית שליחת קריאת שירות תמיכה
+// =========================================================
+app.post('/api/support/ticket', async (req, res) => {
+    try {
+        const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
+        
+        if (!description || description.length < 5) {
+            return res.status(400).json({ success: false, error: 'תיאור קצר מדי.' });
+        }
+
+        // המייל אליו נשלח את קריאות השירות
+        const supportEmail = 'mcgames1978@gmail.com'; 
+        
+        const ticketHtml = `
+            <div dir="rtl" style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה - Oneflow</h2>
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <p style="margin: 5px 0;"><strong>נושא:</strong> ${safeStr(subject)}</p>
+                    <p style="margin: 5px 0;"><strong>שם לקוח:</strong> ${safeStr(userName)}</p>
+                    <p style="margin: 5px 0;"><strong>ארגון/סביבה:</strong> ${safeStr(groupName)} (ID: ${groupId})</p>
+                    <p style="margin: 5px 0;"><strong>מייל לחזרה:</strong> ${safeStr(userEmail)}</p>
+                </div>
+                <h3 style="color: #1e293b;">תוכן הפנייה:</h3>
+                <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; white-space: pre-wrap;">
+                    ${safeStr(description)}
+                </div>
+            </div>
+        `;
+
+        const sent = await sendSystemEmail(supportEmail, `קריאת שירות: ${safeStr(subject)} מ-${safeStr(userName)}`, ticketHtml);
+        
+        if (sent) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, error: 'תקלה בשליחת המייל' });
+        }
+    } catch (e) {
+        console.error('Support ticket error:', e);
+        res.status(500).json({ success: false, error: 'שגיאת שרת פנימית' });
+    }
+});
 app.get('/api/test-email', async (req, res) => {
     try {
         const user = process.env.SMTP_USER ? process.env.SMTP_USER.trim() : null;
