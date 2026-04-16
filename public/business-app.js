@@ -3946,53 +3946,172 @@ function updateSalesDashboardStats() {
     let currentMonthOrders = 0;
     let currentMonthRevenue = 0;
     let openOrdersCount = 0;
-    let todayOrdersCount = 0; // נוסף משתנה עבור הזמנות היום
+    let todayOrdersCount = 0;
+    let todayRevenue = 0;
     
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const todayStr = now.toLocaleDateString('he-IL');
 
-    // לרוץ על ההזמנות
     storeOrdersCache.forEach(o => {
         const orderDate = new Date(o.created_at);
+        const isPaid = (o.status === 'completed' || o.status === 'shipped');
         
         if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
             currentMonthOrders++;
-            // רק הזמנות סגורות / ששולמו נחשבות הכנסה
-            if (o.status === 'completed' || o.status === 'shipped') {
-                currentMonthRevenue += parseFloat(o.total_amount) || 0;
-            }
+            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
         }
         
-        // ספירת הזמנות של "היום" (הוספה חדשה)
         if (orderDate.toLocaleDateString('he-IL') === todayStr) {
             todayOrdersCount++;
+            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
         }
         
-        // ספירת הזמנות פתוחות (לא בטיוטה/הצעה ולא סופקו או בוטלו)
         if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
             openOrdersCount++;
         }
     });
 
-    // ספירת הצעות מחיר פתוחות
     const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
 
-    // עדכון ה-DOM
-    const elOrders = getEl('stat-orders-count');
-    const elRevenue = getEl('stat-revenue-month');
-    const elOpen = getEl('stat-open-orders');
-    const elQuotes = getEl('stat-pending-quotes');
-    const elToday = getEl('stat-orders-today');
+    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
+    setTxt('stat-orders-count', currentMonthOrders);
+    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
+    setTxt('stat-open-orders', openOrdersCount);
+    setTxt('stat-pending-quotes', pendingQuotesCount);
+    setTxt('stat-orders-today', todayOrdersCount);
+    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
+}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
+function updateSalesDashboardStats() {
+    if (!storeOrdersCache || !storeQuotesCache) return;
+    
+    let currentMonthOrders = 0;
+    let currentMonthRevenue = 0;
+    let openOrdersCount = 0;
+    let todayOrdersCount = 0;
+    let todayRevenue = 0;
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const todayStr = now.toLocaleDateString('he-IL');
 
-    if (elOrders) elOrders.innerText = currentMonthOrders;
-    if (elRevenue) elRevenue.innerText = `₪${currentMonthRevenue.toFixed(0)}`;
-    if (elOpen) elOpen.innerText = openOrdersCount;
-    if (elQuotes) elQuotes.innerText = pendingQuotesCount;
-    if (elToday) elToday.innerText = todayOrdersCount;
+    storeOrdersCache.forEach(o => {
+        const orderDate = new Date(o.created_at);
+        const isPaid = (o.status === 'completed' || o.status === 'shipped');
+        
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+            currentMonthOrders++;
+            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
+            todayOrdersCount++;
+            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
+            openOrdersCount++;
+        }
+    });
+
+    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
+
+    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
+    setTxt('stat-orders-count', currentMonthOrders);
+    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
+    setTxt('stat-open-orders', openOrdersCount);
+    setTxt('stat-pending-quotes', pendingQuotesCount);
+    setTxt('stat-orders-today', todayOrdersCount);
+    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
+}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
+function updateSalesDashboardStats() {
+    if (!storeOrdersCache || !storeQuotesCache) return;
+    
+    let currentMonthOrders = 0;
+    let currentMonthRevenue = 0;
+    let openOrdersCount = 0;
+    let todayOrdersCount = 0;
+    let todayRevenue = 0;
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const todayStr = now.toLocaleDateString('he-IL');
+
+    storeOrdersCache.forEach(o => {
+        const orderDate = new Date(o.created_at);
+        const isPaid = (o.status === 'completed' || o.status === 'shipped');
+        
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+            currentMonthOrders++;
+            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
+            todayOrdersCount++;
+            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
+            openOrdersCount++;
+        }
+    });
+
+    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
+
+    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
+    setTxt('stat-orders-count', currentMonthOrders);
+    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
+    setTxt('stat-open-orders', openOrdersCount);
+    setTxt('stat-pending-quotes', pendingQuotesCount);
+    setTxt('stat-orders-today', todayOrdersCount);
+    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
+}// --- פונקציית יציקת נתונים לסטטיסטיקות החנות ---
+function updateSalesDashboardStats() {
+    if (!storeOrdersCache || !storeQuotesCache) return;
+    
+    let currentMonthOrders = 0;
+    let currentMonthRevenue = 0;
+    let openOrdersCount = 0;
+    let todayOrdersCount = 0;
+    let todayRevenue = 0;
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const todayStr = now.toLocaleDateString('he-IL');
+
+    storeOrdersCache.forEach(o => {
+        const orderDate = new Date(o.created_at);
+        const isPaid = (o.status === 'completed' || o.status === 'shipped');
+        
+        if (orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear) {
+            currentMonthOrders++;
+            if (isPaid) currentMonthRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (orderDate.toLocaleDateString('he-IL') === todayStr) {
+            todayOrdersCount++;
+            if (isPaid) todayRevenue += parseFloat(o.total_amount) || 0;
+        }
+        
+        if (o.status !== 'completed' && o.status !== 'cancelled' && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'approved')) {
+            openOrdersCount++;
+        }
+    });
+
+    const pendingQuotesCount = storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length;
+
+    const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
+    setTxt('stat-orders-count', currentMonthOrders);
+    setTxt('stat-revenue-month', `₪${currentMonthRevenue.toFixed(0)}`);
+    setTxt('stat-open-orders', openOrdersCount);
+    setTxt('stat-pending-quotes', pendingQuotesCount);
+    setTxt('stat-orders-today', todayOrdersCount);
+    setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
 }
-
 function copyStoreLink() {
     const link = val('store-public-link');
     if(!link) return;
@@ -4494,35 +4613,28 @@ function renderStoreOrders() {
 
     let filteredOrders = [...storeOrdersCache];
     
-    // מיון הזמנות פתוחות לפי תאריך יעד (הזמנות עתידיות למטה, קרובות למעלה, ריק=רגיל)
     filteredOrders.sort((a, b) => {
         if (a.status === 'completed' && b.status === 'completed') return new Date(b.created_at) - new Date(a.created_at);
         if (a.status === 'completed') return 1;
         if (b.status === 'completed') return -1;
-
         let timeA = a.target_datetime ? new Date(a.target_datetime).getTime() : Infinity;
         let timeB = b.target_datetime ? new Date(b.target_datetime).getTime() : Infinity;
-
-        if (timeA === Infinity && timeB === Infinity) return new Date(b.created_at) - new Date(a.created_at); // רגילות - מהחדש לישן
+        if (timeA === Infinity && timeB === Infinity) return new Date(b.created_at) - new Date(a.created_at);
         return timeA - timeB;
     });
 
     const activeSearch = storeOrdersSearch || searchId;
-
     if (activeSearch) {
         const s = activeSearch.toLowerCase();
-        filteredOrders = filteredOrders.filter(o => 
-            String(o.id).includes(s) || 
-            (o.customer_phone && String(o.customer_phone).includes(s)) ||
-            (o.customer_name && String(o.customer_name).toLowerCase().includes(s))
-        );
+        filteredOrders = filteredOrders.filter(o => String(o.id).includes(s) || (o.customer_phone && String(o.customer_phone).includes(s)) || (o.customer_name && String(o.customer_name).toLowerCase().includes(s)));
     }
     
     if (statusFilter !== 'all') filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
     if (typeFilter === 'from_store') filteredOrders = filteredOrders.filter(o => !o.quote_status || o.quote_status === 'draft');
     if (typeFilter === 'from_quote') filteredOrders = filteredOrders.filter(o => o.quote_status === 'approved');
     
-    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות התואמות לחיפוש.</p>'; return; }
+    if(!filteredOrders || filteredOrders.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין הזמנות.</p>'; return; }
+    
     let html = '';
     const statusMap = { 
         'new': { text: 'חדשה 🚨', color: 'bg-red-100 text-red-700 border-red-200' }, 
@@ -4538,54 +4650,66 @@ function renderStoreOrders() {
         const st = statusMap[o.status] || statusMap['new'];
         const meta = getDeliveryMeta(o);
         const isDelivery = (o.is_delivery == true || o.is_delivery == 1 || o.is_delivery === 'true' || meta);
-        const deliveryTag = isDelivery ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md ml-1 border border-indigo-200"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md ml-1 border border-slate-200"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
+        const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
         
         let deliveryData = {};
         if (meta && meta.delivery_details) deliveryData = meta.delivery_details;
-
         const addr = isDelivery ? `${safeStr(deliveryData.street || '')} ${safeStr(deliveryData.house || '')}, ${safeStr(deliveryData.city || '')}` : 'איסוף מהמקום';
 
-        let urgencyBadge = '';
+        let urgencyBorder = 'border-slate-200';
         let targetDisplay = '';
         
-        // התראת שעת יעד מול זמן נוכחי
         if (o.target_datetime && o.status !== 'completed' && o.status !== 'shipped') {
              const targetTime = new Date(o.target_datetime);
              const minsDiff = (targetTime - now) / 60000;
              const timeStr = targetTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5); // תאריך מקוצר כמו בתמונה
              
              if (minsDiff < 0) {
-                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)] animate-pulse" title="איחור באספקה!"></div>';
-                 targetDisplay = `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-200 shadow-sm ml-2 animate-pulse"><i class="fa-solid fa-bell"></i> איחור! ל-${timeStr}</span>`;
+                 urgencyBorder = 'border-red-400 border-2';
+                 targetDisplay = `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-red-200 ml-2 animate-pulse"><i class="fa-regular fa-clock"></i> איחור! ${timeStr}</span>`;
              } else if (minsDiff < 30) {
-                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-orange-500" title="פחות מחצי שעה לאספקה"></div>';
-                 targetDisplay = `<span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-orange-200 shadow-sm ml-2"><i class="fa-solid fa-fire"></i> דחוף: ל-${timeStr}</span>`;
+                 urgencyBorder = 'border-orange-400 border-2';
+                 targetDisplay = `<span class="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-orange-200 ml-2"><i class="fa-regular fa-clock"></i> ל-${timeStr} (${dateStr})</span>`;
              } else {
-                 urgencyBadge = '<div class="absolute top-0 right-0 h-full w-1.5 bg-blue-400" title="בתור להכנה"></div>';
-                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[10px] font-bold border border-blue-200 shadow-sm ml-2"><i class="fa-regular fa-clock"></i> עתידי: ל-${timeStr}</span>`;
+                 urgencyBorder = 'border-blue-400 border-r-4 border-slate-200';
+                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-blue-200 ml-2"><i class="fa-regular fa-clock"></i> עתידי: ל-${timeStr} (${dateStr})</span>`;
              }
         }
 
+        const createDate = new Date(o.created_at);
+        const receivedTimeStr = createDate.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+        const receivedDateStr = createDate.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit', year:'2-digit'});
+
+        // העיצוב החדש לפי התמונה שנשלחה: ימין-לשמאל מדויק
         html += `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 relative overflow-hidden fade-in hover:shadow-md transition">
-            ${urgencyBadge}
+        <div class="bg-white p-4 rounded-2xl shadow-sm mb-3 relative overflow-hidden fade-in transition ${urgencyBorder}">
             <div class="flex justify-between items-center cursor-pointer select-none pl-1" onclick="toggleCardCollapse('mng-${o.id}')">
-                <div class="flex-1 pr-3">
-                    <h4 class="font-bold text-slate-800 text-sm mb-1">הזמנה #${o.id} ${targetDisplay}</h4>
-                    <div class="flex items-center gap-2">
-                        <span class="font-black text-indigo-600">₪${o.total_amount}</span>
-                        <span class="text-xs text-slate-500"><i class="fa-regular fa-user mr-1"></i> ${safeStr(o.customer_name)}</span>
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-1.5">${new Date(o.created_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})} ${deliveryTag}</p>
+                
+                <div class="flex flex-col items-start gap-3 pl-2 shrink-0">
+                    <span class="text-[11px] font-bold ${st.color} px-4 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
+                    <i id="card-icon-mng-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform mr-4"></i>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-[10px] font-bold ${st.color} px-2.5 py-1.5 rounded-lg border whitespace-nowrap shadow-sm">${st.text}</span>
-                    <i id="card-icon-mng-${o.id}" class="fa-solid fa-chevron-down text-slate-300 transition-transform"></i>
+
+                <div class="flex flex-col text-left pr-2 w-full">
+                    <div class="flex items-center justify-end mb-2">
+                        ${targetDisplay}
+                        <h4 class="font-black text-slate-800 text-lg">הזמנה #${o.id}</h4>
+                    </div>
+                    
+                    <div class="flex items-center justify-end mb-2">
+                        <span class="text-sm text-slate-500 flex items-center gap-1.5 ml-3"><i class="fa-regular fa-user text-slate-400"></i> ${safeStr(o.customer_name)}</span>
+                        <span class="font-black text-indigo-600 text-2xl dir-ltr tracking-tight">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 text-[11px] text-slate-400 font-mono mt-1">
+                        ${receivedTimeStr} | ${receivedDateStr} ${deliveryTag}
+                    </div>
                 </div>
             </div>
             
-            <div id="order-details-mng-${o.id}" class="hidden pr-3 pl-1">
-                ${isDelivery ? `<div class="mt-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
+            <div id="order-details-mng-${o.id}" class="hidden mt-4 pt-4 border-t border-slate-100">
+                ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
                 ${buildOrderLogHtml(o.status, o.created_at)}
                 <div class="flex justify-end mt-4">
                     <button onclick="openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
@@ -7208,4 +7332,90 @@ window.submitClientTicketReply = async function(ticketId) {
             window.fetchMyTickets();
         } else { showToast('error', 'שגיאה בשליחת התגובה.'); }
     } catch(e) { showToast('error', 'שגיאת רשת.'); }
+    // --- טאב אנליטיקה ---
+let analyticsRevChart = null;
+let analyticsProdChart = null;
+
+window.renderAnalytics = function() {
+    const timeFilter = val('analytics-time-filter') || '30';
+    const cutoff = new Date();
+    if (timeFilter !== 'today') {
+        cutoff.setDate(cutoff.getDate() - parseInt(timeFilter));
+    } else {
+        cutoff.setHours(0,0,0,0);
+    }
+
+    const relevantOrders = storeOrdersCache.filter(o => 
+        (o.status === 'completed' || o.status === 'shipped') && 
+        new Date(o.created_at) >= cutoff
+    );
+
+    const revMap = {};
+    const prodMap = {};
+
+    relevantOrders.forEach(o => {
+        const d = new Date(o.created_at).toLocaleDateString('he-IL');
+        revMap[d] = (revMap[d] || 0) + parseFloat(o.total_amount);
+        
+        try {
+            const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+            items.forEach(i => {
+                if(i.name && !i.is_delivery_metadata && !i.is_quote_metadata) {
+                    prodMap[i.name] = (prodMap[i.name] || 0) + parseFloat(i.quantity);
+                }
+            });
+        } catch(e) {}
+    });
+
+    const revLabels = Object.keys(revMap).sort((a,b) => {
+        const [d1,m1,y1] = a.split('.'); const [d2,m2,y2] = b.split('.');
+        return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
+    });
+    const revData = revLabels.map(l => revMap[l]);
+
+    const topProducts = Object.entries(prodMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    const prodLabels = topProducts.map(p => p[0]);
+    const prodData = topProducts.map(p => p[1]);
+
+    const ctxRev = getEl('analyticsRevenueChart');
+    const ctxProd = getEl('analyticsProductsChart');
+    
+    if(ctxRev) ctxRev.previousElementSibling.style.display = 'none';
+    if(ctxProd) ctxProd.previousElementSibling.style.display = 'none';
+
+    if(analyticsRevChart) analyticsRevChart.destroy();
+    if(ctxRev) {
+        analyticsRevChart = new Chart(ctxRev, {
+            type: 'line',
+            data: { labels: revLabels, datasets: [{ label: 'הכנסות (₪)', data: revData, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    }
+
+    if(analyticsProdChart) analyticsProdChart.destroy();
+    if(ctxProd) {
+        analyticsProdChart = new Chart(ctxProd, {
+            type: 'doughnut',
+            data: { labels: prodLabels, datasets: [{ data: prodData, backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:10}} } } }
+        });
+    }
+};
+
+// עדכון טאב החנות הראשי
+const originalSwitchSalesTab = window.switchSalesTab;
+window.switchSalesTab = function(subTab) {
+    if (originalSwitchSalesTab) originalSwitchSalesTab(subTab);
+    if (subTab === 'analytics' && typeof renderAnalytics === 'function') {
+        renderAnalytics();
+    }
+};
+
+// רענון אוטומטי של החנות פעם ב-20 שניות כדי שבאנר ההזמנות יתעדכן חי
+setInterval(() => {
+    const tabSales = getEl('tab-sales');
+    if (tabSales && tabSales.classList.contains('tab-active')) {
+        if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
+    }
+}, 20000);
 }})();
