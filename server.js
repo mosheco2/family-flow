@@ -77,10 +77,11 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
 
-     // מערכת קריאות שירות
+// מערכת קריאות שירות
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
 
-      // טבלאות החנות הוירטואלית (E-commerce)
+      // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       // עדכון שדות חדשים למסד נתונים קיים
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
@@ -214,32 +215,71 @@ app.post('/api/support/ticket', async (req, res) => {
         const { groupId, groupName, userId, userName, userEmail, subject, description } = req.body;
         if (!description || description.length < 5) return res.status(400).json({ success: false, error: 'תיאור קצר מדי.' });
 
-        // שמירה למסד הנתונים כדי שהאדמין יראה את הקריאה בפאנל
-        await pool.query('INSERT INTO support_tickets (group_id, user_id, subject, description, status) VALUES ($1, $2, $3, $4, $5)', [groupId, userId, subject, description, 'open']);
+        const initialLog = [{ date: new Date().toISOString(), sender: userName, isStaff: false, message: description }];
 
-        // בנוסף - שליחת התראה למייל!
+        // שמירה למסד הנתונים
+        const tRes = await pool.query('INSERT INTO support_tickets (group_id, user_id, subject, description, status, log) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [groupId, userId, subject, description, 'open', JSON.stringify(initialLog)]);
+        const newTicketId = tRes.rows[0].id;
+
+        // התראה במייל לסופר אדמין
         const supportEmail = 'mcgames1978@gmail.com'; 
         const ticketHtml = `
             <div dir="rtl" style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-                <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה - Oneflow</h2>
+                <h2 style="color: #4f46e5; border-bottom: 2px solid #eef2ff; padding-bottom: 10px;">קריאת שירות חדשה #${newTicketId}</h2>
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
                     <p style="margin: 5px 0;"><strong>נושא:</strong> ${subject}</p>
-                    <p style="margin: 5px 0;"><strong>שם לקוח:</strong> ${userName}</p>
-                    <p style="margin: 5px 0;"><strong>ארגון/סביבה:</strong> ${groupName} (ID: ${groupId})</p>
-                    <p style="margin: 5px 0;"><strong>מייל לחזרה:</strong> ${userEmail}</p>
+                    <p style="margin: 5px 0;"><strong>לקוח:</strong> ${userName} (${groupName})</p>
+                    <p style="margin: 5px 0;"><strong>מייל:</strong> ${userEmail}</p>
                 </div>
-                <h3 style="color: #1e293b;">תוכן הפנייה:</h3>
-                <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; white-space: pre-wrap;">
-                    ${description}
-                </div>
+                <h3 style="color: #1e293b;">הפנייה:</h3>
+                <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; white-space: pre-wrap;">${description}</div>
             </div>
         `;
-        // לא חוסם את התגובה ללקוח במקרה של עיכוב בשליחת המייל
-        sendSystemEmail(supportEmail, `קריאת שירות: ${subject} מ-${userName}`, ticketHtml).catch(e => console.log('Mail error:', e));
+        sendSystemEmail(supportEmail, `קריאה #${newTicketId}: ${subject}`, ticketHtml).catch(e => console.log('Mail error:', e));
         
-        res.json({ success: true });
+        res.json({ success: true, ticketId: newTicketId });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
+
+// הוספת תגובה לקריאה קיימת (גם ללקוח וגם לאדמין)
+app.post('/api/support/tickets/:id/reply', async (req, res) => {
+    try {
+        const { message, userName, isStaff, newStatus } = req.body;
+        const ticketId = req.params.id;
+        
+        const tRes = await pool.query('SELECT log, status FROM support_tickets WHERE id = $1', [ticketId]);
+        if (tRes.rows.length === 0) return res.status(404).json({error: 'Ticket not found'});
+        
+        let currentLog = tRes.rows[0].log || [];
+        if (typeof currentLog === 'string') currentLog = JSON.parse(currentLog);
+        
+        currentLog.push({ date: new Date().toISOString(), sender: userName, isStaff: isStaff, message: message });
+        
+        // אם מוגדר סטטוס חדש נשתמש בו, אחרת נשנה אוטומטית לפי מי שענה (לקוח -> פתוח, צוות -> בטיפול)
+        let statusToUpdate = newStatus || (isStaff ? 'in_progress' : 'open');
+        if (!newStatus && tRes.rows[0].status === 'resolved' && !isStaff) {
+            statusToUpdate = 'open'; // הלקוח פתח מחדש
+        }
+        
+        await pool.query('UPDATE support_tickets SET log = $1, status = $2 WHERE id = $3', [JSON.stringify(currentLog), statusToUpdate, ticketId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת הקריאות עבור פאנל ה-Super Admin
+app.get('/api/superadmin/tickets', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT t.*, f.name as group_name, u.nickname as user_name 
+            FROM support_tickets t 
+            LEFT JOIN family_groups f ON t.group_id = f.id 
+            LEFT JOIN users u ON t.user_id = u.id 
+            ORDER BY t.created_at DESC
+        `);
+        res.json({ success: true, tickets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // שליפת קריאות שירות ללקוח (לפי מזהה קבוצה/עסק)
 app.get('/api/support/tickets/my/:groupId', async (req, res) => {
     try {
@@ -249,6 +289,14 @@ app.get('/api/support/tickets/my/:groupId', async (req, res) => {
             ORDER BY created_at DESC
         `, [req.params.groupId]);
         res.json({ success: true, tickets: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס הקריאה ע"י ה-Super Admin (ללא תגובה)
+app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE support_tickets SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // שליפת הקריאות עבור פאנל ה-Super Admin
