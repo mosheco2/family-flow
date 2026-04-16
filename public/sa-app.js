@@ -65,7 +65,7 @@ function logoutSA() {
 }
 
 function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users', 'biz'].forEach(t => {
+    ['stats', 'comm', 'content', 'users', 'biz', 'support'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
@@ -74,9 +74,14 @@ function switchSATab(tabId) {
     const activeView = document.getElementById(`sa-view-${tabId}`);
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+    if (activeBtn) {
+        if(tabId === 'support') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition';
+        } else {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
+        }
+    }
 }
-
 async function loadSAData() {
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
