@@ -7193,13 +7193,18 @@ function updateSalesDashboardStats() {
     const currDate = now.getDate();
 
     storeOrdersCache.forEach(o => {
-        // סינון חכם שמתעלם ממחרוזת "null" שמגיעה מהמסד
-        if (o.status === 'cancelled' || o.status === 'quote') return;
-        if (o.quote_status && o.quote_status !== 'null' && o.quote_status !== 'approved') return;
+        // מתעלמים מהזמנות שבוטלו, ומטיוטות/הצעות מחיר שלא אושרו
+        if (o.status === 'cancelled' || o.status === 'quote' || (o.quote_status && o.quote_status !== 'null' && o.quote_status !== 'approved')) return;
 
-        const d = new Date(o.created_at);
-        const orderAmount = parseFloat(o.total_amount) || 0;
+        // תיקון תאריכים מבוסס מחרוזת בטוחה כדי למנוע תזוזות של Timezone
+        const dStr = o.created_at;
+        if (!dStr) return;
+        const d = new Date(dStr);
         
+        // חילוץ סכום ההזמנה גם אם המבנה שלו שונה במסד הנתונים
+        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
+        
+        // בדיקת חודש ושנה נוכחיים
         if (d.getMonth() === currMonth && d.getFullYear() === currYear) {
             currentMonthOrders++;
             if (o.status === 'completed' || o.status === 'shipped') {
@@ -7207,6 +7212,7 @@ function updateSalesDashboardStats() {
             }
         }
         
+        // בדיקת היום הנוכחי 
         if (d.getDate() === currDate && d.getMonth() === currMonth && d.getFullYear() === currYear) {
             todayOrdersCount++;
             if (o.status === 'completed' || o.status === 'shipped') {
@@ -7214,6 +7220,7 @@ function updateSalesDashboardStats() {
             }
         }
         
+        // הזמנות פתוחות (כל מה שלא נמסר או בוטל)
         if (o.status !== 'completed' && o.status !== 'shipped' && o.status !== 'cancelled') {
             openOrdersCount++;
         }
@@ -7238,7 +7245,7 @@ let analyticsProdChart = null;
 
 window.renderAnalytics = function() {
     const listContainer = getEl('sales-view-analytics');
-    if (listContainer && listContainer.classList.contains('hidden')) return;
+    if (listContainer && listContainer.classList.contains('hidden')) return; // חסימה אם הטאב לא מוצג
     
     const timeFilter = val('analytics-time-filter') || '30';
     const cutoff = new Date();
@@ -7250,7 +7257,7 @@ window.renderAnalytics = function() {
 
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
-    // סינון דומה המאפשר לגרפים לעבוד כראוי גם כשהמסד מחזיר "null"
+    // הכללת כל ההזמנות (מלבד מבוטלות וטיוטות/הצעות) כדי שיהיה דאטה רחב בגרפים
     const relevantOrders = storeOrdersCache.filter(o => 
         o.status !== 'cancelled' && 
         o.status !== 'quote' &&
@@ -7264,13 +7271,18 @@ window.renderAnalytics = function() {
     relevantOrders.forEach(o => {
         const d = new Date(o.created_at);
         const dateKey = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
         
-        revMap[dateKey] = (revMap[dateKey] || 0) + (parseFloat(o.total_amount) || 0);
+        revMap[dateKey] = (revMap[dateKey] || 0) + orderAmount;
         
         try {
+            // פענוח זהיר של מערך הפריטים - תומך גם ב-JSON מחרוזת וגם במערך אמיתי
             let items = [];
-            if (typeof o.items === 'string') items = JSON.parse(o.items);
-            else if (Array.isArray(o.items)) items = o.items;
+            if (typeof o.items === 'string') {
+                try { items = JSON.parse(o.items); } catch(e){}
+            } else if (Array.isArray(o.items)) {
+                items = o.items;
+            }
             
             items.forEach(i => {
                 if(i.name && !i.is_quote_metadata && !i.name.startsWith('DELIVERY_META|')) {
@@ -7278,15 +7290,17 @@ window.renderAnalytics = function() {
                     prodMap[cleanName] = (prodMap[cleanName] || 0) + (parseFloat(i.quantity) || 1);
                 }
             });
-        } catch(e) { }
+        } catch(e) { console.error("Error parsing items for analytics:", e); }
     });
 
+    // מיון התאריכים לגרף ההכנסות
     const revLabels = Object.keys(revMap).sort((a,b) => {
         const [d1,m1,y1] = a.split('.'); const [d2,m2,y2] = b.split('.');
         return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
     });
     const revData = revLabels.map(l => revMap[l]);
 
+    // מיון המוצרים המובילים (עד 5)
     const topProducts = Object.entries(prodMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
     const prodLabels = topProducts.map(p => p[0]);
     const prodData = topProducts.map(p => p[1]);
@@ -7294,18 +7308,20 @@ window.renderAnalytics = function() {
     const ctxRev = getEl('analyticsRevenueChart');
     const ctxProd = getEl('analyticsProductsChart');
 
+    // מסתיר את כיתובי ה"טוען גרף..."
     if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
     if(ctxProd && ctxProd.previousElementSibling) ctxProd.previousElementSibling.style.display = 'none';
 
+    // ציור הגרפים עם השהייה שמבטיחה שהמידות יהיו תקינות (אחרי סיום ה-Fade In)
     setTimeout(() => {
         if(analyticsRevChart) analyticsRevChart.destroy();
         if(ctxRev && window.Chart) {
             analyticsRevChart = new Chart(ctxRev, {
                 type: 'line',
                 data: { 
-                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], 
+                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים בתקופה זו'], 
                     datasets: [{ 
-                        label: 'הכנסות צפויות (₪)', 
+                        label: 'הכנסות (₪)', 
                         data: revData.length > 0 ? revData : [0], 
                         borderColor: '#4f46e5', 
                         backgroundColor: 'rgba(79, 70, 229, 0.1)', 
@@ -7318,7 +7334,15 @@ window.renderAnalytics = function() {
                         pointRadius: 4
                     }] 
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { dash: [4, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
             });
         }
 
@@ -7327,27 +7351,49 @@ window.renderAnalytics = function() {
             analyticsProdChart = new Chart(ctxProd, {
                 type: 'doughnut',
                 data: { 
-                    labels: prodLabels.length > 0 ? prodLabels : ['טרם נמכרו'], 
+                    labels: prodLabels.length > 0 ? prodLabels : ['טרם נמכרו מוצרים'], 
                     datasets: [{ 
                         data: prodData.length > 0 ? prodData : [1], 
                         backgroundColor: prodData.length > 0 ? ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] : ['#e2e8f0'],
-                        borderWidth: 2, hoverOffset: 4
+                        borderWidth: 2,
+                        hoverOffset: 4
                     }] 
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:11}, usePointStyle: true, padding: 15} } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '65%',
+                    plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:11}, usePointStyle: true, padding: 15} } } 
+                }
             });
         }
     }, 250); 
 };
 
-const originalSwitchSalesTab = window.switchSalesTab;
+// עדכון טאב החנות הראשי כדי שהאנליטיקה והטאבים האחרים יעבדו נכון יחד
 window.switchSalesTab = function(subTab) {
-    if (originalSwitchSalesTab) originalSwitchSalesTab(subTab);
+    ['orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'orders') fetchStoreOrders();
+    if(subTab === 'catalog') fetchStoreCatalog();
+    if(subTab === 'marketing') fetchStoreMarketing(); 
+    if(subTab === 'settings') fetchStoreSettings();
+    if(subTab === 'quotes') {
+        const list = getEl('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        fetchStoreQuotes();
+    }
     if (subTab === 'analytics') {
         setTimeout(window.renderAnalytics, 150);
     }
 };
 
+// רענון אוטומטי של החנות פעם ב-20 שניות כדי שבאנר ההזמנות יתעדכן חי
 setInterval(() => {
     const tabSales = getEl('tab-sales');
     if (tabSales && tabSales.classList.contains('tab-active')) {
