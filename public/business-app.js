@@ -7234,11 +7234,11 @@ function updateSalesDashboardStats() {
     setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
 }
 
-// --- טאב אנליטיקה וגרפים ---
+// --- טאב אנליטיקה ---
 let analyticsRevChart = null;
 let analyticsProdChart = null;
 
-// פונקציית עזר לטעינה דינמית של מנוע הגרפים (מונע קריסה)
+// טעינה דינמית של Chart.js
 async function loadChartJS() {
     if (window.Chart) return true;
     return new Promise((resolve) => {
@@ -7254,12 +7254,8 @@ window.renderAnalytics = async function() {
     const listContainer = getEl('sales-view-analytics');
     if (listContainer && listContainer.classList.contains('hidden')) return; 
     
-    // טוען את הגרפים באופן יזום!
     const isLoaded = await loadChartJS();
-    if (!isLoaded) {
-        console.error('Failed to load Chart.js');
-        return;
-    }
+    if (!isLoaded) return;
 
     const timeFilter = val('analytics-time-filter') || '30';
     const cutoff = new Date();
@@ -7271,7 +7267,6 @@ window.renderAnalytics = async function() {
 
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
-    // התיקון הקריטי: סינון נכון של הזמנות למסך האנליטיקה (ללא הצעות שנדחו/טיוטות)
     const relevantOrders = storeOrdersCache.filter(o => 
         o.status !== 'cancelled' && 
         o.status !== 'quote' &&
@@ -7296,10 +7291,15 @@ window.renderAnalytics = async function() {
                 items = o.items;
             }
             
+            // תיקון חילוץ שמות המוצרים לגרף העוגה
             items.forEach(i => {
-                if(i.name && !i.is_quote_metadata && !i.name.startsWith('DELIVERY_META|')) {
-                    const cleanName = i.item_name || i.name;
-                    prodMap[cleanName] = (prodMap[cleanName] || 0) + (parseFloat(i.quantity) || 1);
+                // מתעלמים מפריטים שהם מטא-דאטה של משלוח או הצעת מחיר
+                if (!i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) {
+                    // מושך את השם מכל שדה אפשרי
+                    const cleanName = i.item_name || i.name || i.catalog_name || 'מוצר ללא שם';
+                    // מושך את הכמות (אם אין, מניח 1)
+                    const qty = parseFloat(i.quantity) || parseFloat(i.qty) || 1;
+                    prodMap[cleanName] = (prodMap[cleanName] || 0) + qty;
                 }
             });
         } catch(e) {}
@@ -7371,23 +7371,36 @@ window.renderAnalytics = async function() {
                     responsive: true, 
                     maintainAspectRatio: false, 
                     cutout: '65%',
-                    plugins: { legend: { position: 'left', labels: {font:{family:'Heebo', size:11}, usePointStyle: true, padding: 15} } } 
+                    plugins: { legend: { position: 'left', labels: {font:{family:'Rubik', size:11}, usePointStyle: true, padding: 15} } } 
                 }
             });
         }
     }, 150); 
 };
 
-// עדכון טאב החנות הראשי
-const originalSwitchSalesTab = window.switchSalesTab;
+// התיקון לחפיפת הטאבים: הוספנו את 'analytics' לרשימת הטאבים שהפונקציה מנהלת!
 window.switchSalesTab = function(subTab) {
-    if (originalSwitchSalesTab) originalSwitchSalesTab(subTab);
+    ['orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'orders') fetchStoreOrders();
+    if(subTab === 'catalog') fetchStoreCatalog();
+    if(subTab === 'marketing') fetchStoreMarketing(); 
+    if(subTab === 'settings') fetchStoreSettings();
+    if(subTab === 'quotes') {
+        const list = getEl('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        fetchStoreQuotes();
+    }
     if (subTab === 'analytics') {
         setTimeout(window.renderAnalytics, 150);
     }
 };
 
-// רענון אוטומטי של החנות
 setInterval(() => {
     const tabSales = getEl('tab-sales');
     if (tabSales && tabSales.classList.contains('tab-active')) {
