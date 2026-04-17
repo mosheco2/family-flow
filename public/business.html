@@ -887,18 +887,21 @@
                                     <div id="store-coupons-list" class="space-y-2 pb-8"></div>
                                 </div>
                             </div>
-<div id="sales-view-analytics" class="hidden space-y-6 pb-8">
-                                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                    <h4 class="font-bold text-slate-700 text-sm">סינון נתונים:</h4>
-                                    <select id="analytics-time-filter" onchange="if(typeof renderAnalytics === 'function') renderAnalytics()" class="modern-input py-1.5 px-3 text-xs font-bold bg-white text-slate-700 rounded-lg shadow-sm w-auto">
-                                        <option value="today">היום</option>
-                                        <option value="7">7 ימים אחרונים</option>
-                                        <option value="30" selected>30 ימים אחרונים</option>
-                                        <option value="90">3 חודשים אחרונים</option>
-                                        <option value="365">שנה אחרונה</option>
-                                    </select>
-                                </div>
-                                
+                            <div id="sales-view-analytics" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">ביצועים ומגמות</h4>
+                        </div>
+                        
+                        <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100 mb-4">
+                            <label class="text-xs font-bold text-slate-600 mr-2">סינון נתונים:</label>
+                            <select id="analytics-time-filter" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-xs w-40 outline-none">
+                                <option value="today">היום</option>
+                                <option value="7">7 ימים אחרונים</option>
+                                <option value="30" selected>30 ימים אחרונים</option>
+                                <option value="90">3 חודשים אחרונים</option>
+                                <option value="365">שנה אחרונה</option>
+                            </select>
+                        </div>  
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                                         <h5 class="font-bold text-slate-700 text-xs mb-4 text-center">הכנסות לאורך זמן</h5>
