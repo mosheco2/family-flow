@@ -7193,18 +7193,14 @@ function updateSalesDashboardStats() {
     const currDate = now.getDate();
 
     storeOrdersCache.forEach(o => {
-        // מתעלמים מהזמנות שבוטלו, ומטיוטות/הצעות מחיר שלא אושרו
-        if (o.status === 'cancelled' || o.status === 'quote' || (o.quote_status && o.quote_status !== 'null' && o.quote_status !== 'approved')) return;
+        // התיקון: אנחנו מסננים החוצה *רק* מה שמוגדר במפורש כהצעת מחיר (quote) או שבוטל
+        if (o.status === 'cancelled' || o.status === 'quote') return;
 
-        // תיקון תאריכים מבוסס מחרוזת בטוחה כדי למנוע תזוזות של Timezone
         const dStr = o.created_at;
         if (!dStr) return;
         const d = new Date(dStr);
-        
-        // חילוץ סכום ההזמנה גם אם המבנה שלו שונה במסד הנתונים
         const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
         
-        // בדיקת חודש ושנה נוכחיים
         if (d.getMonth() === currMonth && d.getFullYear() === currYear) {
             currentMonthOrders++;
             if (o.status === 'completed' || o.status === 'shipped') {
@@ -7212,7 +7208,6 @@ function updateSalesDashboardStats() {
             }
         }
         
-        // בדיקת היום הנוכחי 
         if (d.getDate() === currDate && d.getMonth() === currMonth && d.getFullYear() === currYear) {
             todayOrdersCount++;
             if (o.status === 'completed' || o.status === 'shipped') {
@@ -7220,14 +7215,14 @@ function updateSalesDashboardStats() {
             }
         }
         
-        // הזמנות פתוחות (כל מה שלא נמסר או בוטל)
         if (o.status !== 'completed' && o.status !== 'shipped' && o.status !== 'cancelled') {
             openOrdersCount++;
         }
     });
 
+    // ספירת הצעות מחיר פתוחות בלבד
     const pendingQuotesCount = (storeQuotesCache && Array.isArray(storeQuotesCache)) 
-        ? storeQuotesCache.filter(q => q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer').length 
+        ? storeQuotesCache.filter(q => q.status === 'quote' && (q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer')).length 
         : 0;
 
     const setTxt = (id, val) => { const el = getEl(id); if(el) el.innerText = val; };
@@ -7239,14 +7234,33 @@ function updateSalesDashboardStats() {
     setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
 }
 
-// --- טאב אנליטיקה ---
+// --- טאב אנליטיקה וגרפים ---
 let analyticsRevChart = null;
 let analyticsProdChart = null;
 
-window.renderAnalytics = function() {
+// פונקציית עזר לטעינה דינמית של מנוע הגרפים (מונע קריסה)
+async function loadChartJS() {
+    if (window.Chart) return true;
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+    });
+}
+
+window.renderAnalytics = async function() {
     const listContainer = getEl('sales-view-analytics');
-    if (listContainer && listContainer.classList.contains('hidden')) return; // חסימה אם הטאב לא מוצג
+    if (listContainer && listContainer.classList.contains('hidden')) return; 
     
+    // טוען את הגרפים באופן יזום!
+    const isLoaded = await loadChartJS();
+    if (!isLoaded) {
+        console.error('Failed to load Chart.js');
+        return;
+    }
+
     const timeFilter = val('analytics-time-filter') || '30';
     const cutoff = new Date();
     if (timeFilter !== 'today') {
@@ -7257,11 +7271,10 @@ window.renderAnalytics = function() {
 
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
-    // הכללת כל ההזמנות (מלבד מבוטלות וטיוטות/הצעות) כדי שיהיה דאטה רחב בגרפים
+    // התיקון הקריטי: סינון נכון של הזמנות למסך האנליטיקה (ללא הצעות שנדחו/טיוטות)
     const relevantOrders = storeOrdersCache.filter(o => 
         o.status !== 'cancelled' && 
         o.status !== 'quote' &&
-        (!o.quote_status || o.quote_status === 'approved' || o.quote_status === 'null') &&
         new Date(o.created_at) >= cutoff
     );
 
@@ -7276,7 +7289,6 @@ window.renderAnalytics = function() {
         revMap[dateKey] = (revMap[dateKey] || 0) + orderAmount;
         
         try {
-            // פענוח זהיר של מערך הפריטים - תומך גם ב-JSON מחרוזת וגם במערך אמיתי
             let items = [];
             if (typeof o.items === 'string') {
                 try { items = JSON.parse(o.items); } catch(e){}
@@ -7290,17 +7302,15 @@ window.renderAnalytics = function() {
                     prodMap[cleanName] = (prodMap[cleanName] || 0) + (parseFloat(i.quantity) || 1);
                 }
             });
-        } catch(e) { console.error("Error parsing items for analytics:", e); }
+        } catch(e) {}
     });
 
-    // מיון התאריכים לגרף ההכנסות
     const revLabels = Object.keys(revMap).sort((a,b) => {
         const [d1,m1,y1] = a.split('.'); const [d2,m2,y2] = b.split('.');
         return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
     });
     const revData = revLabels.map(l => revMap[l]);
 
-    // מיון המוצרים המובילים (עד 5)
     const topProducts = Object.entries(prodMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
     const prodLabels = topProducts.map(p => p[0]);
     const prodData = topProducts.map(p => p[1]);
@@ -7308,11 +7318,9 @@ window.renderAnalytics = function() {
     const ctxRev = getEl('analyticsRevenueChart');
     const ctxProd = getEl('analyticsProductsChart');
 
-    // מסתיר את כיתובי ה"טוען גרף..."
     if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
     if(ctxProd && ctxProd.previousElementSibling) ctxProd.previousElementSibling.style.display = 'none';
 
-    // ציור הגרפים עם השהייה שמבטיחה שהמידות יהיו תקינות (אחרי סיום ה-Fade In)
     setTimeout(() => {
         if(analyticsRevChart) analyticsRevChart.destroy();
         if(ctxRev && window.Chart) {
@@ -7367,33 +7375,19 @@ window.renderAnalytics = function() {
                 }
             });
         }
-    }, 250); 
+    }, 150); 
 };
 
-// עדכון טאב החנות הראשי כדי שהאנליטיקה והטאבים האחרים יעבדו נכון יחד
+// עדכון טאב החנות הראשי
+const originalSwitchSalesTab = window.switchSalesTab;
 window.switchSalesTab = function(subTab) {
-    ['orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
-        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    });
-    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-
-    if(subTab === 'orders') fetchStoreOrders();
-    if(subTab === 'catalog') fetchStoreCatalog();
-    if(subTab === 'marketing') fetchStoreMarketing(); 
-    if(subTab === 'settings') fetchStoreSettings();
-    if(subTab === 'quotes') {
-        const list = getEl('store-quotes-list');
-        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
-        fetchStoreQuotes();
-    }
+    if (originalSwitchSalesTab) originalSwitchSalesTab(subTab);
     if (subTab === 'analytics') {
         setTimeout(window.renderAnalytics, 150);
     }
 };
 
-// רענון אוטומטי של החנות פעם ב-20 שניות כדי שבאנר ההזמנות יתעדכן חי
+// רענון אוטומטי של החנות
 setInterval(() => {
     const tabSales = getEl('tab-sales');
     if (tabSales && tabSales.classList.contains('tab-active')) {
