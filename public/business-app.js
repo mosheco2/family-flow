@@ -2935,15 +2935,21 @@ window.switchCustomerTab = async function(tab) {
         getEl('cust-history-summary').innerText = `הזמנות והצעות: ${custName}`;
         getEl('cust-history-list').innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען היסטוריה...</p>';
 
-        // הבטחת קיום הנתונים בקאש
         if (storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
         if (storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
 
         const match = (o) => o.customer_name === custName || (custPhone && o.customer_phone === custPhone);
 
-        let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2">הזמנות מהחנות:</h4>';
-        // התיקון: אנחנו מביאים את כל ההזמנות שאינן הצעות מחיר
-        const orders = storeOrdersCache.filter(o => match(o) && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'null' || o.quote_status === 'draft'));
+        // --- פילוח 1: הזמנות שבוצעו בחנות ---
+        let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-2">הזמנות חנות:</h4>';
+        
+        // מוצאים הזמנות שאינן הצעות מחיר (quote_status הוא לא 'draft', ולא 'sent' ולא 'waiting_customer')
+        // והסטטוס הראשי הוא לא 'quote'
+        const orders = storeOrdersCache.filter(o => 
+            match(o) && 
+            o.status !== 'quote' && 
+            (!o.quote_status || o.quote_status === 'null' || o.quote_status === 'approved')
+        );
         
         if (orders.length > 0) {
             orders.forEach(o => {
@@ -2956,19 +2962,25 @@ window.switchCustomerTab = async function(tab) {
                     <span class="font-bold text-indigo-600 dir-ltr">₪${o.total_amount}</span>
                 </div>`;
             });
-        } else { historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות.</p>'; }
+        } else { 
+            historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות שבוצעו בחנות.</p>'; 
+        }
 
+        // --- פילוח 2: הצעות מחיר (אושרה/טיוטה/נשלחה) ---
         historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר:</h4>';
-        const pendingQuotes = storeQuotesCache.filter(match);
-        const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved');
+        
+        const pendingQuotes = storeQuotesCache.filter(match); // מגיע מה-API של הצעות מחיר
+        const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved'); // הצעות שאושרו והפכו להזמנות
         
         if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
             pendingQuotes.forEach(q => {
+                const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
+                const sTxt = sMap[q.quote_status] || 'ממתינה';
                 historyHtml += `
                 <div onclick="openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
                     <div>
                         <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id}</span>
-                        <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">ממתינה</span> ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
+                        <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
                     </div>
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount).toFixed(2)}</span>
                 </div>`;
@@ -2978,12 +2990,14 @@ window.switchCustomerTab = async function(tab) {
                 <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-green-50 hover:border-green-200 transition">
                     <div>
                         <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id}</span>
-                        <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה</span> ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
+                        <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                     </div>
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
                 </div>`;
             });
-        } else { historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">אין הצעות מחיר.</p>'; }
+        } else { 
+            historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר ללקוח זה.</p>'; 
+        }
 
         getEl('cust-history-list').innerHTML = historyHtml;
     }
@@ -3322,15 +3336,51 @@ async function openNewQuoteModal(skipDataReset = false) {
     
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
+    // נוודא ששדות הטקסט של הצעת המחיר קיימים ב-DOM, ואם לא - ניצור אותם
+    if (!getEl('quote-intro-text')) {
+        const topGrid = getEl('quote-cust-name').parentElement.parentElement;
+        const mainContainer = topGrid.parentElement;
+        
+        mainContainer.insertAdjacentHTML('beforeend', `
+            <div class="mt-4">
+                <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
+                <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-slate-50 border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
+            </div>
+        `);
+    }
+
+    if (!getEl('quote-notes')) {
+        const modalFooter = getEl('quote-total-display').parentElement.parentElement;
+        modalFooter.insertAdjacentHTML('beforebegin', `
+            <div class="mt-4 space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
+                        <input type="number" id="quote-discount" min="0" max="100" oninput="calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
+                        <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
+                    <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
+                </div>
+            </div>
+        `);
+    }
+
     if(!skipDataReset) {
         getEl('quote-cust-name').value = '';
         getEl('quote-cust-phone').value = '';
-        getEl('quote-notes').value = '';
-        getEl('quote-discount').value = '';
-        getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = '';
+        if(getEl('quote-notes')) getEl('quote-notes').value = '';
+        if(getEl('quote-discount')) getEl('quote-discount').value = '';
+        if(getEl('quote-validity')) getEl('quote-validity').value = '14 יום';
+        if(getEl('quote-intro-text')) getEl('quote-intro-text').value = '';
         getEl('quote-total-display').innerText = '₪0';
-        getEl('quote-before-discount').innerText = '';
+        const beforeEl = getEl('quote-before-discount');
+        if(beforeEl) beforeEl.innerText = '';
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
@@ -3389,7 +3439,10 @@ async function submitNewQuote() {
     const total = subtotal * (1 - discount / 100);
 
     const notesData = JSON.stringify({
-        notes: val('quote-notes'), introText: val('quote-intro-text'), validity: val('quote-validity'), discount, companyId
+        notes: val('quote-notes') || '', 
+        introText: val('quote-intro-text') || '', 
+        validity: val('quote-validity') || '', 
+        discount, companyId
     });
 
     const safeItemsToSave = [...items, { is_quote_metadata: true, data: notesData }];
@@ -3409,7 +3462,6 @@ async function submitNewQuote() {
             getEl('quote-modal').classList.add('hidden');
             fetchStoreQuotes(); 
             
-            // יצירה אוטומטית של לקוח חדש במערכת
             if (!editId) {
                 try {
                     await fetch(`${API}/store/customers`, {
