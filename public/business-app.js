@@ -3309,8 +3309,6 @@ async function openNewQuoteModal(skipDataReset = false) {
     
     const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
-    // --- ארגון מחדש של ה-DOM בתוך המודאל (שדות טקסט למעלה, חיפוש למטה) ---
-    // 1. הזזת שדות ההקדמה וההערות אל מתחת לפרטי הלקוח
     const topGrid = getEl('quote-cust-name').parentElement.parentElement;
     const mainContainer = topGrid.parentElement;
     
@@ -3347,13 +3345,11 @@ async function openNewQuoteModal(skipDataReset = false) {
         topGrid.insertAdjacentHTML('afterend', textFieldsHtml);
     }
     
-    // מחיקת האלמנטים הישנים שהיו למטה (אם קיימים)
     const oldNotes = mainContainer.querySelectorAll('#quote-notes');
     if (oldNotes.length > 1) {
         oldNotes[oldNotes.length - 1].parentElement.parentElement.remove();
     }
 
-    // 2. הוספת שורת חיפוש וסינון קטגוריות למוצרים
     const itemsSelector = getEl('quote-items-selector');
     if (!getEl('quote-catalog-filters')) {
         const cats = [...new Set(storeCatalogCache.map(p => p.category || 'כללי'))];
@@ -3374,10 +3370,10 @@ async function openNewQuoteModal(skipDataReset = false) {
     if(!skipDataReset) {
         getEl('quote-cust-name').value = '';
         getEl('quote-cust-phone').value = '';
-        getEl('quote-notes').value = '';
-        getEl('quote-discount').value = '';
-        getEl('quote-validity').value = '14 יום';
-        getEl('quote-intro-text').value = '';
+        if(getEl('quote-notes')) getEl('quote-notes').value = '';
+        if(getEl('quote-discount')) getEl('quote-discount').value = '';
+        if(getEl('quote-validity')) getEl('quote-validity').value = '14 יום';
+        if(getEl('quote-intro-text')) getEl('quote-intro-text').value = '';
         getEl('quote-total-display').innerText = '₪0';
         if(getEl('quote-search-item')) getEl('quote-search-item').value = '';
         if(getEl('quote-cat-filter')) getEl('quote-cat-filter').value = 'all';
@@ -3386,12 +3382,11 @@ async function openNewQuoteModal(skipDataReset = false) {
         getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
     }
     
-    renderQuoteItemsList(); // הפעלת פונקציית הרינדור החדשה של הרשימה
+    renderQuoteItemsList(); 
     ensureQuoteHeaders();
     getEl('quote-modal').classList.remove('hidden');
 }
 
-// פונקציה חדשה לרינדור רשימת המוצרים בהצעת מחיר לפי חיפוש וסינון
 window.renderQuoteItemsList = function() {
     const selector = getEl('quote-items-selector');
     if (!selector || !storeCatalogCache) return;
@@ -3436,68 +3431,8 @@ window.renderQuoteItemsList = function() {
         </div>
     `}).join('');
 };
-    const savedCompanyId = localStorage.getItem('ofl_company_id') || '';
 
-    // נוודא ששדות הטקסט של הצעת המחיר קיימים ב-DOM, ואם לא - ניצור אותם
-    if (!getEl('quote-intro-text')) {
-        const topGrid = getEl('quote-cust-name').parentElement.parentElement;
-        const mainContainer = topGrid.parentElement;
-        
-        mainContainer.insertAdjacentHTML('beforeend', `
-            <div class="mt-4">
-                <label class="text-[10px] font-bold text-slate-500">טקסט פתיחה:</label>
-                <textarea id="quote-intro-text" class="modern-input py-2 text-xs h-16 bg-slate-50 border-slate-200" placeholder="למשל: לבקשתכם, הרינו מתכבדים להגיש הצעת מחיר..."></textarea>
-            </div>
-        `);
-    }
-
-    if (!getEl('quote-notes')) {
-        const modalFooter = getEl('quote-total-display').parentElement.parentElement;
-        modalFooter.insertAdjacentHTML('beforebegin', `
-            <div class="mt-4 space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הנחה כוללת (%):</label>
-                        <input type="number" id="quote-discount" min="0" max="100" oninput="calcQuoteTotal()" class="modern-input py-1.5 text-xs text-center dir-ltr bg-white" placeholder="0">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-500 block mb-1">תוקף ההצעה:</label>
-                        <input type="text" id="quote-validity" class="modern-input py-1.5 text-xs text-center bg-white" value="14 יום" placeholder="למשל: 30 יום">
-                    </div>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-slate-500">הערות ותנאים:</label>
-                    <textarea id="quote-notes" class="modern-input py-2 text-xs h-20 bg-white" placeholder="תנאי תשלום, הערות חשובות..."></textarea>
-                </div>
-            </div>
-        `);
-    }
-
-    if(!skipDataReset) {
-        getEl('quote-cust-name').value = '';
-        getEl('quote-cust-phone').value = '';
-        if(getEl('quote-notes')) getEl('quote-notes').value = '';
-        if(getEl('quote-discount')) getEl('quote-discount').value = '';
-        if(getEl('quote-validity')) getEl('quote-validity').value = '14 יום';
-        if(getEl('quote-intro-text')) getEl('quote-intro-text').value = '';
-        getEl('quote-total-display').innerText = '₪0';
-        const beforeEl = getEl('quote-before-discount');
-        if(beforeEl) beforeEl.innerText = '';
-        getEl('btn-generate-quote').innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>';
-    }
-    
-    if (!getEl('quote-company-id')) {
-        const topGrid = getEl('quote-cust-name').parentElement.parentElement;
-        topGrid.className = "grid grid-cols-3 gap-2";
-        topGrid.insertAdjacentHTML('beforeend', `<div><label class="text-[10px] font-bold text-slate-500 block mb-1">ח.פ / ע.מ:</label><input type="text" id="quote-company-id" class="modern-input py-2 text-sm text-left dir-ltr" placeholder="נשמר אוטומטית" value="${savedCompanyId}"></div>`);
-    } else if(!skipDataReset) {
-        getEl('quote-company-id').value = savedCompanyId;
-    }
-    
-    ensureQuoteHeaders();
-    getEl('quote-modal').classList.remove('hidden');
-
-function updateQuoteItem(id, name, imgUrl) {
+window.updateQuoteItem = function(id, name, imgUrl) {
     const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
     const price = parseFloat(getEl(`quote-price-${id}`)?.value) || 0;
     const note = getEl(`quote-note-${id}`)?.value || '';
@@ -3508,9 +3443,20 @@ function updateQuoteItem(id, name, imgUrl) {
         delete selectedQuoteItems[id];
     }
     calcQuoteTotal();
-}
+    
+    const row = getEl(`quote-qty-${id}`).closest('.flex.items-start');
+    if (row) {
+        if (qty > 0) {
+            row.classList.add('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
+            row.classList.remove('border-slate-100', 'shadow-sm');
+        } else {
+            row.classList.remove('border-indigo-300', 'shadow-md', 'bg-indigo-50/10');
+            row.classList.add('border-slate-100', 'shadow-sm');
+        }
+    }
+};
 
-function calcQuoteTotal() {
+window.calcQuoteTotal = function() {
     let subtotal = 0;
     Object.values(selectedQuoteItems).forEach(i => subtotal += (i.quantity * i.price_at_order));
     const discount = parseFloat(getEl('quote-discount')?.value) || 0;
@@ -3518,9 +3464,9 @@ function calcQuoteTotal() {
     const beforeEl = getEl('quote-before-discount');
     if(beforeEl) beforeEl.innerText = discount > 0 ? `לפני הנחה: ₪${subtotal.toFixed(2)}` : '';
     getEl('quote-total-display').innerText = `₪${total.toFixed(2)}`;
-}
+};
 
-async function submitNewQuote() {
+window.submitNewQuote = async function() {
     const name = val('quote-cust-name');
     const companyId = val('quote-company-id');
     const phone = val('quote-cust-phone');
@@ -3580,7 +3526,7 @@ async function submitNewQuote() {
         }
      } catch(e) { showToast('error', 'שגיאת רשת — בדוק חיבור'); }
     finally { btn.disabled = false; btn.innerHTML = 'שמור והפק <i class="fa-solid fa-paper-plane"></i>'; }
-}
+};
 function shareQuoteWhatsApp(id, phone) {
     const text = encodeURIComponent(`היי, מצורפת הצעת מחיר מ-${currentGroup.name}.\nנשמח לעמוד לשירותך!\nליצירת קשר או אישור ההצעה השב להודעה זו.`);
     window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${text}`, '_blank');
