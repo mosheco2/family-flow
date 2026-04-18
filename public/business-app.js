@@ -3503,8 +3503,13 @@ window.openEditQuoteModal = async function(id) {
 };
 
 window.renderCustomerHistory = async function() {
-    const custName = (val('cust-name') || '').trim();
-    const custPhone = (val('cust-phone') || '').trim();
+    const custId = val('cust-id');
+    const custData = storeCustomersCache.find(c => String(c.id) === String(custId));
+    
+    // משיכת השם והטלפון מהאובייקט (אם קיים), אחרת מהשדות בטופס
+    const custName = (custData && custData.name ? custData.name : val('cust-name') || '').trim();
+    const custPhone = (custData && custData.phone ? custData.phone : val('cust-phone') || '').trim();
+    
     getEl('cust-history-summary').innerText = `הזמנות והצעות: ${custName}`;
     const listContainer = getEl('cust-history-list');
     
@@ -3519,8 +3524,9 @@ window.renderCustomerHistory = async function() {
         const targetName = custName.toLowerCase();
         const targetPhone = custPhone.replace(/\D/g,'');
         
-        const nameMatch = cName && targetName && cName === targetName;
-        const phoneMatch = cPhone && targetPhone && cPhone === targetPhone;
+        // התאמה חזקה אם יש שם זהה או טלפון זהה
+        const nameMatch = cName && targetName && cName.includes(targetName);
+        const phoneMatch = cPhone && targetPhone && cPhone.includes(targetPhone);
         
         const isCust = nameMatch || phoneMatch;
         if (!isCust) return false;
