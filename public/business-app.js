@@ -3502,7 +3502,7 @@ window.openEditQuoteModal = async function(id) {
     getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
 
-window.renderCustomerHistory = async function() {
+window.renderCustomerHistory = async function(forceSync = false) {
     const custId = val('cust-id');
     const custData = storeCustomersCache.find(c => String(c.id) === String(custId));
     
@@ -3513,8 +3513,8 @@ window.renderCustomerHistory = async function() {
     getEl('cust-history-summary').innerText = `הזמנות והצעות: ${custName}`;
     const listContainer = getEl('cust-history-list');
     
-    if (storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
-    if (storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
+    if (forceSync || storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
+    if (forceSync || storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
 
     const searchQuery = (val('cust-history-search') || '').toLowerCase();
     
@@ -3591,6 +3591,15 @@ window.renderCustomerHistory = async function() {
     }
 
     listContainer.innerHTML = historyHtml;
+    
+    // חיווי סיום סנכרון
+    if (forceSync) {
+        const syncBtn = getEl('btn-sync-history');
+        if(syncBtn) {
+            syncBtn.innerHTML = '<i class="fa-solid fa-check"></i> מסונכרן';
+            setTimeout(() => syncBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> סנכרן', 2000);
+        }
+    }
 };
 
 window.switchCustomerTab = async function(tab) {
@@ -3629,7 +3638,7 @@ window.switchCustomerTab = async function(tab) {
         if(btnCancel) { btnCancel.classList.replace('w-1/3', 'w-full'); btnCancel.innerText = 'סגור חלון'; }
         
         getEl('cust-history-list').innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען היסטוריה...</p>';
-        window.renderCustomerHistory();
+        window.renderCustomerHistory(true);
     } else {
         if(btnSubmit) btnSubmit.classList.remove('hidden');
         if(btnCancel) { btnCancel.classList.replace('w-full', 'w-1/3'); btnCancel.innerText = 'ביטול'; }
@@ -3662,15 +3671,16 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 </div>
             </div>
 
-            <div id="cust-view-history" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
+            <div id="cust-view-history" class="hidden flex-1 overflow-y-auto modal-scroll pr-1 flex flex-col">
                 <div class="flex justify-between items-center mb-3">
                     <p id="cust-history-summary" class="text-xs font-bold text-slate-500"></p>
+                    <button id="btn-sync-history" onclick="window.renderCustomerHistory(true)" class="text-[10px] bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 px-2 py-1 rounded transition border border-slate-200"><i class="fa-solid fa-rotate-right"></i> סנכרן</button>
                 </div>
-                <div class="relative mb-3">
+                <div class="relative mb-3 shrink-0">
                     <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory()" placeholder="חיפוש לפי מספר או סכום..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200 focus:border-indigo-400 outline-none transition">
+                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory(true)" placeholder="חיפוש לפי מספר או סכום..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200 focus:border-indigo-400 outline-none transition">
                 </div>
-                <div id="cust-history-list" class="space-y-2 pb-2"></div>
+                <div id="cust-history-list" class="space-y-2 pb-2 flex-1 overflow-y-auto min-h-[100px]"></div>
             </div>
             
             <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0">
