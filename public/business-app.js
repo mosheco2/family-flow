@@ -3496,7 +3496,6 @@ window.renderQuoteItemsList = function() {
     
     ensureQuoteHeaders();
     getEl('quote-modal').classList.remove('hidden');
-}
 
 function updateQuoteItem(id, name, imgUrl) {
     const qty = parseInt(getEl(`quote-qty-${id}`)?.value) || 0;
