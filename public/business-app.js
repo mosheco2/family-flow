@@ -3604,11 +3604,25 @@ window.switchCustomerTab = async function(tab) {
     viewDetails.classList.add('hidden');
     viewHistory.classList.add('hidden');
     
-    getEl('btn-cust-tab-details').className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    getEl('btn-cust-tab-history').className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    const btnDetails = getEl('btn-cust-tab-details');
+    const btnHistory = getEl('btn-cust-tab-history');
+
+    if(btnDetails) {
+        btnDetails.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+        btnDetails.classList.add('text-slate-500', 'hover:text-slate-700');
+    }
+    
+    if(btnHistory) {
+        btnHistory.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+        btnHistory.classList.add('text-slate-500', 'hover:text-slate-700');
+    }
 
     getEl(`cust-view-${tab}`).classList.remove('hidden');
-    getEl(`btn-cust-tab-${tab}`).className = 'flex-1 py-2 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const activeBtn = getEl(`btn-cust-tab-${tab}`);
+    if(activeBtn) {
+        activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+    }
 
     if (tab === 'history') {
         if(btnSubmit) btnSubmit.classList.add('hidden');
@@ -3635,7 +3649,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             
             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto whitespace-nowrap shrink-0">
                 <button id="btn-cust-tab-details" onclick="window.switchCustomerTab('details')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים</button>
-                <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition" style="display:none;">היסטוריית הזמנות</button>
+                <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות</button>
             </div>
             
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
@@ -3654,7 +3668,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 </div>
                 <div class="relative mb-3">
                     <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory()" placeholder="חיפוש לפי מספר או סכום..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200">
+                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory()" placeholder="חיפוש לפי מספר או סכום..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200 focus:border-indigo-400 outline-none transition">
                 </div>
                 <div id="cust-history-list" class="space-y-2 pb-2"></div>
             </div>
@@ -3678,7 +3692,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             getEl('cust-email').value = c.email || '';
             getEl('cust-business-id').value = c.business_id || '';
             getEl('cust-notes').value = c.notes || '';
-            getEl('btn-cust-tab-history').style.display = 'block'; 
+            getEl('btn-cust-tab-history').classList.remove('hidden'); 
         }
     } else {
         if(getEl('cust-id')) getEl('cust-id').value = '';
@@ -3687,7 +3701,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         getEl('cust-email').value = '';
         getEl('cust-business-id').value = '';
         getEl('cust-notes').value = '';
-        getEl('btn-cust-tab-history').style.display = 'none';
+        getEl('btn-cust-tab-history').classList.add('hidden');
         tab = 'details';
     }
     
