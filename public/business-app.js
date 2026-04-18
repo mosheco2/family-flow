@@ -3577,6 +3577,81 @@ window.renderCustomerHistory = async function() {
     listContainer.innerHTML = historyHtml;
 };
 
+window.renderCustomerHistory = async function() {
+    const custName = val('cust-name');
+    const custPhone = (val('cust-phone') || '').trim();
+    getEl('cust-history-summary').innerText = `הזמנות והצעות: ${custName}`;
+    const listContainer = getEl('cust-history-list');
+    
+    if (storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
+    if (storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
+
+    const searchQuery = (val('cust-history-search') || '').toLowerCase();
+    const match = (o) => {
+        const isCust = o.customer_name === custName || (custPhone && o.customer_phone === custPhone);
+        if (!isCust) return false;
+        if (!searchQuery) return true;
+        return String(o.id).includes(searchQuery) || (o.total_amount && String(o.total_amount).includes(searchQuery));
+    };
+
+    let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-2">הזמנות חנות:</h4>';
+    
+    const orders = storeOrdersCache.filter(o => 
+        match(o) && 
+        o.status !== 'quote' && 
+        (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === '')
+    );
+    
+    if (orders.length > 0) {
+        orders.forEach(o => {
+            historyHtml += `
+            <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition">
+                <div>
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-indigo-400 text-[10px]"></i> הזמנה #${o.id} - ${safeStr(custName)}</span>
+                    <span class="text-[10px] text-slate-500 block">${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
+                </div>
+                <span class="font-bold text-indigo-600 dir-ltr">₪${o.total_amount}</span>
+            </div>`;
+        });
+    } else { 
+        historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות שבוצעו בחנות.</p>'; 
+    }
+
+    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר:</h4>';
+    
+    const pendingQuotes = storeQuotesCache.filter(match); 
+    const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved'); 
+    
+    if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
+        pendingQuotes.forEach(q => {
+            const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
+            const sTxt = sMap[q.quote_status] || 'ממתינה';
+            historyHtml += `
+            <div onclick="window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
+                <div>
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id} - ${safeStr(custName)}</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
+                </div>
+                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount).toFixed(2)}</span>
+            </div>`;
+        });
+        approvedQuotes.forEach(o => {
+            historyHtml += `
+            <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-green-50 hover:border-green-200 transition">
+                <div>
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id} - ${safeStr(custName)}</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
+                </div>
+                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+            </div>`;
+        });
+    } else { 
+        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא הופקו הצעות מחיר ללקוח זה.</p>'; 
+    }
+
+    listContainer.innerHTML = historyHtml;
+};
+
 window.switchCustomerTab = async function(tab) {
     const viewDetails = getEl('cust-view-details');
     const viewHistory = getEl('cust-view-history');
@@ -3664,6 +3739,76 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         window.switchCustomerTab('details');
     }
     modal.classList.remove('hidden');
+};
+
+window.submitTargetDatetime = async function() {
+    const datetime = getEl('target-datetime-input').value;
+    const finalDatetime = datetime ? datetime.replace('T', ' ') : null; 
+    const btn = getEl('btn-submit-target-date');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מבצע...'; }
+
+    try {
+        const url = currentActionType === 'quote' ? `${API}/store/quotes/${currentActionTargetId}/approve` : `${API}/store/orders/${currentActionTargetId}/target-date`;
+        const method = currentActionType === 'quote' ? 'POST' : 'PATCH';
+        
+        const res = await fetch(url, {
+            method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetDatetime: finalDatetime })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            if (currentActionType === 'quote') { try { triggerConfetti(); } catch(e){} }
+            showToast('success', 'הפעולה בוצעה בהצלחה!');
+            getEl('target-datetime-modal').classList.add('hidden');
+            if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+            if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); 
+        } else { showToast('error', data.error); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { if (btn) { btn.disabled = false; btn.innerText = 'אישור ועדכון'; } }
+};
+
+window.submitNewCustomer = async function() {
+    const id = val('cust-id');
+    const name = val('cust-name');
+    if(!name) return showToast('error', 'שם הלקוח הוא שדה חובה');
+    const btn = getEl('btn-submit-customer');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> שומר...'; }
+    
+    try {
+        const payload = { groupId: currentGroup.id, name, phone: val('cust-phone'), email: val('cust-email'), businessId: val('cust-business-id'), notes: val('cust-notes') };
+        const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
+        const method = id ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+            method: method, headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if(data.success) {
+            showToast('success', id ? 'לקוח עודכן בהצלחה!' : 'לקוח חדש נשמר במאגר!');
+            getEl('customer-modal').classList.add('hidden');
+            if (typeof window.fetchStoreCustomers === 'function') window.fetchStoreCustomers(); 
+        } else { 
+            showToast('error', data.error || 'שגיאה כללית מהשרת'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בשמירה - בדוק את הקונסול לפרטים'); 
+    }
+    finally { if (btn) { btn.disabled = false; btn.innerText = 'שמור לקוח'; } }
+};
+
+window.fetchStoreCustomers = async function() {
+    try {
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            if (typeof window.renderStoreCustomers === 'function') window.renderStoreCustomers();
+        }
+    } catch(e) { console.error("Error fetching customers:", e); }
 };
 
 window.renderStoreCustomers = function() {
