@@ -343,37 +343,10 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 function injectBusinessUI() {
-    // הזרקת מיכלים לטאבים חדשים אם הם לא קיימים
+    // Injecting UI Containers
     if(!getEl('content-shifts')) {
         const contentFeed = getEl('content-feed');
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
-    }
-
-    // עדכון מבנה טאב הלקוחות (הוספת תת-טאבים)
-    const custContainer = getEl('content-customers');
-    if (custContainer && !getEl('cust-main-tabs')) {
-        const originalContent = custContainer.innerHTML;
-        custContainer.innerHTML = `
-            <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
-                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
-                <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
-                    <button id="btn-cust-main-list" onclick="switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
-                    <button id="btn-cust-main-history" onclick="switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
-                </div>
-                
-                <div id="cust-main-view-list">${originalContent}</div>
-                <div id="cust-main-view-history" class="hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
-                        <button onclick="renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
-                    </div>
-                    <div class="relative mb-4">
-                        <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="cust-main-history-search" oninput="renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
-                    </div>
-                    <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
-                </div>
-            </div>`;
     }
 
     if(!getEl('content-sales')) {
@@ -430,28 +403,6 @@ function injectBusinessUI() {
                 </div>
             </div>`);
     }
-}
-
-// פונקציית עזר למעבר בין טאבים בתוך עמוד לקוחות
-window.switchCustomerMainTab = function(tab) {
-    const listBtn = getEl('btn-cust-main-list');
-    const histBtn = getEl('btn-cust-main-history');
-    const listView = getEl('cust-main-view-list');
-    const histView = getEl('cust-main-view-history');
-    
-    if(tab === 'list') {
-        listBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-        listView.classList.remove('hidden');
-        histView.classList.add('hidden');
-    } else {
-        histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-        listBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-        listView.classList.add('hidden');
-        histView.classList.remove('hidden');
-        renderCustomerHistory(false, 'main');
-    }
-};
 
     if(!getEl('content-deliveries')) {
         const contentSales2 = getEl('content-sales');
@@ -3551,63 +3502,71 @@ window.openEditQuoteModal = async function(id) {
     getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
 };
 
-window.renderCustomerHistory = async function(forceSync = false, context = 'modal') {
-    const custId = context === 'modal' ? val('cust-id') : null;
-    const custData = (context === 'modal' && custId) ? storeCustomersCache.find(c => String(c.id) === String(custId)) : null;
+window.renderCustomerHistory = async function(forceSync = false) {
+    const custId = val('cust-id');
+    const custData = storeCustomersCache.find(c => String(c.id) === String(custId));
     
-    // זיהוי שם וטלפון לסינון
+    // משיכת השם והטלפון מהאובייקט (אם קיים), אחרת מהשדות בטופס
     const custName = (custData && custData.name ? custData.name : val('cust-name') || '').trim();
     const custPhone = (custData && custData.phone ? custData.phone : val('cust-phone') || '').trim();
     
-    // קביעת המיכל להצגה
-    const listContainer = context === 'modal' ? getEl('cust-history-list') : getEl('cust-main-history-list');
-    const summaryEl = context === 'modal' ? getEl('cust-history-summary') : null;
-    if (summaryEl) summaryEl.innerText = custName ? `היסטוריה עבור: ${custName}` : 'היסטוריה כללית';
+    getEl('cust-history-summary').innerText = custName ? `הזמנות והצעות: ${custName}` : 'היסטוריית הזמנות כללית';
+    const listContainer = getEl('cust-history-list');
     
-    if (!listContainer) return;
-
-    // סנכרון יזום
+    // סנכרון יזום אם נדרש
     if (forceSync) {
-        listContainer.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin mr-2"></i> מושך נתונים מעודכנים מהשרת...</p>';
-        await Promise.all([fetchStoreOrders(), fetchStoreQuotes()]);
+        listContainer.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מסנכרן נתונים...</p>';
+        try { await fetchStoreOrders(); } catch(e) {}
+        try { await fetchStoreQuotes(); } catch(e) {}
+        const syncBtn = getEl('btn-sync-history');
+        if(syncBtn) {
+            syncBtn.innerHTML = '<i class="fa-solid fa-check"></i> מסונכרן';
+            setTimeout(() => syncBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> סנכרן', 2000);
+        }
+    } else {
+        if (storeOrdersCache.length === 0) { try { await fetchStoreOrders(); } catch(e) {} }
+        if (storeQuotesCache.length === 0) { try { await fetchStoreQuotes(); } catch(e) {} }
     }
 
-    const searchInputId = context === 'modal' ? 'cust-history-search' : 'cust-main-history-search';
-    const searchQuery = (val(searchInputId) || '').toLowerCase();
+    const searchQuery = (val('cust-history-search') || '').toLowerCase();
     
     const match = (o) => {
-        const oName = (o.customer_name || '').trim().toLowerCase();
-        const oPhone = (o.customer_phone || '').trim().replace(/\D/g,'');
+        const cName = (o.customer_name || '').trim().toLowerCase();
+        const cPhone = (o.customer_phone || '').trim().replace(/\D/g,'');
+        const targetName = custName.toLowerCase();
+        const targetPhone = custPhone.replace(/\D/g,'');
         
-        let isRelevant = false;
-        // אם אנחנו במודאל ויש לקוח ספציפי - נסנן רק לפיו
-        if (context === 'modal' && (custName || custPhone)) {
-            const nameMatch = custName && oName.includes(custName.toLowerCase());
-            const phoneMatch = custPhone && oPhone.includes(custPhone.replace(/\D/g,''));
-            isRelevant = nameMatch || phoneMatch;
+        let isCust = false;
+        // אם אין שם ואין טלפון בפרטים המזהים - נציג את כל ההיסטוריה
+        if (!targetName && !targetPhone) {
+            isCust = true;
         } else {
-            // בטאב הראשי או כשאין לקוח נבחר - הכל רלוונטי
-            isRelevant = true;
+            const nameMatch = targetName && cName.includes(targetName);
+            const phoneMatch = targetPhone && cPhone.includes(targetPhone);
+            isCust = nameMatch || phoneMatch;
         }
         
-        if (!isRelevant) return false;
+        if (!isCust) return false;
         
-        // סינון לפי שורת החיפוש
+        // סינון לפי שורת החיפוש הפנימית של ההיסטוריה
         if (!searchQuery) return true;
         return String(o.id).includes(searchQuery) || 
                (o.total_amount && String(o.total_amount).includes(searchQuery)) || 
-               oName.includes(searchQuery) || 
-               oPhone.includes(searchQuery);
+               cName.includes(searchQuery) || 
+               cPhone.includes(searchQuery);
     };
 
-    let html = '';
+    let historyHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-2">הזמנות חנות:</h4>';
     
-    // 1. הזמנות חנות (Store Orders)
-    const orders = storeOrdersCache.filter(o => match(o) && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'draft'));
-    html += '<h5 class="text-[11px] font-black text-slate-400 mb-2 uppercase tracking-widest px-1">הזמנות מהחנות</h5>';
+    const orders = storeOrdersCache.filter(o => 
+        match(o) && 
+        o.status !== 'quote' && 
+        (!o.quote_status || String(o.quote_status) === 'null' || String(o.quote_status) === 'undefined' || String(o.quote_status) === '')
+    );
+    
     if (orders.length > 0) {
         orders.forEach(o => {
-            html += `
+            historyHtml += `
             <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition">
                 <div>
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-indigo-400 text-[10px]"></i> הזמנה #${o.id}</span>
@@ -3616,45 +3575,48 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 <span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
             </div>`;
         });
-    } else { html += '<p class="text-[10px] text-slate-300 text-center py-2 mb-4 bg-slate-50 rounded-lg border border-dashed">אין הזמנות תואמות</p>'; }
+    } else { 
+        historyHtml += '<p class="text-[10px] text-slate-400 mb-4 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הזמנות שבוצעו בחנות.</p>'; 
+    }
 
-    // 2. הצעות מחיר
+    historyHtml += '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">הצעות מחיר (שאושרו או בהמתנה):</h4>';
+    
     const pendingQuotes = storeQuotesCache.filter(match); 
-    const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved');
-    html += '<h5 class="text-[11px] font-black text-slate-400 mb-2 mt-4 uppercase tracking-widest px-1">הצעות מחיר</h5>';
+    const approvedQuotes = storeOrdersCache.filter(o => match(o) && o.quote_status === 'approved'); 
     
     if (pendingQuotes.length > 0 || approvedQuotes.length > 0) {
         pendingQuotes.forEach(q => {
             const sMap = { 'draft': 'טיוטה', 'sent': 'נשלחה', 'waiting_customer': 'ממתינה', 'frozen': 'הוקפאה', 'cancelled': 'בוטלה' };
-            html += `
+            const sTxt = sMap[q.quote_status] || 'ממתינה';
+            historyHtml += `
             <div onclick="window.openQuotePreview(${q.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition">
                 <div>
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-file-invoice text-orange-400 text-[10px]"></i> הצעה #${q.id}</span>
-                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sMap[q.quote_status] || 'ממתינה'}</span> ${safeStr(q.customer_name)}</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 ml-1 font-bold">${sTxt}</span> ${safeStr(q.customer_name)} | ${new Date(q.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
             </div>`;
         });
         approvedQuotes.forEach(o => {
-            html += `
+            historyHtml += `
             <div onclick="openStoreOrderModal(${o.id})" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-2 cursor-pointer hover:bg-green-50 hover:border-green-200 transition">
                 <div>
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id}</span>
-                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה</span> ${safeStr(o.customer_name)}</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
                 <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
             </div>`;
         });
-    } else { html += '<p class="text-[10px] text-slate-300 text-center py-2 bg-slate-50 rounded-lg border border-dashed">אין הצעות תואמות</p>'; }
+    } else { 
+        historyHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו הצעות מחיר.</p>'; 
+    }
 
-    listContainer.innerHTML = html;
+    listContainer.innerHTML = historyHtml;
 };
 
 window.switchCustomerTab = async function(tab) {
     const viewDetails = getEl('cust-view-details');
     const viewHistory = getEl('cust-view-history');
-    const btnDetails = getEl('btn-cust-tab-details');
-    const btnHistory = getEl('btn-cust-tab-history');
     const btnSubmit = getEl('btn-submit-customer');
     const btnCancel = getEl('btn-cancel-customer');
     
@@ -3662,16 +3624,32 @@ window.switchCustomerTab = async function(tab) {
 
     viewDetails.classList.add('hidden');
     viewHistory.classList.add('hidden');
-    btnDetails.className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    btnHistory.className = 'flex-1 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    
+    const btnDetails = getEl('btn-cust-tab-details');
+    const btnHistory = getEl('btn-cust-tab-history');
+
+    if(btnDetails) {
+        btnDetails.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+        btnDetails.classList.add('text-slate-500', 'hover:text-slate-700');
+    }
+    
+    if(btnHistory) {
+        btnHistory.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
+        btnHistory.classList.add('text-slate-500', 'hover:text-slate-700');
+    }
 
     getEl(`cust-view-${tab}`).classList.remove('hidden');
-    getEl(`btn-cust-tab-${tab}`).className = 'flex-1 py-2 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const activeBtn = getEl(`btn-cust-tab-${tab}`);
+    if(activeBtn) {
+        activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
+        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+    }
 
     if (tab === 'history') {
         if(btnSubmit) btnSubmit.classList.add('hidden');
-        if(btnCancel) { btnCancel.classList.replace('w-1/3', 'w-full'); btnCancel.innerText = 'סגור כרטיס'; }
-        window.renderCustomerHistory(false, 'modal');
+        if(btnCancel) { btnCancel.classList.replace('w-1/3', 'w-full'); btnCancel.innerText = 'סגור חלון'; }
+        
+        window.renderCustomerHistory(false);
     } else {
         if(btnSubmit) btnSubmit.classList.remove('hidden');
         if(btnCancel) { btnCancel.classList.replace('w-full', 'w-1/3'); btnCancel.innerText = 'ביטול'; }
@@ -3684,7 +3662,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
 
     document.body.insertAdjacentHTML('beforeend', `
     <div id="customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden fade-in">
             <button onclick="document.getElementById('customer-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition z-10"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0">כרטיס לקוח</h3>
             <input type="hidden" id="cust-id">
@@ -3696,8 +3674,8 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             
             <div id="cust-view-details" class="flex-1 overflow-y-auto modal-scroll pr-1">
                 <div class="space-y-3 pb-2">
-                    <div><label class="text-xs font-bold text-slate-500">שם לקוח / עסק (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white"></div>
-                    <div><label class="text-xs font-bold text-slate-500">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label class="text-xs font-bold text-slate-500">שם לקוח / עסק (חובה):</label><input type="text" id="cust-name" class="modern-input py-2 text-sm bg-white" oninput="if(document.getElementById('btn-cust-tab-history').classList.contains('bg-white')) window.renderCustomerHistory(false)"></div>
+                    <div><label class="text-xs font-bold text-slate-500">טלפון:</label><input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left" oninput="if(document.getElementById('btn-cust-tab-history').classList.contains('bg-white')) window.renderCustomerHistory(false)"></div>
                     <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm bg-white h-20"></textarea></div>
@@ -3707,13 +3685,13 @@ window.openCustomerModal = function(id = null, tab = 'details') {
             <div id="cust-view-history" class="hidden flex-1 overflow-y-auto modal-scroll pr-1 flex flex-col">
                 <div class="flex justify-between items-center mb-3 shrink-0">
                     <p id="cust-history-summary" class="text-xs font-bold text-slate-500"></p>
-                    <button onclick="renderCustomerHistory(true, 'modal')" class="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded border border-slate-200"><i class="fa-solid fa-rotate-right"></i> סנכרן</button>
+                    <button id="btn-sync-history" onclick="window.renderCustomerHistory(true)" class="text-[10px] bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 px-2 py-1 rounded transition border border-slate-200"><i class="fa-solid fa-rotate-right"></i> סנכרן</button>
                 </div>
                 <div class="relative mb-3 shrink-0">
                     <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory(false, 'modal')" placeholder="חיפוש לפי מספר, סכום או תוכן..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200">
+                    <input type="text" id="cust-history-search" oninput="window.renderCustomerHistory(false)" placeholder="חיפוש לפי מספר, שם או סכום..." class="modern-input py-2 pr-8 pl-3 text-xs w-full bg-slate-50 border-slate-200 focus:border-indigo-400 outline-none transition">
                 </div>
-                <div id="cust-history-list" class="space-y-2 pb-2"></div>
+                <div id="cust-history-list" class="space-y-2 pb-2 flex-1 overflow-y-auto min-h-[100px] modal-scroll"></div>
             </div>
             
             <div class="flex gap-3 mt-4 pt-4 border-t border-slate-100 shrink-0">
@@ -3724,21 +3702,18 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     </div>
     `);
     
+    modal = getEl('customer-modal');
+    
     if (id) {
         const c = storeCustomersCache.find(x => String(x.id) === String(id));
         if (c) {
-            getEl('cust-id').value = c.id;
+            if(getEl('cust-id')) getEl('cust-id').value = c.id;
             getEl('cust-name').value = c.name || '';
             getEl('cust-phone').value = c.phone || '';
             getEl('cust-email').value = c.email || '';
             getEl('cust-business-id').value = c.business_id || '';
             getEl('cust-notes').value = c.notes || '';
         }
-    }
-    
-    window.switchCustomerTab(tab);
-    getEl('customer-modal').classList.remove('hidden');
-};
     } else {
         if(getEl('cust-id')) getEl('cust-id').value = '';
         getEl('cust-name').value = '';
