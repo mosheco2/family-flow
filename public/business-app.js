@@ -3925,55 +3925,35 @@ async function fetchStoreSettings() {
 
             // --- טיפול חכם בלוגו ---
             const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
+            const logoUrl = data.settings.logo_url;
             
-            const deskLogo = getEl('main-header-logo-desktop');
-            const deskPlace = getEl('main-header-logo-placeholder-desktop');
-            if (deskLogo && deskPlace) {
-                if (hasLogo) {
-                    deskLogo.src = data.settings.logo_url; 
-                    deskLogo.style.display = 'block'; 
-                    deskLogo.classList.remove('hidden');
-                    deskPlace.style.display = 'none'; 
-                    deskPlace.classList.add('hidden');
-                } else {
-                    deskLogo.src = ''; 
-                    deskLogo.style.display = 'none'; 
-                    deskLogo.classList.add('hidden');
-                    deskPlace.style.display = 'flex'; 
-                    deskPlace.classList.remove('hidden');
+            ['store-logo-preview', 'wizard-logo-preview', 'dash-logo-preview'].forEach(id => {
+                const el = getEl(id);
+                if(el) { 
+                    if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                    else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
                 }
-            }
+            });
+            
+            ['store-logo-placeholder', 'wizard-logo-icon', 'dash-logo-placeholder'].forEach(id => {
+                const el = getEl(id);
+                if(el) {
+                    if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                    else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+                }
+            });
 
-            const mobLogo = getEl('main-header-logo-mobile');
-            const mobPlace = getEl('main-header-logo-placeholder-mobile');
-            if (mobLogo && mobPlace) {
-                if (hasLogo) {
-                    mobLogo.src = data.settings.logo_url; 
-                    mobLogo.style.display = 'block'; 
-                    mobLogo.classList.remove('hidden');
-                    mobPlace.style.display = 'none'; 
-                    mobPlace.classList.add('hidden');
-                } else {
-                    mobLogo.src = ''; 
-                    mobLogo.style.display = 'none'; 
-                    mobLogo.classList.add('hidden');
-                    mobPlace.style.display = 'flex'; 
-                    mobPlace.classList.remove('hidden');
-                }
-            }
-            
+            ['store-logo-base64', 'wizard-logo-base64'].forEach(id => {
+                const el = getEl(id);
+                if(el) el.value = hasLogo ? logoUrl : 'DELETE';
+            });
+
             if (hasLogo) {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => {
-                    el.src = data.settings.logo_url; el.classList.remove('hidden'); el.style.display = 'block';
-                });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
+                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.remove('hidden');
+                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.remove('hidden');
             } else {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = 'DELETE');
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
+                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.add('hidden');
+                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.add('hidden');
             }
 
             // --- טיפול חכם בבאנר רקע ---
@@ -3982,16 +3962,26 @@ async function fetchStoreSettings() {
             
             if (hasBanner) {
                 if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
-                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => {
-                    el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block';
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getEl(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
                 });
-                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = data.settings.banner_url);
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getEl(id); if(el) el.classList.add('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getEl(id); if(el) el.value = data.settings.banner_url;
+                });
             } else {
                 if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
-                document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => el.classList.remove('hidden'));
-                document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = 'DELETE');
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getEl(id); if(el) { el.src = ''; el.classList.add('hidden'); }
+                });
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getEl(id); if(el) el.classList.remove('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getEl(id); if(el) el.value = 'DELETE';
+                });
             }
 
             if (data.settings.modifier_presets) {
