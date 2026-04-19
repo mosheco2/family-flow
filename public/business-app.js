@@ -5469,7 +5469,6 @@ function switchProcurementTab(tab) {
     if(targetBtn) {
         targetBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
         targetBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-    }
 
     if (tab === 'suppliers') fetchSuppliers();
     if (tab === 'list') fetchB2BCatalog();
