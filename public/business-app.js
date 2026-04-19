@@ -825,15 +825,16 @@ async function loadDashboard() {
         
         const dashContainer = getEl('dashboard-container'); if(dashContainer) dashContainer.classList.remove('hidden'); 
         
-        // חשיפת כפתורי פעולה לאחר כניסה
+// חשיפת כפתורי פעולה לאחר כניסה
         const fabContainer = getEl('fab-container'); if(fabContainer) fabContainer.classList.remove('hidden');
         const aiAssistant = document.querySelector('.fixed.bottom-40.right-6.animate-pulse'); if(aiAssistant) aiAssistant.classList.remove('hidden');
         const waButton = document.querySelector('a[href^="https://wa.me/"]'); if(waButton) waButton.classList.remove('hidden');
         
         fetchBanners(); 
+        try { if(typeof fetchStoreSettings === 'function') fetchStoreSettings(); } catch(e){}
         
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest whitespace-nowrap">קוד ארגון: ${currentGroup.group_code}</span>` : '';
-        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
+        const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`;
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
         // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
@@ -6279,7 +6280,7 @@ window.generateLogoAI = async function() {
                 // הוספת Cache Buster כדי להכריח רענון של התמונה בדפדפן
                 const freshUrl = data.imageUrl + (data.imageUrl.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
                 
-                ['wizard', 'store'].forEach(prefix => {
+                ['wizard', 'store', 'dash'].forEach(prefix => {
                     const preview = getEl(`${prefix}-logo-preview`);
                     const icon = getEl(`${prefix}-logo-icon`) || getEl(`${prefix}-logo-placeholder`);
                     const input = getEl(`${prefix}-logo-base64`);
@@ -6300,10 +6301,10 @@ window.handleStoreLogoUpload = function(event) {
     if(!file) return; 
     showToast('info', 'מכווץ תמונה...');
     compressImage(file, 300, 300, 0.8, (base64) => {
-        document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { 
+        document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => { 
             el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
         });
-        document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = base64);
         document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
         showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
