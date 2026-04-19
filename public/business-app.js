@@ -3499,6 +3499,13 @@ window.switchCustomerMainTab = function(tab) {
         if(histBtn) histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
         listView.classList.remove('hidden');
         histView.classList.add('hidden');
+        
+        // תיקון: קריאה לרינדור הרשימה כאשר הטאב נפתח
+        if (typeof window.renderStoreCustomers === 'function') {
+            window.renderStoreCustomers();
+        } else if (typeof window.fetchStoreCustomers === 'function') {
+            window.fetchStoreCustomers();
+        }
     } else {
         if(histBtn) histBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
         if(listBtn) listBtn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
