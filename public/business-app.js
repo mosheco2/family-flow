@@ -348,46 +348,45 @@ function injectBusinessUI() {
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
     }
 
-    if (!getEl('content-customers')) {
-        const contentShifts = getEl('content-shifts') || getEl('content-feed');
-        if (contentShifts) {
-            contentShifts.insertAdjacentHTML('afterend', `
-            <div id="content-customers" class="hidden">
-                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
-                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
-                    <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
-                        <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
-                        <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
-                    </div>
-                    <div id="cust-main-view-list">
-                        <div class="flex justify-between items-center mb-4">
-                            <span class="text-sm font-bold text-slate-600">רשימת לקוחות</span>
-                            <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
-                        </div>
-                        <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <input type="text" id="filter-customer-search" oninput="window.renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
-                            <select id="filter-customer-type" onchange="window.renderStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
-                                <option value="all">כל הלקוחות</option>
-                                <option value="order">רוכשים בחנות</option>
-                                <option value="quote">מבקשי הצעות מחיר</option>
-                            </select>
-                        </div>
-                        <div id="store-customers-list" class="space-y-3 pb-8"></div>
-                    </div>
-                    <div id="cust-main-view-history" class="hidden">
-                        <div class="flex justify-between items-center mb-3">
-                            <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
-                            <button id="btn-sync-main-history" onclick="window.renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
-                        </div>
-                        <div class="relative mb-4">
-                            <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="cust-main-history-search" oninput="window.renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
-                        </div>
-                        <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
-                    </div>
+    const custContainer = getEl('content-customers');
+    if (custContainer && !getEl('cust-main-tabs')) {
+        custContainer.innerHTML = `
+            <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
+                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
+                <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
+                    <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
+                    <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
                 </div>
-            </div>`);
-        }
+                
+                <div id="cust-main-view-list">
+                    <div class="flex flex-col sm:flex-row gap-3 mb-4 mt-2">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="text" id="filter-customer-search" oninput="if(typeof window.renderStoreCustomers === 'function') window.renderStoreCustomers()" placeholder="חיפוש לפי שם, טלפון, עוסק מורשה..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                        </div>
+                        <select id="filter-customer-type" onchange="if(typeof window.renderStoreCustomers === 'function') window.renderStoreCustomers()" class="modern-input py-2.5 px-3 text-sm font-bold bg-slate-50 border-slate-200 text-slate-700 rounded-xl w-full sm:w-auto outline-none focus:border-indigo-400">
+                            <option value="all">כל הלקוחות</option>
+                            <option value="order">לקוחות עם הזמנה</option>
+                            <option value="quote">לקוחות עם הצעת מחיר</option>
+                        </select>
+                        <button onclick="if(typeof window.openCustomerModal === 'function') window.openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                    </div>
+                    <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                </div>
+                
+                <div id="cust-main-view-history" class="hidden">
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
+                        <button id="btn-sync-main-history" onclick="window.renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
+                    </div>
+                    <div class="relative mb-4">
+                        <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="cust-main-history-search" oninput="window.renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                    </div>
+                    <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
+                </div>
+            </div>
+        `;
     }
 
     if(!getEl('content-sales')) {
