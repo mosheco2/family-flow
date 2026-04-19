@@ -7512,20 +7512,39 @@ window.openCustomerStatusScreen = function() {
     const logoImg = getEl('status-screen-logo');
     const logoIcon = getEl('status-screen-logo-icon');
 
-    if (currentGroup && titleEl) titleEl.innerText = safeStr(currentGroup.name);
+    if (currentGroup && titleEl) titleEl.innerText = safeStr(currentGroup.name) || 'העסק שלי';
     
     const dashSlogan = getEl('main-header-slogan');
     if (sloganEl && dashSlogan) sloganEl.innerText = dashSlogan.innerText;
 
-    // טעינת לוגו העסק בצורה מאובטחת
+    // טעינת לוגו העסק בצורה מאובטחת - משיכה משדה האמת (store-logo-base64) במקום תלות בתצוגת ה-DOM
+    const logoInput = val('store-logo-base64');
     const dashLogo = getEl('dash-logo-preview');
-    if (logoImg && dashLogo && !dashLogo.classList.contains('hidden') && dashLogo.src && dashLogo.src.length > 10) {
-        logoImg.src = dashLogo.src;
+    
+    let finalLogoSrc = null;
+    if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
+        finalLogoSrc = logoInput;
+    } else if (dashLogo && dashLogo.src && !dashLogo.classList.contains('hidden') && dashLogo.src.length > 10) {
+        finalLogoSrc = dashLogo.src;
+    }
+
+    if (logoImg && finalLogoSrc) {
+        logoImg.src = finalLogoSrc;
         logoImg.classList.remove('hidden');
-        if(logoIcon) logoIcon.classList.add('hidden');
+        logoImg.style.display = 'block';
+        if (logoIcon) {
+            logoIcon.classList.add('hidden');
+            logoIcon.style.display = 'none';
+        }
     } else {
-        if(logoImg) logoImg.classList.add('hidden');
-        if(logoIcon) logoIcon.classList.remove('hidden');
+        if (logoImg) {
+            logoImg.classList.add('hidden');
+            logoImg.style.display = 'none';
+        }
+        if (logoIcon) {
+            logoIcon.classList.remove('hidden');
+            logoIcon.style.display = 'block';
+        }
     }
 
     screen.classList.remove('hidden');
