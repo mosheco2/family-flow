@@ -242,27 +242,27 @@ async function fetchBanners() {
     } catch(e) {}
 }
 
-// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
 window.toggleDesktopView = function() {
     const dashContainer = getEl('dashboard-container');
-    if (!dashContainer) return;
-    
+    const bottomBanner = getEl('app-banner-bottom');
     const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
     
+    if (!dashContainer) return;
+    
     if (dashContainer.classList.contains('max-w-lg')) {
-        // מעבר לתצוגת מחשב רחבה
         dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-6xl', 'w-full');
-        if(iconBtn) {
+        dashContainer.classList.add('max-w-7xl', 'w-full');
+        if (bottomBanner) { bottomBanner.classList.remove('max-w-lg'); bottomBanner.classList.add('max-w-7xl'); }
+        if (iconBtn) {
             iconBtn.classList.remove('fa-desktop');
             iconBtn.classList.add('fa-mobile-screen');
         }
-        showToast('info', 'עברת לתצוגת מסך רחבה');
+        showToast('info', 'עברת לתצוגת מחשב מורחבת');
     } else {
-        // מעבר חזרה לתצוגת מובייל (צרה)
-        dashContainer.classList.remove('max-w-6xl', 'w-full');
+        dashContainer.classList.remove('max-w-7xl', 'w-full');
         dashContainer.classList.add('max-w-lg');
-        if(iconBtn) {
+        if (bottomBanner) { bottomBanner.classList.remove('max-w-7xl'); bottomBanner.classList.add('max-w-lg'); }
+        if (iconBtn) {
             iconBtn.classList.remove('fa-mobile-screen');
             iconBtn.classList.add('fa-desktop');
         }
@@ -832,7 +832,7 @@ async function loadDashboard() {
         
         fetchBanners(); 
         
-        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest">קוד ארגון: ${currentGroup.group_code}</span>` : '';
+        const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full mr-2 tracking-widest whitespace-nowrap">קוד ארגון: ${currentGroup.group_code}</span>` : '';
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.innerHTML = `${safeStr(currentGroup.name)} ${codeBadge}`; 
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = currentUser.nickname; 
 
@@ -3962,15 +3962,15 @@ async function fetchStoreSettings() {
             }
             
             if (hasLogo) {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => {
+                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => {
                     el.src = data.settings.logo_url; el.classList.remove('hidden'); el.style.display = 'block';
                 });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => el.classList.add('hidden'));
                 document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = data.settings.logo_url);
                 document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.remove('hidden'));
             } else {
-                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); });
-                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"]').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; });
+                document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => el.classList.remove('hidden'));
                 document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = 'DELETE');
                 document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
             }
