@@ -502,7 +502,6 @@ window.switchCustomerMainTab = function(tab) {
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
     }
-}
 
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
