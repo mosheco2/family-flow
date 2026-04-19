@@ -7516,61 +7516,53 @@ window.openCustomerStatusScreen = function() {
     const screen = getEl('customer-status-screen');
     if (!screen) return showToast('error', 'שגיאה: מסך הסטטוס לא נמצא במערכת.');
 
-    // הגדרת נתוני העסק במסך (לוגו, שם)
+    // הגדרת נתוני העסק במסך
     const titleEl = getEl('status-screen-title');
     const sloganEl = getEl('status-screen-slogan');
-    const logoEl = getEl('status-screen-logo');
+    const logoImg = getEl('status-screen-logo');
+    const logoIcon = getEl('status-screen-logo-icon');
 
-    if (currentGroup) {
-        if (titleEl) titleEl.innerText = safeStr(currentGroup.name) || 'הזמנות';
-    }
+    if (currentGroup && titleEl) titleEl.innerText = safeStr(currentGroup.name);
     
-    // ניסיון למשוך את הלוגו והסלוגן מההגדרות ב-DOM אם הם קיימים
     const dashSlogan = getEl('main-header-slogan');
     if (sloganEl && dashSlogan) sloganEl.innerText = dashSlogan.innerText;
 
+    // טעינת לוגו העסק בצורה מאובטחת
     const dashLogo = getEl('dash-logo-preview');
-    if (logoEl && dashLogo && !dashLogo.classList.contains('hidden') && dashLogo.src) {
-        logoEl.src = dashLogo.src;
-        logoEl.classList.remove('hidden');
-    } else if (logoEl) {
-        logoEl.classList.add('hidden');
+    if (logoImg && dashLogo && !dashLogo.classList.contains('hidden') && dashLogo.src && dashLogo.src.length > 10) {
+        logoImg.src = dashLogo.src;
+        logoImg.classList.remove('hidden');
+        if(logoIcon) logoIcon.classList.add('hidden');
+    } else {
+        if(logoImg) logoImg.classList.add('hidden');
+        if(logoIcon) logoIcon.classList.remove('hidden');
     }
 
     screen.classList.remove('hidden');
     
-    // מעבר למסך מלא (Full Screen) אם הדפדפן תומך
+    // מעבר למסך מלא (מיועד להקרנה בחנות)
     try {
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen();
-        } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
-            document.documentElement.webkitRequestFullscreen();
-        } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
-            document.documentElement.msRequestFullscreen();
-        }
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+        else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
     } catch(e) {}
 
-    // עדכון ראשוני
     window.renderCustomerStatusScreen();
     window.updateStatusScreenClock();
 
-    // התחלת רענון אוטומטי
     if (customerStatusInterval) clearInterval(customerStatusInterval);
     customerStatusInterval = setInterval(() => {
         window.updateStatusScreenClock();
-        // משיכת נתונים חדשים
         if (typeof fetchStoreOrders === 'function') {
-            // fetchStoreOrders קוראת ל-renderStoreOrders ול-updateSalesDashboardStats אוטומטית.
-            // נוסיף לה גם קריאה ל-renderCustomerStatusScreen אם המסך פתוח.
             fetchStoreOrders().then(() => {
                  if (!screen.classList.contains('hidden')) {
                      window.renderCustomerStatusScreen();
                  }
             });
         }
-    }, 5000); // רענון כל 5 שניות
+    }, 5000);
 };
-
 window.closeCustomerStatusScreen = function() {
     const screen = getEl('customer-status-screen');
     if (screen) screen.classList.add('hidden');
