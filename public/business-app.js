@@ -348,30 +348,46 @@ function injectBusinessUI() {
         if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
     }
 
-    const custContainer = getEl('content-customers');
-    if (custContainer && !getEl('cust-main-tabs')) {
-        const originalContent = custContainer.innerHTML;
-        custContainer.innerHTML = `
-            <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
-                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
-                <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
-                    <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
-                    <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
-                </div>
-                
-                <div id="cust-main-view-list">${originalContent}</div>
-                <div id="cust-main-view-history" class="hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
-                        <button id="btn-sync-main-history" onclick="window.renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
+    if (!getEl('content-customers')) {
+        const contentShifts = getEl('content-shifts') || getEl('content-feed');
+        if (contentShifts) {
+            contentShifts.insertAdjacentHTML('afterend', `
+            <div id="content-customers" class="hidden">
+                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
+                    <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
+                        <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
+                        <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
                     </div>
-                    <div class="relative mb-4">
-                        <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="cust-main-history-search" oninput="window.renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                    <div id="cust-main-view-list">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-sm font-bold text-slate-600">רשימת לקוחות</span>
+                            <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+                        </div>
+                        <div class="flex flex-wrap gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <input type="text" id="filter-customer-search" oninput="window.renderStoreCustomers()" placeholder="חיפוש שם, טלפון, ח.פ..." class="modern-input py-2 px-3 text-xs flex-1 min-w-[150px] bg-white shadow-sm">
+                            <select id="filter-customer-type" onchange="window.renderStoreCustomers()" class="modern-input py-2 px-3 text-xs w-auto bg-white shadow-sm font-bold text-indigo-700 outline-none focus:border-indigo-400">
+                                <option value="all">כל הלקוחות</option>
+                                <option value="order">רוכשים בחנות</option>
+                                <option value="quote">מבקשי הצעות מחיר</option>
+                            </select>
+                        </div>
+                        <div id="store-customers-list" class="space-y-3 pb-8"></div>
                     </div>
-                    <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
+                    <div id="cust-main-view-history" class="hidden">
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
+                            <button id="btn-sync-main-history" onclick="window.renderCustomerHistory(true, 'main')" class="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-rotate-right"></i> סנכרן נתונים</button>
+                        </div>
+                        <div class="relative mb-4">
+                            <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="cust-main-history-search" oninput="window.renderCustomerHistory(false, 'main')" placeholder="חיפוש מהיר בהיסטוריה (שם, טלפון, מספר הזמנה)..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                        </div>
+                        <div id="cust-main-history-list" class="space-y-3 pb-8"></div>
+                    </div>
                 </div>
-            </div>`;
+            </div>`);
+        }
     }
 
     if(!getEl('content-sales')) {
@@ -3484,6 +3500,51 @@ window.openEditQuoteModal = async function(id) {
 
     window.calcQuoteTotal();
     getEl('btn-generate-quote').innerHTML = 'עדכן הצעה <i class="fa-solid fa-check"></i>';
+};
+
+window.fetchStoreCustomers = async function() {
+    try {
+        const res = await fetch(`${API}/store/customers/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success) {
+            storeCustomersCache = data.customers || [];
+            window.renderStoreCustomers();
+        }
+    } catch(e) { console.error('Error fetching customers:', e); }
+};
+
+window.renderStoreCustomers = function() {
+    const list = getEl('store-customers-list');
+    if (!list) return;
+    const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+    const filterType = val('filter-customer-type') || 'all';
+    let filtered = storeCustomersCache.filter(c => {
+        const s = `${c.name||''} ${c.phone||''} ${c.business_id||''} ${c.email||''}`.toLowerCase();
+        return s.includes(searchTerm);
+    });
+    if (filterType === 'order') filtered = filtered.filter(c => storeOrdersCache.some(o => o.customer_name === c.name || o.customer_phone === c.phone));
+    else if (filterType === 'quote') filtered = filtered.filter(c => storeQuotesCache.some(q => q.customer_name === c.name || q.customer_phone === c.phone));
+    if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">לא נמצאו לקוחות התואמים לסינון.</p>'; return; }
+    list.innerHTML = filtered.map(c => {
+        const initial = (c.name || '?').charAt(0).toUpperCase();
+        return `<div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 hover:shadow-md transition">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-lg font-black shrink-0 border border-indigo-100">${initial}</div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4>
+                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-2">
+                        ${c.phone ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-phone mr-1"></i><span dir="ltr">${safeStr(c.phone)}</span></span>` : ''}
+                        ${c.business_id ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-id-card mr-1"></i><span dir="ltr">${safeStr(c.business_id)}</span></span>` : ''}
+                        ${c.email ? `<span class="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><i class="fa-solid fa-envelope mr-1"></i><span dir="ltr">${safeStr(c.email)}</span></span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
+                <button onclick="openCustomerModal(${c.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+            </div>
+        </div>`;
+    }).join('');
 };
 
 window.switchCustomerMainTab = function(tab) {
