@@ -502,6 +502,7 @@ window.switchCustomerMainTab = function(tab) {
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
     }
+}
 
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
@@ -5469,6 +5470,7 @@ function switchProcurementTab(tab) {
     if(targetBtn) {
         targetBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
         targetBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
+    }
 
     if (tab === 'suppliers') fetchSuppliers();
     if (tab === 'list') fetchB2BCatalog();
