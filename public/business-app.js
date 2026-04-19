@@ -7506,3 +7506,169 @@ setInterval(() => {
         if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
     }
 }, 20000);
+// ============================================================
+// --- מסך סטטוס ללקוחות (Live Customer Status Screen) ---
+// ============================================================
+
+let customerStatusInterval = null;
+
+window.openCustomerStatusScreen = function() {
+    const screen = getEl('customer-status-screen');
+    if (!screen) return showToast('error', 'שגיאה: מסך הסטטוס לא נמצא במערכת.');
+
+    // הגדרת נתוני העסק במסך (לוגו, שם)
+    const titleEl = getEl('status-screen-title');
+    const sloganEl = getEl('status-screen-slogan');
+    const logoEl = getEl('status-screen-logo');
+
+    if (currentGroup) {
+        if (titleEl) titleEl.innerText = safeStr(currentGroup.name) || 'הזמנות';
+    }
+    
+    // ניסיון למשוך את הלוגו והסלוגן מההגדרות ב-DOM אם הם קיימים
+    const dashSlogan = getEl('main-header-slogan');
+    if (sloganEl && dashSlogan) sloganEl.innerText = dashSlogan.innerText;
+
+    const dashLogo = getEl('dash-logo-preview');
+    if (logoEl && dashLogo && !dashLogo.classList.contains('hidden') && dashLogo.src) {
+        logoEl.src = dashLogo.src;
+        logoEl.classList.remove('hidden');
+    } else if (logoEl) {
+        logoEl.classList.add('hidden');
+    }
+
+    screen.classList.remove('hidden');
+    
+    // מעבר למסך מלא (Full Screen) אם הדפדפן תומך
+    try {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
+            document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
+            document.documentElement.msRequestFullscreen();
+        }
+    } catch(e) {}
+
+    // עדכון ראשוני
+    window.renderCustomerStatusScreen();
+    window.updateStatusScreenClock();
+
+    // התחלת רענון אוטומטי
+    if (customerStatusInterval) clearInterval(customerStatusInterval);
+    customerStatusInterval = setInterval(() => {
+        window.updateStatusScreenClock();
+        // משיכת נתונים חדשים
+        if (typeof fetchStoreOrders === 'function') {
+            // fetchStoreOrders קוראת ל-renderStoreOrders ול-updateSalesDashboardStats אוטומטית.
+            // נוסיף לה גם קריאה ל-renderCustomerStatusScreen אם המסך פתוח.
+            fetchStoreOrders().then(() => {
+                 if (!screen.classList.contains('hidden')) {
+                     window.renderCustomerStatusScreen();
+                 }
+            });
+        }
+    }, 5000); // רענון כל 5 שניות
+};
+
+window.closeCustomerStatusScreen = function() {
+    const screen = getEl('customer-status-screen');
+    if (screen) screen.classList.add('hidden');
+    
+    if (customerStatusInterval) {
+        clearInterval(customerStatusInterval);
+        customerStatusInterval = null;
+    }
+
+    // יציאה ממסך מלא
+    try {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { /* Safari */
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { /* IE11 */
+            document.msExitFullscreen();
+        }
+    } catch(e) {}
+};
+
+window.renderCustomerStatusScreen = function() {
+    const prepContainer = getEl('status-screen-preparing');
+    const readyContainer = getEl('status-screen-ready');
+    
+    if (!prepContainer || !readyContainer || !storeOrdersCache) return;
+
+    // סינון הזמנות רלוונטיות בלבד (ללא הצעות מחיר, מבוטלים או הזמנות שהושלמו/נמסרו מזמן)
+    // הערה: נציג רק "חדש", "בהכנה" (processing) ו-"מוכן לאיסוף" (ready).
+    // לא נציג משלוחים (shipped) כי הם יצאו מהמקום.
+    const activeOrders = storeOrdersCache.filter(o => 
+        o.status !== 'cancelled' && 
+        o.status !== 'quote' && 
+        o.status !== 'shipped' &&
+        o.status !== 'completed' &&
+        (!o.quote_status || o.quote_status === 'approved' || o.quote_status === 'null' || o.quote_status === 'draft')
+    );
+
+    const preparingOrders = activeOrders.filter(o => o.status === 'new' || o.status === 'processing');
+    const readyOrders = activeOrders.filter(o => o.status === 'ready');
+
+    // פונקציית עזר ליצירת כרטיסייה
+    const createCard = (order, type) => {
+        let name = safeStr(order.customer_name) || '';
+        // קיצור השם אם הוא ארוך מדי (מציגים רק שם פרטי או עד 12 תווים)
+        if (name.includes(' ')) name = name.split(' ')[0];
+        if (name.length > 12) name = name.substring(0, 12) + '...';
+
+        const num = order.id;
+        
+        if (type === 'preparing') {
+            return `
+            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md flex items-center justify-between transition-all animate-[fadeIn_0.5s_ease-out]">
+                <span class="text-4xl font-black text-slate-300">#${num}</span>
+                <span class="text-xl font-bold text-slate-400">${name}</span>
+            </div>`;
+        } else {
+            return `
+            <div class="bg-green-500 rounded-2xl p-4 border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.4)] flex items-center justify-between transform transition-all hover:scale-105 animate-[slideUp_0.5s_ease-out]">
+                <span class="text-5xl font-black text-white drop-shadow-md">#${num}</span>
+                <span class="text-2xl font-bold text-green-100">${name}</span>
+            </div>`;
+        }
+    };
+
+    if (preparingOrders.length > 0) {
+        prepContainer.innerHTML = preparingOrders.map(o => createCard(o, 'preparing')).join('');
+    } else {
+        prepContainer.innerHTML = '<div class="col-span-2 text-center text-slate-600 mt-10"><i class="fa-solid fa-mug-hot text-4xl mb-3 opacity-50"></i><p>אין הזמנות בהכנה כרגע</p></div>';
+    }
+
+    if (readyOrders.length > 0) {
+        readyContainer.innerHTML = readyOrders.map(o => createCard(o, 'ready')).join('');
+    } else {
+        readyContainer.innerHTML = '<div class="col-span-2 text-center text-slate-600 mt-10"><i class="fa-solid fa-bell-concierge text-4xl mb-3 opacity-50"></i><p>אין הזמנות הממתינות לאיסוף</p></div>';
+    }
+};
+
+window.updateStatusScreenClock = function() {
+    const clockEl = getEl('status-screen-clock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.innerText = now.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+    }
+};
+
+// נוסיף האזנה לשינויים בסטטוס הזמנות כדי לרענן את מסך ה-Live אם הוא פתוח.
+// נתחבר לפונקציה הקיימת renderStoreOrders.
+const originalRenderStoreOrders = window.renderStoreOrders;
+if (originalRenderStoreOrders && !window.renderStoreOrdersOverriddenForLive) {
+    window.renderStoreOrders = function() {
+        originalRenderStoreOrders(); // קריאה לפונקציה המקורית
+        
+        // אם מסך הסטטוס פתוח, רענן גם אותו
+        const screen = getEl('customer-status-screen');
+        if (screen && !screen.classList.contains('hidden')) {
+            window.renderCustomerStatusScreen();
+        }
+    };
+    window.renderStoreOrdersOverriddenForLive = true;
+}
