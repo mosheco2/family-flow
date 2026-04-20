@@ -7328,8 +7328,9 @@ function updateSalesDashboardStats() {
 // ============================================================
 let analyticsRevChart = null;
 let analyticsCatChart = null;
-let activeCatFilter = null;
+let activeCatFilter = null; // Drill-down filter
 
+// משתנים גלובליים לניהול דפדוף ונתוני AI
 window.analyticsState = {
     topProducts: [],
     slowProducts: [],
@@ -7341,28 +7342,15 @@ window.analyticsState = {
     topProductName: ''
 };
 
-async function loadChartAndPdfJS() {
-    let promises = [];
-    if (!window.Chart) {
-        promises.push(new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.head.appendChild(script);
-        }));
-    }
-    if (!window.html2pdf) {
-        promises.push(new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.head.appendChild(script);
-        }));
-    }
-    await Promise.all(promises);
-    return true;
+async function loadChartJS() {
+    if (window.Chart) return true;
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+    });
 }
 
 window.toggleCustomDateFilters = function() {
@@ -7394,9 +7382,10 @@ window.renderAnalytics = async function() {
     const listContainer = getEl('sales-view-analytics');
     if (listContainer && listContainer.classList.contains('hidden')) return; 
     
-    const isLoaded = await loadChartAndPdfJS();
+    const isLoaded = await loadChartJS();
     if (!isLoaded) return showToast('error', 'שגיאה בטעינת ספריות הגרפים.');
 
+    // טעינת הקטלוג במידה והוא חסר
     if (!storeCatalogCache || storeCatalogCache.length === 0) {
         try {
             const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
@@ -7414,6 +7403,7 @@ window.renderAnalytics = async function() {
     let prevCutoffEnd = new Date();
     let periodLabel = '30 ימים אחרונים';
     
+    // חישוב תאריכים לסינון והשוואה
     if (timeFilter === 'custom') {
         cutoff = new Date(val('analytics-date-from') || now);
         cutoff.setHours(0,0,0,0);
@@ -7444,9 +7434,9 @@ window.renderAnalytics = async function() {
         periodLabel = 'כל הזמן';
     }
 
-    if(getEl('analytics-report-period')) getEl('analytics-report-period').innerText = periodLabel;
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
+    // סינון לפי סטטוס תקין וסוג הזמנה
     const validOrders = storeOrdersCache.filter(o => {
         if (o.status === 'cancelled') return false;
         
@@ -7461,6 +7451,7 @@ window.renderAnalytics = async function() {
         return typeMatch;
     });
     
+    // סינון לתאריכים רלוונטיים
     const endCustomDate = timeFilter === 'custom' ? new Date(val('analytics-date-to') || now) : now;
     if (timeFilter === 'custom') endCustomDate.setHours(23,59,59,999);
 
@@ -7474,6 +7465,7 @@ window.renderAnalytics = async function() {
         return d >= prevCutoffStart && d <= prevCutoffEnd;
     });
 
+    // חישובי KPI ומיפוי נתונים
     let totalRevenue = 0;
     let prevRevenue = 0;
     const revMap = {};
@@ -7482,6 +7474,7 @@ window.renderAnalytics = async function() {
     const uniqueCustomers = new Set();
     let returningCustomersCount = 0;
     
+    // הכנה למפת חום - שורות=ימים, עמודות=שעות
     const heatmapData = Array(7).fill().map(() => Array(24).fill(0));
 
     const allCustomerPhones = {};
@@ -7545,6 +7538,7 @@ window.renderAnalytics = async function() {
     const prevAvgOrderValue = previousOrders.length > 0 ? (prevRevenue / previousOrders.length) : 0;
     const retentionRate = uniqueCustomers.size > 0 ? ((returningCustomersCount / uniqueCustomers.size) * 100).toFixed(0) : 0;
 
+    // שמירת הנתונים לסטייט הגלובלי כדי שה-AI יוכל לקרוא אותם בבטחה
     window.analyticsState.totalRevenue = totalRevenue;
     window.analyticsState.totalOrders = currentOrders.length;
     const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
@@ -7571,6 +7565,7 @@ window.renderAnalytics = async function() {
     if(getEl('analytics-kpi-retention')) getEl('analytics-kpi-retention').innerText = `${retentionRate}%`;
     if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות ייחודיים`;
 
+    // עדכון מערכי טבלאות דפדוף (Top ו-Slow)
     window.analyticsState.topProducts = sortedProducts;
     window.analyticsState.topPage = 1;
     
@@ -7584,6 +7579,7 @@ window.renderAnalytics = async function() {
     window.renderTopProductsTable();
     window.renderSlowProductsTable();
 
+    // טבלת נתונים גולמיים
     const tableBody = getEl('analytics-table-body');
     const countLabel = getEl('analytics-orders-count-label');
     if (countLabel) countLabel.innerText = `מציג ${Math.min(currentOrders.length, 25)} מתוך ${currentOrders.length} הזמנות`;
@@ -7610,26 +7606,35 @@ window.renderAnalytics = async function() {
         }
     }
 
+    // ציור מפת חום (Heatmap) מתוקנת ללא שגיאות
     const heatmapContainer = getEl('analytics-heatmap');
     if (heatmapContainer) {
-        const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-        let maxHeat = Math.max(...heatmapData.flat());
-        let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center">';
-        heatHtml += '<div></div>' + Array(24).fill().map((_,i) => `<div class="text-slate-400">${i}:00</div>`).join('');
-        
-        heatmapData.forEach((dayData, dayIdx) => {
-            heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center">${days[dayIdx]}</div>`;
-            dayData.forEach(val => {
-                let opacity = maxHeat > 0 ? (val / maxHeat) : 0;
-                let bg = opacity > 0 ? `rgba(249, 115, 22, ${Math.max(0.1, opacity)})` : '#f8fafc';
-                let title = `${days[dayIdx]} בשעה ${val}:00 - ${val} הזמנות`;
-                heatHtml += `<div title="${title}" class="h-6 rounded cursor-pointer hover:border hover:border-slate-800 transition" style="background-color: ${bg};"></div>`;
+        if (currentOrders.length === 0) {
+             heatmapContainer.innerHTML = '<p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">אין נתונים להצגת מפת עומסים בתקופה זו.</p>';
+        } else {
+            const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+            let maxHeat = 0;
+            heatmapData.forEach(day => day.forEach(val => { if(val > maxHeat) maxHeat = val; }));
+            
+            let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px]">';
+            heatHtml += '<div></div>' + Array.from({length: 24}).map((_,i) => `<div class="text-slate-400 font-mono">${i}:00</div>`).join('');
+            
+            heatmapData.forEach((dayData, dayIdx) => {
+                heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center">${days[dayIdx]}</div>`;
+                dayData.forEach((val, hourIdx) => {
+                    let opacity = maxHeat > 0 ? (val / maxHeat) : 0;
+                    let bg = opacity > 0 ? `rgba(249, 115, 22, ${Math.max(0.15, opacity)})` : '#f1f5f9';
+                    let border = val > 0 ? 'border-orange-200' : 'border-slate-100';
+                    let title = `${days[dayIdx]} בשעה ${hourIdx}:00 - ${val} הזמנות`;
+                    heatHtml += `<div title="${title}" class="h-6 rounded cursor-pointer border ${border} hover:border-slate-800 transition" style="background-color: ${bg};"></div>`;
+                });
             });
-        });
-        heatHtml += '</div>';
-        heatmapContainer.innerHTML = heatHtml;
+            heatHtml += '</div>';
+            heatmapContainer.innerHTML = heatHtml;
+        }
     }
 
+    // ציור הגרפים
     const revLabels = Object.keys(revMap).sort((a,b) => {
         if (timeFilter === 'today') return a.localeCompare(b);
         const [d1,m1] = a.split('.'); const [d2,m2] = b.split('.');
@@ -7808,43 +7813,18 @@ window.openReportBuilderModal = function() {
     const modal = getEl('report-builder-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        window.updateReportFormatUI();
     } else {
         showToast('error', 'חלון מחולל הדוחות לא נמצא במסך.');
     }
 };
 
-window.updateReportFormatUI = function() {
-    const reportType = val('report-type');
-    const warningEl = getEl('report-warning');
-    const csvLabel = getEl('report-format-csv-label');
-    
-    if (reportType === 'executive') {
-        if(warningEl) warningEl.classList.remove('hidden');
-        if (csvLabel) csvLabel.style.opacity = '0.5';
-        const pdfRadio = document.querySelector('input[name="report_format"][value="pdf"]');
-        if(pdfRadio) pdfRadio.checked = true;
-    } else {
-        if(warningEl) warningEl.classList.add('hidden');
-        if (csvLabel) csvLabel.style.opacity = '1';
-    }
-};
-
 window.generateReport = async function() {
     const reportType = val('report-type');
-    const checkedFormat = document.querySelector('input[name="report_format"]:checked');
-    const reportFormat = checkedFormat ? checkedFormat.value : 'pdf';
-    
     const modal = getEl('report-builder-modal');
     if(modal) modal.classList.add('hidden');
     
-    if (reportFormat === 'pdf') {
-        await downloadAnalyticsReportPDF();
-    } else if (reportFormat === 'csv') {
-        if (reportType === 'accounting') exportOrdersToCSV();
-        else if (reportType === 'inventory') exportProductsToCSV();
-        else showToast('error', 'סוג דוח זה אינו נתמך בייצוא לאקסל');
-    }
+    if (reportType === 'accounting') exportOrdersToCSV();
+    else if (reportType === 'inventory') exportProductsToCSV();
 };
 
 window.exportOrdersToCSV = function() {
@@ -7905,204 +7885,6 @@ window.exportProductsToCSV = function() {
     showToast('success', 'הדוח ירד בהצלחה למכשיר');
 };
 
-window.downloadAnalyticsReportPDF = async function() {
-    const isLoaded = await loadChartAndPdfJS();
-    if(!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע ה-PDF');
-    
-    const btn = getEl('btn-generate-report');
-    const originalText = btn ? btn.innerHTML : '';
-    if(btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
-    }
-    showToast('info', 'מפיק דוח מקצועי, אנא המתן מעט...');
-
-    try {
-        // משיכת נתונים רלוונטיים
-        const bName = safeStr(currentGroup.name || 'העסק שלי');
-        let period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח';
-        period = period.replace(/-/g, ' עד ');
-        
-        let logoHtml = '';
-        const logoInput = val('store-logo-base64');
-        if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
-            logoHtml = `<img src="${logoInput}" style="height: 50px; width: auto; object-fit: contain; margin-left: 15px; border-radius: 8px;">`;
-        }
-
-        // חישובי KPI עדכניים
-        const totalRev = getEl('analytics-kpi-rev') ? getEl('analytics-kpi-rev').innerText : '₪0';
-        const totalOrders = getEl('analytics-kpi-orders') ? getEl('analytics-kpi-orders').innerText : '0';
-        const aov = getEl('analytics-kpi-avg') ? getEl('analytics-kpi-avg').innerText : '₪0';
-        const retention = getEl('analytics-kpi-retention') ? getEl('analytics-kpi-retention').innerText : '0%';
-
-        // המרת הגרפים לתמונות כדי למנוע קריסות קנבס ב-PDF
-        const revCanvas = getEl('analyticsRevenueChart');
-        const catCanvas = getEl('analyticsCategoryChart');
-        const revImgData = revCanvas ? revCanvas.toDataURL('image/png', 1.0) : '';
-        const catImgData = catCanvas ? catCanvas.toDataURL('image/png', 1.0) : '';
-
-        // בניית HTML ייעודי להדפסה שמאלץ LTR מבחוץ ו-RTL מבפנים (מבטל היפוך תווים ובעיות חיתוך)
-        const pdfContainer = document.createElement('div');
-        pdfContainer.id = 'export-pdf-wrapper';
-        
-        // Inline CSS קשיח ל-A4
-        Object.assign(pdfContainer.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            width: '794px', // הרוחב המדויק ל-A4 ב-96dpi
-            backgroundColor: '#ffffff',
-            color: '#0f172a',
-            fontFamily: 'Arial, sans-serif',
-            direction: 'ltr', // LTR חיצוני מונע מהדפדפן לדחוף הכל מחוץ לפריים השמאלי
-            padding: '40px',
-            boxSizing: 'border-box',
-            zIndex: '-9999'
-        });
-
-        // יצירת טבלאות מלאות במקום דפדוף
-        const topProds = window.analyticsState.topProducts || [];
-        const topHtml = topProds.length === 0 ? '<p style="text-align:center; padding:20px; color:#64748b;">אין נתונים</p>' : 
-            '<table style="width:100%; border-collapse:collapse; direction:rtl; text-align:right;">' +
-            '<tr style="background:#f1f5f9; font-size:12px; color:#475569; border-bottom:1px solid #cbd5e1;"><th style="padding:10px;">דירוג</th><th style="padding:10px;">שם המוצר</th><th style="padding:10px; text-align:center;">כמות</th><th style="padding:10px; text-align:left;">הכנסה</th></tr>' +
-            topProds.map((p, i) => `
-                <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; page-break-inside:avoid;">
-                    <td style="padding:12px 10px;">${i + 1}</td>
-                    <td style="padding:12px 10px; font-weight:bold;">${safeStr(p[0])}</td>
-                    <td style="padding:12px 10px; text-align:center;">${p[1].qty.toLocaleString('he-IL')} יח'</td>
-                    <td style="padding:12px 10px; text-align:left; color:#059669; direction:ltr; font-weight:bold;">₪${p[1].revenue.toLocaleString('he-IL', {maximumFractionDigits:0})}</td>
-                </tr>
-            `).join('') + '</table>';
-
-        const slowProds = window.analyticsState.slowProducts || [];
-        const slowHtml = slowProds.length === 0 ? '<p style="text-align:center; padding:20px; color:#64748b;">כל המוצרים נמכרו!</p>' : 
-            '<table style="width:100%; border-collapse:collapse; direction:rtl; text-align:right;">' +
-            '<tr style="background:#f1f5f9; font-size:12px; color:#475569; border-bottom:1px solid #cbd5e1;"><th style="padding:10px;">שם המוצר</th><th style="padding:10px;">קטגוריה</th><th style="padding:10px; text-align:center;">סטטוס</th></tr>' +
-            slowProds.map((p) => `
-                <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; page-break-inside:avoid;">
-                    <td style="padding:12px 10px; font-weight:bold;">${safeStr(p.name)}</td>
-                    <td style="padding:12px 10px; color:#64748b;">${safeStr(p.category || 'כללי')}</td>
-                    <td style="padding:12px 10px; text-align:center; color:#ea580c; font-weight:bold;">0 מכירות</td>
-                </tr>
-            `).join('') + '</table>';
-
-        pdfContainer.innerHTML = `
-            <div style="direction: rtl; text-align: right; width: 100%;">
-                
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #e2e8f0; padding-bottom:15px; margin-bottom:30px;">
-                    <div>
-                        <h1 style="font-size:28px; font-weight:bold; color:#0f172a; margin:0 0 10px 0;">דוח ביצועים עסקיים ותמחיר</h1>
-                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 15px; display:inline-block;">
-                            <div style="margin-bottom:5px; font-size:14px; color:#475569;">
-                                <strong style="color:#1e293b;">סוג הדוח:&nbsp;</strong>סיכום ביצועים, מכירות, התפלגות קטגוריות.
-                            </div>
-                            <div style="font-size:14px; color:#475569;">
-                                <strong style="color:#1e293b;">תקופה מדווחת:&nbsp;</strong><span dir="rtl">${period}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="display:flex; align-items:center;">
-                        <h2 style="font-size:24px; font-weight:900; color:#4f46e5; margin:0;">${bName}</h2>
-                        ${logoHtml}
-                    </div>
-                </div>
-
-                <div style="display:flex; flex-wrap:wrap; gap:20px; margin-bottom:30px;">
-                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
-                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                            הכנסות ברוטו:
-                        </div>
-                        <div style="font-size:32px; font-weight:900; color:#0f172a; direction:ltr; text-align:right;">${totalRev}</div>
-                    </div>
-                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
-                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                            כמות הזמנות:
-                        </div>
-                        <div style="font-size:32px; font-weight:900; color:#0f172a; text-align:right;">${totalOrders}</div>
-                    </div>
-                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
-                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                            ממוצע לעסקה (AOV):
-                        </div>
-                        <div style="font-size:32px; font-weight:900; color:#0f172a; direction:ltr; text-align:right;">${aov}</div>
-                    </div>
-                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
-                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                            לקוחות חוזרים:
-                        </div>
-                        <div style="font-size:32px; font-weight:900; color:#0f172a; text-align:right;">${retention}</div>
-                    </div>
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:30px; margin-bottom:30px;">
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; page-break-inside:avoid;">
-                        <h4 style="font-size:16px; font-weight:bold; color:#334155; margin:0 0 15px 0;">מגמת הכנסות מול יעד:</h4>
-                        <div style="text-align:center;">
-                            ${revImgData ? `<img src="${revImgData}" style="max-width:100%; height:auto; max-height:300px;">` : '<p>אין נתוני גרף</p>'}
-                        </div>
-                    </div>
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; page-break-inside:avoid;">
-                        <h4 style="font-size:16px; font-weight:bold; color:#334155; margin:0 0 15px 0;">התפלגות הכנסות לפי קטגוריות:</h4>
-                        <div style="text-align:center;">
-                            ${catImgData ? `<img src="${catImgData}" style="max-width:100%; height:auto; max-height:350px;">` : '<p>אין נתוני גרף</p>'}
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:30px;">
-                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; page-break-inside:avoid;">
-                        <div style="background:#ecfdf5; border-bottom:1px solid #d1fae5; padding:15px 20px;">
-                            <h4 style="font-size:16px; font-weight:bold; color:#065f46; margin:0;">המוצרים המובילים (Top Sellers)</h4>
-                        </div>
-                        ${topHtml}
-                    </div>
-                    
-                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; page-break-inside:avoid;">
-                        <div style="background:#fff7ed; border-bottom:1px solid #ffedd5; padding:15px 20px;">
-                            <h4 style="font-size:16px; font-weight:bold; color:#9a3412; margin:0;">מלאי עומד / לא נמכרו (Slow Movers)</h4>
-                        </div>
-                        ${slowHtml}
-                    </div>
-                </div>
-
-            </div>
-        `;
-
-        document.body.appendChild(pdfContainer);
-
-        const bnameFile = bName.replace(/[\/\\?%*:|"<> ]/g, '_');
-        const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
-        const pdfFilename = `${bnameFile}_Analytics_${dateStr}.pdf`;
-
-        // אופציות הדפסה נקיות
-        const opt = { 
-            margin: [10, 0, 10, 0], // חובה לאפס שוליים רוחביים כשכופים רוחב אלמנט כדי שיתמרכז
-            filename: pdfFilename, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0, logging: false }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] }
-        };
-        
-        await html2pdf().set(opt).from(pdfContainer).save();
-        showToast('success', 'דוח האנליטיקה הופק בהצלחה!');
-        
-        // ניקוי DOM
-        if (document.body.contains(pdfContainer)) {
-            document.body.removeChild(pdfContainer);
-        }
-
-    } catch(err) {
-        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
-        console.error(err);
-    } finally {
-        if(btn) {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    }
-};
-
 window.getAnalyticsAIInsight = async function() {
     executeWithAIWarning(async () => {
         showAIModal('אנליסט הנתונים הראשי (AI)', null); 
@@ -8110,7 +7892,7 @@ window.getAnalyticsAIInsight = async function() {
         
         const timeFilter = val('analytics-time-filter') || '30';
         
-        // עכשיו ה-AI לוקח את הנתונים המדויקים מהמשתנים ולא מה-HTML
+        // ה-AI שואב את הנתונים ישירות מהסטייט
         const rev = window.analyticsState.totalRevenue || 0;
         const orders = window.analyticsState.totalOrders || 0;
         const top = window.analyticsState.topProductName || 'אין נתונים';
