@@ -7616,7 +7616,7 @@ window.renderAnalytics = async function() {
             let maxHeat = 0;
             heatmapData.forEach(day => day.forEach(val => { if(val > maxHeat) maxHeat = val; }));
             
-            let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px]">';
+            let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px] w-full">';
             heatHtml += '<div></div>' + Array.from({length: 24}).map((_,i) => `<div class="text-slate-400 font-mono">${i}:00</div>`).join('');
             
             heatmapData.forEach((dayData, dayIdx) => {
@@ -7632,6 +7632,7 @@ window.renderAnalytics = async function() {
             heatHtml += '</div>';
             heatmapContainer.innerHTML = heatHtml;
         }
+    }
     }
 
     // ציור הגרפים
