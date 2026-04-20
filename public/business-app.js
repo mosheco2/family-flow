@@ -7330,6 +7330,18 @@ let analyticsRevChart = null;
 let analyticsCatChart = null;
 let activeCatFilter = null; // Drill-down filter
 
+// משתנים גלובליים לניהול דפדוף ונתוני AI
+window.analyticsState = {
+    topProducts: [],
+    slowProducts: [],
+    topPage: 1,
+    slowPage: 1,
+    itemsPerPage: 5,
+    totalRevenue: 0,
+    totalOrders: 0,
+    topProductName: ''
+};
+
 async function loadChartAndPdfJS() {
     let promises = [];
     if (!window.Chart) {
@@ -7445,13 +7457,13 @@ window.renderAnalytics = async function() {
         return typeMatch;
     });
     
-    // סינון לתאריכים רלוונטיים (EndCustom מחושב במקרה של custom)
-    const endCustom = timeFilter === 'custom' ? new Date(val('analytics-date-to') || now) : now;
-    if (timeFilter === 'custom') endCustom.setHours(23,59,59,999);
+    // סינון לתאריכים רלוונטיים
+    const endCustomDate = timeFilter === 'custom' ? new Date(val('analytics-date-to') || now) : now;
+    if (timeFilter === 'custom') endCustomDate.setHours(23,59,59,999);
 
     const currentOrders = validOrders.filter(o => {
         const d = new Date(o.created_at);
-        return d >= cutoff && d <= endCustom;
+        return d >= cutoff && d <= endCustomDate;
     });
 
     const previousOrders = validOrders.filter(o => {
@@ -7533,63 +7545,53 @@ window.renderAnalytics = async function() {
     const prevAvgOrderValue = previousOrders.length > 0 ? (prevRevenue / previousOrders.length) : 0;
     const retentionRate = uniqueCustomers.size > 0 ? ((returningCustomersCount / uniqueCustomers.size) * 100).toFixed(0) : 0;
 
-    // הזרקת KPI
-    if(getEl('analytics-kpi-rev')) getEl('analytics-kpi-rev').innerText = `₪${totalRevenue.toFixed(0)}`;
-    const revTrendEl = getEl('analytics-kpi-rev-trend');
-    if (revTrendEl) revTrendEl.innerHTML = calcTrend(totalRevenue, prevRevenue).html;
+    // שמירת הנתונים לסטייט הגלובלי כדי שה-AI יוכל לקרוא אותם בבטחה
+    window.analyticsState.totalRevenue = totalRevenue;
+    window.analyticsState.totalOrders = currentOrders.length;
+    const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
+    window.analyticsState.topProductName = sortedProducts.length > 0 ? sortedProducts[0][0] : '-';
 
-    if(getEl('analytics-kpi-orders')) getEl('analytics-kpi-orders').innerText = currentOrders.length;
-    const ordTrendEl = getEl('analytics-kpi-orders-trend');
-    if (ordTrendEl) ordTrendEl.innerHTML = calcTrend(currentOrders.length, previousOrders.length).html;
+    // הזרקת KPI עם Format מתאים למספרים גדולים
+    if(getEl('analytics-kpi-rev')) {
+        getEl('analytics-kpi-rev').innerText = `₪${totalRevenue.toLocaleString('he-IL', {maximumFractionDigits:0})}`;
+        getEl('analytics-kpi-rev').title = `₪${totalRevenue.toFixed(2)}`;
+    }
+    if(getEl('analytics-kpi-rev-trend')) getEl('analytics-kpi-rev-trend').innerHTML = calcTrend(totalRevenue, prevRevenue).html;
 
-    if(getEl('analytics-kpi-avg')) getEl('analytics-kpi-avg').innerText = `₪${avgOrderValue.toFixed(0)}`;
-    const avgTrendEl = getEl('analytics-kpi-avg-trend');
-    if (avgTrendEl) avgTrendEl.innerHTML = calcTrend(avgOrderValue, prevAvgOrderValue).html;
+    if(getEl('analytics-kpi-orders')) {
+        getEl('analytics-kpi-orders').innerText = currentOrders.length.toLocaleString('he-IL');
+        getEl('analytics-kpi-orders').title = currentOrders.length;
+    }
+    if(getEl('analytics-kpi-orders-trend')) getEl('analytics-kpi-orders-trend').innerHTML = calcTrend(currentOrders.length, previousOrders.length).html;
+
+    if(getEl('analytics-kpi-avg')) {
+        getEl('analytics-kpi-avg').innerText = `₪${avgOrderValue.toLocaleString('he-IL', {maximumFractionDigits:0})}`;
+        getEl('analytics-kpi-avg').title = `₪${avgOrderValue.toFixed(2)}`;
+    }
+    if(getEl('analytics-kpi-avg-trend')) getEl('analytics-kpi-avg-trend').innerHTML = calcTrend(avgOrderValue, prevAvgOrderValue).html;
 
     if(getEl('analytics-kpi-retention')) getEl('analytics-kpi-retention').innerText = `${retentionRate}%`;
     if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות`;
 
-    // מוצרים (Top / Slow)
-    const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
-    const topProductName = sortedProducts.length > 0 ? sortedProducts[0][0] : '-';
-    if(getEl('analytics-kpi-top')) getEl('analytics-kpi-top').innerText = topProductName;
-
-    const topProductsBody = getEl('analytics-top-products');
-    if (topProductsBody) {
-        if (sortedProducts.length === 0) {
-            topProductsBody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">אין נתונים</td></tr>';
-        } else {
-            topProductsBody.innerHTML = sortedProducts.slice(0, 5).map((p, i) => `
-                <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition">
-                    <td class="py-2.5 px-4 text-xs font-bold text-slate-700 flex items-center gap-2">
-                        <span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[9px]">${i+1}</span>
-                        ${safeStr(p[0])}
-                    </td>
-                    <td class="py-2.5 px-4 text-xs text-center font-medium text-slate-500">${p[1].qty} יח'</td>
-                    <td class="py-2.5 px-4 text-xs font-bold text-emerald-600 text-left dir-ltr">₪${p[1].revenue.toFixed(0)}</td>
-                </tr>`).join('');
-        }
+    // שמירת הנתונים לדפדוף הטבלאות
+    window.analyticsState.topProducts = sortedProducts;
+    window.analyticsState.topPage = 1;
+    
+    let unsold = [];
+    if (storeCatalogCache) {
+        unsold = storeCatalogCache.filter(p => !prodMap[p.name] && p.product_type !== 'bundle' && (!activeCatFilter || p.category === activeCatFilter));
     }
+    window.analyticsState.slowProducts = unsold;
+    window.analyticsState.slowPage = 1;
 
-    const slowProductsBody = getEl('analytics-slow-products');
-    if (slowProductsBody && storeCatalogCache) {
-        const unsold = storeCatalogCache.filter(p => !prodMap[p.name] && p.product_type !== 'bundle' && (!activeCatFilter || p.category === activeCatFilter));
-        if (unsold.length === 0) {
-            slowProductsBody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">כל המוצרים בקטגוריה נמכרו!</td></tr>';
-        } else {
-            slowProductsBody.innerHTML = unsold.slice(0, 5).map(p => `
-                <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition">
-                    <td class="py-2.5 px-4 text-xs font-bold text-slate-700">${safeStr(p.name)}</td>
-                    <td class="py-2.5 px-4 text-[10px] text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded-md">${safeStr(p.category || 'כללי')}</span></td>
-                    <td class="py-2.5 px-4 text-[10px] font-bold text-orange-500 text-center"><i class="fa-solid fa-triangle-exclamation"></i> 0 מכירות</td>
-                </tr>`).join('');
-        }
-    }
+    // רינדור הטבלאות
+    window.renderTopProductsTable();
+    window.renderSlowProductsTable();
 
     // טבלת נתונים גולמיים
     const tableBody = getEl('analytics-table-body');
     const countLabel = getEl('analytics-orders-count-label');
-    if (countLabel) countLabel.innerText = `מציג ${Math.min(currentOrders.length, 15)} מתוך ${currentOrders.length} הזמנות`;
+    if (countLabel) countLabel.innerText = `מציג ${Math.min(currentOrders.length, 25)} מתוך ${currentOrders.length} הזמנות`;
     
     if (tableBody) {
         if (currentOrders.length === 0) {
@@ -7597,7 +7599,7 @@ window.renderAnalytics = async function() {
         } else {
             const statusMap = { 'new': 'חדש', 'processing': 'בהכנה', 'ready': 'מוכן', 'shipped': 'במשלוח', 'completed': 'נמסר' };
             const typeMap = (o) => o.quote_status === 'approved' ? 'הצעת מחיר' : (o.is_delivery == 1 ? 'משלוח' : 'חנות');
-            const sortedTableOrders = [...currentOrders].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15);
+            const sortedTableOrders = [...currentOrders].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 25);
             tableBody.innerHTML = sortedTableOrders.map(o => {
                 const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
                 return `
@@ -7607,7 +7609,7 @@ window.renderAnalytics = async function() {
                     <td class="py-3 px-4 text-xs font-medium text-slate-600">${safeStr(o.customer_name)}</td>
                     <td class="py-3 px-4 text-[10px] text-slate-500">${typeMap(o)}</td>
                     <td class="py-3 px-4 text-[10px] text-slate-500">${statusMap[o.status] || o.status}</td>
-                    <td class="py-3 px-4 text-xs font-black text-indigo-600 dir-ltr text-left">₪${parseFloat(o.total_amount).toFixed(2)}</td>
+                    <td class="py-3 px-4 text-xs font-black text-indigo-600 dir-ltr text-left">₪${parseFloat(o.total_amount).toLocaleString('he-IL', {minimumFractionDigits:2})}</td>
                 </tr>`;
             }).join('');
         }
@@ -7724,6 +7726,90 @@ window.renderAnalytics = async function() {
             });
         }
     }, 150); 
+};
+
+// פונקציות דפדוף לטבלאות אנליטיקה
+window.renderTopProductsTable = function() {
+    const tbody = getEl('analytics-top-products');
+    const info = getEl('analytics-top-page-info');
+    if(!tbody) return;
+    
+    const data = window.analyticsState.topProducts;
+    if(data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-4 text-[11px]">אין נתונים</td></tr>';
+        if(info) info.innerText = 'עמוד 1 מתוך 1';
+        return;
+    }
+    
+    const maxPages = Math.ceil(data.length / window.analyticsState.itemsPerPage) || 1;
+    let page = window.analyticsState.topPage;
+    if (page > maxPages) page = maxPages;
+    if (page < 1) page = 1;
+    window.analyticsState.topPage = page;
+    
+    const start = (page - 1) * window.analyticsState.itemsPerPage;
+    const items = data.slice(start, start + window.analyticsState.itemsPerPage);
+    
+    tbody.innerHTML = items.map((p, i) => `
+        <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition">
+            <td class="py-2.5 px-4">
+                <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] font-black">${start + i + 1}</span>
+            </td>
+            <td class="py-2.5 px-4 text-xs font-bold text-slate-700">${safeStr(p[0])}</td>
+            <td class="py-2.5 px-4 text-xs text-center font-medium text-slate-500">${p[1].qty.toLocaleString('he-IL')} יח'</td>
+            <td class="py-2.5 px-4 text-xs font-bold text-emerald-600 text-left dir-ltr">₪${p[1].revenue.toLocaleString('he-IL', {maximumFractionDigits:0})}</td>
+        </tr>`).join('');
+        
+    if(info) info.innerText = `עמוד ${page} מתוך ${maxPages}`;
+};
+
+window.renderSlowProductsTable = function() {
+    const tbody = getEl('analytics-slow-products');
+    const info = getEl('analytics-slow-page-info');
+    if(!tbody) return;
+    
+    const data = window.analyticsState.slowProducts;
+    if(data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">כל המוצרים בקטגוריה נמכרו!</td></tr>';
+        if(info) info.innerText = 'עמוד 1 מתוך 1';
+        return;
+    }
+    
+    const maxPages = Math.ceil(data.length / window.analyticsState.itemsPerPage) || 1;
+    let page = window.analyticsState.slowPage;
+    if (page > maxPages) page = maxPages;
+    if (page < 1) page = 1;
+    window.analyticsState.slowPage = page;
+    
+    const start = (page - 1) * window.analyticsState.itemsPerPage;
+    const items = data.slice(start, start + window.analyticsState.itemsPerPage);
+    
+    tbody.innerHTML = items.map(p => `
+        <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition">
+            <td class="py-2.5 px-4 text-xs font-bold text-slate-700">${safeStr(p.name)}</td>
+            <td class="py-2.5 px-4 text-[10px] text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded-md">${safeStr(p.category || 'כללי')}</span></td>
+            <td class="py-2.5 px-4 text-[10px] font-bold text-orange-500 text-center"><i class="fa-solid fa-triangle-exclamation"></i> 0 מכירות</td>
+        </tr>`).join('');
+        
+    if(info) info.innerText = `עמוד ${page} מתוך ${maxPages}`;
+};
+
+window.changeAnalyticsPage = function(table, delta) {
+    if (table === 'top') {
+        const maxPages = Math.ceil(window.analyticsState.topProducts.length / window.analyticsState.itemsPerPage);
+        const newPage = window.analyticsState.topPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+            window.analyticsState.topPage = newPage;
+            window.renderTopProductsTable();
+        }
+    } else {
+        const maxPages = Math.ceil(window.analyticsState.slowProducts.length / window.analyticsState.itemsPerPage);
+        const newPage = window.analyticsState.slowPage + delta;
+        if (newPage >= 1 && newPage <= maxPages) {
+            window.analyticsState.slowPage = newPage;
+            window.renderSlowProductsTable();
+        }
+    }
 };
 
 window.openReportBuilderModal = function() {
@@ -7931,11 +8017,13 @@ window.getAnalyticsAIInsight = async function() {
         getEl('familai-loading-text').innerText = 'מנתח מגמות מכירה, מלאי ולקוחות...';
         
         const timeFilter = val('analytics-time-filter') || '30';
-        const rev = getEl('analytics-kpi-rev') ? getEl('analytics-kpi-rev').innerText : '0';
-        const top = getEl('analytics-kpi-top') ? getEl('analytics-kpi-top').innerText : '';
-        const orders = getEl('analytics-kpi-orders') ? getEl('analytics-kpi-orders').innerText : '0';
+        
+        // עכשיו ה-AI לוקח את הנתונים המדויקים מהמשתנים ולא מה-HTML
+        const rev = window.analyticsState.totalRevenue || 0;
+        const orders = window.analyticsState.totalOrders || 0;
+        const top = window.analyticsState.topProductName || 'אין נתונים';
 
-        const promptText = `נתח את ביצועי העסק ב-${timeFilter} ימים האחרונים. סה"כ הכנסות: ${rev}, כמות הזמנות: ${orders}. המוצר הנמכר ביותר הוא: ${top}. ספק לי 3 תובנות מעשיות קצרות וקולעות לשיפור הרווחיות, שימור לקוחות או ייעול המלאי.`;
+        const promptText = `נתח את ביצועי העסק ב-${timeFilter === 'custom' ? 'תקופה האחרונה' : timeFilter + ' ימים האחרונים'}. סה"כ הכנסות: ₪${rev.toLocaleString('he-IL')}, כמות הזמנות: ${orders}. המוצר הנמכר ביותר הוא: ${top}. ספק לי 3 תובנות מעשיות קצרות וקולעות לשיפור הרווחיות, שימור לקוחות או ייעול המלאי. חובה להתייחס לנתונים!`;
         
         try {
             const res = await fetch(`${API}/biz/chat-assistant`, { 
