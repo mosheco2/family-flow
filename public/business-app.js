@@ -7434,6 +7434,7 @@ window.renderAnalytics = async function() {
         periodLabel = 'כל הזמן';
     }
 
+    if(getEl('analytics-report-period')) getEl('analytics-report-period').innerText = periodLabel;
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
     // סינון לפי סטטוס תקין וסוג הזמנה
@@ -7456,13 +7457,15 @@ window.renderAnalytics = async function() {
     if (timeFilter === 'custom') endCustomDate.setHours(23,59,59,999);
 
     const currentOrders = validOrders.filter(o => {
+        if (!o.created_at) return false;
         const d = new Date(o.created_at);
-        return d >= cutoff && d <= endCustomDate;
+        return !isNaN(d.getTime()) && d >= cutoff && d <= endCustomDate;
     });
 
     const previousOrders = validOrders.filter(o => {
+        if (!o.created_at) return false;
         const d = new Date(o.created_at);
-        return d >= prevCutoffStart && d <= prevCutoffEnd;
+        return !isNaN(d.getTime()) && d >= prevCutoffStart && d <= prevCutoffEnd;
     });
 
     // חישובי KPI ומיפוי נתונים
@@ -7483,10 +7486,16 @@ window.renderAnalytics = async function() {
     previousOrders.forEach(o => prevRevenue += (parseFloat(o.total_amount) || parseFloat(o.total) || 0));
 
     currentOrders.forEach(o => {
+        if (!o.created_at) return;
         const d = new Date(o.created_at);
+        if (isNaN(d.getTime())) return; // הגנה חיונית שמונעת קריסה!
+        
         const dayOfWeek = d.getDay(); 
         const hourOfDay = d.getHours();
-        heatmapData[dayOfWeek][hourOfDay]++;
+        
+        if (heatmapData[dayOfWeek] && typeof heatmapData[dayOfWeek][hourOfDay] !== 'undefined') {
+            heatmapData[dayOfWeek][hourOfDay]++;
+        }
 
         const dateKey = timeFilter === 'today' ? `${String(d.getHours()).padStart(2,'0')}:00` : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
         const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
@@ -7606,13 +7615,12 @@ window.renderAnalytics = async function() {
         }
     }
 
-   // ציור מפת חום (Heatmap) מתוקנת סופית (הבטחת רינדור בכל מצב)
+    // ציור מפת חום מוגנת מתקלות
     const heatmapContainer = getEl('analytics-heatmap');
     if (heatmapContainer) {
         const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
         let maxHeat = 0;
         
-        // חישוב עומס מקסימלי בזהירות
         if (heatmapData && Array.isArray(heatmapData)) {
             heatmapData.forEach(day => {
                 if (Array.isArray(day)) {
@@ -7625,14 +7633,12 @@ window.renderAnalytics = async function() {
             heatmapContainer.innerHTML = '<p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">לא בוצעו הזמנות בשעות שניתן לנתח בתקופה זו.</p>';
         } else {
             let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px] w-full pb-2">';
-            heatHtml += '<div></div>'; // תא ריק בפינה
+            heatHtml += '<div></div>'; 
             
-            // שורת שעות (00 עד 23)
             for(let i=0; i<24; i++) {
                 heatHtml += `<div class="text-slate-400 font-mono">${i}:00</div>`;
             }
             
-            // בניית שורות הימים
             heatmapData.forEach((dayData, dayIdx) => {
                 heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center h-6 flex items-center justify-end">${days[dayIdx]}</div>`;
                 
