@@ -401,7 +401,7 @@ function injectBusinessUI() {
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג</button>
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
-                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">דוחות</button>
+<button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">דוחות</button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -8080,6 +8080,123 @@ window.getAnalyticsAIInsight = async function() {
             else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
+};
+window.downloadAnalyticsPDF = async function() {
+    const isLoaded = await loadHtml2Pdf();
+    if (!isLoaded) return showToast('error', 'שגיאה בטעינת מנוע PDF');
+    showToast('info', 'מפיק דוח PDF, אנא המתן...');
+
+    const timeFilter = val('analytics-time-filter') || '30';
+    const timeLabels = { today: 'היום', '7': '7 ימים אחרונים', '30': '30 ימים אחרונים', '90': '90 ימים אחרונים', '365': 'שנה אחרונה' };
+    const periodLabel = timeLabels[timeFilter] || (timeFilter + ' ימים');
+    const businessName = currentGroup ? (currentGroup.name || 'העסק') : 'העסק';
+    const dateStr = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const st = window.analyticsState || {};
+    const kpiRevenue = getEl('analytics-kpi-rev') ? getEl('analytics-kpi-rev').textContent.trim() : (st.totalRevenue != null ? '₪' + st.totalRevenue : '-');
+    const kpiOrders  = getEl('analytics-kpi-orders') ? getEl('analytics-kpi-orders').textContent.trim() : (st.totalOrders != null ? st.totalOrders + ' עסקאות' : '-');
+    const kpiAvg     = getEl('analytics-kpi-avg') ? getEl('analytics-kpi-avg').textContent.trim() : '-';
+    const kpiTopProd = st.topProductName || (getEl('analytics-kpi-retention') ? getEl('analytics-kpi-retention').textContent.trim() : '-');
+
+    const revCanvas  = getEl('analyticsRevenueChart');
+    const catCanvas  = getEl('analyticsCategoryChart');
+    const revImg     = revCanvas ? revCanvas.toDataURL('image/png') : '';
+    const catImg     = catCanvas ? catCanvas.toDataURL('image/png') : '';
+
+    const wrap = document.createElement('div');
+    wrap.setAttribute('dir', 'rtl');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;';
+    wrap.innerHTML = `
+<div dir="rtl" style="width:794px;padding:36px 52px;box-sizing:border-box;background:#ffffff;direction:rtl;text-align:right;">
+
+  <div style="border-bottom:4px solid #4f46e5;padding-bottom:18px;margin-bottom:22px;">
+    <div style="font-size:24px;font-weight:900;color:#1e293b;margin:0 0 4px 0;">${businessName}</div>
+    <div style="font-size:15px;font-weight:700;color:#4f46e5;margin:0 0 8px 0;">דוח ביצועי מכירות</div>
+    <div style="font-size:11px;color:#64748b;line-height:1.7;">דוח זה מציג סיכום ביצועי המכירות לתקופה הנבחרת. הנתונים מבוססים על הזמנות מאושרות בלבד וכוללים הכנסות, ממוצע עסקה, מספר עסקאות ומוצרים מובילים.</div>
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin-bottom:22px;font-size:12px;" dir="rtl">
+    <tr>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px 14px;width:47%;direction:rtl;text-align:right;">
+        <span style="color:#64748b;font-weight:700;">תקופה מדווחת:</span>&nbsp;<span style="color:#1e293b;font-weight:900;">${periodLabel}</span>
+      </td>
+      <td style="width:14px;"></td>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px 14px;width:47%;direction:rtl;text-align:right;">
+        <span style="color:#64748b;font-weight:700;">תאריך הפקה:</span>&nbsp;<span style="color:#1e293b;font-weight:900;">${dateStr}</span>
+      </td>
+    </tr>
+    <tr><td colspan="3" style="height:8px;"></td></tr>
+    <tr>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px 14px;direction:rtl;text-align:right;">
+        <span style="color:#64748b;font-weight:700;">סוג הדוח:</span>&nbsp;<span style="color:#1e293b;font-weight:900;">מכירות</span>
+      </td>
+      <td style="width:14px;"></td>
+      <td style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px 14px;direction:rtl;text-align:right;">
+        <span style="color:#64748b;font-weight:700;">מקור נתונים:</span>&nbsp;<span style="color:#1e293b;font-weight:900;">הזמנות מאושרות</span>
+      </td>
+    </tr>
+  </table>
+
+  <div style="font-size:14px;font-weight:800;color:#1e293b;margin:0 0 12px 0;border-right:4px solid #4f46e5;padding-right:10px;">סיכום תקופה</div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:22px;" dir="rtl">
+    <tr>
+      <td style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 10px;text-align:center;width:31%;">
+        <div style="font-size:10px;color:#166534;font-weight:700;margin-bottom:8px;">הכנסות ברוטו</div>
+        <div style="font-size:22px;font-weight:900;color:#14532d;">${kpiRevenue}</div>
+      </td>
+      <td style="width:14px;"></td>
+      <td style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px 10px;text-align:center;width:31%;">
+        <div style="font-size:10px;color:#1e40af;font-weight:700;margin-bottom:8px;">ממוצע לעסקה</div>
+        <div style="font-size:22px;font-weight:900;color:#1e3a8a;">${kpiAvg}</div>
+        <div style="font-size:10px;color:#3b82f6;margin-top:4px;">${kpiOrders}</div>
+      </td>
+      <td style="width:14px;"></td>
+      <td style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:16px 10px;text-align:center;width:31%;">
+        <div style="font-size:10px;color:#6b21a8;font-weight:700;margin-bottom:8px;">מוצר מוביל</div>
+        <div style="font-size:13px;font-weight:900;color:#581c87;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${kpiTopProd}</div>
+      </td>
+    </tr>
+  </table>
+
+  ${revImg ? `
+  <div style="page-break-inside:avoid;">
+    <div style="font-size:14px;font-weight:800;color:#1e293b;margin:0 0 12px 0;border-right:4px solid #4f46e5;padding-right:10px;">מגמת הכנסות</div>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:22px;text-align:center;">
+      <img src="${revImg}" style="width:100%;max-height:200px;object-fit:contain;" />
+    </div>
+  </div>` : ''}
+
+  ${catImg ? `
+  <div style="page-break-inside:avoid;">
+    <div style="font-size:14px;font-weight:800;color:#1e293b;margin:0 0 12px 0;border-right:4px solid #4f46e5;padding-right:10px;">מוצרים מובילים</div>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:22px;text-align:center;">
+      <img src="${catImg}" style="width:60%;max-height:200px;object-fit:contain;" />
+    </div>
+  </div>` : ''}
+
+  <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:8px;text-align:center;">
+    <div style="font-size:9px;color:#94a3b8;">הופק על ידי מערכת OneflowBIZ&nbsp;|&nbsp;${businessName}&nbsp;|&nbsp;${dateStr}</div>
+  </div>
+
+</div>`;
+
+    document.body.appendChild(wrap);
+    const filename = 'SalesReport_' + businessName.replace(/\s+/g, '_') + '_' + Date.now() + '.pdf';
+    try {
+        await html2pdf().set({
+            margin: 0,
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.97 },
+            html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 794 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        }).from(wrap).save();
+        showToast('success', 'הדוח הורד בהצלחה!');
+    } catch(e) {
+        showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
+    } finally {
+        if (document.body.contains(wrap)) document.body.removeChild(wrap);
+    }
 };
 
 // התיקון לחפיפת הטאבים: הוספנו את 'analytics' לרשימת הטאבים שהפונקציה מנהלת!
