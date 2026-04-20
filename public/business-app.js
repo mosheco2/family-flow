@@ -7606,29 +7606,45 @@ window.renderAnalytics = async function() {
         }
     }
 
-    // ציור מפת חום (Heatmap) מתוקנת ללא שגיאות
+   // ציור מפת חום (Heatmap) מתוקנת סופית (הבטחת רינדור בכל מצב)
     const heatmapContainer = getEl('analytics-heatmap');
     if (heatmapContainer) {
-        if (currentOrders.length === 0) {
-             heatmapContainer.innerHTML = '<p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">אין נתונים להצגת מפת עומסים בתקופה זו.</p>';
+        const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+        let maxHeat = 0;
+        
+        // חישוב עומס מקסימלי בזהירות
+        if (heatmapData && Array.isArray(heatmapData)) {
+            heatmapData.forEach(day => {
+                if (Array.isArray(day)) {
+                    day.forEach(val => { if(val > maxHeat) maxHeat = val; });
+                }
+            });
+        }
+
+        if (currentOrders.length === 0 || maxHeat === 0) {
+            heatmapContainer.innerHTML = '<p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">לא בוצעו הזמנות בשעות שניתן לנתח בתקופה זו.</p>';
         } else {
-            const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-            let maxHeat = 0;
-            heatmapData.forEach(day => day.forEach(val => { if(val > maxHeat) maxHeat = val; }));
+            let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px] w-full pb-2">';
+            heatHtml += '<div></div>'; // תא ריק בפינה
             
-            let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center min-w-[600px] w-full">';
-            heatHtml += '<div></div>' + Array.from({length: 24}).map((_,i) => `<div class="text-slate-400 font-mono">${i}:00</div>`).join('');
+            // שורת שעות (00 עד 23)
+            for(let i=0; i<24; i++) {
+                heatHtml += `<div class="text-slate-400 font-mono">${i}:00</div>`;
+            }
             
+            // בניית שורות הימים
             heatmapData.forEach((dayData, dayIdx) => {
-                heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center">${days[dayIdx]}</div>`;
+                heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center h-6 flex items-center justify-end">${days[dayIdx]}</div>`;
+                
                 dayData.forEach((val, hourIdx) => {
                     let opacity = maxHeat > 0 ? (val / maxHeat) : 0;
                     let bg = opacity > 0 ? `rgba(249, 115, 22, ${Math.max(0.15, opacity)})` : '#f1f5f9';
                     let border = val > 0 ? 'border-orange-200' : 'border-slate-100';
                     let title = `${days[dayIdx]} בשעה ${hourIdx}:00 - ${val} הזמנות`;
-                    heatHtml += `<div title="${title}" class="h-6 rounded cursor-pointer border ${border} hover:border-slate-800 transition" style="background-color: ${bg};"></div>`;
+                    heatHtml += `<div title="${title}" class="h-full min-h-[24px] rounded cursor-pointer border ${border} hover:border-slate-800 transition" style="background-color: ${bg};"></div>`;
                 });
             });
+            
             heatHtml += '</div>';
             heatmapContainer.innerHTML = heatHtml;
         }
