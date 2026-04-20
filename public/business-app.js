@@ -7915,147 +7915,182 @@ window.downloadAnalyticsReportPDF = async function() {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מכין מסמך...';
     }
-    showToast('info', 'מפיק דוח, נא להמתין ולא לגולל את המסך...');
+    showToast('info', 'מפיק דוח מקצועי, אנא המתן מעט...');
 
     try {
-        const contentArea = getEl('analytics-dashboard-wrapper');
-        const rawDataSection = getEl('analytics-raw-data-section');
-        
-        // --- 1. שמירת סגנונות ומצבים מקוריים ---
-        const originalStyles = {
-            width: contentArea.style.width,
-            maxWidth: contentArea.style.maxWidth,
-            height: contentArea.style.height,
-            overflow: contentArea.style.overflow,
-            padding: contentArea.style.padding,
-            margin: contentArea.style.margin,
-            boxShadow: contentArea.style.boxShadow,
-            borderRadius: contentArea.style.borderRadius,
-            backgroundColor: contentArea.style.backgroundColor,
-            direction: contentArea.style.direction,
-        };
-
-        const origTopPage = window.analyticsState.topPage;
-        const origSlowPage = window.analyticsState.slowPage;
-        const origItemsPerPage = window.analyticsState.itemsPerPage;
-
-        // --- 2. הכנת ה-DOM הקיים להדפסה מושלמת ללא עטיפות חיצוניות ---
-        
-        // הגדרת רוחב קבוע שממרכז את התוכן ב-PDF
-        contentArea.style.width = '800px'; 
-        contentArea.style.maxWidth = '800px';
-        contentArea.style.height = 'max-content';
-        contentArea.style.overflow = 'visible';
-        contentArea.style.padding = '0'; 
-        contentArea.style.margin = '0 auto';
-        contentArea.style.boxShadow = 'none';
-        contentArea.style.borderRadius = '0';
-        contentArea.style.backgroundColor = '#ffffff';
-        contentArea.style.direction = 'rtl';
-
-        // הוספת מניעת חיתוך עמוד לכל הקוביות והגרפים (Page Break)
-        const avoidElements = contentArea.querySelectorAll('.bg-white, .bg-slate-50, table, tr');
-        const originalBreaks = [];
-        avoidElements.forEach(el => {
-            originalBreaks.push({el: el, val: el.style.pageBreakInside});
-            el.style.pageBreakInside = 'avoid';
-            el.style.breakInside = 'avoid';
-        });
-
-        // פתיחת טבלאות דפדוף להצגת כל המידע בהדפסה
-        window.analyticsState.topPage = 1;
-        window.analyticsState.slowPage = 1;
-        window.analyticsState.itemsPerPage = 1000;
-        window.renderTopProductsTable();
-        window.renderSlowProductsTable();
-        
-        if (rawDataSection) rawDataSection.classList.add('hidden');
-
-        // טיפול בכותרת ובישור לרוחב העמוד (Inline CSS)
-        const printHeader = contentArea.querySelector('.hidden.print\\:flex');
-        let origHeaderHtml = '';
-        
+        // משיכת נתונים רלוונטיים
         const bName = safeStr(currentGroup.name || 'העסק שלי');
         let period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח';
         period = period.replace(/-/g, ' עד ');
         
-        if (printHeader) {
-            origHeaderHtml = printHeader.innerHTML;
-            printHeader.classList.remove('hidden');
-            printHeader.classList.add('flex');
-            
-            let logoHtml = '';
-            const logoInput = val('store-logo-base64');
-            if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
-                logoHtml = `<img src="${logoInput}" style="height: 55px; width: auto; object-fit: contain; margin-right: 15px; border-radius: 8px;">`;
-            }
-            
-            // עיצוב כותרת ממורכז ומיושר לימין
-            printHeader.innerHTML = `
-                <div style="width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; text-align: right; direction: rtl;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin: 0;">דוח ביצועים עסקיים ותמחיר</h1>
-                        <div style="display: flex; align-items: center; flex-direction: row-reverse;">
-                            ${logoHtml}
-                            <h2 style="font-size: 24px; font-weight: 900; color: #4f46e5; margin: 0;">${bName}</h2>
+        let logoHtml = '';
+        const logoInput = val('store-logo-base64');
+        if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
+            logoHtml = `<img src="${logoInput}" style="height: 50px; width: auto; object-fit: contain; margin-left: 15px; border-radius: 8px;">`;
+        }
+
+        // חישובי KPI עדכניים
+        const totalRev = getEl('analytics-kpi-rev') ? getEl('analytics-kpi-rev').innerText : '₪0';
+        const totalOrders = getEl('analytics-kpi-orders') ? getEl('analytics-kpi-orders').innerText : '0';
+        const aov = getEl('analytics-kpi-avg') ? getEl('analytics-kpi-avg').innerText : '₪0';
+        const retention = getEl('analytics-kpi-retention') ? getEl('analytics-kpi-retention').innerText : '0%';
+
+        // המרת הגרפים לתמונות כדי למנוע קריסות קנבס ב-PDF
+        const revCanvas = getEl('analyticsRevenueChart');
+        const catCanvas = getEl('analyticsCategoryChart');
+        const revImgData = revCanvas ? revCanvas.toDataURL('image/png', 1.0) : '';
+        const catImgData = catCanvas ? catCanvas.toDataURL('image/png', 1.0) : '';
+
+        // בניית HTML ייעודי להדפסה שמאלץ LTR מבחוץ ו-RTL מבפנים (מבטל היפוך תווים ובעיות חיתוך)
+        const pdfContainer = document.createElement('div');
+        pdfContainer.id = 'export-pdf-wrapper';
+        
+        // Inline CSS קשיח ל-A4
+        Object.assign(pdfContainer.style, {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '794px', // הרוחב המדויק ל-A4 ב-96dpi
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
+            fontFamily: 'Arial, sans-serif',
+            direction: 'ltr', // LTR חיצוני מונע מהדפדפן לדחוף הכל מחוץ לפריים השמאלי
+            padding: '40px',
+            boxSizing: 'border-box',
+            zIndex: '-9999'
+        });
+
+        // יצירת טבלאות מלאות במקום דפדוף
+        const topProds = window.analyticsState.topProducts || [];
+        const topHtml = topProds.length === 0 ? '<p style="text-align:center; padding:20px; color:#64748b;">אין נתונים</p>' : 
+            '<table style="width:100%; border-collapse:collapse; direction:rtl; text-align:right;">' +
+            '<tr style="background:#f1f5f9; font-size:12px; color:#475569; border-bottom:1px solid #cbd5e1;"><th style="padding:10px;">דירוג</th><th style="padding:10px;">שם המוצר</th><th style="padding:10px; text-align:center;">כמות</th><th style="padding:10px; text-align:left;">הכנסה</th></tr>' +
+            topProds.map((p, i) => `
+                <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; page-break-inside:avoid;">
+                    <td style="padding:12px 10px;">${i + 1}</td>
+                    <td style="padding:12px 10px; font-weight:bold;">${safeStr(p[0])}</td>
+                    <td style="padding:12px 10px; text-align:center;">${p[1].qty.toLocaleString('he-IL')} יח'</td>
+                    <td style="padding:12px 10px; text-align:left; color:#059669; direction:ltr; font-weight:bold;">₪${p[1].revenue.toLocaleString('he-IL', {maximumFractionDigits:0})}</td>
+                </tr>
+            `).join('') + '</table>';
+
+        const slowProds = window.analyticsState.slowProducts || [];
+        const slowHtml = slowProds.length === 0 ? '<p style="text-align:center; padding:20px; color:#64748b;">כל המוצרים נמכרו!</p>' : 
+            '<table style="width:100%; border-collapse:collapse; direction:rtl; text-align:right;">' +
+            '<tr style="background:#f1f5f9; font-size:12px; color:#475569; border-bottom:1px solid #cbd5e1;"><th style="padding:10px;">שם המוצר</th><th style="padding:10px;">קטגוריה</th><th style="padding:10px; text-align:center;">סטטוס</th></tr>' +
+            slowProds.map((p) => `
+                <tr style="border-bottom:1px solid #e2e8f0; font-size:13px; page-break-inside:avoid;">
+                    <td style="padding:12px 10px; font-weight:bold;">${safeStr(p.name)}</td>
+                    <td style="padding:12px 10px; color:#64748b;">${safeStr(p.category || 'כללי')}</td>
+                    <td style="padding:12px 10px; text-align:center; color:#ea580c; font-weight:bold;">0 מכירות</td>
+                </tr>
+            `).join('') + '</table>';
+
+        pdfContainer.innerHTML = `
+            <div style="direction: rtl; text-align: right; width: 100%;">
+                
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #e2e8f0; padding-bottom:15px; margin-bottom:30px;">
+                    <div>
+                        <h1 style="font-size:28px; font-weight:bold; color:#0f172a; margin:0 0 10px 0;">דוח ביצועים עסקיים ותמחיר</h1>
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 15px; display:inline-block;">
+                            <div style="margin-bottom:5px; font-size:14px; color:#475569;">
+                                <strong style="color:#1e293b;">סוג הדוח:&nbsp;</strong>סיכום ביצועים, מכירות, התפלגות קטגוריות.
+                            </div>
+                            <div style="font-size:14px; color:#475569;">
+                                <strong style="color:#1e293b;">תקופה מדווחת:&nbsp;</strong><span dir="rtl">${period}</span>
+                            </div>
                         </div>
                     </div>
-                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-block; min-width: 50%;">
-                        <div style="margin-bottom: 6px; font-size: 14px; color: #475569; display: flex; gap: 4px; justify-content: flex-start; direction: rtl;">
-                            <span style="font-weight: 900; color: #1e293b;">סוג הדוח:</span> 
-                            <span>סיכום ביצועים, מכירות והתפלגות קטגוריות.</span>
+                    <div style="display:flex; align-items:center;">
+                        <h2 style="font-size:24px; font-weight:900; color:#4f46e5; margin:0;">${bName}</h2>
+                        ${logoHtml}
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:20px; margin-bottom:30px;">
+                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
+                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            הכנסות ברוטו:
                         </div>
-                        <div style="font-size: 14px; color: #475569; display: flex; gap: 4px; justify-content: flex-start; direction: rtl;">
-                            <span style="font-weight: 900; color: #1e293b;">תקופה מדווחת:</span> 
-                            <span>${period}</span>
+                        <div style="font-size:32px; font-weight:900; color:#0f172a; direction:ltr; text-align:right;">${totalRev}</div>
+                    </div>
+                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
+                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            כמות הזמנות:
+                        </div>
+                        <div style="font-size:32px; font-weight:900; color:#0f172a; text-align:right;">${totalOrders}</div>
+                    </div>
+                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
+                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            ממוצע לעסקה (AOV):
+                        </div>
+                        <div style="font-size:32px; font-weight:900; color:#0f172a; direction:ltr; text-align:right;">${aov}</div>
+                    </div>
+                    <div style="flex:1; min-width:45%; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
+                        <div style="font-size:13px; font-weight:bold; color:#64748b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            לקוחות חוזרים:
+                        </div>
+                        <div style="font-size:32px; font-weight:900; color:#0f172a; text-align:right;">${retention}</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:30px; margin-bottom:30px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; page-break-inside:avoid;">
+                        <h4 style="font-size:16px; font-weight:bold; color:#334155; margin:0 0 15px 0;">מגמת הכנסות מול יעד:</h4>
+                        <div style="text-align:center;">
+                            ${revImgData ? `<img src="${revImgData}" style="max-width:100%; height:auto; max-height:300px;">` : '<p>אין נתוני גרף</p>'}
+                        </div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; page-break-inside:avoid;">
+                        <h4 style="font-size:16px; font-weight:bold; color:#334155; margin:0 0 15px 0;">התפלגות הכנסות לפי קטגוריות:</h4>
+                        <div style="text-align:center;">
+                            ${catImgData ? `<img src="${catImgData}" style="max-width:100%; height:auto; max-height:350px;">` : '<p>אין נתוני גרף</p>'}
                         </div>
                     </div>
                 </div>
-            `;
-        }
+
+                <div style="display:flex; flex-direction:column; gap:30px;">
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; page-break-inside:avoid;">
+                        <div style="background:#ecfdf5; border-bottom:1px solid #d1fae5; padding:15px 20px;">
+                            <h4 style="font-size:16px; font-weight:bold; color:#065f46; margin:0;">המוצרים המובילים (Top Sellers)</h4>
+                        </div>
+                        ${topHtml}
+                    </div>
+                    
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; page-break-inside:avoid;">
+                        <div style="background:#fff7ed; border-bottom:1px solid #ffedd5; padding:15px 20px;">
+                            <h4 style="font-size:16px; font-weight:bold; color:#9a3412; margin:0;">מלאי עומד / לא נמכרו (Slow Movers)</h4>
+                        </div>
+                        ${slowHtml}
+                    </div>
+                </div>
+
+            </div>
+        `;
+
+        document.body.appendChild(pdfContainer);
 
         const bnameFile = bName.replace(/[\/\\?%*:|"<> ]/g, '_');
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
         const pdfFilename = `${bnameFile}_Analytics_${dateStr}.pdf`;
 
-        // ממתינים לעדכון העיצוב והגרפים לרוחב הצר והמדויק
-        await new Promise(r => setTimeout(r, 600)); 
-
+        // אופציות הדפסה נקיות
         const opt = { 
-            margin: [10, 15, 10, 15], // שוליים אחידים מכל הכיוונים - זה מה שממרכז את המסמך לעמוד A4!
+            margin: [10, 0, 10, 0], // חובה לאפס שוליים רוחביים כשכופים רוחב אלמנט כדי שיתמרכז
             filename: pdfFilename, 
-            image: { type: 'jpeg', quality: 1 }, 
-            html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, logging: false }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, // לאורך
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 2, useCORS: true, windowWidth: 794, scrollY: 0, logging: false }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'] }
         };
         
-        await html2pdf().set(opt).from(contentArea).save();
+        await html2pdf().set(opt).from(pdfContainer).save();
         showToast('success', 'דוח האנליטיקה הופק בהצלחה!');
         
-        // --- 3. שחזור המצב המקורי למסך הדפדפן ---
-        Object.assign(contentArea.style, originalStyles);
-        
-        avoidElements.forEach((el, index) => {
-            el.style.pageBreakInside = originalBreaks[index].val;
-            el.style.breakInside = originalBreaks[index].val;
-        });
-
-        window.analyticsState.topPage = origTopPage;
-        window.analyticsState.slowPage = origSlowPage;
-        window.analyticsState.itemsPerPage = origItemsPerPage;
-        window.renderTopProductsTable();
-        window.renderSlowProductsTable();
-
-        if (printHeader) {
-            printHeader.innerHTML = origHeaderHtml;
-            printHeader.classList.add('hidden');
-            printHeader.classList.remove('flex');
+        // ניקוי DOM
+        if (document.body.contains(pdfContainer)) {
+            document.body.removeChild(pdfContainer);
         }
-        if (rawDataSection) rawDataSection.classList.remove('hidden');
-
-        // רענון אנליטיקה כדי להחזיר את הגרפים לגודל הטבעי של המסך
-        if(typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 300);
 
     } catch(err) {
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
