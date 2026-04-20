@@ -7328,9 +7328,8 @@ function updateSalesDashboardStats() {
 // ============================================================
 let analyticsRevChart = null;
 let analyticsCatChart = null;
-let activeCatFilter = null; // Drill-down filter
+let activeCatFilter = null;
 
-// משתנים גלובליים לניהול דפדוף ונתוני AI
 window.analyticsState = {
     topProducts: [],
     slowProducts: [],
@@ -7398,7 +7397,6 @@ window.renderAnalytics = async function() {
     const isLoaded = await loadChartAndPdfJS();
     if (!isLoaded) return showToast('error', 'שגיאה בטעינת ספריות הגרפים.');
 
-    // 1. התיקון למלאי עומד: טעינת הקטלוג אם הוא עדיין לא נמשך
     if (!storeCatalogCache || storeCatalogCache.length === 0) {
         try {
             const res = await fetch(`${API}/store/catalog/${currentGroup.id}`);
@@ -7416,7 +7414,6 @@ window.renderAnalytics = async function() {
     let prevCutoffEnd = new Date();
     let periodLabel = '30 ימים אחרונים';
     
-    // חישוב תאריכים לסינון והשוואה
     if (timeFilter === 'custom') {
         cutoff = new Date(val('analytics-date-from') || now);
         cutoff.setHours(0,0,0,0);
@@ -7450,7 +7447,6 @@ window.renderAnalytics = async function() {
     if(getEl('analytics-report-period')) getEl('analytics-report-period').innerText = periodLabel;
     if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
 
-    // סינון לפי סטטוס תקין וסוג הזמנה
     const validOrders = storeOrdersCache.filter(o => {
         if (o.status === 'cancelled') return false;
         
@@ -7478,7 +7474,6 @@ window.renderAnalytics = async function() {
         return d >= prevCutoffStart && d <= prevCutoffEnd;
     });
 
-    // חישובי KPI ומיפוי נתונים
     let totalRevenue = 0;
     let prevRevenue = 0;
     const revMap = {};
@@ -7550,7 +7545,6 @@ window.renderAnalytics = async function() {
     const prevAvgOrderValue = previousOrders.length > 0 ? (prevRevenue / previousOrders.length) : 0;
     const retentionRate = uniqueCustomers.size > 0 ? ((returningCustomersCount / uniqueCustomers.size) * 100).toFixed(0) : 0;
 
-    // 2. התיקון ל-AI ולמרווחים: שמירת הנתונים בסטייט כדי שה-AI ישאב אותם במדויק מפה
     window.analyticsState.totalRevenue = totalRevenue;
     window.analyticsState.totalOrders = currentOrders.length;
     const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
@@ -7577,7 +7571,6 @@ window.renderAnalytics = async function() {
     if(getEl('analytics-kpi-retention')) getEl('analytics-kpi-retention').innerText = `${retentionRate}%`;
     if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות ייחודיים`;
 
-    // עדכון מערכי טבלאות דפדוף (Top ו-Slow)
     window.analyticsState.topProducts = sortedProducts;
     window.analyticsState.topPage = 1;
     
@@ -7591,7 +7584,6 @@ window.renderAnalytics = async function() {
     window.renderTopProductsTable();
     window.renderSlowProductsTable();
 
-    // טבלת נתונים גולמיים
     const tableBody = getEl('analytics-table-body');
     const countLabel = getEl('analytics-orders-count-label');
     if (countLabel) countLabel.innerText = `מציג ${Math.min(currentOrders.length, 25)} מתוך ${currentOrders.length} הזמנות`;
@@ -7606,7 +7598,7 @@ window.renderAnalytics = async function() {
             tableBody.innerHTML = sortedTableOrders.map(o => {
                 const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
                 return `
-                <tr class="hover:bg-slate-50 transition">
+                <tr class="hover:bg-slate-50 transition text-right" dir="rtl">
                     <td class="py-3 px-4 text-xs font-black text-slate-700">#${o.id}</td>
                     <td class="py-3 px-4 text-[10px] text-slate-500 font-mono">${dateStr}</td>
                     <td class="py-3 px-4 text-xs font-medium text-slate-600">${safeStr(o.customer_name)}</td>
@@ -7618,7 +7610,6 @@ window.renderAnalytics = async function() {
         }
     }
 
-    // ציור מפת חום (Heatmap)
     const heatmapContainer = getEl('analytics-heatmap');
     if (heatmapContainer) {
         const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -7639,7 +7630,6 @@ window.renderAnalytics = async function() {
         heatmapContainer.innerHTML = heatHtml;
     }
 
-    // ציור הגרפים
     const revLabels = Object.keys(revMap).sort((a,b) => {
         if (timeFilter === 'today') return a.localeCompare(b);
         const [d1,m1] = a.split('.'); const [d2,m2] = b.split('.');
@@ -7753,7 +7743,7 @@ window.renderTopProductsTable = function() {
     const items = data.slice(start, start + window.analyticsState.itemsPerPage);
     
     tbody.innerHTML = items.map((p, i) => `
-        <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition">
+        <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition text-right" dir="rtl">
             <td class="py-2.5 px-4">
                 <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] font-black">${start + i + 1}</span>
             </td>
@@ -7787,7 +7777,7 @@ window.renderSlowProductsTable = function() {
     const items = data.slice(start, start + window.analyticsState.itemsPerPage);
     
     tbody.innerHTML = items.map(p => `
-        <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition">
+        <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition text-right" dir="rtl">
             <td class="py-2.5 px-4 text-xs font-bold text-slate-700">${safeStr(p.name)}</td>
             <td class="py-2.5 px-4 text-[10px] text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded-md">${safeStr(p.category || 'כללי')}</span></td>
             <td class="py-2.5 px-4 text-[10px] font-bold text-orange-500 text-center"><i class="fa-solid fa-triangle-exclamation"></i> 0 מכירות</td>
@@ -7848,7 +7838,6 @@ window.generateReport = async function() {
     const modal = getEl('report-builder-modal');
     if(modal) modal.classList.add('hidden');
     
-    // 4. התיקון הקריטי להפקת ה-PDF: התאמת הרוחב מחדש והמנעות מגלילת טבלאות פנימיות שמכשילות את ההורדה
     if (reportFormat === 'pdf') {
         await downloadAnalyticsReportPDF();
     } else if (reportFormat === 'csv') {
@@ -7942,19 +7931,21 @@ window.downloadAnalyticsReportPDF = async function() {
             margin: contentArea.style.margin,
             boxShadow: contentArea.style.boxShadow,
             borderRadius: contentArea.style.borderRadius,
-            backgroundColor: contentArea.style.backgroundColor
+            backgroundColor: contentArea.style.backgroundColor,
+            textAlign: contentArea.style.textAlign
         };
 
-        // כופים מידות שמתאימות במדויק לרוחב A4 - לאורך ולמרכז (Portrait)
+        // כופים מידות שמתאימות במדויק לרוחב A4 - לאורך ולמרכז (Portrait) - 800px בדיוק ממרכז את זה ב-PDF
         contentArea.style.width = '800px'; 
         contentArea.style.maxWidth = '800px';
         contentArea.style.height = 'max-content';
         contentArea.style.overflow = 'visible';
-        contentArea.style.padding = '0'; // הסרת הפדינג כאן, נשתמש בזה של ה-PDF
+        contentArea.style.padding = '0';
         contentArea.style.margin = '0 auto';
         contentArea.style.boxShadow = 'none';
         contentArea.style.borderRadius = '0';
         contentArea.style.backgroundColor = '#ffffff';
+        contentArea.style.textAlign = 'right';
 
         // הופך את כל טבלאות הדפדוף להראות את כל הרשומות ב-PDF (פתיחה מלאה)
         const origTopPage = window.analyticsState.topPage;
@@ -7962,19 +7953,18 @@ window.downloadAnalyticsReportPDF = async function() {
         const origItemsPerPage = window.analyticsState.itemsPerPage;
         window.analyticsState.topPage = 1;
         window.analyticsState.slowPage = 1;
-        window.analyticsState.itemsPerPage = 1000; // מציג את כל הנתונים בטבלאות
+        window.analyticsState.itemsPerPage = 1000;
         window.renderTopProductsTable();
         window.renderSlowProductsTable();
         
-        // מסתירים את הגלילות וטבלת עסקאות גולמית מה-PDF כדי למנוע עמודים ריקים/ארוכים מדי
         if (rawDataSection) rawDataSection.classList.add('hidden');
 
-        // בניית כותרת ממותגת ומרוכזת (יישור מדויק לימין - פותר את בעיית ה"סוג הדוח:")
+        // בניית כותרת ממותגת ומרוכזת שתתיישר לימין ותהיה בנויה נכון לעברית
         const printHeader = contentArea.querySelector('.print\\:flex');
         let origHeaderHtml = '';
         
         const bName = safeStr(currentGroup.name || 'העסק שלי');
-        const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText.replace(/ /g, ' ') : 'דוח';
+        const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח';
         
         if (printHeader) {
             origHeaderHtml = printHeader.innerHTML;
@@ -7987,7 +7977,6 @@ window.downloadAnalyticsReportPDF = async function() {
                 logoHtml = `<img src="${logoInput}" style="height: 60px; width: auto; object-fit: contain; margin-right: 15px; border-radius: 8px;">`;
             }
             
-            // HTML קשיח להדפסה - RTL מלא
             printHeader.innerHTML = `
                 <div style="width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; text-align: right; direction: rtl;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -7998,8 +7987,8 @@ window.downloadAnalyticsReportPDF = async function() {
                         </div>
                     </div>
                     <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-block; min-width: 50%;">
-                        <p style="font-size: 14px; color: #475569; margin: 0 0 8px 0;"><strong style="color: #1e293b;">סוג הדוח: </strong> סיכום ביצועים, מכירות והתפלגות קטגוריות.</p>
-                        <p style="font-size: 14px; color: #475569; margin: 0;"><strong style="color: #1e293b;">תקופה מדווחת: </strong> <span dir="rtl">${period}</span></p>
+                        <p style="font-size: 14px; color: #475569; margin: 0 0 8px 0;"><strong style="color: #1e293b;">סוג הדוח:&nbsp;</strong> סיכום ביצועים, מכירות והתפלגות קטגוריות.</p>
+                        <p style="font-size: 14px; color: #475569; margin: 0;"><strong style="color: #1e293b;">תקופה מדווחת:&nbsp;</strong> <span dir="rtl">${period.replace(/-/g, ' ')}</span></p>
                     </div>
                 </div>
             `;
@@ -8009,16 +7998,15 @@ window.downloadAnalyticsReportPDF = async function() {
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
         const pdfFilename = `${bnameFile}_Analytics_${dateStr}.pdf`;
 
-        // ממתינים לעדכון העיצוב והגרפים לרוחב הצר והמדויק (כדי שהקנבס של הגרף יסתדר מחדש)
-        await new Promise(r => setTimeout(r, 600)); 
+        await new Promise(r => setTimeout(r, 600)); // מחכים לרינדור
 
         const opt = { 
-            margin: 15, // שוליים של 15 מ"מ מכל הכיוונים - זה מה שממרכז את המסמך לעמוד A4 ב-html2pdf!
+            margin: 15, // שוליים אחידים מכל הכיוונים - זה ממקם את הדוח בדיוק באמצע!
             filename: pdfFilename, 
             image: { type: 'jpeg', quality: 1 }, 
             html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, logging: false }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, // לאורך
-            pagebreak: { mode: ['css', 'legacy'] } // שימוש ב- page-break-inside-avoid ב-CSS כדי למנוע חיתוך אלמנטים
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
         };
         
         await html2pdf().set(opt).from(contentArea).save();
@@ -8040,7 +8028,6 @@ window.downloadAnalyticsReportPDF = async function() {
         }
         if (rawDataSection) rawDataSection.classList.remove('hidden');
 
-        // רענון אנליטיקה כדי להחזיר את הגרפים לגודל הטבעי של המסך
         if(typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 300);
 
     } catch(err) {
