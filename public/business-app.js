@@ -7932,7 +7932,7 @@ window.downloadAnalyticsReportPDF = async function() {
         const contentArea = getEl('analytics-dashboard-wrapper');
         const rawDataSection = getEl('analytics-raw-data-section');
         
-        // --- הכנת ה-DOM להדפסה מושלמת ללא חיתוכים ---
+        // --- הכנת ה-DOM להדפסה מושלמת ---
         const originalStyles = {
             width: contentArea.style.width,
             maxWidth: contentArea.style.maxWidth,
@@ -7941,57 +7941,51 @@ window.downloadAnalyticsReportPDF = async function() {
             padding: contentArea.style.padding,
             margin: contentArea.style.margin,
             boxShadow: contentArea.style.boxShadow,
-            borderRadius: contentArea.style.borderRadius
+            borderRadius: contentArea.style.borderRadius,
+            backgroundColor: contentArea.style.backgroundColor
         };
 
-        // כופים מידות שמתאימות במדויק ל-A4 ברוחב (Landscape)
-        contentArea.style.width = '1120px';
-        contentArea.style.maxWidth = '1120px';
-        contentArea.style.height = 'auto';
+        // כופים מידות לפורמט Portrait אופטימלי ששומר על הגרפים ולא נחתך
+        contentArea.style.width = '900px'; 
+        contentArea.style.maxWidth = '900px';
+        contentArea.style.height = 'max-content';
         contentArea.style.overflow = 'visible';
-        contentArea.style.padding = '40px';
-        contentArea.style.margin = '0';
+        contentArea.style.padding = '40px 30px'; // מרווחים נעימים סביב לדף
+        contentArea.style.margin = '0 auto';
         contentArea.style.boxShadow = 'none';
         contentArea.style.borderRadius = '0';
+        contentArea.style.backgroundColor = '#ffffff';
+
+        // הופך את כל טבלאות הדפדוף להראות את כל הרשומות ב-PDF
+        const origTopPage = window.analyticsState.topPage;
+        const origSlowPage = window.analyticsState.slowPage;
+        const origItemsPerPage = window.analyticsState.itemsPerPage;
+        window.analyticsState.topPage = 1;
+        window.analyticsState.slowPage = 1;
+        window.analyticsState.itemsPerPage = 1000; // אין גבולות ל-PDF
+        window.renderTopProductsTable();
+        window.renderSlowProductsTable();
         
-        // הסרת הגלילה לחלוטין מכל האלמנטים הפנימיים
-        const scrollElements = contentArea.querySelectorAll('.overflow-x-auto, .overflow-y-auto, .modal-scroll, .max-h-80');
-        const originalScrolls = [];
-        scrollElements.forEach(el => {
-            originalScrolls.push({ el: el, cs: el.className, mh: el.style.maxHeight });
-            el.classList.remove('overflow-x-auto', 'overflow-y-auto', 'modal-scroll', 'max-h-80');
-            el.style.maxHeight = 'none';
-            el.style.overflow = 'visible';
-        });
+        // מסתירים גלילות וטבלת עסקאות
+        if (rawDataSection) rawDataSection.classList.add('hidden');
 
-        // מסתירים את טבלת הנתונים הגולמית כדי לא להציף את הדוח במאות שורות (יש CSV בשביל זה)
-        if (rawDataSection) rawDataSection.classList.add('print:hidden');
-
-        // חשיפת כותרות הארגון שמוסתרות בדרך כלל
-        const printHeader = contentArea.querySelector('.print\\:block');
+        // בניית כותרת ממותגת ומרוכזת
+        const printHeader = contentArea.querySelector('.print\\:flex');
         if (printHeader) {
             printHeader.classList.remove('hidden');
-            printHeader.classList.add('block');
+            printHeader.classList.add('flex');
             
             const bName = safeStr(currentGroup.name || 'העסק שלי');
             let logoHtml = '';
             const logoInput = val('store-logo-base64');
             if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
-                logoHtml = `<img src="${logoInput}" style="height: 55px; width: auto; object-fit: contain; margin-left: 20px;">`;
+                logoHtml = `<img src="${logoInput}" style="height: 60px; width: auto; object-fit: contain; margin-left: 15px;">`;
             }
             
-            printHeader.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #e2e8f0;">
-                    <div>
-                        <h2 style="font-size: 32px; font-weight: 900; color: #0f172a; margin:0;">דוח ביצועים עסקיים ותמחיר</h2>
-                        <p style="font-size: 16px; color: #475569; font-weight: bold; margin-top: 5px;">תקופה מדווחת: ${getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח'}</p>
-                    </div>
-                    <div style="display:flex; align-items:center; text-align: left;">
-                        <h3 style="font-size: 26px; font-weight: 900; color: #4f46e5; margin:0;">${bName}</h3>
-                        ${logoHtml}
-                    </div>
-                </div>
-            `;
+            const headerBrand = getEl('print-header-brand');
+            if(headerBrand) {
+                headerBrand.innerHTML = `<h3 style="font-size: 26px; font-weight: 900; color: #4f46e5; margin:0;">${bName}</h3>${logoHtml}`;
+            }
         }
 
         const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
@@ -7999,16 +7993,15 @@ window.downloadAnalyticsReportPDF = async function() {
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
         const pdfFilename = `${bname}_Analytics_${period}_${dateStr}.pdf`;
 
-        // מחכים לרינדור מלא של שינויי ה-CSS לפני הצילום
-        await new Promise(r => setTimeout(r, 600)); 
+        await new Promise(r => setTimeout(r, 600)); // מחכים לרינדור הגרפים לרוחב החדש
 
         const opt = { 
-            margin: [15, 10, 15, 10], 
+            margin: [10, 0, 10, 0], // שוליים מינימליים מהצדדים כי התוכן כבר מרופד
             filename: pdfFilename, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 2, useCORS: true, windowWidth: 1120, scrollY: 0, logging: false }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, // מותאם אישית לרוחב
-            pagebreak: { mode: 'avoid-all' } // מונע חיתוך של טבלאות באמצע
+            image: { type: 'jpeg', quality: 1 }, 
+            html2canvas: { scale: 2, useCORS: true, windowWidth: 900, scrollY: 0, logging: false }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, // עברנו ל-Portrait קריא!
+            pagebreak: { mode: ['css', 'legacy'] }
         };
         
         await html2pdf().set(opt).from(contentArea).save();
@@ -8017,17 +8010,17 @@ window.downloadAnalyticsReportPDF = async function() {
         // --- שחזור המצב המקורי ---
         Object.assign(contentArea.style, originalStyles);
         
-        originalScrolls.forEach(item => {
-            item.el.className = item.cs;
-            item.el.style.maxHeight = item.mh;
-            item.el.style.overflow = '';
-        });
+        window.analyticsState.topPage = origTopPage;
+        window.analyticsState.slowPage = origSlowPage;
+        window.analyticsState.itemsPerPage = origItemsPerPage;
+        window.renderTopProductsTable();
+        window.renderSlowProductsTable();
 
         if (printHeader) {
             printHeader.classList.add('hidden');
-            printHeader.classList.remove('block');
+            printHeader.classList.remove('flex');
         }
-        if (rawDataSection) rawDataSection.classList.remove('print:hidden');
+        if (rawDataSection) rawDataSection.classList.remove('hidden');
 
         if(typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 200);
 
