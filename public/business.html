@@ -889,14 +889,14 @@
                                 </div>
                             </div>
 <div id="sales-view-analytics" class="hidden space-y-4 pb-8">
-                                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-4">
+                                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-4 print:hidden">
                                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                                         <div class="flex items-center gap-2">
                                             <h4 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-chart-line text-indigo-500"></i> אנליטיקה ודוחות</h4>
                                         </div>
                                         <div class="flex gap-2 w-full md:w-auto">
                                             <button onclick="getAnalyticsAIInsight()" class="flex-1 md:flex-none text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-xl border border-purple-100 hover:bg-purple-100 transition flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות AI</button>
-                                            <button onclick="window.openReportBuilderModal()" class="flex-1 md:flex-none bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-green-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-excel"></i> ייצוא ל-Excel</button>
+                                            <button onclick="window.openReportBuilderModal()" class="flex-1 md:flex-none bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-export"></i> מחולל דוחות</button>
                                         </div>
                                     </div>
                                     
@@ -944,9 +944,12 @@
                                 </div>
 
                                 <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm flex flex-col items-center text-right" style="direction: rtl; text-align: right;">
+                                    
+                                    <div class="hidden print:flex flex-col w-full max-w-4xl mx-auto pb-4 mb-6 border-b-2 border-slate-200" dir="rtl">
+                                        </div>
 
                                     <div class="w-full max-w-4xl mx-auto">
-                                        <div class="grid grid-cols-2 gap-4 mb-8">
+                                        <div class="grid grid-cols-2 gap-4 mb-8 print:mb-10 page-break-inside-avoid">
                                             <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
                                                 <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-green-50 rounded-full z-0"></div>
                                                 <span class="text-xs font-bold text-slate-500 mb-2 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-sack-dollar text-green-500"></i> הכנסות ברוטו:</span>
@@ -973,11 +976,11 @@
                                             </div>
                                         </div>
                                         
-                                        <div class="flex flex-col gap-6 mb-8">
-                                            <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm w-full">
+                                        <div class="flex flex-col gap-6 mb-8 print:mb-10">
+                                            <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm w-full page-break-inside-avoid">
                                                 <div class="flex justify-between items-center mb-4 sm:mb-6">
                                                     <h5 class="font-bold text-slate-700 text-sm sm:text-base flex items-center gap-2"><i class="fa-solid fa-chart-area text-indigo-500"></i> מגמת הכנסות מול יעד:</h5>
-                                                    <input type="number" id="analytics-target-revenue" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-xs sm:text-sm w-28 sm:w-32 bg-white shadow-sm" placeholder="יעד ב-₪">
+                                                    <input type="number" id="analytics-target-revenue" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-xs sm:text-sm w-28 sm:w-32 bg-white shadow-sm print:hidden" placeholder="יעד ב-₪">
                                                 </div>
                                                 <div class="relative h-[250px] sm:h-[300px] w-full flex justify-center items-center">
                                                     <p class="text-sm text-slate-400" id="chart-rev-loading">טוען גרף...</p>
@@ -985,37 +988,37 @@
                                                 </div>
                                             </div>
 
-                                            <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm relative w-full">
-                                                <button id="btn-clear-cat-filter" onclick="clearAnalyticsCategoryFilter()" class="hidden absolute top-4 left-4 text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-200 transition z-10">נקה סינון פלח</button>
+                                            <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm relative w-full page-break-inside-avoid">
+                                                <button id="btn-clear-cat-filter" onclick="clearAnalyticsCategoryFilter()" class="hidden absolute top-4 left-4 text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-200 transition z-10 print:hidden">נקה סינון פלח</button>
                                                 <h5 class="font-bold text-slate-700 text-sm sm:text-base mb-4 sm:mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-pink-500"></i> התפלגות הכנסות לפי קטגוריות:</h5>
                                                 <div class="relative h-[300px] sm:h-[350px] w-full flex justify-center items-center">
                                                     <p class="text-sm text-slate-400" id="chart-cat-loading">טוען גרף...</p>
                                                     <canvas id="analyticsCategoryChart" class="absolute inset-0"></canvas>
                                                 </div>
-                                                <p class="text-[10px] text-center text-slate-500 mt-4">לחץ על פלח לסינון שאר הנתונים (Drill-down)</p>
+                                                <p class="text-[10px] text-center text-slate-500 mt-4 print:hidden">לחץ על פלח לסינון שאר הנתונים (Drill-down)</p>
                                             </div>
                                         </div>
 
-                                        <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 mb-8 shadow-sm overflow-x-auto">
+                                        <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 mb-8 shadow-sm overflow-x-auto print:hidden page-break-inside-avoid">
                                             <h5 class="font-bold text-slate-700 text-sm sm:text-base mb-4 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> מפת עומסים (הזמנות לפי ימים ושעות):</h5>
                                             <div id="analytics-heatmap" class="min-w-[600px] min-h-[150px] relative">
                                                 <p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">מנתח עומסים...</p>
                                             </div>
                                         </div>
 
-                                        <div class="flex flex-col gap-6 mb-8">
-                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                        <div class="flex flex-col gap-6 mb-8 print:block print:space-y-6">
+                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid">
                                                 <div class="p-4 sm:p-5 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center">
                                                     <div class="flex items-center gap-2">
                                                         <i class="fa-solid fa-trophy text-emerald-500 text-lg"></i>
                                                         <h5 class="font-bold text-emerald-800 text-sm sm:text-base">המוצרים המובילים (Top Sellers)</h5>
                                                     </div>
-                                                    <select id="analytics-top-by" onchange="renderAnalytics()" class="text-[10px] sm:text-[11px] font-bold bg-white border border-emerald-200 rounded-lg px-2 py-1.5 text-emerald-700 outline-none">
+                                                    <select id="analytics-top-by" onchange="renderAnalytics()" class="text-[10px] sm:text-[11px] font-bold bg-white border border-emerald-200 rounded-lg px-2 py-1.5 text-emerald-700 outline-none print:hidden">
                                                         <option value="revenue">ממוין לפי הכנסה</option>
                                                         <option value="volume">ממוין לפי כמות</option>
                                                     </select>
                                                 </div>
-                                                <div class="p-0 overflow-x-auto">
+                                                <div class="p-0 overflow-x-auto print:overflow-visible">
                                                     <table class="w-full text-right border-collapse" dir="rtl">
                                                         <thead>
                                                             <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200 text-right">
@@ -1028,19 +1031,19 @@
                                                         <tbody id="analytics-top-products" class="bg-white divide-y divide-slate-100"></tbody>
                                                     </table>
                                                 </div>
-                                                <div class="bg-slate-50 border-t border-slate-100 p-2 sm:p-3 flex justify-between items-center px-4 sm:px-5">
+                                                <div class="bg-slate-50 border-t border-slate-100 p-2 sm:p-3 flex justify-between items-center px-4 sm:px-5 print:hidden">
                                                     <button onclick="changeAnalyticsPage('top', -1)" class="text-xs sm:text-sm font-bold text-slate-500 hover:text-indigo-600 transition bg-white px-3 sm:px-4 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-chevron-right ml-1"></i> הקודם</button>
                                                     <span id="analytics-top-page-info" class="text-[10px] sm:text-[11px] font-bold text-slate-500">עמוד 1</span>
                                                     <button onclick="changeAnalyticsPage('top', 1)" class="text-xs sm:text-sm font-bold text-slate-500 hover:text-indigo-600 transition bg-white px-3 sm:px-4 py-1.5 rounded-lg border shadow-sm">הבא <i class="fa-solid fa-chevron-left mr-1"></i></button>
                                                 </div>
                                             </div>
 
-                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid">
                                                 <div class="p-4 sm:p-5 bg-orange-50/50 border-b border-orange-100 flex items-center gap-2">
                                                     <i class="fa-solid fa-hourglass-half text-orange-500 text-lg"></i>
                                                     <h5 class="font-bold text-orange-800 text-sm sm:text-base">מלאי עומד / לא נמכרו (Slow Movers)</h5>
                                                 </div>
-                                                <div class="p-0 overflow-x-auto">
+                                                <div class="p-0 overflow-x-auto print:overflow-visible">
                                                     <table class="w-full text-right border-collapse" dir="rtl">
                                                         <thead>
                                                             <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200 text-right">
@@ -1052,7 +1055,7 @@
                                                         <tbody id="analytics-slow-products" class="bg-white divide-y divide-slate-100"></tbody>
                                                     </table>
                                                 </div>
-                                                <div class="bg-slate-50 border-t border-slate-100 p-2 sm:p-3 flex justify-between items-center px-4 sm:px-5">
+                                                <div class="bg-slate-50 border-t border-slate-100 p-2 sm:p-3 flex justify-between items-center px-4 sm:px-5 print:hidden">
                                                     <button onclick="changeAnalyticsPage('slow', -1)" class="text-xs sm:text-sm font-bold text-slate-500 hover:text-orange-600 transition bg-white px-3 sm:px-4 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-chevron-right ml-1"></i> הקודם</button>
                                                     <span id="analytics-slow-page-info" class="text-[10px] sm:text-[11px] font-bold text-slate-500">עמוד 1</span>
                                                     <button onclick="changeAnalyticsPage('slow', 1)" class="text-xs sm:text-sm font-bold text-slate-500 hover:text-orange-600 transition bg-white px-3 sm:px-4 py-1.5 rounded-lg border shadow-sm">הבא <i class="fa-solid fa-chevron-left mr-1"></i></button>
@@ -1060,14 +1063,14 @@
                                             </div>
                                         </div>
 
-                                        <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm" id="analytics-raw-data-section">
+                                        <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm page-break-inside-avoid print:hidden" id="analytics-raw-data-section">
                                             <div class="p-4 sm:p-5 bg-white border-b border-slate-200 flex justify-between items-center">
                                                 <h5 class="font-bold text-slate-800 text-sm sm:text-base"><i class="fa-solid fa-list text-slate-400 ml-1"></i> פירוט עסקאות (נתונים גולמיים)</h5>
                                                 <span class="text-[10px] sm:text-xs text-slate-500 font-bold bg-slate-100 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg" id="analytics-orders-count-label">מציג נתונים</span>
                                             </div>
-                                            <div class="overflow-x-auto max-h-96 modal-scroll">
+                                            <div class="overflow-x-auto max-h-96 modal-scroll print:max-h-max print:overflow-visible">
                                                 <table class="w-full text-right border-collapse" id="analytics-raw-table" dir="rtl">
-                                                    <thead class="sticky top-0 bg-slate-200 shadow-sm z-10">
+                                                    <thead class="sticky top-0 bg-slate-200 shadow-sm z-10 print:static">
                                                         <tr class="text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-300 text-right">
                                                             <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">מס'</th>
                                                             <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">תאריך ושעה</th>
@@ -1084,7 +1087,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
                                         
                                         <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-8 shadow-sm overflow-x-auto print:hidden">
                                             <h5 class="font-bold text-slate-700 text-base mb-6 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> מפת עומסים (הזמנות לפי ימים ושעות):</h5>
@@ -1701,27 +1704,42 @@
             </div>
         </div>
 
-<div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+    <div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
-                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-excel text-green-500"></i> ייצוא נתונים (Excel/CSV)</h3>
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-500"></i> מחולל דוחות</h3>
                 <button onclick="document.getElementById('report-builder-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-4 flex-1 overflow-y-auto modal-scroll pr-1">
-                <p class="text-sm text-slate-500 mb-2">בחרו אילו נתונים תרצו לייצא למחשב כקובץ אקסל (CSV) להמשך ניתוח או הנהלת חשבונות:</p>
                 <div>
-                    <label class="text-xs font-bold text-slate-600 block mb-2">סוג הנתונים לייצוא:</label>
-                    <select id="report-type" class="modern-input py-3 text-sm bg-white font-bold shadow-sm outline-none focus:border-green-500">
-                        <option value="accounting">דוח עסקאות והכנסות (רשימת הזמנות)</option>
-                        <option value="inventory">דוח מוצרים (קטלוג ומלאי)</option>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">סוג הדוח:</label>
+                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm" onchange="updateReportFormatUI()">
+                        <option value="executive">דוח מנהלים מסכם (גרפים ומדדים)</option>
+                        <option value="accounting">דוח חשבונאי (רשימת עסקאות לרו"ח)</option>
+                        <option value="inventory">דוח מכירות פריטים (למלאי ורכש)</option>
                     </select>
                 </div>
-                <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                    <p class="text-xs text-green-700 font-medium"><i class="fa-solid fa-circle-check"></i> הקובץ יורד מיד למכשיר וניתן לפתיחה בכל תוכנת גיליונות אלקטרוניים.</p>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">פורמט ייצוא:</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-red-400 transition group">
+                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked onchange="updateReportFormatUI()">
+                            <i class="fa-solid fa-file-pdf text-3xl text-slate-300 peer-checked:text-red-500 mb-2 transition-colors"></i>
+                            <span class="text-xs font-bold text-slate-600 peer-checked:text-red-600">PDF מקצועי</span>
+                        </label>
+                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-green-400 transition group" id="report-format-csv-label">
+                            <input type="radio" name="report_format" value="csv" class="hidden peer" onchange="updateReportFormatUI()">
+                            <i class="fa-solid fa-file-excel text-3xl text-slate-300 peer-checked:text-green-500 mb-2 transition-colors"></i>
+                            <span class="text-xs font-bold text-slate-600 peer-checked:text-green-600">Excel / CSV</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="report-warning" class="text-[10px] text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 hidden">
+                    <i class="fa-solid fa-info-circle text-blue-500"></i> דוח גרפים וניהול נתמך כרגע בייצוא ל-PDF בלבד לשמירה על עיצוב נכון.
                 </div>
             </div>
-            <div class="pt-4 border-t border-slate-100 mt-4 shrink-0">
-                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2">הורד קובץ CSV <i class="fa-solid fa-download"></i></button>
+            <div class="pt-4 border-t border-slate-100 mt-2 shrink-0">
+                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">הפק והורד דוח <i class="fa-solid fa-download"></i></button>
             </div>
         </div>
     </div>
