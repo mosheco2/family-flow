@@ -7932,7 +7932,7 @@ window.downloadAnalyticsReportPDF = async function() {
         const contentArea = getEl('analytics-dashboard-wrapper');
         const rawDataSection = getEl('analytics-raw-data-section');
         
-        // --- הכנת ה-DOM להדפסה מושלמת ---
+        // שמירת המצב המקורי של אזור ההדפסה
         const originalStyles = {
             width: contentArea.style.width,
             maxWidth: contentArea.style.maxWidth,
@@ -7945,71 +7945,98 @@ window.downloadAnalyticsReportPDF = async function() {
             backgroundColor: contentArea.style.backgroundColor
         };
 
-        // כופים מידות לפורמט Portrait אופטימלי ששומר על הגרפים ולא נחתך
-        contentArea.style.width = '900px'; 
-        contentArea.style.maxWidth = '900px';
+        // הגדרת רוחב מדויק ל-A4 ב-Portrait כדי למנוע חיתוך ויצירת מרווחים נעימים
+        contentArea.style.width = '850px'; 
+        contentArea.style.maxWidth = '850px';
         contentArea.style.height = 'max-content';
         contentArea.style.overflow = 'visible';
-        contentArea.style.padding = '40px 30px'; // מרווחים נעימים סביב לדף
-        contentArea.style.margin = '0 auto';
+        contentArea.style.padding = '30px 40px'; 
+        contentArea.style.margin = '0 auto'; // ממרכז את התוכן במסך (וב-PDF)
         contentArea.style.boxShadow = 'none';
         contentArea.style.borderRadius = '0';
         contentArea.style.backgroundColor = '#ffffff';
 
-        // הופך את כל טבלאות הדפדוף להראות את כל הרשומות ב-PDF
+        // הוספת מניעת חיתוך עמוד לכל הקוביות והגרפים (Page Break)
+        const cards = contentArea.querySelectorAll('.bg-white, .bg-slate-50');
+        cards.forEach(card => {
+            card.style.pageBreakInside = 'avoid';
+            card.style.breakInside = 'avoid';
+        });
+
+        // פתיחת טבלאות דפדוף להצגת כל המידע בהדפסה
         const origTopPage = window.analyticsState.topPage;
         const origSlowPage = window.analyticsState.slowPage;
         const origItemsPerPage = window.analyticsState.itemsPerPage;
         window.analyticsState.topPage = 1;
         window.analyticsState.slowPage = 1;
-        window.analyticsState.itemsPerPage = 1000; // אין גבולות ל-PDF
+        window.analyticsState.itemsPerPage = 1000;
         window.renderTopProductsTable();
         window.renderSlowProductsTable();
         
-        // מסתירים גלילות וטבלת עסקאות
         if (rawDataSection) rawDataSection.classList.add('hidden');
 
-        // בניית כותרת ממותגת ומרוכזת
         const printHeader = contentArea.querySelector('.print\\:flex');
+        let origHeaderHtml = '';
+        
+        const bName = safeStr(currentGroup.name || 'העסק שלי');
+        const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText.replace(/ /g, ' ') : 'דוח';
+        
         if (printHeader) {
+            origHeaderHtml = printHeader.innerHTML;
             printHeader.classList.remove('hidden');
             printHeader.classList.add('flex');
             
-            const bName = safeStr(currentGroup.name || 'העסק שלי');
             let logoHtml = '';
             const logoInput = val('store-logo-base64');
             if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
-                logoHtml = `<img src="${logoInput}" style="height: 60px; width: auto; object-fit: contain; margin-left: 15px;">`;
+                logoHtml = `<img src="${logoInput}" style="height: 50px; width: auto; object-fit: contain; margin-right: 15px; border-radius: 8px;">`;
             }
             
-            const headerBrand = getEl('print-header-brand');
-            if(headerBrand) {
-                headerBrand.innerHTML = `<h3 style="font-size: 26px; font-weight: 900; color: #4f46e5; margin:0;">${bName}</h3>${logoHtml}`;
-            }
+            // כותרת מושלמת ומיושרת לימין, כולל מרווחים נכונים ונקודתיים במקום התקני
+            printHeader.innerHTML = `
+                <div style="width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; text-align: right; direction: rtl;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h1 style="font-size: 32px; font-weight: 900; color: #0f172a; margin: 0;">דוח ביצועים ופעילות עסקית</h1>
+                        <div style="display: flex; align-items: center; flex-direction: row-reverse;">
+                            ${logoHtml}
+                            <h2 style="font-size: 26px; font-weight: 900; color: #4f46e5; margin: 0;">${bName}</h2>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                        <p style="font-size: 16px; color: #475569; margin: 0 0 6px 0;"><strong style="color: #1e293b;">סוג הדוח:</strong> סיכום ביצועים, מכירות, והתפלגות קטגוריות.</p>
+                        <p style="font-size: 16px; color: #475569; margin: 0;"><strong style="color: #1e293b;">תקופה מדווחת:</strong> <span dir="rtl">${period}</span></p>
+                    </div>
+                </div>
+            `;
         }
 
-        const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
-        const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText.replace(/ /g, '-') : 'דוח';
+        const bnameFile = bName.replace(/[\/\\?%*:|"<> ]/g, '_');
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
-        const pdfFilename = `${bname}_Analytics_${period}_${dateStr}.pdf`;
+        const pdfFilename = `${bnameFile}_Analytics_${dateStr}.pdf`;
 
-        await new Promise(r => setTimeout(r, 600)); // מחכים לרינדור הגרפים לרוחב החדש
+        // ממתינים לעדכון העיצוב והגרפים לרוחב הצר החדש
+        await new Promise(r => setTimeout(r, 600)); 
 
         const opt = { 
-            margin: [10, 0, 10, 0], // שוליים מינימליים מהצדדים כי התוכן כבר מרופד
+            margin: [15, 15, 15, 15], 
             filename: pdfFilename, 
             image: { type: 'jpeg', quality: 1 }, 
-            html2canvas: { scale: 2, useCORS: true, windowWidth: 900, scrollY: 0, logging: false }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, // עברנו ל-Portrait קריא!
+            html2canvas: { scale: 2, useCORS: true, windowWidth: 850, scrollY: 0, logging: false }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'] }
         };
         
         await html2pdf().set(opt).from(contentArea).save();
         showToast('success', 'דוח האנליטיקה הופק בהצלחה!');
         
-        // --- שחזור המצב המקורי ---
+        // --- שחזור המצב המקורי בסיום ---
         Object.assign(contentArea.style, originalStyles);
         
+        cards.forEach(card => {
+            card.style.pageBreakInside = '';
+            card.style.breakInside = '';
+        });
+
         window.analyticsState.topPage = origTopPage;
         window.analyticsState.slowPage = origSlowPage;
         window.analyticsState.itemsPerPage = origItemsPerPage;
@@ -8017,6 +8044,7 @@ window.downloadAnalyticsReportPDF = async function() {
         window.renderSlowProductsTable();
 
         if (printHeader) {
+            printHeader.innerHTML = origHeaderHtml;
             printHeader.classList.add('hidden');
             printHeader.classList.remove('flex');
         }
