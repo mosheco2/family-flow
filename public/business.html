@@ -953,25 +953,25 @@
                                         <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-green-200 transition-colors">
                                             <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-green-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                                             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-sack-dollar text-green-500"></i> הכנסות ברוטו</span>
-                                            <span id="analytics-kpi-rev" class="text-2xl font-black text-slate-800 dir-ltr text-left relative z-10">₪0</span>
+                                            <span id="analytics-kpi-rev" class="text-xl sm:text-2xl font-black text-slate-800 dir-ltr text-left relative z-10 truncate w-full block">₪0</span>
                                             <div id="analytics-kpi-rev-trend" class="text-[10px] font-bold mt-2 relative z-10 text-right"></div>
                                         </div>
                                         <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-blue-200 transition-colors">
                                             <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-blue-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                                             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-receipt text-blue-500"></i> כמות הזמנות</span>
-                                            <span id="analytics-kpi-orders" class="text-2xl font-black text-slate-800 relative z-10">0</span>
+                                            <span id="analytics-kpi-orders" class="text-xl sm:text-2xl font-black text-slate-800 relative z-10 truncate block w-full">0</span>
                                             <div id="analytics-kpi-orders-trend" class="text-[10px] font-bold mt-2 relative z-10 text-right"></div>
                                         </div>
                                         <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-colors">
                                             <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-indigo-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                                             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-indigo-500"></i> ממוצע לעסקה (AOV)</span>
-                                            <span id="analytics-kpi-avg" class="text-2xl font-black text-slate-800 dir-ltr text-left relative z-10">₪0</span>
+                                            <span id="analytics-kpi-avg" class="text-xl sm:text-2xl font-black text-slate-800 dir-ltr text-left relative z-10 truncate block w-full">₪0</span>
                                             <div id="analytics-kpi-avg-trend" class="text-[10px] font-bold mt-2 text-slate-400 relative z-10 text-right"></div>
                                         </div>
                                         <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-purple-200 transition-colors">
                                             <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-purple-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
                                             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-users text-purple-500"></i> לקוחות חוזרים</span>
-                                            <span id="analytics-kpi-retention" class="text-2xl font-black text-slate-800 relative z-10">0%</span>
+                                            <span id="analytics-kpi-retention" class="text-xl sm:text-2xl font-black text-slate-800 relative z-10 truncate block w-full">0%</span>
                                             <div id="analytics-kpi-cust-count" class="text-[10px] font-bold mt-2 text-purple-600 relative z-10 text-right">מתוך 0 לקוחות</div>
                                         </div>
                                     </div>
@@ -1005,22 +1005,23 @@
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                    <div class="flex flex-col gap-6 mb-8">
                                         <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                                             <div class="p-4 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center">
                                                 <div class="flex items-center gap-2">
                                                     <i class="fa-solid fa-trophy text-emerald-500"></i>
-                                                    <h5 class="font-bold text-emerald-800 text-xs">המוצרים המובילים (Top 5)</h5>
+                                                    <h5 class="font-bold text-emerald-800 text-xs">המוצרים המובילים (Top Sellers)</h5>
                                                 </div>
                                                 <select id="analytics-top-by" onchange="renderAnalytics()" class="text-[10px] bg-white border border-emerald-200 rounded px-1 py-0.5 text-emerald-700 outline-none">
                                                     <option value="revenue">לפי הכנסה</option>
                                                     <option value="volume">לפי כמות</option>
                                                 </select>
                                             </div>
-                                            <div class="p-0">
+                                            <div class="p-0 overflow-x-auto">
                                                 <table class="w-full text-right border-collapse">
                                                     <thead>
                                                         <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                                            <th class="py-2 px-4 font-bold">דירוג</th>
                                                             <th class="py-2 px-4 font-bold">שם המוצר</th>
                                                             <th class="py-2 px-4 font-bold text-center">כמות</th>
                                                             <th class="py-2 px-4 font-bold text-left">הכנסה</th>
@@ -1029,13 +1030,19 @@
                                                     <tbody id="analytics-top-products" class="bg-white"></tbody>
                                                 </table>
                                             </div>
+                                            <div class="bg-slate-50 border-t border-slate-100 p-2 flex justify-between items-center px-4">
+                                                <button onclick="changeAnalyticsPage('top', -1)" class="text-xs font-bold text-slate-500 hover:text-indigo-600 transition"><i class="fa-solid fa-chevron-right"></i> הקודם</button>
+                                                <span id="analytics-top-page-info" class="text-[10px] font-bold text-slate-400">עמוד 1</span>
+                                                <button onclick="changeAnalyticsPage('top', 1)" class="text-xs font-bold text-slate-500 hover:text-indigo-600 transition">הבא <i class="fa-solid fa-chevron-left"></i></button>
+                                            </div>
                                         </div>
+
                                         <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm print:hidden">
                                             <div class="p-4 bg-orange-50/50 border-b border-orange-100 flex items-center gap-2">
                                                 <i class="fa-solid fa-hourglass-half text-orange-500"></i>
                                                 <h5 class="font-bold text-orange-800 text-xs">מלאי עומד / לא נמכרו (Slow Movers)</h5>
                                             </div>
-                                            <div class="p-0">
+                                            <div class="p-0 overflow-x-auto">
                                                 <table class="w-full text-right border-collapse">
                                                     <thead>
                                                         <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
@@ -1046,6 +1053,11 @@
                                                     </thead>
                                                     <tbody id="analytics-slow-products" class="bg-white"></tbody>
                                                 </table>
+                                            </div>
+                                            <div class="bg-slate-50 border-t border-slate-100 p-2 flex justify-between items-center px-4">
+                                                <button onclick="changeAnalyticsPage('slow', -1)" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition"><i class="fa-solid fa-chevron-right"></i> הקודם</button>
+                                                <span id="analytics-slow-page-info" class="text-[10px] font-bold text-slate-400">עמוד 1</span>
+                                                <button onclick="changeAnalyticsPage('slow', 1)" class="text-xs font-bold text-slate-500 hover:text-orange-600 transition">הבא <i class="fa-solid fa-chevron-left"></i></button>
                                             </div>
                                         </div>
                                     </div>
