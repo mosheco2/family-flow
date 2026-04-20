@@ -912,7 +912,6 @@
                                                 <option value="custom">התאמה אישית...</option>
                                             </select>
                                         </div>
-                                        
                                         <div id="analytics-custom-dates" class="hidden w-full sm:w-auto flex-1 flex gap-2 min-w-[250px]">
                                             <div class="flex-1">
                                                 <label class="text-[10px] font-bold text-slate-500 mb-1">מתאריך:</label>
@@ -944,9 +943,9 @@
                                     </div>
                                 </div>
 
-                                <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm flex flex-col items-center" style="direction: rtl;">
+                                <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm flex flex-col items-center text-right" style="direction: rtl; text-align: right;">
                                     
-                                    <div class="hidden print:flex flex-col w-full max-w-4xl mx-auto pb-4 mb-6 border-b-2 border-slate-200">
+                                    <div class="hidden print:flex flex-col w-full max-w-4xl mx-auto pb-4 mb-6 border-b-2 border-slate-200" dir="rtl">
                                         </div>
 
                                     <div class="w-full max-w-4xl mx-auto">
@@ -1020,11 +1019,11 @@
                                                     </select>
                                                 </div>
                                                 <div class="p-0 overflow-x-auto print:overflow-visible">
-                                                    <table class="w-full text-right border-collapse">
+                                                    <table class="w-full text-right border-collapse" dir="rtl">
                                                         <thead>
-                                                            <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200">
-                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 w-12 sm:w-16">דירוג</th>
-                                                                <th class="py-3 sm:py-4 px-3 sm:px-5">שם המוצר</th>
+                                                            <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200 text-right">
+                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 w-12 sm:w-16 text-right">דירוג</th>
+                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">שם המוצר</th>
                                                                 <th class="py-3 sm:py-4 px-3 sm:px-5 text-center w-24 sm:w-32">כמות</th>
                                                                 <th class="py-3 sm:py-4 px-3 sm:px-5 text-left w-28 sm:w-40">הכנסה</th>
                                                             </tr>
@@ -1045,11 +1044,11 @@
                                                     <h5 class="font-bold text-orange-800 text-sm sm:text-base">מלאי עומד / לא נמכרו (Slow Movers)</h5>
                                                 </div>
                                                 <div class="p-0 overflow-x-auto print:overflow-visible">
-                                                    <table class="w-full text-right border-collapse">
+                                                    <table class="w-full text-right border-collapse" dir="rtl">
                                                         <thead>
-                                                            <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200">
-                                                                <th class="py-3 sm:py-4 px-3 sm:px-5">שם המוצר</th>
-                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 w-32 sm:w-40">קטגוריה</th>
+                                                            <tr class="bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-200 text-right">
+                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">שם המוצר</th>
+                                                                <th class="py-3 sm:py-4 px-3 sm:px-5 w-32 sm:w-40 text-right">קטגוריה</th>
                                                                 <th class="py-3 sm:py-4 px-3 sm:px-5 text-center w-28 sm:w-32">סטטוס</th>
                                                             </tr>
                                                         </thead>
@@ -1070,14 +1069,14 @@
                                                 <span class="text-[10px] sm:text-xs text-slate-500 font-bold bg-slate-100 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg" id="analytics-orders-count-label">מציג נתונים</span>
                                             </div>
                                             <div class="overflow-x-auto max-h-96 modal-scroll print:max-h-max print:overflow-visible">
-                                                <table class="w-full text-right border-collapse" id="analytics-raw-table">
+                                                <table class="w-full text-right border-collapse" id="analytics-raw-table" dir="rtl">
                                                     <thead class="sticky top-0 bg-slate-200 shadow-sm z-10 print:static">
-                                                        <tr class="text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-300">
-                                                            <th class="py-3 sm:py-4 px-3 sm:px-5">מס'</th>
-                                                            <th class="py-3 sm:py-4 px-3 sm:px-5">תאריך ושעה</th>
-                                                            <th class="py-3 sm:py-4 px-3 sm:px-5">לקוח</th>
-                                                            <th class="py-3 sm:py-4 px-3 sm:px-5">סוג</th>
-                                                            <th class="py-3 sm:py-4 px-3 sm:px-5">סטטוס</th>
+                                                        <tr class="text-slate-600 text-[10px] sm:text-[11px] font-bold border-b border-slate-300 text-right">
+                                                            <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">מס'</th>
+                                                            <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">תאריך ושעה</th>
+                                                            <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">לקוח</th>
+                                                            <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">סוג</th>
+                                                            <th class="py-3 sm:py-4 px-3 sm:px-5 text-right">סטטוס</th>
                                                             <th class="py-3 sm:py-4 px-3 sm:px-5 text-left">סה"כ</th>
                                                         </tr>
                                                     </thead>
