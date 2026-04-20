@@ -7545,19 +7545,66 @@ window.downloadAnalyticsReportPDF = async function() {
     showToast('info', 'מפיק דוח אנליטיקה, אנא המתן...');
 
     try {
-        // עוטף את אזור האנליטיקה לצורך הדפסה בלבד (מונע חיתוך גלילה)
         const contentArea = getEl('analytics-dashboard-wrapper');
-        const originalHeight = contentArea.style.height;
-        const originalOverflow = contentArea.style.overflow;
         
-        // מבטל את הגלילה הפנימית (scroll) כדי שה-PDF יתפוס את כל האורך
+        // --- הכנת ה-DOM להדפסה מושלמת ---
+        // 1. שומרים את מצב הסטייל המקורי
+        const originalStyles = {
+            width: contentArea.style.width,
+            maxWidth: contentArea.style.maxWidth,
+            height: contentArea.style.height,
+            overflow: contentArea.style.overflow,
+            padding: contentArea.style.padding,
+            margin: contentArea.style.margin
+        };
+
+        // 2. כופים מידות של דף A4 סטנדרטי למניעת מתיחות/כיווצים במובייל
+        contentArea.style.width = '1000px';
+        contentArea.style.maxWidth = '1000px';
         contentArea.style.height = 'auto';
         contentArea.style.overflow = 'visible';
+        contentArea.style.padding = '30px';
+        contentArea.style.margin = '0';
+        
+        // 3. חשיפת כותרות הארגון שמוסתרות בדרך כלל (באמצעות Tailwind classes)
+        const printHeader = contentArea.querySelector('.print\\:block');
+        if (printHeader) {
+            printHeader.classList.remove('hidden');
+            printHeader.classList.add('block');
+            
+            // הוספת שם העסק ולוגו לכותרת ההדפסה באופן דינמי
+            const bName = safeStr(currentGroup.name || 'העסק שלי');
+            let logoHtml = '';
+            const logoInput = val('store-logo-base64');
+            if (logoInput && logoInput !== 'DELETE' && logoInput.trim() !== '') {
+                logoHtml = `<img src="${logoInput}" style="height: 40px; width: auto; object-fit: contain; margin-left: 15px;">`;
+            }
+            
+            printHeader.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <div>
+                        <h2 style="font-size: 28px; font-weight: 900; color: #1e293b; margin:0;">דוח ביצועים עסקיים</h2>
+                        <p style="font-size: 14px; color: #64748b; font-weight: bold; margin-top: 4px;">תקופה: ${getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח'}</p>
+                    </div>
+                    <div style="display:flex; align-items:center; text-align: left;">
+                        <h3 style="font-size: 18px; font-weight: 900; color: #4f46e5; margin:0;">${bName}</h3>
+                        ${logoHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 4. ודא שהטבלה לא נגללת ומכווצת אלא מוצגת במלואה
+        const tableContainer = contentArea.querySelector('.overflow-x-auto');
+        if (tableContainer) tableContainer.classList.remove('overflow-x-auto');
 
         const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
         const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText.replace(/ /g, '-') : 'דוח';
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
         const pdfFilename = `${bname}_Analytics_${period}_${dateStr}.pdf`;
+
+        // מחכים רגע שהדפדפן ירנדר את השינויים לפני הצילום
+        await new Promise(r => setTimeout(r, 300));
 
         const opt = { 
             margin: [10, 10, 10, 10], 
@@ -7570,10 +7617,19 @@ window.downloadAnalyticsReportPDF = async function() {
         await html2pdf().set(opt).from(contentArea).save();
         showToast('success', 'דוח האנליטיקה נשמר בהצלחה!');
         
-        // מחזיר למצב תצוגה מקורי
-        contentArea.style.height = originalHeight;
-        contentArea.style.overflow = originalOverflow;
+        // --- שחזור המצב המקורי ---
+        Object.assign(contentArea.style, originalStyles);
+        if (printHeader) {
+            printHeader.classList.add('hidden');
+            printHeader.classList.remove('block');
+        }
+        if (tableContainer) tableContainer.classList.add('overflow-x-auto');
+
+        // אם הגרפים השתבשו קצת בחזרה לרוחב הקודם, נרנדר אותם מחדש
+        if(typeof renderAnalytics === 'function') setTimeout(renderAnalytics, 100);
+
     } catch(err) {
+        console.error(err);
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
     } finally {
         btn.disabled = false;
