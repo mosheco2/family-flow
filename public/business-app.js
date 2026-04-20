@@ -7921,7 +7921,7 @@ window.downloadAnalyticsReportPDF = async function() {
         const contentArea = getEl('analytics-dashboard-wrapper');
         const rawDataSection = getEl('analytics-raw-data-section');
         
-        // --- הכנת ה-DOM להדפסה מושלמת ---
+        // שמירת סגנונות מקוריים של אזור התוכן כדי להחזירם לאחר ההדפסה
         const originalStyles = {
             width: contentArea.style.width,
             maxWidth: contentArea.style.maxWidth,
@@ -7932,22 +7932,32 @@ window.downloadAnalyticsReportPDF = async function() {
             boxShadow: contentArea.style.boxShadow,
             borderRadius: contentArea.style.borderRadius,
             backgroundColor: contentArea.style.backgroundColor,
-            textAlign: contentArea.style.textAlign
+            direction: contentArea.style.direction,
         };
 
-        // כופים מידות שמתאימות במדויק לרוחב A4 - לאורך ולמרכז (Portrait) - 800px בדיוק ממרכז את זה ב-PDF
-        contentArea.style.width = '800px'; 
-        contentArea.style.maxWidth = '800px';
+        // כופים מידות שמתאימות במדויק ל-A4 ברוחב
+        const pdfWidth = 794; // מתאים ל-A4 ב-96 DPI
+        contentArea.style.width = `${pdfWidth}px`; 
+        contentArea.style.maxWidth = `${pdfWidth}px`;
         contentArea.style.height = 'max-content';
         contentArea.style.overflow = 'visible';
-        contentArea.style.padding = '0';
+        contentArea.style.padding = '20px 30px'; 
         contentArea.style.margin = '0 auto';
         contentArea.style.boxShadow = 'none';
         contentArea.style.borderRadius = '0';
         contentArea.style.backgroundColor = '#ffffff';
-        contentArea.style.textAlign = 'right';
+        contentArea.style.direction = 'rtl';
 
-        // הופך את כל טבלאות הדפדוף להראות את כל הרשומות ב-PDF (פתיחה מלאה)
+        // הוספת מניעת חיתוך לקוביות וטבלאות - דילוג עמוד במקום קטיעה
+        const avoidElements = contentArea.querySelectorAll('.bg-white, .bg-slate-50, table');
+        const originalBreaks = [];
+        avoidElements.forEach(el => {
+            originalBreaks.push({el: el, val: el.style.pageBreakInside});
+            el.style.pageBreakInside = 'avoid';
+            el.style.breakInside = 'avoid';
+        });
+
+        // פתיחת הטבלאות במלואן ב-PDF ללא גלילה צדדית
         const origTopPage = window.analyticsState.topPage;
         const origSlowPage = window.analyticsState.slowPage;
         const origItemsPerPage = window.analyticsState.itemsPerPage;
@@ -7959,13 +7969,13 @@ window.downloadAnalyticsReportPDF = async function() {
         
         if (rawDataSection) rawDataSection.classList.add('hidden');
 
-        // בניית כותרת ממותגת ומרוכזת שתתיישר לימין ותהיה בנויה נכון לעברית
+        // כותרת רשמית, מרווחת, ותקנית עברית
         const printHeader = contentArea.querySelector('.print\\:flex');
         let origHeaderHtml = '';
-        
         const bName = safeStr(currentGroup.name || 'העסק שלי');
-        const period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח';
-        
+        let period = getEl('analytics-report-period') ? getEl('analytics-report-period').innerText : 'דוח';
+        period = period.replace(/-/g, ' עד '); // שייראה טוב יותר בעברית
+
         if (printHeader) {
             origHeaderHtml = printHeader.innerHTML;
             printHeader.classList.remove('hidden');
@@ -7978,17 +7988,23 @@ window.downloadAnalyticsReportPDF = async function() {
             }
             
             printHeader.innerHTML = `
-                <div style="width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; text-align: right; direction: rtl;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin: 0;">דוח ביצועים ופעילות עסקית</h1>
+                <div style="width: 100%; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 25px; text-align: right; direction: rtl; font-family: 'Rubik', sans-serif;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h1 style="font-size: 28px; font-weight: 900; color: #0f172a; margin: 0;">דוח ביצועים עסקיים</h1>
                         <div style="display: flex; align-items: center; flex-direction: row-reverse;">
                             ${logoHtml}
                             <h2 style="font-size: 24px; font-weight: 900; color: #4f46e5; margin: 0;">${bName}</h2>
                         </div>
                     </div>
-                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-block; min-width: 50%;">
-                        <p style="font-size: 14px; color: #475569; margin: 0 0 8px 0;"><strong style="color: #1e293b;">סוג הדוח:&nbsp;</strong> סיכום ביצועים, מכירות והתפלגות קטגוריות.</p>
-                        <p style="font-size: 14px; color: #475569; margin: 0;"><strong style="color: #1e293b;">תקופה מדווחת:&nbsp;</strong> <span dir="rtl">${period.replace(/-/g, ' ')}</span></p>
+                    <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-block; margin-top: 10px;">
+                        <div style="margin-bottom: 8px; font-size: 14px; color: #475569; display: flex; gap: 4px;">
+                            <span style="font-weight: 900; color: #1e293b;">סוג הדוח:</span> 
+                            <span>סיכום ביצועים, מכירות, התפלגות ומלאי</span>
+                        </div>
+                        <div style="font-size: 14px; color: #475569; display: flex; gap: 4px;">
+                            <span style="font-weight: 900; color: #1e293b;">תקופה מדווחת:</span> 
+                            <span>${period}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -7998,13 +8014,14 @@ window.downloadAnalyticsReportPDF = async function() {
         const dateStr = new Date().toLocaleDateString('he-IL').replace(/\./g, '-');
         const pdfFilename = `${bnameFile}_Analytics_${dateStr}.pdf`;
 
-        await new Promise(r => setTimeout(r, 600)); // מחכים לרינדור
+        // ממתינים לעדכון העיצוב במסך כדי שהגרפים יוכלו להתאים את עצמם
+        await new Promise(r => setTimeout(r, 800)); 
 
         const opt = { 
-            margin: 15, // שוליים אחידים מכל הכיוונים - זה ממקם את הדוח בדיוק באמצע!
+            margin: [10, 15, 10, 15], // שוליים אחידים [עליון, ימין, תחתון, שמאל] ממרכז לעמוד!
             filename: pdfFilename, 
             image: { type: 'jpeg', quality: 1 }, 
-            html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0, logging: false }, 
+            html2canvas: { scale: 2, useCORS: true, windowWidth: pdfWidth, scrollY: 0, logging: false }, 
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'legacy'] }
         };
@@ -8012,8 +8029,13 @@ window.downloadAnalyticsReportPDF = async function() {
         await html2pdf().set(opt).from(contentArea).save();
         showToast('success', 'דוח האנליטיקה הופק בהצלחה!');
         
-        // --- שחזור המצב המקורי למסך הדפדפן ---
+        // --- שחזור המצב המקורי בסיום ---
         Object.assign(contentArea.style, originalStyles);
+        
+        avoidElements.forEach((el, index) => {
+            el.style.pageBreakInside = originalBreaks[index].val;
+            el.style.breakInside = originalBreaks[index].val;
+        });
 
         window.analyticsState.topPage = origTopPage;
         window.analyticsState.slowPage = origSlowPage;
