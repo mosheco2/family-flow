@@ -3063,17 +3063,21 @@
                 <span id="status-screen-clock" class="text-2xl font-black text-slate-300 tracking-tighter">00:00</span>
             </div>
         </div>
-    <div id="pdf-report-export-container" class="hidden fixed inset-0 z-0 overflow-hidden bg-slate-200 p-8">
-        <div id="pdf-report-content" class="report-page bg-white w-[794px] min-h-[1123px] p-10 mx-auto shadow-sm" style="direction:rtl; font-family:'Rubik',sans-serif;">
+    <div id="pdf-report-export-container" class="fixed top-0 left-[-9999px] z-0 overflow-hidden bg-slate-200 p-8 w-[900px]">
+        <div id="pdf-report-content" class="bg-white p-8 mx-auto shadow-sm" style="direction:rtl; font-family:'Rubik',sans-serif; width:100%; max-width:900px;">
             </div>
     </div>
 
     <script>
-        // דריסת פונקציית ההפקה כדי לתמוך ב-PDF חדש
+        // דריסת פונקציית ההפקה לתמיכה ב-PDF במבנה הנכון ולמניעת התנגשויות מודאלים כפולים
         window.generateReport = function() {
-            const formatEle = document.querySelector('input[name="report_format"]:checked');
-            const format = formatEle ? formatEle.value : 'pdf';
-            const type = document.getElementById('report-type').value;
+            // חילוץ בטוח של הערכים מתוך המודאל הפעיל האחרון בלבד
+            const formatElements = Array.from(document.querySelectorAll('input[name="report_format"]:checked'));
+            const format = formatElements.length > 0 ? formatElements.pop().value : 'pdf';
+            
+            const typeElements = Array.from(document.querySelectorAll('#report-type'));
+            const type = typeElements.length > 0 ? typeElements.pop().value : 'executive';
+            
             const btns = document.querySelectorAll('#btn-generate-report');
             
             btns.forEach(btn => {
@@ -3097,7 +3101,6 @@
                 
                 setTimeout(() => {
                     const element = document.getElementById('pdf-report-content');
-                    document.getElementById('pdf-report-export-container').classList.remove('hidden');
                     
                     const typeNames = {
                         'executive': 'מנהלים',
@@ -3108,6 +3111,7 @@
                         'coupon': 'שימוש_קופונים'
                     };
                     
+                    // תצורה זהה להפקת הצעות המחיר במערכת
                     const opt = {
                         margin: 10,
                         filename: `Oneflow_דוח_${typeNames[type] || 'עסקי'}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.pdf`,
@@ -3117,7 +3121,13 @@
                     };
                     
                     html2pdf().set(opt).from(element).save().then(() => {
-                        document.getElementById('pdf-report-export-container').classList.add('hidden');
+                        btns.forEach(btn => {
+                            btn.innerHTML = btn.dataset.originalText;
+                            btn.disabled = false;
+                        });
+                    }).catch(err => {
+                        console.error('PDF Generation Error:', err);
+                        alert('אירעה שגיאה בהפקת ה-PDF.');
                         btns.forEach(btn => {
                             btn.innerHTML = btn.dataset.originalText;
                             btn.disabled = false;
@@ -3139,38 +3149,38 @@
             if(type === 'promotion') typeTitle = 'דוח ביצועי מבצעים';
             if(type === 'coupon') typeTitle = 'דוח שימוש בקופונים';
             
-            // בניית טבלת כותרות
+            // בניית טבלת כותרות בהתאם לסוג הדוח
             if (type === 'accounting') {
-                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">מס' הזמנה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">תאריך</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">לקוח</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">סכום</th>`;
+                headersHtml = `<th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">מס' הזמנה</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">תאריך</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">לקוח</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:left;">סכום</th>`;
             } else if (type === 'category') {
-                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">קטגוריה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">נתח מסך המכירות</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">הכנסות (₪)</th>`;
+                headersHtml = `<th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">קטגוריה</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:center;">נתח מסך המכירות</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:left;">הכנסות (₪)</th>`;
             } else if (type === 'inventory') {
-                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">שם פריט</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">כמות שנמכרה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">הכנסות (₪)</th>`;
+                headersHtml = `<th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">שם פריט</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:center;">כמות שנמכרה</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:left;">הכנסות (₪)</th>`;
             } else if (type === 'promotion' || type === 'coupon') {
-                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">שם הטבה / קופון</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">כמות מימושים</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">שווי הנחה מצטבר</th>`;
+                headersHtml = `<th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">שם הטבה / קופון</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:center;">כמות מימושים</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:left;">שווי הנחה מצטבר</th>`;
             } else {
-                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">מדד</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">ערך</th>`;
+                headersHtml = `<th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:right;">מדד</th><th style="padding:12px 10px; border-bottom:2px solid #cbd5e1; text-align:left;">ערך</th>`;
             }
             
             let html = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px;">
                     <div>
-                        <h1 style="font-size: 28px; font-weight: 800; margin:0; color: #0f172a;">${typeTitle}</h1>
-                        <p style="font-size: 14px; color: #64748b; margin-top:5px; font-weight: bold;">מערכת Oneflowlife BIZ</p>
+                        <h1 style="font-size: 32px; font-weight: 900; margin:0; color: #0f172a; letter-spacing: -0.5px;">${typeTitle}</h1>
+                        <p style="font-size: 16px; color: #475569; margin-top:8px; font-weight: bold;">מערכת Oneflowlife BIZ</p>
                     </div>
                     <div style="text-align: left;">
-                        <p style="font-size: 12px; color: #475569; margin: 0; font-family: monospace;">${new Date().toLocaleDateString('he-IL')} :תאריך הפקה</p>
+                        <p style="font-size: 14px; color: #64748b; margin: 0; font-weight: 500; font-family: monospace;">${new Date().toLocaleDateString('he-IL')} :תאריך הפקה</p>
                     </div>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <thead style="background-color: #f8fafc; color: #334155;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+                    <thead style="background-color: #f8fafc; color: #1e293b;">
                         <tr>${headersHtml}</tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8; font-style: italic;">הנתונים נשאבים ממסד הנתונים יוזנו לכאן באופן אוטומטי במעמד הייצוא.</td></tr>
+                        <tr><td colspan="5" style="padding: 40px; text-align: center; color: #94a3b8; font-style: italic; font-size: 14px;">הנתונים נשאבים ממסד הנתונים ויוזנו לכאן באופן אוטומטי במעמד הייצוא.</td></tr>
                     </tbody>
                 </table>
-                <div style="margin-top: 50px; font-size: 11px; color: #cbd5e1; text-align: center; border-top: 1px solid #f1f5f9; padding-top:15px;">
+                <div style="margin-top: 60px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top:20px; font-weight: 500;">
                     מסמך זה הופק ונחתם אלקטרונית בפורטל הניהול Oneflow B2B.
                 </div>
             `;
