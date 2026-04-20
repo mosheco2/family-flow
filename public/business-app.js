@@ -7357,6 +7357,8 @@ async function loadChartAndPdfJS() {
 window.toggleCustomDateFilters = function() {
     const filter = val('analytics-time-filter');
     const customDiv = getEl('analytics-custom-dates');
+    if (!customDiv) return;
+    
     if (filter === 'custom') {
         customDiv.classList.remove('hidden');
         if (!val('analytics-date-from')) {
@@ -7373,7 +7375,7 @@ window.toggleCustomDateFilters = function() {
 
 window.clearAnalyticsCategoryFilter = function() {
     activeCatFilter = null;
-    getEl('btn-clear-cat-filter').classList.add('hidden');
+    if(getEl('btn-clear-cat-filter')) getEl('btn-clear-cat-filter').classList.add('hidden');
     renderAnalytics();
 };
 
@@ -7465,6 +7467,8 @@ window.renderAnalytics = async function() {
     const prodMap = {}; 
     const uniqueCustomers = new Set();
     let returningCustomersCount = 0;
+    
+    // הכנה למפת חום - שורות=ימים, עמודות=שעות
     const heatmapData = Array(7).fill().map(() => Array(24).fill(0));
 
     const allCustomerPhones = {};
@@ -7474,7 +7478,7 @@ window.renderAnalytics = async function() {
 
     currentOrders.forEach(o => {
         const d = new Date(o.created_at);
-        const dayOfWeek = d.getDay(); // 0 = ראשון
+        const dayOfWeek = d.getDay(); 
         const hourOfDay = d.getHours();
         heatmapData[dayOfWeek][hourOfDay]++;
 
@@ -7531,19 +7535,25 @@ window.renderAnalytics = async function() {
 
     // הזרקת KPI
     if(getEl('analytics-kpi-rev')) getEl('analytics-kpi-rev').innerText = `₪${totalRevenue.toFixed(0)}`;
-    if(getEl('analytics-kpi-rev-trend')) getEl('analytics-kpi-rev-trend').innerHTML = calcTrend(totalRevenue, prevRevenue).html;
+    const revTrendEl = getEl('analytics-kpi-rev-trend');
+    if (revTrendEl) revTrendEl.innerHTML = calcTrend(totalRevenue, prevRevenue).html;
 
     if(getEl('analytics-kpi-orders')) getEl('analytics-kpi-orders').innerText = currentOrders.length;
-    if(getEl('analytics-kpi-orders-trend')) getEl('analytics-kpi-orders-trend').innerHTML = calcTrend(currentOrders.length, previousOrders.length).html;
+    const ordTrendEl = getEl('analytics-kpi-orders-trend');
+    if (ordTrendEl) ordTrendEl.innerHTML = calcTrend(currentOrders.length, previousOrders.length).html;
 
     if(getEl('analytics-kpi-avg')) getEl('analytics-kpi-avg').innerText = `₪${avgOrderValue.toFixed(0)}`;
-    if(getEl('analytics-kpi-avg-trend')) getEl('analytics-kpi-avg-trend').innerHTML = calcTrend(avgOrderValue, prevAvgOrderValue).html;
+    const avgTrendEl = getEl('analytics-kpi-avg-trend');
+    if (avgTrendEl) avgTrendEl.innerHTML = calcTrend(avgOrderValue, prevAvgOrderValue).html;
 
     if(getEl('analytics-kpi-retention')) getEl('analytics-kpi-retention').innerText = `${retentionRate}%`;
-    if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות ייחודיים`;
+    if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות`;
 
     // מוצרים (Top / Slow)
     const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
+    const topProductName = sortedProducts.length > 0 ? sortedProducts[0][0] : '-';
+    if(getEl('analytics-kpi-top')) getEl('analytics-kpi-top').innerText = topProductName;
+
     const topProductsBody = getEl('analytics-top-products');
     if (topProductsBody) {
         if (sortedProducts.length === 0) {
@@ -7578,13 +7588,17 @@ window.renderAnalytics = async function() {
 
     // טבלת נתונים גולמיים
     const tableBody = getEl('analytics-table-body');
+    const countLabel = getEl('analytics-orders-count-label');
+    if (countLabel) countLabel.innerText = `מציג ${Math.min(currentOrders.length, 15)} מתוך ${currentOrders.length} הזמנות`;
+    
     if (tableBody) {
         if (currentOrders.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-400 py-8 text-xs">אין נתונים לתקופה זו</td></tr>';
         } else {
             const statusMap = { 'new': 'חדש', 'processing': 'בהכנה', 'ready': 'מוכן', 'shipped': 'במשלוח', 'completed': 'נמסר' };
             const typeMap = (o) => o.quote_status === 'approved' ? 'הצעת מחיר' : (o.is_delivery == 1 ? 'משלוח' : 'חנות');
-            tableBody.innerHTML = currentOrders.slice(0, 15).map(o => {
+            const sortedTableOrders = [...currentOrders].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15);
+            tableBody.innerHTML = sortedTableOrders.map(o => {
                 const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
                 return `
                 <tr class="hover:bg-slate-50 transition">
@@ -7651,18 +7665,13 @@ window.renderAnalytics = async function() {
                 label: 'הכנסות בפועל (₪)', 
                 data: revData.length > 0 ? revData : [0], 
                 borderColor: '#4f46e5', backgroundColor: gradient, fill: true, tension: 0.4, borderWidth: 3,
-                pointBackgroundColor: '#ffffff', pointBorderColor: '#4f46e5', pointBorderWidth: 2, pointRadius: 4
+                pointBackgroundColor: '#ffffff', pointBorderColor: '#4f46e5', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6
             }];
 
             if (targetRev) {
                 datasets.push({
-                    label: 'יעד (₪)',
-                    data: revLabels.map(() => targetRev),
-                    borderColor: '#ef4444',
-                    borderDash: [5, 5],
-                    borderWidth: 2,
-                    fill: false,
-                    pointRadius: 0
+                    label: 'יעד (₪)', data: revLabels.map(() => targetRev), borderColor: '#ef4444',
+                    borderDash: [5, 5], borderWidth: 2, fill: false, pointRadius: 0
                 });
             }
 
@@ -7671,8 +7680,15 @@ window.renderAnalytics = async function() {
                 data: { labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], datasets: datasets },
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { display: targetRev ? true : false, position: 'top' } },
-                    scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                    plugins: { 
+                        legend: { display: targetRev ? true : false, position: 'top' },
+                        tooltip: { backgroundColor: '#1e293b', titleFont: {family:'Rubik'}, bodyFont: {family:'Rubik', weight: 'bold'}, padding: 12, cornerRadius: 8, displayColors: false, callbacks: { label: function(context) { return ' ₪' + context.raw.toFixed(0); } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9', drawBorder: false }, ticks: { font: {family: 'Rubik'} } },
+                        x: { grid: { display: false }, ticks: { font: {family: 'Rubik'} } }
+                    },
+                    interaction: { intersect: false, mode: 'index' }
                 }
             });
         }
@@ -7691,15 +7707,19 @@ window.renderAnalytics = async function() {
                 },
                 options: { 
                     responsive: true, maintainAspectRatio: false, cutout: '75%',
-                    plugins: { legend: { position: 'right' } },
+                    plugins: { 
+                        legend: { position: 'right', labels: {font:{family:'Rubik', size:11}, usePointStyle: true, padding: 15} },
+                        tooltip: { backgroundColor: '#1e293b', bodyFont: {family:'Rubik', weight: 'bold'}, padding: 12, cornerRadius: 8, callbacks: { label: function(context) { return ' ₪' + context.raw.toFixed(0); } } }
+                    },
                     onClick: (evt, item) => {
                         if (item && item.length > 0) {
                             const index = item[0].index;
                             activeCatFilter = catLabels[index];
-                            getEl('btn-clear-cat-filter').classList.remove('hidden');
+                            const clearBtn = getEl('btn-clear-cat-filter');
+                            if(clearBtn) clearBtn.classList.remove('hidden');
                             renderAnalytics(); // Drill-down Trigger
                         }
-                    }
+                    } 
                 }
             });
         }
@@ -7707,8 +7727,11 @@ window.renderAnalytics = async function() {
 };
 
 window.openReportBuilderModal = function() {
-    getEl('report-builder-modal').classList.remove('hidden');
-    window.updateReportFormatUI();
+    const modal = getEl('report-builder-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        window.updateReportFormatUI();
+    }
 };
 
 window.updateReportFormatUI = function() {
@@ -7717,20 +7740,23 @@ window.updateReportFormatUI = function() {
     const csvLabel = getEl('report-format-csv-label');
     
     if (reportType === 'executive') {
-        warningEl.classList.remove('hidden');
+        if(warningEl) warningEl.classList.remove('hidden');
         if (csvLabel) csvLabel.style.opacity = '0.5';
-        document.querySelector('input[name="report_format"][value="pdf"]').checked = true;
+        const pdfRadio = document.querySelector('input[name="report_format"][value="pdf"]');
+        if(pdfRadio) pdfRadio.checked = true;
     } else {
-        warningEl.classList.add('hidden');
+        if(warningEl) warningEl.classList.add('hidden');
         if (csvLabel) csvLabel.style.opacity = '1';
     }
 };
 
 window.generateReport = async function() {
     const reportType = val('report-type');
-    const reportFormat = document.querySelector('input[name="report_format"]:checked')?.value || 'pdf';
+    const checkedFormat = document.querySelector('input[name="report_format"]:checked');
+    const reportFormat = checkedFormat ? checkedFormat.value : 'pdf';
     
-    getEl('report-builder-modal').classList.add('hidden');
+    const modal = getEl('report-builder-modal');
+    if(modal) modal.classList.add('hidden');
     
     if (reportFormat === 'pdf') {
         await downloadAnalyticsReportPDF();
@@ -7823,7 +7849,7 @@ window.downloadAnalyticsReportPDF = async function() {
             margin: contentArea.style.margin
         };
 
-        // כופים מידות של דף A4 סטנדרטי
+        // כופים מידות של דף A4 סטנדרטי 
         contentArea.style.width = '1200px';
         contentArea.style.maxWidth = '1200px';
         contentArea.style.height = 'auto';
@@ -7892,8 +7918,10 @@ window.downloadAnalyticsReportPDF = async function() {
     } catch(err) {
         showToast('error', 'שגיאה ביצירת קובץ ה-PDF');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 };
 
