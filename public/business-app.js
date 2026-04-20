@@ -7633,7 +7633,6 @@ window.renderAnalytics = async function() {
             heatmapContainer.innerHTML = heatHtml;
         }
     }
-    }
 
     // ציור הגרפים
     const revLabels = Object.keys(revMap).sort((a,b) => {
