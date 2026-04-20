@@ -7324,12 +7324,12 @@ function updateSalesDashboardStats() {
 }
 
 // ============================================================
-// --- Analytics & Reporting Module ---
+// --- Analytics & Reporting Module (Pro Version) ---
 // ============================================================
 let analyticsRevChart = null;
 let analyticsCatChart = null;
+let activeCatFilter = null; // Drill-down filter
 
-// טעינה דינמית של ספריות ה-Chart וה-PDF
 async function loadChartAndPdfJS() {
     let promises = [];
     if (!window.Chart) {
@@ -7354,193 +7354,11 @@ async function loadChartAndPdfJS() {
     return true;
 }
 
-window.renderAnalytics = async function() {
-    const listContainer = getEl('sales-view-analytics');
-    if (listContainer && listContainer.classList.contains('hidden')) return; 
-    
-    const isLoaded = await loadChartAndPdfJS();
-    if (!isLoaded) return;
-
-    const timeFilter = val('analytics-time-filter') || '30';
-    const cutoff = new Date();
-    let periodLabel = '30 ימים אחרונים';
-    
-    if (timeFilter !== 'today') {
-        cutoff.setDate(cutoff.getDate() - parseInt(timeFilter));
-        if (timeFilter === '7') periodLabel = '7 ימים אחרונים';
-        if (timeFilter === '90') periodLabel = '3 חודשים אחרונים';
-        if (timeFilter === '365') periodLabel = 'שנה אחרונה';
-    } else {
-        cutoff.setHours(0,0,0,0);
-        periodLabel = 'היום';
-    }
-
-    // הזרקת המשתנה לתצוגת הכותרת בדוח
-    const reportTitleEl = getEl('analytics-report-period');
-    if(reportTitleEl) reportTitleEl.innerText = periodLabel;
-
-    if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
-
-    const relevantOrders = storeOrdersCache.filter(o => 
-        o.status !== 'cancelled' && 
-        o.status !== 'quote' &&
-        new Date(o.created_at) >= cutoff
-    );
-
-    let totalRevenue = 0;
-    const revMap = {};
-    const catMap = {};
-    const topProductsMap = {};
-    const uniqueCustomers = new Set();
-
-    relevantOrders.forEach(o => {
-        const d = new Date(o.created_at);
-        const dateKey = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; // מציג רק יום וחודש
-        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
-        
-        totalRevenue += orderAmount;
-        revMap[dateKey] = (revMap[dateKey] || 0) + orderAmount;
-        if(o.customer_phone) uniqueCustomers.add(o.customer_phone);
-        
-        try {
-            let items = [];
-            if (typeof o.items === 'string') {
-                try { items = JSON.parse(o.items); } catch(e){}
-            } else if (Array.isArray(o.items)) {
-                items = o.items;
-            }
-            
-            items.forEach(i => {
-                if (!i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) {
-                    const cleanName = i.item_name || i.name || i.catalog_name || 'מוצר כללי';
-                    const catName = i.category || 'כללי';
-                    const qty = parseFloat(i.quantity) || parseFloat(i.qty) || 1;
-                    const rowTotal = parseFloat(i.price_at_order) * qty || 0;
-                    
-                    catMap[catName] = (catMap[catName] || 0) + rowTotal;
-                    topProductsMap[cleanName] = (topProductsMap[cleanName] || 0) + qty;
-                }
-            });
-        } catch(e) {}
-    });
-
-    // חישוב מטריקות (KPIs)
-    const avgOrderValue = relevantOrders.length > 0 ? (totalRevenue / relevantOrders.length) : 0;
-    const topProduct = Object.entries(topProductsMap).sort((a,b) => b[1] - a[1])[0];
-    const topProductName = topProduct ? topProduct[0] : '-';
-
-    // עדכון כרטיסיות הנתונים (KPI Cards)
-    const kpiRev = getEl('analytics-kpi-rev'); if(kpiRev) kpiRev.innerText = `₪${totalRevenue.toFixed(0)}`;
-    const kpiAvg = getEl('analytics-kpi-avg'); if(kpiAvg) kpiAvg.innerText = `₪${avgOrderValue.toFixed(0)}`;
-    const kpiTop = getEl('analytics-kpi-top'); if(kpiTop) kpiTop.innerText = topProductName;
-    const kpiCust = getEl('analytics-kpi-cust'); if(kpiCust) kpiCust.innerText = uniqueCustomers.size;
-
-    // עדכון טבלת הנתונים (Recent Orders Data Table)
-    const tableBody = getEl('analytics-table-body');
-    if (tableBody) {
-        if (relevantOrders.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-slate-400 py-4 text-xs">אין נתונים לתקופה זו</td></tr>';
-        } else {
-            // לוקח את 10 ההזמנות האחרונות לתצוגה בטבלה
-            const sortedTableOrders = [...relevantOrders].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-            tableBody.innerHTML = sortedTableOrders.map(o => {
-                const dateStr = new Date(o.created_at).toLocaleDateString('he-IL') + ' ' + new Date(o.created_at).toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
-                return `
-                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-                    <td class="py-2 text-xs font-bold text-slate-700 pr-2">#${o.id}</td>
-                    <td class="py-2 text-xs text-slate-500">${dateStr}</td>
-                    <td class="py-2 text-xs text-slate-600 truncate max-w-[100px]">${safeStr(o.customer_name)}</td>
-                    <td class="py-2 text-xs font-bold text-indigo-600 dir-ltr pl-2 text-left">₪${parseFloat(o.total_amount).toFixed(2)}</td>
-                </tr>`;
-            }).join('');
-        }
-    }
-
-    // הכנת נתוני הגרפים
-    const revLabels = Object.keys(revMap).sort((a,b) => {
-        const [d1,m1] = a.split('.'); const [d2,m2] = b.split('.');
-        const y = new Date().getFullYear();
-        return new Date(`${y}-${m1}-${d1}`) - new Date(`${y}-${m2}-${d2}`);
-    });
-    const revData = revLabels.map(l => revMap[l]);
-
-    const catEntries = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
-    const catLabels = catEntries.map(c => c[0]);
-    const catData = catEntries.map(c => c[1]);
-
-    const ctxRev = getEl('analyticsRevenueChart');
-    const ctxCat = getEl('analyticsCategoryChart');
-
-    if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
-    if(ctxCat && ctxCat.previousElementSibling) ctxCat.previousElementSibling.style.display = 'none';
-
-    setTimeout(() => {
-        // גרף הכנסות חכם
-        if(analyticsRevChart) analyticsRevChart.destroy();
-        if(ctxRev && window.Chart) {
-            analyticsRevChart = new Chart(ctxRev, {
-                type: 'bar',
-                data: { 
-                    labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], 
-                    datasets: [{ 
-                        label: 'הכנסות (₪)', 
-                        data: revData.length > 0 ? revData : [0], 
-                        backgroundColor: '#4f46e5',
-                        borderRadius: 4,
-                        barThickness: 'flex',
-                        maxBarThickness: 30
-                    }] 
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { backgroundColor: '#1e293b', titleFont: {family:'Rubik'}, bodyFont: {family:'Rubik'} }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9', drawBorder: false } },
-                        x: { grid: { display: false } }
-                    }
-                }
-            });
-        }
-
-        // גרף חלוקה לקטגוריות
-        if(analyticsCatChart) analyticsCatChart.destroy();
-        if(ctxCat && window.Chart) {
-            analyticsCatChart = new Chart(ctxCat, {
-                type: 'doughnut',
-                data: { 
-                    labels: catLabels.length > 0 ? catLabels : ['טרם נמכרו מוצרים'], 
-                    datasets: [{ 
-                        data: catData.length > 0 ? catData : [1], 
-                        backgroundColor: catData.length > 0 ? ['#4f46e5','#10b981','#f59e0b','#ec4899','#06b6d4','#8b5cf6'] : ['#e2e8f0'],
-                        borderWidth: 2,
-                        hoverOffset: 4
-                    }] 
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '70%',
-                    plugins: { 
-                        legend: { position: 'right', labels: {font:{family:'Rubik', size:10}, usePointStyle: true, padding: 10} },
-                        tooltip: { callbacks: { label: function(context) { return ' ₪' + context.raw.toFixed(0); } } }
-                    } 
-                }
-            });
-        }
-    }, 150); 
-};
-
-// פונקציות עזר למחולל הדוחות
 window.toggleCustomDateFilters = function() {
     const filter = val('analytics-time-filter');
     const customDiv = getEl('analytics-custom-dates');
     if (filter === 'custom') {
         customDiv.classList.remove('hidden');
-        // נגדיר ברירת מחדל של מתחילת החודש עד היום אם השדות ריקים
         if (!val('analytics-date-from')) {
             const today = new Date();
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -7553,6 +7371,341 @@ window.toggleCustomDateFilters = function() {
     renderAnalytics();
 };
 
+window.clearAnalyticsCategoryFilter = function() {
+    activeCatFilter = null;
+    getEl('btn-clear-cat-filter').classList.add('hidden');
+    renderAnalytics();
+};
+
+window.renderAnalytics = async function() {
+    const listContainer = getEl('sales-view-analytics');
+    if (listContainer && listContainer.classList.contains('hidden')) return; 
+    
+    const isLoaded = await loadChartAndPdfJS();
+    if (!isLoaded) return showToast('error', 'שגיאה בטעינת ספריות הגרפים.');
+
+    const timeFilter = val('analytics-time-filter') || '30';
+    const orderTypeFilter = val('analytics-type-filter') || 'all';
+    const isCompare = getEl('analytics-compare-toggle') ? getEl('analytics-compare-toggle').checked : false;
+    
+    const now = new Date();
+    let cutoff = new Date();
+    let prevCutoffStart = new Date();
+    let prevCutoffEnd = new Date();
+    let periodLabel = '30 ימים אחרונים';
+    
+    // חישוב תאריכים לסינון והשוואה
+    if (timeFilter === 'custom') {
+        cutoff = new Date(val('analytics-date-from') || now);
+        cutoff.setHours(0,0,0,0);
+        const endCustom = new Date(val('analytics-date-to') || now);
+        endCustom.setHours(23,59,59,999);
+        const diffTime = Math.abs(endCustom - cutoff);
+        prevCutoffEnd = new Date(cutoff.getTime() - 1);
+        prevCutoffStart = new Date(prevCutoffEnd.getTime() - diffTime);
+        periodLabel = `${cutoff.toLocaleDateString('he-IL')} עד ${endCustom.toLocaleDateString('he-IL')}`;
+    } else if (timeFilter !== 'today' && timeFilter !== 'all') {
+        const days = parseInt(timeFilter);
+        cutoff.setDate(cutoff.getDate() - days);
+        prevCutoffEnd = new Date(cutoff.getTime() - 1);
+        prevCutoffStart.setDate(cutoff.getDate() - days);
+        if (timeFilter === '7') periodLabel = '7 ימים אחרונים';
+        if (timeFilter === '30') periodLabel = '30 ימים אחרונים';
+        if (timeFilter === '90') periodLabel = '3 חודשים אחרונים';
+        if (timeFilter === '365') periodLabel = 'שנה אחרונה';
+    } else if (timeFilter === 'today') {
+        cutoff.setHours(0,0,0,0);
+        prevCutoffEnd = new Date(cutoff.getTime() - 1);
+        prevCutoffStart = new Date(prevCutoffEnd);
+        prevCutoffStart.setHours(0,0,0,0);
+        periodLabel = 'היום';
+    } else {
+        cutoff.setFullYear(2000); 
+        prevCutoffStart.setFullYear(1999);
+        periodLabel = 'כל הזמן';
+    }
+
+    if(getEl('analytics-report-period')) getEl('analytics-report-period').innerText = periodLabel;
+    if (!storeOrdersCache || !Array.isArray(storeOrdersCache)) return;
+
+    // סינון לפי סטטוס תקין וסוג הזמנה
+    const validOrders = storeOrdersCache.filter(o => {
+        if (o.status === 'cancelled') return false;
+        
+        let typeMatch = true;
+        const isDelivery = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || (o.items && o.items.includes('DELIVERY_META'));
+        
+        if (orderTypeFilter === 'store') typeMatch = o.status !== 'quote' && (!o.quote_status || o.quote_status === 'draft') && !isDelivery;
+        else if (orderTypeFilter === 'quote') typeMatch = o.quote_status === 'approved';
+        else if (orderTypeFilter === 'delivery') typeMatch = isDelivery && o.status !== 'quote';
+        else if (orderTypeFilter === 'takeaway') typeMatch = !isDelivery && o.status !== 'quote' && (!o.quote_status || o.quote_status === 'draft');
+        
+        return typeMatch;
+    });
+    
+    // סינון לתאריכים רלוונטיים (EndCustom מחושב במקרה של custom)
+    const endCustom = timeFilter === 'custom' ? new Date(val('analytics-date-to') || now) : now;
+    if (timeFilter === 'custom') endCustom.setHours(23,59,59,999);
+
+    const currentOrders = validOrders.filter(o => {
+        const d = new Date(o.created_at);
+        return d >= cutoff && d <= endCustom;
+    });
+
+    const previousOrders = validOrders.filter(o => {
+        const d = new Date(o.created_at);
+        return d >= prevCutoffStart && d <= prevCutoffEnd;
+    });
+
+    // חישובי KPI ומיפוי נתונים
+    let totalRevenue = 0;
+    let prevRevenue = 0;
+    const revMap = {};
+    const catMap = {};
+    const prodMap = {}; 
+    const uniqueCustomers = new Set();
+    let returningCustomersCount = 0;
+    const heatmapData = Array(7).fill().map(() => Array(24).fill(0));
+
+    const allCustomerPhones = {};
+    validOrders.forEach(o => { if(o.customer_phone) allCustomerPhones[o.customer_phone] = (allCustomerPhones[o.customer_phone] || 0) + 1; });
+
+    previousOrders.forEach(o => prevRevenue += (parseFloat(o.total_amount) || parseFloat(o.total) || 0));
+
+    currentOrders.forEach(o => {
+        const d = new Date(o.created_at);
+        const dayOfWeek = d.getDay(); // 0 = ראשון
+        const hourOfDay = d.getHours();
+        heatmapData[dayOfWeek][hourOfDay]++;
+
+        const dateKey = timeFilter === 'today' ? `${String(d.getHours()).padStart(2,'0')}:00` : `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const orderAmount = parseFloat(o.total_amount) || parseFloat(o.total) || 0;
+        
+        // בדיקת Drill-Down (סינון לפי קטגוריה ספציפית בעוגה)
+        let containsActiveCat = false;
+        try {
+            let items = typeof o.items === 'string' ? JSON.parse(o.items) : (Array.isArray(o.items) ? o.items : []);
+            items.forEach(i => {
+                if (!i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) {
+                    const catName = i.category || 'כללי';
+                    if (activeCatFilter && catName === activeCatFilter) containsActiveCat = true;
+                    if (!activeCatFilter) containsActiveCat = true;
+                    
+                    if (containsActiveCat) {
+                        const cleanName = i.item_name || i.name || i.catalog_name || 'מוצר כללי';
+                        const qty = parseFloat(i.quantity) || parseFloat(i.qty) || 1;
+                        const rowTotal = parseFloat(i.price_at_order || i.price || 0) * qty || 0;
+                        
+                        catMap[catName] = (catMap[catName] || 0) + rowTotal;
+                        if(!prodMap[cleanName]) prodMap[cleanName] = { qty: 0, revenue: 0, category: catName };
+                        prodMap[cleanName].qty += qty;
+                        prodMap[cleanName].revenue += rowTotal;
+                    }
+                }
+            });
+        } catch(e) {}
+
+        if (containsActiveCat) {
+            totalRevenue += orderAmount;
+            revMap[dateKey] = (revMap[dateKey] || 0) + orderAmount;
+            if(o.customer_phone) uniqueCustomers.add(o.customer_phone);
+        }
+    });
+
+    uniqueCustomers.forEach(phone => { if (allCustomerPhones[phone] > 1) returningCustomersCount++; });
+
+    const calcTrend = (curr, prev) => {
+        if (!isCompare) return { html: '' };
+        if (prev === 0) return { html: curr > 0 ? `<span class="text-green-500"><i class="fa-solid fa-arrow-trend-up"></i> +100%</span>` : '' };
+        const diff = ((curr - prev) / prev) * 100;
+        const isPos = diff >= 0;
+        const color = isPos ? 'text-green-500' : 'text-red-500';
+        const icon = isPos ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+        const sign = isPos ? '+' : '';
+        return { html: `<span class="${color}"><i class="fa-solid ${icon}"></i> ${sign}${diff.toFixed(1)}%</span>` };
+    };
+
+    const avgOrderValue = currentOrders.length > 0 ? (totalRevenue / currentOrders.length) : 0;
+    const prevAvgOrderValue = previousOrders.length > 0 ? (prevRevenue / previousOrders.length) : 0;
+    const retentionRate = uniqueCustomers.size > 0 ? ((returningCustomersCount / uniqueCustomers.size) * 100).toFixed(0) : 0;
+
+    // הזרקת KPI
+    if(getEl('analytics-kpi-rev')) getEl('analytics-kpi-rev').innerText = `₪${totalRevenue.toFixed(0)}`;
+    if(getEl('analytics-kpi-rev-trend')) getEl('analytics-kpi-rev-trend').innerHTML = calcTrend(totalRevenue, prevRevenue).html;
+
+    if(getEl('analytics-kpi-orders')) getEl('analytics-kpi-orders').innerText = currentOrders.length;
+    if(getEl('analytics-kpi-orders-trend')) getEl('analytics-kpi-orders-trend').innerHTML = calcTrend(currentOrders.length, previousOrders.length).html;
+
+    if(getEl('analytics-kpi-avg')) getEl('analytics-kpi-avg').innerText = `₪${avgOrderValue.toFixed(0)}`;
+    if(getEl('analytics-kpi-avg-trend')) getEl('analytics-kpi-avg-trend').innerHTML = calcTrend(avgOrderValue, prevAvgOrderValue).html;
+
+    if(getEl('analytics-kpi-retention')) getEl('analytics-kpi-retention').innerText = `${retentionRate}%`;
+    if(getEl('analytics-kpi-cust-count')) getEl('analytics-kpi-cust-count').innerText = `מתוך ${uniqueCustomers.size} לקוחות ייחודיים`;
+
+    // מוצרים (Top / Slow)
+    const sortedProducts = Object.entries(prodMap).sort((a,b) => val('analytics-top-by') === 'volume' ? b[1].qty - a[1].qty : b[1].revenue - a[1].revenue);
+    const topProductsBody = getEl('analytics-top-products');
+    if (topProductsBody) {
+        if (sortedProducts.length === 0) {
+            topProductsBody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">אין נתונים</td></tr>';
+        } else {
+            topProductsBody.innerHTML = sortedProducts.slice(0, 5).map((p, i) => `
+                <tr class="border-b border-slate-50 hover:bg-emerald-50/30 transition">
+                    <td class="py-2.5 px-4 text-xs font-bold text-slate-700 flex items-center gap-2">
+                        <span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[9px]">${i+1}</span>
+                        ${safeStr(p[0])}
+                    </td>
+                    <td class="py-2.5 px-4 text-xs text-center font-medium text-slate-500">${p[1].qty} יח'</td>
+                    <td class="py-2.5 px-4 text-xs font-bold text-emerald-600 text-left dir-ltr">₪${p[1].revenue.toFixed(0)}</td>
+                </tr>`).join('');
+        }
+    }
+
+    const slowProductsBody = getEl('analytics-slow-products');
+    if (slowProductsBody && storeCatalogCache) {
+        const unsold = storeCatalogCache.filter(p => !prodMap[p.name] && p.product_type !== 'bundle' && (!activeCatFilter || p.category === activeCatFilter));
+        if (unsold.length === 0) {
+            slowProductsBody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-400 py-4 text-[11px]">כל המוצרים בקטגוריה נמכרו!</td></tr>';
+        } else {
+            slowProductsBody.innerHTML = unsold.slice(0, 5).map(p => `
+                <tr class="border-b border-slate-50 hover:bg-orange-50/30 transition">
+                    <td class="py-2.5 px-4 text-xs font-bold text-slate-700">${safeStr(p.name)}</td>
+                    <td class="py-2.5 px-4 text-[10px] text-slate-500"><span class="bg-slate-100 px-2 py-1 rounded-md">${safeStr(p.category || 'כללי')}</span></td>
+                    <td class="py-2.5 px-4 text-[10px] font-bold text-orange-500 text-center"><i class="fa-solid fa-triangle-exclamation"></i> 0 מכירות</td>
+                </tr>`).join('');
+        }
+    }
+
+    // טבלת נתונים גולמיים
+    const tableBody = getEl('analytics-table-body');
+    if (tableBody) {
+        if (currentOrders.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-400 py-8 text-xs">אין נתונים לתקופה זו</td></tr>';
+        } else {
+            const statusMap = { 'new': 'חדש', 'processing': 'בהכנה', 'ready': 'מוכן', 'shipped': 'במשלוח', 'completed': 'נמסר' };
+            const typeMap = (o) => o.quote_status === 'approved' ? 'הצעת מחיר' : (o.is_delivery == 1 ? 'משלוח' : 'חנות');
+            tableBody.innerHTML = currentOrders.slice(0, 15).map(o => {
+                const dateStr = new Date(o.created_at).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+                return `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-4 text-xs font-black text-slate-700">#${o.id}</td>
+                    <td class="py-3 px-4 text-[10px] text-slate-500 font-mono">${dateStr}</td>
+                    <td class="py-3 px-4 text-xs font-medium text-slate-600">${safeStr(o.customer_name)}</td>
+                    <td class="py-3 px-4 text-[10px] text-slate-500">${typeMap(o)}</td>
+                    <td class="py-3 px-4 text-[10px] text-slate-500">${statusMap[o.status] || o.status}</td>
+                    <td class="py-3 px-4 text-xs font-black text-indigo-600 dir-ltr text-left">₪${parseFloat(o.total_amount).toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+        }
+    }
+
+    // ציור מפת חום (Heatmap)
+    const heatmapContainer = getEl('analytics-heatmap');
+    if (heatmapContainer) {
+        const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+        let maxHeat = Math.max(...heatmapData.flat());
+        let heatHtml = '<div class="grid grid-cols-[auto_repeat(24,1fr)] gap-1 text-[9px] text-center">';
+        heatHtml += '<div></div>' + Array(24).fill().map((_,i) => `<div class="text-slate-400">${i}:00</div>`).join('');
+        
+        heatmapData.forEach((dayData, dayIdx) => {
+            heatHtml += `<div class="font-bold text-slate-600 text-right pr-2 self-center">${days[dayIdx]}</div>`;
+            dayData.forEach(val => {
+                let opacity = maxHeat > 0 ? (val / maxHeat) : 0;
+                let bg = opacity > 0 ? `rgba(249, 115, 22, ${Math.max(0.1, opacity)})` : '#f8fafc';
+                let title = `${days[dayIdx]} בשעה ${val}:00 - ${val} הזמנות`;
+                heatHtml += `<div title="${title}" class="h-6 rounded cursor-pointer hover:border hover:border-slate-800 transition" style="background-color: ${bg};"></div>`;
+            });
+        });
+        heatHtml += '</div>';
+        heatmapContainer.innerHTML = heatHtml;
+    }
+
+    // ציור הגרפים
+    const revLabels = Object.keys(revMap).sort((a,b) => {
+        if (timeFilter === 'today') return a.localeCompare(b);
+        const [d1,m1] = a.split('.'); const [d2,m2] = b.split('.');
+        const y = new Date().getFullYear();
+        return new Date(`${y}-${m1}-${d1}`) - new Date(`${y}-${m2}-${d2}`);
+    });
+    const revData = revLabels.map(l => revMap[l]);
+    const targetRev = parseFloat(val('analytics-target-revenue')) || null;
+
+    const catEntries = Object.entries(catMap).sort((a,b) => b[1] - a[1]);
+    const catLabels = catEntries.map(c => c[0]);
+    const catData = catEntries.map(c => c[1]);
+
+    const ctxRev = getEl('analyticsRevenueChart');
+    const ctxCat = getEl('analyticsCategoryChart');
+
+    if(ctxRev && ctxRev.previousElementSibling) ctxRev.previousElementSibling.style.display = 'none';
+    if(ctxCat && ctxCat.previousElementSibling) ctxCat.previousElementSibling.style.display = 'none';
+
+    setTimeout(() => {
+        if(analyticsRevChart) analyticsRevChart.destroy();
+        if(ctxRev && window.Chart) {
+            const gradient = ctxRev.getContext('2d').createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(79, 70, 229, 0.4)');
+            gradient.addColorStop(1, 'rgba(79, 70, 229, 0.0)');
+
+            const datasets = [{ 
+                label: 'הכנסות בפועל (₪)', 
+                data: revData.length > 0 ? revData : [0], 
+                borderColor: '#4f46e5', backgroundColor: gradient, fill: true, tension: 0.4, borderWidth: 3,
+                pointBackgroundColor: '#ffffff', pointBorderColor: '#4f46e5', pointBorderWidth: 2, pointRadius: 4
+            }];
+
+            if (targetRev) {
+                datasets.push({
+                    label: 'יעד (₪)',
+                    data: revLabels.map(() => targetRev),
+                    borderColor: '#ef4444',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0
+                });
+            }
+
+            analyticsRevChart = new Chart(ctxRev, {
+                type: 'line',
+                data: { labels: revLabels.length > 0 ? revLabels : ['אין נתונים'], datasets: datasets },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { display: targetRev ? true : false, position: 'top' } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        if(analyticsCatChart) analyticsCatChart.destroy();
+        if(ctxCat && window.Chart) {
+            analyticsCatChart = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: { 
+                    labels: catLabels.length > 0 ? catLabels : ['טרם נמכרו מוצרים'], 
+                    datasets: [{ 
+                        data: catData.length > 0 ? catData : [1], 
+                        backgroundColor: catData.length > 0 ? ['#4f46e5','#10b981','#f59e0b','#ec4899','#06b6d4','#8b5cf6','#64748b'] : ['#e2e8f0'],
+                        borderWidth: 0, hoverOffset: 8
+                    }] 
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, cutout: '75%',
+                    plugins: { legend: { position: 'right' } },
+                    onClick: (evt, item) => {
+                        if (item && item.length > 0) {
+                            const index = item[0].index;
+                            activeCatFilter = catLabels[index];
+                            getEl('btn-clear-cat-filter').classList.remove('hidden');
+                            renderAnalytics(); // Drill-down Trigger
+                        }
+                    }
+                }
+            });
+        }
+    }, 150); 
+};
+
 window.openReportBuilderModal = function() {
     getEl('report-builder-modal').classList.remove('hidden');
     window.updateReportFormatUI();
@@ -7563,7 +7716,6 @@ window.updateReportFormatUI = function() {
     const warningEl = getEl('report-warning');
     const csvLabel = getEl('report-format-csv-label');
     
-    // אם זה דוח גרפים, לא נאפשר CSV
     if (reportType === 'executive') {
         warningEl.classList.remove('hidden');
         if (csvLabel) csvLabel.style.opacity = '0.5';
@@ -7581,30 +7733,18 @@ window.generateReport = async function() {
     getEl('report-builder-modal').classList.add('hidden');
     
     if (reportFormat === 'pdf') {
-        if (reportType === 'executive') {
-            await downloadAnalyticsReportPDF();
-        } else {
-            // בעתיד אפשר להוסיף תבניות PDF ספציפיות, כרגע נוריד את כל המסך
-            await downloadAnalyticsReportPDF();
-        }
+        await downloadAnalyticsReportPDF();
     } else if (reportFormat === 'csv') {
-        if (reportType === 'accounting') {
-            exportOrdersToCSV();
-        } else if (reportType === 'inventory') {
-            exportProductsToCSV();
-        } else {
-            showToast('error', 'סוג דוח זה אינו נתמך בייצוא לאקסל');
-        }
+        if (reportType === 'accounting') exportOrdersToCSV();
+        else if (reportType === 'inventory') exportProductsToCSV();
+        else showToast('error', 'סוג דוח זה אינו נתמך בייצוא לאקסל');
     }
 };
 
 window.exportOrdersToCSV = function() {
     if (!storeOrdersCache || storeOrdersCache.length === 0) return showToast('error', 'אין נתונים לייצוא');
     
-    // הכנת הכותרות
     const headers = ["מזהה הזמנה", "תאריך יצירה", "לקוח", "טלפון לקוח", "סטטוס הזמנה", "סהכ סכום", "הערות"];
-    
-    // הכנת השורות - רק הזמנות שאינן טיוטה
     const rows = storeOrdersCache.filter(o => o.status !== 'quote').map(o => [
         o.id,
         new Date(o.created_at).toLocaleString('he-IL'),
@@ -7630,8 +7770,33 @@ window.exportOrdersToCSV = function() {
 };
 
 window.exportProductsToCSV = function() {
-    // מייצא את המוצרים מהטבלה שנמצאת כבר במסך (Top/Slow) או מהחישוב
-    showToast('info', 'ייצוא דוח מלאי (בקרוב...)');
+    if (!storeCatalogCache || storeCatalogCache.length === 0) return showToast('error', 'אין נתונים לייצוא');
+    
+    const headers = ["מקט", "שם מוצר", "קטגוריה", "מחיר יחידה", "סטטוס במערכת"];
+    const rows = storeCatalogCache.map(p => {
+        let sku = '';
+        try { if(p.properties) { const props = typeof p.properties === 'string' ? JSON.parse(p.properties) : p.properties; sku = props.sku || ''; } } catch(e){}
+        return [
+            `"${sku}"`,
+            `"${safeStr(p.name)}"`,
+            `"${safeStr(p.category || 'כללי')}"`,
+            parseFloat(p.price || 0).toFixed(2),
+            p.is_available ? 'פעיל' : 'מוסתר'
+        ];
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const bname = safeStr(currentGroup.name || 'עסק').replace(/[\/\\?%*:|"<> ]/g, '_');
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${bname}_Inventory_Report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('success', 'הדוח ירד בהצלחה למכשיר');
 };
 
 window.downloadAnalyticsReportPDF = async function() {
@@ -7658,7 +7823,7 @@ window.downloadAnalyticsReportPDF = async function() {
             margin: contentArea.style.margin
         };
 
-        // כופים מידות של דף A4 סטנדרטי (אופקי או אנכי)
+        // כופים מידות של דף A4 סטנדרטי
         contentArea.style.width = '1200px';
         contentArea.style.maxWidth = '1200px';
         contentArea.style.height = 'auto';
@@ -7666,7 +7831,7 @@ window.downloadAnalyticsReportPDF = async function() {
         contentArea.style.padding = '30px';
         contentArea.style.margin = '0';
         
-        // מסתירים את טבלת הנתונים הגולמית כדי לא לפגוע בעיצוב המסכם (PDF נראה טוב יותר כדשבורד)
+        // מסתירים את טבלת הנתונים הגולמית כדי לא לפגוע בעיצוב המסכם
         if (rawDataSection) rawDataSection.classList.add('print:hidden');
 
         // חשיפת כותרות הארגון שמוסתרות בדרך כלל
@@ -7708,7 +7873,7 @@ window.downloadAnalyticsReportPDF = async function() {
             filename: pdfFilename, 
             image: { type: 'jpeg', quality: 1 }, 
             html2canvas: { scale: 2, useCORS: true, windowWidth: 1240, scrollY: 0 }, 
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // שיניתי ל-landscape שייראה יותר טוב
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
         };
         
         await html2pdf().set(opt).from(contentArea).save();
@@ -7730,6 +7895,32 @@ window.downloadAnalyticsReportPDF = async function() {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
+};
+
+window.getAnalyticsAIInsight = async function() {
+    executeWithAIWarning(async () => {
+        showAIModal('אנליסט הנתונים הראשי (AI)', null); 
+        getEl('familai-loading-text').innerText = 'מנתח מגמות מכירה, מלאי ולקוחות...';
+        
+        const timeFilter = val('analytics-time-filter') || '30';
+        const rev = getEl('analytics-kpi-rev') ? getEl('analytics-kpi-rev').innerText : '0';
+        const top = getEl('analytics-kpi-top') ? getEl('analytics-kpi-top').innerText : '';
+        const orders = getEl('analytics-kpi-orders') ? getEl('analytics-kpi-orders').innerText : '0';
+
+        const promptText = `נתח את ביצועי העסק ב-${timeFilter} ימים האחרונים. סה"כ הכנסות: ${rev}, כמות הזמנות: ${orders}. המוצר הנמכר ביותר הוא: ${top}. ספק לי 3 תובנות מעשיות קצרות וקולעות לשיפור הרווחיות, שימור לקוחות או ייעול המלאי.`;
+        
+        try {
+            const res = await fetch(`${API}/biz/chat-assistant`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "אנליסט עסקי ומנהל צמיחה" }), groupId: currentGroup.id }) 
+            });
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.answer) { showAIModal('אנליסט נתונים (AI)', data.answer); }
+            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
+        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
 };
 
 // התיקון לחפיפת הטאבים: הוספנו את 'analytics' לרשימת הטאבים שהפונקציה מנהלת!
