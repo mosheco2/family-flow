@@ -900,10 +900,10 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <div class="flex flex-col relative">
-                                            <label class="text-[10px] font-bold text-slate-500 mb-1">טווח תאריכים:</label>
-                                            <select id="analytics-time-filter" onchange="toggleCustomDateFilters()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 items-end z-10 relative">
+                                        <div class="col-span-2 md:col-span-1">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1 block">טווח תאריכים:</label>
+                                            <select id="analytics-time-filter" onchange="toggleCustomDateFilters()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700 w-full">
                                                 <option value="today">היום</option>
                                                 <option value="7">7 ימים אחרונים</option>
                                                 <option value="30" selected>30 ימים אחרונים</option>
@@ -912,20 +912,21 @@
                                                 <option value="custom">התאמה אישית...</option>
                                             </select>
                                         </div>
-                                        <div id="analytics-custom-dates" class="hidden col-span-1 md:col-span-2 flex gap-2">
-                                            <div class="flex-1">
-                                                <label class="text-[10px] font-bold text-slate-500 mb-1">מתאריך:</label>
-                                                <input type="date" id="analytics-date-from" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200">
+                                        
+                                        <div id="analytics-custom-dates" class="hidden col-span-2 md:col-span-2 grid grid-cols-2 gap-2 w-full">
+                                            <div>
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1 block">מתאריך:</label>
+                                                <input type="date" id="analytics-date-from" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 w-full">
                                             </div>
-                                            <div class="flex-1">
-                                                <label class="text-[10px] font-bold text-slate-500 mb-1">עד תאריך:</label>
-                                                <input type="date" id="analytics-date-to" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200">
+                                            <div>
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1 block">עד תאריך:</label>
+                                                <input type="date" id="analytics-date-to" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 w-full">
                                             </div>
                                         </div>
                                         
-                                        <div class="flex flex-col">
-                                            <label class="text-[10px] font-bold text-slate-500 mb-1">סוג הזמנה:</label>
-                                            <select id="analytics-type-filter" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700">
+                                        <div class="col-span-2 md:col-span-1">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1 block">סוג הזמנה:</label>
+                                            <select id="analytics-type-filter" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700 w-full">
                                                 <option value="all">כל ההזמנות</option>
                                                 <option value="store">חנות בלבד</option>
                                                 <option value="quote">הצעות מחיר (שאושרו)</option>
@@ -934,8 +935,8 @@
                                             </select>
                                         </div>
                                         
-                                        <div class="flex flex-col justify-center items-start md:items-end mt-2 md:mt-0">
-                                            <label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 w-full md:w-auto">
+                                        <div class="col-span-2 md:col-span-4 flex justify-start md:justify-end mt-1">
+                                            <label class="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300">
                                                 <input type="checkbox" id="analytics-compare-toggle" onchange="renderAnalytics()" class="w-4 h-4 accent-indigo-600" checked>
                                                 <span class="text-xs font-bold text-slate-700">השוואה לתקופה קודמת</span>
                                             </label>
@@ -1700,31 +1701,34 @@
             </div>
         </div>
 
-    <div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+<div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-500"></i> מחולל דוחות</h3>
-                <button onclick="document.getElementById('report-builder-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="document.querySelectorAll('#report-builder-modal').forEach(el => el.classList.add('hidden'));" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-4 flex-1 overflow-y-auto modal-scroll pr-1">
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-2">סוג הדוח:</label>
-                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm" onchange="updateReportFormatUI()">
+                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm" onchange="if(typeof updateReportFormatUI === 'function') updateReportFormatUI()">
                         <option value="executive">דוח מנהלים מסכם (גרפים ומדדים)</option>
                         <option value="accounting">דוח חשבונאי (רשימת עסקאות לרו"ח)</option>
                         <option value="inventory">דוח מכירות פריטים (למלאי ורכש)</option>
+                        <option value="category">דוח מכר לפי קטגוריות</option>
+                        <option value="promotion">דוח מכר לפי מבצעים</option>
+                        <option value="coupon">דוח שימוש בקופונים</option>
                     </select>
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-2">פורמט ייצוא:</label>
                     <div class="flex gap-2">
                         <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-red-400 transition group">
-                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked onchange="updateReportFormatUI()">
+                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked onchange="if(typeof updateReportFormatUI === 'function') updateReportFormatUI()">
                             <i class="fa-solid fa-file-pdf text-3xl text-slate-300 peer-checked:text-red-500 mb-2 transition-colors"></i>
                             <span class="text-xs font-bold text-slate-600 peer-checked:text-red-600">PDF מקצועי</span>
                         </label>
                         <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-green-400 transition group" id="report-format-csv-label">
-                            <input type="radio" name="report_format" value="csv" class="hidden peer" onchange="updateReportFormatUI()">
+                            <input type="radio" name="report_format" value="csv" class="hidden peer" onchange="if(typeof updateReportFormatUI === 'function') updateReportFormatUI()">
                             <i class="fa-solid fa-file-excel text-3xl text-slate-300 peer-checked:text-green-500 mb-2 transition-colors"></i>
                             <span class="text-xs font-bold text-slate-600 peer-checked:text-green-600">Excel / CSV</span>
                         </label>
@@ -3059,5 +3063,119 @@
                 <span id="status-screen-clock" class="text-2xl font-black text-slate-300 tracking-tighter">00:00</span>
             </div>
         </div>
+    <div id="pdf-report-export-container" class="hidden fixed inset-0 z-0 overflow-hidden bg-slate-200 p-8">
+        <div id="pdf-report-content" class="report-page bg-white w-[794px] min-h-[1123px] p-10 mx-auto shadow-sm" style="direction:rtl; font-family:'Rubik',sans-serif;">
+            </div>
+    </div>
+
+    <script>
+        // דריסת פונקציית ההפקה כדי לתמוך ב-PDF חדש
+        window.generateReport = function() {
+            const formatEle = document.querySelector('input[name="report_format"]:checked');
+            const format = formatEle ? formatEle.value : 'pdf';
+            const type = document.getElementById('report-type').value;
+            const btns = document.querySelectorAll('#btn-generate-report');
+            
+            btns.forEach(btn => {
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מכין דוח...';
+                btn.disabled = true;
+            });
+
+            if (format === 'csv') {
+                if(typeof window.downloadCSVReport === 'function') {
+                    window.downloadCSVReport(type);
+                } else {
+                    alert('ייצוא CSV יושלם בקרוב. בינתיים נסה ייצוא ל-PDF.');
+                }
+                btns.forEach(btn => {
+                    btn.innerHTML = btn.dataset.originalText;
+                    btn.disabled = false;
+                });
+            } else if (format === 'pdf') {
+                buildPDFReportContent(type);
+                
+                setTimeout(() => {
+                    const element = document.getElementById('pdf-report-content');
+                    document.getElementById('pdf-report-export-container').classList.remove('hidden');
+                    
+                    const typeNames = {
+                        'executive': 'מנהלים',
+                        'accounting': 'חשבונאי',
+                        'inventory': 'מלאי_רכש',
+                        'category': 'מכר_קטגוריות',
+                        'promotion': 'מכר_מבצעים',
+                        'coupon': 'שימוש_קופונים'
+                    };
+                    
+                    const opt = {
+                        margin: 10,
+                        filename: `Oneflow_דוח_${typeNames[type] || 'עסקי'}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    
+                    html2pdf().set(opt).from(element).save().then(() => {
+                        document.getElementById('pdf-report-export-container').classList.add('hidden');
+                        btns.forEach(btn => {
+                            btn.innerHTML = btn.dataset.originalText;
+                            btn.disabled = false;
+                        });
+                    });
+                }, 800);
+            }
+        };
+
+        function buildPDFReportContent(type) {
+            const container = document.getElementById('pdf-report-content');
+            let typeTitle = 'דוח עסקי מסכם';
+            let headersHtml = '';
+            
+            if(type === 'executive') typeTitle = 'דוח מנהלים מסכם';
+            if(type === 'accounting') typeTitle = 'דוח עסקאות והכנסות (מפורט)';
+            if(type === 'inventory') typeTitle = 'דוח מכירות ומלאי פריטים';
+            if(type === 'category') typeTitle = 'דוח מכר לפי קטגוריות';
+            if(type === 'promotion') typeTitle = 'דוח ביצועי מבצעים';
+            if(type === 'coupon') typeTitle = 'דוח שימוש בקופונים';
+            
+            // בניית טבלת כותרות
+            if (type === 'accounting') {
+                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">מס' הזמנה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">תאריך</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">לקוח</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">סכום</th>`;
+            } else if (type === 'category') {
+                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">קטגוריה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">נתח מסך המכירות</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">הכנסות (₪)</th>`;
+            } else if (type === 'inventory') {
+                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">שם פריט</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">כמות שנמכרה</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">הכנסות (₪)</th>`;
+            } else if (type === 'promotion' || type === 'coupon') {
+                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">שם הטבה / קופון</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:center;">כמות מימושים</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">שווי הנחה מצטבר</th>`;
+            } else {
+                headersHtml = `<th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:right;">מדד</th><th style="padding:10px; border-bottom:2px solid #e2e8f0; text-align:left;">ערך</th>`;
+            }
+            
+            let html = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 30px;">
+                    <div>
+                        <h1 style="font-size: 28px; font-weight: 800; margin:0; color: #0f172a;">${typeTitle}</h1>
+                        <p style="font-size: 14px; color: #64748b; margin-top:5px; font-weight: bold;">מערכת Oneflowlife BIZ</p>
+                    </div>
+                    <div style="text-align: left;">
+                        <p style="font-size: 12px; color: #475569; margin: 0; font-family: monospace;">${new Date().toLocaleDateString('he-IL')} :תאריך הפקה</p>
+                    </div>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead style="background-color: #f8fafc; color: #334155;">
+                        <tr>${headersHtml}</tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8; font-style: italic;">הנתונים נשאבים ממסד הנתונים יוזנו לכאן באופן אוטומטי במעמד הייצוא.</td></tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 50px; font-size: 11px; color: #cbd5e1; text-align: center; border-top: 1px solid #f1f5f9; padding-top:15px;">
+                    מסמך זה הופק ונחתם אלקטרונית בפורטל הניהול Oneflow B2B.
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+    </script>
 </body>
 </html>
