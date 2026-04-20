@@ -888,79 +888,187 @@
                                     <div id="store-coupons-list" class="space-y-2 pb-8"></div>
                                 </div>
                             </div>
-                            <div id="sales-view-analytics" class="hidden space-y-4 pb-8">
-                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 px-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">ביצועים ומגמות דאטה</h4>
-                                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                                        <select id="analytics-time-filter" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs w-full sm:w-48 font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm bg-indigo-50">
-                                            <option value="today">היום</option>
-                                            <option value="7">7 ימים אחרונים</option>
-                                            <option value="30" selected>30 ימים אחרונים</option>
-                                            <option value="90">3 חודשים אחרונים</option>
-                                            <option value="365">שנה אחרונה</option>
-                                        </select>
-                                        <button id="btn-download-analytics" onclick="downloadAnalyticsReportPDF()" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition shrink-0"><i class="fa-solid fa-download"></i> הפק דוח</button>
-                                    </div>
-                                </div>
-                                
-                                <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm overflow-hidden" style="direction: rtl;">
-                                    <div class="hidden print:block pb-4 mb-6 border-b-2 border-slate-200">
-                                        <h2 class="text-2xl font-black text-slate-800">דוח ביצועים עסקיים</h2>
-                                        <p class="text-sm text-slate-500 font-bold mt-1">תקופה: <span id="analytics-report-period"></span></p>
-                                    </div>
-
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                        <div class="bg-green-50 p-4 rounded-2xl border border-green-100 flex flex-col justify-center text-right shadow-sm">
-                                            <span class="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1"><i class="fa-solid fa-sack-dollar ml-1"></i> סה"כ הכנסות</span>
-                                            <span id="analytics-kpi-rev" class="text-2xl font-black text-green-700 dir-ltr text-left">₪0</span>
+<div id="sales-view-analytics" class="hidden space-y-4 pb-8">
+                                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-4">
+                                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-chart-line text-indigo-500"></i> אנליטיקה ודוחות</h4>
                                         </div>
-                                        <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col justify-center text-right shadow-sm">
-                                            <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1"><i class="fa-solid fa-chart-line ml-1"></i> ממוצע להזמנה</span>
-                                            <span id="analytics-kpi-avg" class="text-2xl font-black text-blue-700 dir-ltr text-left">₪0</span>
-                                        </div>
-                                        <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 flex flex-col justify-center text-right shadow-sm">
-                                            <span class="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1"><i class="fa-solid fa-users ml-1"></i> לקוחות רוכשים</span>
-                                            <span id="analytics-kpi-cust" class="text-2xl font-black text-purple-700">0</span>
-                                        </div>
-                                        <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 flex flex-col justify-center text-right shadow-sm">
-                                            <span class="text-[10px] font-bold text-orange-600 uppercase tracking-wider mb-1"><i class="fa-solid fa-trophy ml-1"></i> נמכר ביותר</span>
-                                            <span id="analytics-kpi-top" class="text-base font-bold text-orange-700 truncate">-</span>
+                                        <div class="flex gap-2 w-full md:w-auto">
+                                            <button onclick="getAnalyticsAIInsight()" class="flex-1 md:flex-none text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-xl border border-purple-100 hover:bg-purple-100 transition flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> תובנות AI</button>
+                                            <button onclick="openReportBuilderModal()" class="flex-1 md:flex-none bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-export"></i> מחולל דוחות</button>
                                         </div>
                                     </div>
                                     
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <h5 class="font-bold text-slate-700 text-xs mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-column text-indigo-500"></i> הכנסות לפי תאריכים</h5>
-                                            <div class="relative h-56 w-full flex justify-center items-center">
-                                                <p class="text-xs text-slate-400">טוען גרף...</p>
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <div class="flex flex-col relative">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1">טווח תאריכים</label>
+                                            <select id="analytics-time-filter" onchange="toggleCustomDateFilters()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700">
+                                                <option value="today">היום</option>
+                                                <option value="7">7 ימים אחרונים</option>
+                                                <option value="30" selected>30 ימים אחרונים</option>
+                                                <option value="90">3 חודשים אחרונים</option>
+                                                <option value="365">שנה אחרונה</option>
+                                                <option value="custom">התאמה אישית...</option>
+                                            </select>
+                                        </div>
+                                        <div id="analytics-custom-dates" class="hidden col-span-1 md:col-span-2 flex gap-2">
+                                            <div class="flex-1">
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1">מתאריך</label>
+                                                <input type="date" id="analytics-date-from" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200">
+                                            </div>
+                                            <div class="flex-1">
+                                                <label class="text-[10px] font-bold text-slate-500 mb-1">עד תאריך</label>
+                                                <input type="date" id="analytics-date-to" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex flex-col">
+                                            <label class="text-[10px] font-bold text-slate-500 mb-1">סוג הזמנה</label>
+                                            <select id="analytics-type-filter" onchange="renderAnalytics()" class="modern-input py-2 px-3 text-xs bg-white shadow-sm border-slate-200 font-bold text-slate-700">
+                                                <option value="all">כל ההזמנות</option>
+                                                <option value="store">חנות בלבד</option>
+                                                <option value="quote">הצעות מחיר (שאושרו)</option>
+                                                <option value="delivery">משלוחים</option>
+                                                <option value="takeaway">איסוף במקום</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="flex flex-col justify-center items-start md:items-end mt-2 md:mt-0">
+                                            <label class="flex items-center gap-2 cursor-pointer">
+                                                <input type="checkbox" id="analytics-compare-toggle" onchange="renderAnalytics()" class="w-4 h-4 accent-indigo-600" checked>
+                                                <span class="text-xs font-bold text-slate-700">השוואה לתקופה קודמת</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="analytics-dashboard-wrapper" class="bg-white rounded-[2rem] p-4 sm:p-6 border border-slate-100 shadow-sm overflow-hidden" style="direction: rtl;">
+                                    <div class="hidden print:block pb-4 mb-6 border-b-2 border-slate-200">
+                                        <h2 class="text-2xl font-black text-slate-800" id="analytics-report-title">דוח ביצועים עסקיים</h2>
+                                        <p class="text-sm text-slate-500 font-bold mt-1">תקופה: <span id="analytics-report-period"></span></p>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                                        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-green-200 transition-colors">
+                                            <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-green-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
+                                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-sack-dollar text-green-500"></i> הכנסות ברוטו</span>
+                                            <span id="analytics-kpi-rev" class="text-2xl font-black text-slate-800 dir-ltr text-left relative z-10">₪0</span>
+                                            <div id="analytics-kpi-rev-trend" class="text-[10px] font-bold mt-2 relative z-10 text-right"></div>
+                                        </div>
+                                        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-blue-200 transition-colors">
+                                            <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-blue-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
+                                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-receipt text-blue-500"></i> כמות הזמנות</span>
+                                            <span id="analytics-kpi-orders" class="text-2xl font-black text-slate-800 relative z-10">0</span>
+                                            <div id="analytics-kpi-orders-trend" class="text-[10px] font-bold mt-2 relative z-10 text-right"></div>
+                                        </div>
+                                        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-colors">
+                                            <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-indigo-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
+                                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-chart-line text-indigo-500"></i> ממוצע לעסקה (AOV)</span>
+                                            <span id="analytics-kpi-avg" class="text-2xl font-black text-slate-800 dir-ltr text-left relative z-10">₪0</span>
+                                            <div id="analytics-kpi-avg-trend" class="text-[10px] font-bold mt-2 text-slate-400 relative z-10 text-right"></div>
+                                        </div>
+                                        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col justify-center text-right shadow-sm relative overflow-hidden group hover:border-purple-200 transition-colors">
+                                            <div class="absolute -left-4 -bottom-4 w-16 h-16 bg-purple-50 rounded-full z-0 group-hover:scale-150 transition-transform duration-500"></div>
+                                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1.5"><i class="fa-solid fa-users text-purple-500"></i> לקוחות חוזרים</span>
+                                            <span id="analytics-kpi-retention" class="text-2xl font-black text-slate-800 relative z-10">0%</span>
+                                            <div id="analytics-kpi-cust-count" class="text-[10px] font-bold mt-2 text-purple-600 relative z-10 text-right">מתוך 0 לקוחות</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 lg:col-span-2 shadow-sm">
+                                            <div class="flex justify-between items-center mb-4">
+                                                <h5 class="font-bold text-slate-700 text-sm flex items-center gap-2"><i class="fa-solid fa-chart-area text-indigo-500"></i> מגמת הכנסות מול יעד</h5>
+                                                <input type="number" id="analytics-target-revenue" onchange="renderAnalytics()" class="modern-input py-1 px-2 text-xs w-24 bg-white shadow-sm" placeholder="יעד ב-₪">
+                                            </div>
+                                            <div class="relative h-64 w-full flex justify-center items-center">
+                                                <p class="text-xs text-slate-400" id="chart-rev-loading">טוען גרף...</p>
                                                 <canvas id="analyticsRevenueChart" class="absolute inset-0"></canvas>
                                             </div>
                                         </div>
-                                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <h5 class="font-bold text-slate-700 text-xs mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-pink-500"></i> התפלגות קטגוריות</h5>
-                                            <div class="relative h-56 w-full flex justify-center items-center">
-                                                <p class="text-xs text-slate-400">טוען גרף...</p>
+                                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm relative">
+                                            <button id="btn-clear-cat-filter" onclick="clearAnalyticsCategoryFilter()" class="hidden absolute top-4 left-4 text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded shadow-sm hover:bg-red-200 transition z-10">נקה סינון פלח</button>
+                                            <h5 class="font-bold text-slate-700 text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-pink-500"></i> התפלגות הכנסות</h5>
+                                            <div class="relative h-64 w-full flex justify-center items-center">
+                                                <p class="text-xs text-slate-400" id="chart-cat-loading">טוען גרף...</p>
                                                 <canvas id="analyticsCategoryChart" class="absolute inset-0"></canvas>
+                                            </div>
+                                            <p class="text-[9px] text-center text-slate-400 mt-2">לחץ על פלח לסינון שאר הנתונים (Drill-down)</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8 shadow-sm overflow-x-auto print:hidden">
+                                        <h5 class="font-bold text-slate-700 text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-fire text-orange-500"></i> מפת עומסים (הזמנות לפי ימים ושעות)</h5>
+                                        <div id="analytics-heatmap" class="min-w-[600px] min-h-[150px] relative">
+                                            <p class="text-xs text-slate-400 absolute inset-0 flex items-center justify-center">מנתח עומסים...</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                        <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                                            <div class="p-4 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fa-solid fa-trophy text-emerald-500"></i>
+                                                    <h5 class="font-bold text-emerald-800 text-xs">המוצרים המובילים (Top 5)</h5>
+                                                </div>
+                                                <select id="analytics-top-by" onchange="renderAnalytics()" class="text-[10px] bg-white border border-emerald-200 rounded px-1 py-0.5 text-emerald-700 outline-none">
+                                                    <option value="revenue">לפי הכנסה</option>
+                                                    <option value="volume">לפי כמות</option>
+                                                </select>
+                                            </div>
+                                            <div class="p-0">
+                                                <table class="w-full text-right border-collapse">
+                                                    <thead>
+                                                        <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                                            <th class="py-2 px-4 font-bold">שם המוצר</th>
+                                                            <th class="py-2 px-4 font-bold text-center">כמות</th>
+                                                            <th class="py-2 px-4 font-bold text-left">הכנסה</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="analytics-top-products" class="bg-white"></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm print:hidden">
+                                            <div class="p-4 bg-orange-50/50 border-b border-orange-100 flex items-center gap-2">
+                                                <i class="fa-solid fa-hourglass-half text-orange-500"></i>
+                                                <h5 class="font-bold text-orange-800 text-xs">מלאי עומד / לא נמכרו (Slow Movers)</h5>
+                                            </div>
+                                            <div class="p-0">
+                                                <table class="w-full text-right border-collapse">
+                                                    <thead>
+                                                        <tr class="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                                            <th class="py-2 px-4 font-bold">שם המוצר</th>
+                                                            <th class="py-2 px-4 font-bold">קטגוריה</th>
+                                                            <th class="py-2 px-4 font-bold text-center">סטטוס</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="analytics-slow-products" class="bg-white"></tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div class="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
-                                        <div class="p-3 bg-slate-100 border-b border-slate-200">
-                                            <h5 class="font-bold text-slate-700 text-xs"><i class="fa-solid fa-list text-slate-400 ml-1"></i> פירוט הזמנות אחרונות (טופ 10)</h5>
+                                    <div class="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden shadow-sm" id="analytics-raw-data-section">
+                                        <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center">
+                                            <h5 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-list text-slate-400 ml-1"></i> פירוט עסקאות (נתונים גולמיים)</h5>
+                                            <span class="text-xs text-slate-500 font-medium" id="analytics-orders-count-label"></span>
                                         </div>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-right border-collapse">
-                                                <thead>
-                                                    <tr class="bg-white text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
-                                                        <th class="py-2.5 px-3 font-bold">מס' הזמנה</th>
-                                                        <th class="py-2.5 px-3 font-bold">תאריך ושעה</th>
-                                                        <th class="py-2.5 px-3 font-bold">לקוח</th>
-                                                        <th class="py-2.5 px-3 font-bold text-left">סה"כ לתשלום</th>
+                                        <div class="overflow-x-auto max-h-80 modal-scroll">
+                                            <table class="w-full text-right border-collapse" id="analytics-raw-table">
+                                                <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+                                                    <tr class="text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200">
+                                                        <th class="py-3 px-4 font-bold">מס'</th>
+                                                        <th class="py-3 px-4 font-bold">תאריך ושעה</th>
+                                                        <th class="py-3 px-4 font-bold">לקוח</th>
+                                                        <th class="py-3 px-4 font-bold">סוג</th>
+                                                        <th class="py-3 px-4 font-bold">סטטוס</th>
+                                                        <th class="py-3 px-4 font-bold text-left">סה"כ</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody id="analytics-table-body" class="bg-white">
-                                                    </tbody>
+                                                <tbody id="analytics-table-body" class="bg-white divide-y divide-slate-100">
+                                                </tbody>
                                             </table>
                                         </div>
                                     </div>
@@ -1561,15 +1669,55 @@
             </div>
         </div>
 
-        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
-                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
-                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
-                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
-                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
+<div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
+                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
+                <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
+                <p id="generic-alert-text" class="text-slate-600 mb-8 leading-relaxed whitespace-pre-line"></p>
+                <button onclick="document.getElementById('generic-alert-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-bold hover:bg-slate-200 transition">הבנתי, תודה!</button>
+            </div>
+        </div>
+
+    <div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
+                <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-500"></i> מחולל דוחות</h3>
+                <button onclick="document.getElementById('report-builder-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4 flex-1 overflow-y-auto modal-scroll pr-1">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">סוג הדוח:</label>
+                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm" onchange="updateReportFormatUI()">
+                        <option value="executive">דוח מנהלים מסכם (גרפים ומדדים)</option>
+                        <option value="accounting">דוח חשבונאי (רשימת עסקאות לרו"ח)</option>
+                        <option value="inventory">דוח מכירות פריטים (למלאי ורכש)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">פורמט ייצוא:</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-red-400 transition group">
+                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked onchange="updateReportFormatUI()">
+                            <i class="fa-solid fa-file-pdf text-3xl text-slate-300 peer-checked:text-red-500 mb-2 transition-colors"></i>
+                            <span class="text-xs font-bold text-slate-600 peer-checked:text-red-600">PDF מקצועי</span>
+                        </label>
+                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-green-400 transition group" id="report-format-csv-label">
+                            <input type="radio" name="report_format" value="csv" class="hidden peer" onchange="updateReportFormatUI()">
+                            <i class="fa-solid fa-file-excel text-3xl text-slate-300 peer-checked:text-green-500 mb-2 transition-colors"></i>
+                            <span class="text-xs font-bold text-slate-600 peer-checked:text-green-600">Excel / CSV</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="report-warning" class="text-[10px] text-slate-500 bg-blue-50 p-2 rounded-lg border border-blue-100 hidden">
+                    <i class="fa-solid fa-info-circle text-blue-500"></i> דוח גרפים וניהול נתמך כרגע בייצוא ל-PDF בלבד לשמירה על עיצוב נכון.
+                </div>
+            </div>
+            <div class="pt-4 border-t border-slate-100 mt-2 shrink-0">
+                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">הפק והורד דוח <i class="fa-solid fa-download"></i></button>
             </div>
         </div>
+    </div>
 
         <div id="welcome-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
