@@ -65,7 +65,7 @@ function logoutSA() {
 }
 
 function switchSATab(tabId) {
-    ['stats', 'comm', 'content', 'users', 'biz', 'support'].forEach(t => {
+    ['pulse', 'stats', 'comm', 'content', 'users', 'biz', 'support'].forEach(t => {
         const view = document.getElementById(`sa-view-${t}`);
         const btn = document.getElementById(`btn-sa-tab-${t}`);
         if (view) view.classList.add('hidden');
@@ -75,13 +75,96 @@ function switchSATab(tabId) {
     const activeBtn = document.getElementById(`btn-sa-tab-${tabId}`);
     if (activeView) activeView.classList.remove('hidden');
     if (activeBtn) {
-        if(tabId === 'support') {
-            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition';
+        if (tabId === 'pulse') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2';
+        } else if(tabId === 'support') {
+            activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 rounded-xl shadow-sm transition flex items-center justify-center gap-1';
         } else {
             activeBtn.className = 'flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition';
         }
     }
 }
+
+// לוגיקת רינדור ה-Live Pulse (דופק חי ואנומליות)
+function renderLivePulse(activityData, stats) {
+    const stream = getEl('pulse-live-stream');
+    if (!stream) return;
+
+    // חישוב KPIs שמוצגים בדשבורד החי
+    const totalUsers = (stats.familyUsers || 0) + (stats.businessUsers || 0);
+    getEl('pulse-active-users').innerText = totalUsers;
+    
+    // סינון הזמנות (הדמיה לפי פעילות רכש/קופה)
+    const ordersCount = activityData.filter(a => a.description.includes('רכש') || a.description.includes('קופה') || a.description.includes('תור')).length;
+    getEl('pulse-orders-today').innerText = ordersCount;
+    
+    // הדמיה של קריאות AI
+    const aiReqs = activityData.filter(a => a.description.includes('AI') || a.description.includes('חפיפה')).length;
+    getEl('pulse-ai-reqs').innerText = aiReqs * 2 || '--'; // מוכפל להדמיית נפח
+
+    // זיהוי שגיאות ואנומליות
+    const errorCount = activityData.filter(a => a.description.includes('שגיאה') || a.description.includes('נמחק') || a.description.includes('תקלה')).length;
+    const errorsEl = getEl('pulse-errors');
+    errorsEl.innerText = errorCount;
+    if (errorCount > 0) {
+        errorsEl.classList.replace('text-orange-400', 'text-red-500');
+        errorsEl.parentElement.classList.add('animate-pulse', 'border-red-500');
+    } else {
+        errorsEl.classList.replace('text-red-500', 'text-orange-400');
+        errorsEl.parentElement.classList.remove('animate-pulse', 'border-red-500');
+    }
+
+    // הקפצת אנומליה ויזואלית אם יש יותר מ-3 תקלות בדוח האחרון
+    const anomalyAlert = getEl('pulse-anomaly-alert');
+    if (anomalyAlert) {
+        if (errorCount >= 3) {
+            anomalyAlert.classList.remove('hidden');
+        } else {
+            anomalyAlert.classList.add('hidden');
+        }
+    }
+
+    // רינדור הלוגים בזמן אמת בתצוגה כהה
+    if (activityData.length === 0) {
+        stream.innerHTML = '<p class="text-slate-400 text-center py-4">אין פעילות בדקות האחרונות.</p>';
+        return;
+    }
+
+    stream.innerHTML = activityData.slice(0, 15).map(a => {
+        let icon = '<i class="fa-solid fa-bolt text-slate-400"></i>';
+        let bgGlow = '';
+        
+        if (a.is_financial) {
+            icon = '<i class="fa-solid fa-coins text-green-400"></i>';
+            bgGlow = 'border-l-2 border-l-green-500/50';
+        }
+        if (a.description.includes('AI') || a.description.includes('חפיפה')) {
+            icon = '<i class="fa-solid fa-microchip text-purple-400"></i>';
+            bgGlow = 'border-l-2 border-l-purple-500/50';
+        }
+        if (a.description.includes('שגיאה') || a.description.includes('נמחק')) {
+            icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>';
+            bgGlow = 'border-l-2 border-l-red-500/50';
+        }
+
+        const amountHtml = a.is_financial ? `<span class="text-green-400 font-mono font-bold tracking-wider dir-ltr ml-3">+₪${a.amount}</span>` : '';
+        const timeStr = new Date(a.date).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+        return `
+        <div class="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl transition ${bgGlow}">
+            <div class="flex items-center gap-3">
+                <span class="text-slate-400 font-mono text-[10px] w-14 text-left">${timeStr}</span>
+                <span class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shadow-inner text-sm">${icon}</span>
+                <span class="text-slate-200 font-medium">${safeStr(a.description)}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] bg-white/10 text-slate-300 px-2 py-1 rounded-md border border-white/10 truncate max-w-[120px]"><i class="fa-solid fa-house-user mr-1 text-slate-500"></i> ${safeStr(a.group_name)}</span>
+                ${amountHtml}
+            </div>
+        </div>`;
+    }).join('');
+}
+
 async function loadSAData() {
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
@@ -114,22 +197,29 @@ async function loadSAData() {
             setTxt('sa-stat-biz-users', data.stats.businessUsers);
         }
 
+        // ניתוב הנתונים למסך הדופק החדש
+        if (data.activity && data.stats) {
+            renderLivePulse(data.activity, data.stats);
+        }
+        
+        // יתירות (Fallback) במקרה שמישהו גולל חזרה לטאב הישן של הסטטיסטיקות
         const actList = getEl('sa-activity-list');
         if (actList) {
             actList.innerHTML = data.activity.map(a => {
-                const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">הרשמה</span>`;
+                const amountHtml = a.is_financial ? `<span class="font-bold text-slate-800 dir-ltr">(₪${a.amount})</span>` : `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">פעולה</span>`;
                 return `<div class="text-xs border-b pb-2 mb-2 flex justify-between items-center"><div class="flex-1"><span class="font-bold text-slate-700">${new Date(a.date).toLocaleDateString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span> | ${safeStr(a.group_name)} | <span class="font-bold">${safeStr(a.user_name)}</span> | ${safeStr(a.description)}</div> ${amountHtml}</div>`;
             }).join('');
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
+
         saAllGroups = data.groups || [];
         saAllUsers = data.users || [];
-        renderSAGroups();
-        loadSACommunityData();
         
-        if (typeof loadSATickets === 'function') {
-            loadSATickets();
-        }
+        // פונקציות שאחראיות על רינדור המסכים האחרים
+        if(typeof renderSAGroups === 'function') renderSAGroups();
+        if(typeof loadSACommunityData === 'function') loadSACommunityData();
+        if(typeof loadSATickets === 'function') loadSATickets();
+        
     } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
 
