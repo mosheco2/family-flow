@@ -30,6 +30,11 @@
         .cat-btn { flex: 0 0 auto; padding: 0.4rem 1.2rem; border-radius: 99px; font-size: 0.85rem; font-weight: 500; background: white; color: #4b5563; border: 1px solid #e5e7eb; transition: all 0.2s; }
         .cat-active { background: #000; color: white; border-color: #000; font-weight: 700; }
         
+        /* Sidebar & Menu Styles */
+        #side-menu { transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #side-menu.open { transform: translateX(0); }
+        .side-link-active { background: #f8fafc; border-right: 4px solid #000; font-weight: 900; }
+        
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -47,61 +52,80 @@
 
     <div id="store-app" class="hidden max-w-xl mx-auto min-h-screen bg-white shadow-2xl relative sm:rounded-2xl sm:my-4 overflow-hidden">
         
-        <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-4">
-            <div id="store-hero-banner" class="w-full h-40 sm:h-48 bg-slate-100 relative overflow-hidden shrink-0">
-                <div class="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 flex items-center justify-center text-slate-300">
-                    <i class="fa-solid fa-image text-5xl opacity-30"></i>
-                </div>
+<div id="menu-overlay" class="fixed inset-0 bg-slate-900/50 z-[100] hidden opacity-0 transition-opacity duration-300" onclick="window.toggleSideMenu(false)"></div>
+    <div id="side-menu" class="fixed top-0 right-0 bottom-0 w-72 bg-white z-[101] shadow-2xl flex flex-col overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <h3 class="font-black text-xl text-slate-800">קטגוריות</h3>
+            <button onclick="window.toggleSideMenu(false)" class="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm border border-slate-200 text-slate-500 hover:bg-slate-100 transition"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto py-2 modal-scroll" id="side-categories-list">
             </div>
-            
-            <div class="relative px-6 pt-0 text-center sm:text-right flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full max-w-4xl mx-auto">
-                <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white shadow-lg p-1.5 flex items-center justify-center relative overflow-hidden -mt-12 z-20 border border-slate-50 shrink-0">
-                    <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
-                    <div id="store-logo-placeholder" class="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
-                        <i class="fa-solid fa-store text-4xl"></i>
-                    </div>
-                </div>
-                
-                <div class="flex-1 flex flex-col items-center sm:items-start pt-2 z-20 w-full">
-                    <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
-                    <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
-                    
-                    <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
-                        <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
-                        <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
-                        <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
-                        <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
-                    </div>
+    </div>
 
-                    <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 w-max mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
-                </div>
-            </div>
-            
-            <div id="store-promotions-banner" class="w-full m-0 p-0 mt-4 border-t border-slate-100"></div>
-        </header>
-
-        <div class="glass-header sticky top-0 z-40">
-            <div class="p-4 pb-2 flex items-center gap-2">
-                <div class="relative flex-1">
-                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
-                </div>
-                <button onclick="window.toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
-                    <i class="fa-solid fa-list text-lg"></i>
-                </button>
-            </div>
-            <div class="relative w-full px-2 pb-2">
-                <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
-                    <i class="fa-solid fa-chevron-right text-xs"></i>
-                </button>
-
-                <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
-
-                <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
-                    <i class="fa-solid fa-chevron-left text-xs"></i>
-                </button>
+    <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-4">
+        <div id="store-hero-banner" class="w-full h-40 sm:h-48 bg-slate-100 relative overflow-hidden shrink-0">
+            <div class="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 flex items-center justify-center text-slate-300">
+                <i class="fa-solid fa-image text-5xl opacity-30"></i>
             </div>
         </div>
+        
+        <div class="relative px-6 pt-0 text-center sm:text-right flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full max-w-4xl mx-auto">
+            <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white shadow-lg p-1.5 flex items-center justify-center relative overflow-hidden -mt-12 z-20 border border-slate-50 shrink-0">
+                <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
+                <div id="store-logo-placeholder" class="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
+                    <i class="fa-solid fa-store text-4xl"></i>
+                </div>
+            </div>
+            
+            <div class="flex-1 flex flex-col items-center sm:items-start pt-2 z-20 w-full">
+                <div class="flex items-center gap-3 mb-1">
+                    <button onclick="window.toggleSideMenu(true)" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition sm:hidden border border-slate-200 shadow-sm"><i class="fa-solid fa-bars"></i></button>
+                    <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">...</h1>
+                </div>
+                <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
+                
+                <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
+                    <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
+                    <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
+                    <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
+                    <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
+                </div>
+
+                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 w-max mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
+            </div>
+        </div>
+
+        <div class="px-6 mt-4 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest overflow-hidden w-full max-w-4xl mx-auto">
+            <span class="hover:text-black cursor-pointer transition flex items-center gap-1" onclick="window.filterCategory('all')"><i class="fa-solid fa-house"></i> החנות</span>
+            <i class="fa-solid fa-chevron-left text-[8px] opacity-50"></i>
+            <span id="breadcrumb-current" class="text-slate-900 truncate">כל המוצרים</span>
+        </div>
+        
+        <div id="store-promotions-banner" class="w-full m-0 p-0 mt-3 border-t border-slate-100"></div>
+    </header>
+
+    <div class="glass-header sticky top-0 z-40">
+        <div class="p-4 pb-2 flex items-center gap-2">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
+            </div>
+            <button onclick="window.toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
+                <i class="fa-solid fa-list text-lg"></i>
+            </button>
+        </div>
+        <div class="relative w-full px-2 pb-2 group">
+            <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-black hover:scale-110 transition hidden md:flex border border-slate-200">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
+
+            <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-black hover:scale-110 transition hidden md:flex border border-slate-200">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+        </div>
+    </div>
         
         <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
     </div>
@@ -479,29 +503,80 @@
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
         };
 
-        window.extractCategories = function() {
-            const container = getEl('categories-container'); if (!storeData.catalog) return;
-            const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
+       // ניהול פתיחה וסגירה של תפריט הצד
+        window.toggleSideMenu = function(isOpen) {
+            const menu = getEl('side-menu');
+            const overlay = getEl('menu-overlay');
+            if (!menu || !overlay) return;
             
-            let html = '';
+            if (isOpen) {
+                menu.classList.add('open');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                menu.classList.remove('open');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        };
+
+        window.extractCategories = function() {
+            const container = getEl('categories-container'); 
+            const sideList = getEl('side-categories-list');
+            if (!storeData.catalog) return;
+            
+            const categories = new Set(); 
+            storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
+            
+            let htmlTop = '';
+            let htmlSide = '';
+            
             const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
             if (tabPromos.length > 0) {
-                html += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
+                htmlTop += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
+                htmlSide += `<button onclick="window.filterCategory('promotions')" id="side-btn-promotions" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-pink-50 transition text-pink-600"><span class="text-sm font-black"><i class="fa-solid fa-gift ml-1"></i> מבצעים חמים</span></button>`;
             }
             
-            html += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
-            categories.forEach(cat => { html += `<button onclick="window.filterCategory('${safeStr(cat)}')" id="cat-btn-${safeStr(cat)}" class="cat-btn shadow-sm">${safeStr(cat)}</button>`; });
-            container.innerHTML = html;
+            htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
+            htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">כל המוצרים</span></button>`;
+
+            categories.forEach(cat => { 
+                const safeCat = safeStr(cat);
+                htmlTop += `<button onclick="window.filterCategory('${safeCat}')" id="cat-btn-${safeCat}" class="cat-btn shadow-sm">${safeCat}</button>`; 
+                htmlSide += `<button onclick="window.filterCategory('${safeCat}')" id="side-btn-${safeCat}" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition"><span class="text-sm text-slate-700">${safeCat}</span></button>`;
+            });
+            
+            if(container) container.innerHTML = htmlTop;
+            if(sideList) sideList.innerHTML = htmlSide;
         };
 
         window.filterCategory = function(cat) {
             currentCategory = cat; 
+            
+            // עדכון פס קטגוריות עליון
             document.querySelectorAll('.cat-btn').forEach(btn => { 
                 btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); btn.classList.remove('bg-slate-900', 'text-white'); 
             });
-            const activeBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
-            if(activeBtn) { activeBtn.classList.add('cat-active'); activeBtn.classList.remove('shadow-sm'); }
-            if(cat === 'promotions' && activeBtn) { activeBtn.classList.add('bg-slate-900', 'text-white'); activeBtn.classList.remove('bg-pink-50', 'text-pink-700', 'border-pink-200'); }
+            const activeTopBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
+            if(activeTopBtn) { 
+                activeTopBtn.classList.add('cat-active'); activeTopBtn.classList.remove('shadow-sm'); 
+                if(cat === 'promotions') { activeTopBtn.classList.add('bg-slate-900', 'text-white'); activeTopBtn.classList.remove('bg-pink-50', 'text-pink-700', 'border-pink-200'); }
+            }
+
+            // עדכון תפריט צד (Sidebar)
+            document.querySelectorAll('#side-categories-list button').forEach(btn => {
+                btn.classList.remove('side-link-active');
+            });
+            const activeSideBtn = getEl(cat === 'all' ? 'side-btn-all' : `side-btn-${cat}`);
+            if(activeSideBtn) activeSideBtn.classList.add('side-link-active');
+
+            // עדכון ניווט פירורי לחם (Breadcrumbs)
+            const breadcrumb = getEl('breadcrumb-current');
+            if (breadcrumb) {
+                breadcrumb.innerText = cat === 'all' ? 'כל המוצרים' : (cat === 'promotions' ? 'מבצעים חמים' : cat);
+            }
+
+            window.toggleSideMenu(false); // סגור תפריט אחרי בחירה
             window.renderCatalog();
         };
 
@@ -1321,35 +1396,32 @@ window.generateAvailableTimeSlots = async function() {
             const selectedDateStr = dateInput ? dateInput.value : '';
             if (!selectedDateStr) return;
 
-            // --- תוספת: שאיבת אירועים עדכניים מהשרת בזמן אמת ---
-            timeSelect.innerHTML = '<option value="">בודק זמינות בזמן אמת...</option>';
+            timeSelect.innerHTML = '<option value="">בודק זמינות מול היומן...</option>';
+
             try {
-                const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
-                const calData = await calRes.json();
-                if (calData.success) {
-                    storeData.calendarEvents = calData.events || [];
+                // Fetch חי עם חותמת זמן שמונעת בוודאות טעינת נתונים ישנים (Bypass Cache)
+                const fetchUrl = `${API}/calendar/${storeData.groupId}?t=${new Date().getTime()}`;
+                const freshRes = await fetch(fetchUrl, { cache: 'no-store' });
+                const freshData = await freshRes.json();
+                
+                if (freshData.success) {
+                    storeData.calendarEvents = freshData.events || [];
                 }
-            } catch(e) {
-                console.warn('Using cached calendar events');
-            }
-            // --------------------------------------------------
+            } catch(e) { console.warn('Real-time sync failed, using last known data'); }
 
             const now = new Date();
             const isToday = selectedDateStr === now.toISOString().split('T')[0];
 
-            // שולפים את כל האירועים של היום הספציפי
             const todaysEvents = (storeData.calendarEvents || [])
                 .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'));
 
-            // חסימה חכמה: בודקים אם יש אירוע של "יום שלם" שנועל את כל הלו"ז
             const hasAllDayEvent = todaysEvents.some(e => e.notes && e.notes.includes('[ALL_DAY]'));
 
             if (hasAllDayEvent) {
                 timeSelect.innerHTML = '<option value="">היום סגור לאירוע (אין תורים)</option>';
-                return; // עוצרים כאן, לא מייצרים שעות בכלל!
+                return;
             }
 
-            // אם אין אירוע של יום שלם, אוספים את השעות התפוסות הרגילות
             const bookedTimes = todaysEvents.map(e => e.start_time.substring(0, 5));
 
             const openTimeStr = calSettings.open_time;
@@ -1367,8 +1439,6 @@ window.generateAvailableTimeSlots = async function() {
 
             while (current <= endTime) {
                 const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
-                
-                // מוודאים שהשעה לא עברה ושהיא לא תפוסה ביומן
                 const isTimePassed = isToday && current <= now;
                 const isBooked = bookedTimes.includes(timeStr);
 
@@ -1379,79 +1449,15 @@ window.generateAvailableTimeSlots = async function() {
                 current.setMinutes(current.getMinutes() + interval);
             }
 
-            if (html === '') {
-                html = '<option value="">אין שעות פנויות לתאריך זה</option>';
-            }
-            timeSelect.innerHTML = html;
+            timeSelect.innerHTML = html || '<option value="">אין שעות פנויות לתאריך זה</option>';
         };
 
-        window.submitBookingRequest = async function() {
-            const name = val('book-name');
-            const phone = val('book-phone');
-            const date = val('book-date');
-            const time = val('book-time');
-            const serviceId = val('book-service');
-            const notes = val('book-notes');
-
-            if (!name || !phone || !date || !time) {
-                return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
-            }
-
-            const btn = getEl('btn-submit-booking');
-            if (btn) {
-                btn.disabled = true; 
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...';
-            }
-
-            const payload = {
-                groupId: storeData.groupId,
-                title: name,
-                eventDate: date,
-                startTime: time,
-                serviceId: serviceId || null,
-                notes: notes,
-                customerPhone: phone,
-                status: 'pending' // הבקשה תמתין לאישור מנהל העסק ביומן
-            };
-
-            try {
-                const res = await fetch(`${API}/calendar/events`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    getEl('booking-modal').classList.add('hidden');
-                    
-                    // מציג מסך הצלחה חלופי (קיים בחנות)
-                    const successText = getEl('success-message-text');
-                    if(successText) successText.innerText = 'בקשתך נשלחה לעסק. נציג ייצור קשר בהקדם לאישור סופי.';
-                    
-                    const successBox = getEl('success-order-box');
-                    if(successBox) successBox.classList.add('hidden'); 
-                    
-                    const successScreen = getEl('success-screen');
-                    if(successScreen) successScreen.classList.remove('hidden');
-                    
-                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
-                } else {
-                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-                }
-            } catch(e) {
-                showToast('error', 'שגיאת רשת בשליחת הבקשה');
-            } finally {
-                if (btn) {
-                    btn.disabled = false; 
-                    btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
-                }
-            }
-        };
-
+        // תיקון החיצים - עבודה עם ערכים מוחלטים והיפוך כיוונים
         window.scrollCategories = function(direction) {
-            const container = document.getElementById('categories-container');
+            const container = getEl('categories-container');
             if (container) {
-                const scrollAmount = 200; 
+                // גלילה חלקה שעובדת מצוין ב-RTL
+                const scrollAmount = 250; 
                 container.scrollBy({
                     left: direction * scrollAmount,
                     behavior: 'smooth'
@@ -1460,15 +1466,25 @@ window.generateAvailableTimeSlots = async function() {
         };
 
         window.updateScrollButtonsVisibility = function() {
-            const container = document.getElementById('categories-container');
-            const rightBtn = document.getElementById('scroll-right-btn');
-            const leftBtn = document.getElementById('scroll-left-btn');
+            const container = getEl('categories-container');
+            const rightBtn = getEl('scroll-right-btn');
+            const leftBtn = getEl('scroll-left-btn');
             
             if (!container || !rightBtn || !leftBtn) return;
 
-            const isAtStart = container.scrollLeft === 0;
+            // ב-RTL (עברית) הדפדפן מחשב גלילה בצורה הפוכה 
+            // בודקים אם יש אפשרות גלילה בכלל
             const maxScroll = container.scrollWidth - container.clientWidth;
-            const isAtEnd = Math.abs(container.scrollLeft) >= (maxScroll - 5);
+            
+            if (maxScroll <= 0) {
+                rightBtn.style.display = 'none';
+                leftBtn.style.display = 'none';
+                return;
+            }
+
+            // חישוב מוחלט שמתאים לכל הדפדפנים ב-RTL
+            const isAtEnd = Math.abs(container.scrollLeft) <= 5;
+            const isAtStart = Math.abs(container.scrollLeft) >= (maxScroll - 5);
 
             rightBtn.style.opacity = isAtStart ? '0.3' : '1';
             rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
@@ -1478,7 +1494,7 @@ window.generateAvailableTimeSlots = async function() {
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('categories-container');
+            const container = getEl('categories-container');
             if (container) {
                 container.addEventListener('scroll', window.updateScrollButtonsVisibility);
                 setTimeout(window.updateScrollButtonsVisibility, 800); 
