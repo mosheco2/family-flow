@@ -8833,30 +8833,27 @@ window.saveCalendarSettings = async function() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור הגדרות יומן'; }
 };
 
-// הזרקה לאתחול (כדי שיטען במעבר טאבים)
-const _originalSwitchTabForCal = window.switchTab;
-if (_originalSwitchTabForCal && !window.calSwitchTabOverridden) {
+// הזרקה לאתחול (כדי שיטען במעבר טאבים) - תוקן למניעת שגיאות כפילות
+if (!window._originalSwitchTabForCal) {
+    window._originalSwitchTabForCal = window.switchTab;
     window.switchTab = function(tabId) {
-        _originalSwitchTabForCal(tabId);
+        if(window._originalSwitchTabForCal) window._originalSwitchTabForCal(tabId);
         if (tabId === 'calendar') {
-            window.switchCalendarTab('schedule');
+            if(typeof window.switchCalendarTab === 'function') window.switchCalendarTab('schedule');
         }
     };
-    window.calSwitchTabOverridden = true;
 }
 
 // נוסיף האזנה לשינויים בסטטוס הזמנות כדי לרענן את מסך ה-Live אם הוא פתוח.
-// נתחבר לפונקציה הקיימת renderStoreOrders.
-const originalRenderStoreOrders = window.renderStoreOrders;
-if (originalRenderStoreOrders && !window.renderStoreOrdersOverriddenForLive) {
+if (!window._originalRenderStoreOrders) {
+    window._originalRenderStoreOrders = window.renderStoreOrders;
     window.renderStoreOrders = function() {
-        originalRenderStoreOrders(); // קריאה לפונקציה המקורית
+        if(window._originalRenderStoreOrders) window._originalRenderStoreOrders(); 
         
         // אם מסך הסטטוס פתוח, רענן גם אותו
-        const screen = getEl('customer-status-screen');
+        const screen = document.getElementById('customer-status-screen');
         if (screen && !screen.classList.contains('hidden')) {
-            window.renderCustomerStatusScreen();
+            if(typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
         }
     };
-    window.renderStoreOrdersOverriddenForLive = true;
 }
