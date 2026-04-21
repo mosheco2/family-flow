@@ -1798,14 +1798,23 @@
                         <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג שירות:</label>
                         <select id="cal-event-service" class="modern-input py-2 text-sm bg-white font-bold text-cyan-700"></select>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-1">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך:</label>
-                            <input type="date" id="cal-event-date" class="modern-input py-2 text-sm bg-white font-bold">
+                            <input type="date" id="cal-event-date" class="modern-input py-2 px-1 text-xs bg-white font-bold">
                         </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שעת התחלה:</label>
-                            <input type="time" id="cal-event-time" class="modern-input py-2 text-sm bg-white font-bold">
+                        <div class="col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג תזמון:</label>
+                            <select id="cal-event-time-type" onchange="document.getElementById('cal-event-time').disabled = (this.value !== 'specific'); document.getElementById('cal-event-time').style.opacity = (this.value !== 'specific' ? '0.5' : '1');" class="modern-input py-2 px-1 text-[11px] bg-white font-bold text-slate-700">
+                                <option value="specific">לפי שעה</option>
+                                <option value="ALL_DAY">יום שלם</option>
+                                <option value="EVENING">ערב שלם</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שעה:</label>
+                            <input type="time" id="cal-event-time" class="modern-input py-2 px-1 text-xs bg-white font-bold text-center">
                         </div>
                     </div>
                     
@@ -1826,6 +1835,9 @@
                 <div class="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
                     <button onclick="document.getElementById('cal-event-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">סגור</button>
                     <button onclick="if(typeof submitCalendarEvent==='function') submitCalendarEvent()" id="btn-submit-cal-event" class="w-2/3 bg-cyan-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור אירוע</button>
+                </div>
+            </div>
+        </div>
                 </div>
             </div>
         </div>
