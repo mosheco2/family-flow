@@ -11,10 +11,10 @@ let saAllUsers = [];
 let saCommunitiesCache = [];
 let saBusinessesCache = [];
 let saTicketsCache = [];
+let saPartnersCache = []; // <-- הוספנו משתנה זה
 let currentCommFamiliesCache = [];
 let createCityTags = [];
 let editCityTags = [];
-
 window.onload = () => {
     const savedToken = localStorage.getItem('ofl_sa_token');
     if (savedToken) {
@@ -212,17 +212,17 @@ async function loadSAData() {
             if (data.activity.length === 0) actList.innerHTML = '<p class="text-slate-400 text-sm">אין פעילות עדיין במערכת...</p>';
         }
 
-        saAllGroups = data.groups || [];
+       saAllGroups = data.groups || [];
         saAllUsers = data.users || [];
         
         // פונקציות שאחראיות על רינדור המסכים האחרים
         if(typeof renderSAGroups === 'function') renderSAGroups();
         if(typeof loadSACommunityData === 'function') loadSACommunityData();
         if(typeof loadSATickets === 'function') loadSATickets();
+        if(typeof loadSAPartners === 'function') loadSAPartners(); // <-- הוספנו פונקציה זו
         
     } catch (e) { showToast('error', 'שגיאה בטעינת נתוני ניהול'); }
 }
-
 async function loadSATickets() {
     const list = getEl('sa-tickets-list');
     if(!list) return;
@@ -1317,5 +1317,135 @@ async function updateSATicketStatus(id, status) {
         } else {
             showToast('error', 'שגיאה בעדכון הסטטוס');
         }
-    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת בעדכון הסטטוס'); }    
+}
+// ==========================================
+// --- ניהול שותפים ומטמיעים (Partners) ---
+// ==========================================
+
+async function loadSAPartners() {
+    const tbody = getEl('sa-partners-table-body');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch(`${API}/superadmin/partners`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        
+        if (data.success) {
+            saPartnersCache = data.partners || [];
+            renderSAPartnersTable();
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">שגיאה: ${data.error}</td></tr>`;
+        }
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת עם השרת</td></tr>`;
+    }
+}
+
+function renderSAPartnersTable() {
+    const tbody = getEl('sa-partners-table-body');
+    if (!tbody) return;
+
+    if (saPartnersCache.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed">אין שותפים רשומים במערכת עדיין.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = saPartnersCache.map(p => `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
+            <td class="px-4 py-4 font-bold text-slate-800 text-right flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-user-tie"></i></div>
+                <div>
+                    ${safeStr(p.name)}
+                    <div class="text-[10px] text-slate-500 mt-0.5">נוצר: ${new Date(p.created_at).toLocaleDateString('he-IL')}</div>
+                </div>
+            </td>
+            <td class="px-4 py-4 text-slate-600 text-right dir-ltr font-mono text-sm">${safeStr(p.email)}</td>
+            <td class="px-4 py-4 text-center">
+                <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold text-xs"><i class="fa-solid fa-link"></i> ${p.clients_count || 0} לקוחות</span>
+            </td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="deleteSAPartner(${p.id})" class="text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-lg shadow-sm transition inline-flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openSAAddPartnerModal() {
+    // נבנה מודאל דינמי על המסך
+    let modal = getEl('sa-add-partner-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-add-partner-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 fade-in';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <button onclick="document.getElementById('sa-add-partner-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-user-plus text-emerald-500 mr-2"></i> הוספת שותף/מטמיע</h3>
+                
+                <label class="text-xs font-bold text-slate-500 mb-1 block">שם מלא / שם העסק:</label>
+                <input type="text" id="sa-partner-name" class="modern-input mb-3" placeholder="למשל: סוכנות הטמעות בע&quot;מ">
+                
+                <label class="text-xs font-bold text-slate-500 mb-1 block">כתובת אימייל להתחברות:</label>
+                <input type="email" id="sa-partner-email" class="modern-input mb-3 text-left dir-ltr" placeholder="partner@email.com">
+                
+                <label class="text-xs font-bold text-slate-500 mb-1 block">סיסמה ראשונית:</label>
+                <input type="text" id="sa-partner-pass" class="modern-input mb-6 text-left dir-ltr" placeholder="12345678">
+                
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('sa-add-partner-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="saveNewPartner()" class="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition">שמור וצור</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        modal.classList.remove('hidden');
+    }
+    
+    // ניקוי שדות
+    getEl('sa-partner-name').value = '';
+    getEl('sa-partner-email').value = '';
+    getEl('sa-partner-pass').value = '';
+}
+
+async function saveNewPartner() {
+    const name = val('sa-partner-name');
+    const email = val('sa-partner-email');
+    const password = val('sa-partner-pass');
+    
+    if (!name || !email || !password) return showToast('error', 'יש למלא את כל השדות');
+    
+    try {
+        const res = await fetch(`${API}/superadmin/partners`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'שותף חדש נוצר בהצלחה!');
+            getEl('sa-add-partner-modal').classList.add('hidden');
+            loadSAPartners();
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת שותף');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function deleteSAPartner(id) {
+    if(!confirm('האם אתה בטוח שברצונך למחוק שותף זה? הפעולה לא תמחק את לקוחותיו, אך תנתק אותם ממנו.')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/partners/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': saToken }
+        });
+        if((await res.json()).success) {
+            showToast('success', 'השותף נמחק בהצלחה');
+            loadSAPartners();
+        } else {
+            showToast('error', 'שגיאה במחיקת השותף');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
