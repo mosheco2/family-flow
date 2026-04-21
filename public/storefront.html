@@ -339,64 +339,60 @@
                 const data = await res.json();
                 
                 const isActive = data.settings && isTrue(data.settings.is_active);
-                if (!data.success || !isActive) {
-                    getEl('loading-screen').classList.add('hidden');
-                    return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
-                }
+if (!data.success || !isActive) {
+                    getEl('loading-screen').classList.add('hidden');
+                    return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
+                }
 
-                // מערכת היומן: בדיקה אם המודול פעיל והצגת הכפתור
-                let calendarSettings = null;
-                let calendarServices = [];
+                if (data.communityData) {
+                    const discount = parseFloat(data.communityData.discount_pct) || 0;
+                    if (data.catalog && discount > 0) {
+                        data.catalog.forEach(item => {
+                            item.original_price = parseFloat(item.price);
+                            item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
+                            if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
+                            item.is_community_discount = true;
+                        });
+                    }
+                    
+                    const heroHeader = document.querySelector('header');
+                    if (heroHeader) {
+                        heroHeader.insertAdjacentHTML('afterbegin', `
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
+                                    <div class="flex flex-col justify-center text-right">
+                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
+                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    }
+                }
+
+                storeData = data;
+                let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
+                if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
+                storeData.groupId = gId;
+
+                // מערכת היומן: מתבצעת כעת *אחרי* שיש לנו את מזהה הקבוצה
                 try {
-                    const calRes = await fetch(`${API}/calendar/${data.groupId || data.group.id}`);
+                    const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
                     const calData = await calRes.json();
                     if (calData.success && calData.settings && calData.settings.is_active) {
-                        calendarSettings = calData.settings;
-                        calendarServices = calData.services || [];
+                        storeData.calendarSettings = calData.settings;
+                        storeData.calendarServices = calData.services || [];
                         const bookBtn = getEl('btn-book-appointment');
                         if (bookBtn) {
                             bookBtn.classList.remove('hidden');
                             getEl('store-contact-info').classList.remove('hidden');
                         }
-                        storeData.calendarSettings = calendarSettings;
-                        storeData.calendarServices = calendarServices;
                     }
                 } catch(e) { console.warn('Calendar module not active'); }
-
-                if (data.communityData) {
-                    const discount = parseFloat(data.communityData.discount_pct) || 0;
-                    if (data.catalog && discount > 0) {
-                        data.catalog.forEach(item => {
-                            item.original_price = parseFloat(item.price);
-                            item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
-                            if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
-                            item.is_community_discount = true;
-                        });
-                    }
-                    
-                    const heroHeader = document.querySelector('header');
-                    if (heroHeader) {
-                        heroHeader.insertAdjacentHTML('afterbegin', `
-                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
-                                    <div class="flex flex-col justify-center text-right">
-                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `);
-                    }
-                }
-
-                storeData = data;
-                let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
-                if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
-                storeData.groupId = gId;
-                
-                try {
-                    if (storeData.groupId) {
+                
+                try {
+                    if (storeData.groupId) {
                         const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId}`);
                         const promoData = await promoRes.json();
                         if (promoData.success && promoData.promotions) {
