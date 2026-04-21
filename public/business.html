@@ -2979,7 +2979,7 @@
                 <span id="status-screen-clock" class="text-2xl font-black text-slate-300 tracking-tighter">00:00</span>
             </div>
         </div>
-    <div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+<div id="report-builder-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col slide-up">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3 shrink-0">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-500"></i> מחולל דוחות</h3>
@@ -2988,7 +2988,7 @@
             <div class="space-y-4 flex-1 overflow-y-auto modal-scroll pr-1">
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-2">סוג הדוח:</label>
-                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm">
+                    <select id="report-type" class="modern-input py-2 text-sm bg-white font-bold shadow-sm" onchange="updateReportFormatUI()">
                         <option value="executive">דוח מנהלים מסכם (גרפים ומדדים)</option>
                         <option value="accounting">דוח חשבונאי (רשימת עסקאות לרו"ח)</option>
                         <option value="inventory">דוח מכירות פריטים (למלאי ורכש)</option>
@@ -3000,21 +3000,23 @@
                 <div>
                     <label class="text-xs font-bold text-slate-600 block mb-2">פורמט ייצוא:</label>
                     <div class="flex gap-2">
-                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-red-400 transition group">
-                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked>
-                            <i class="fa-solid fa-file-pdf text-3xl text-slate-300 peer-checked:text-red-500 mb-2 transition-colors"></i>
-                            <span class="text-xs font-bold text-slate-600 peer-checked:text-red-600">PDF מקצועי</span>
-                        </label>
-                        <label class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-green-400 transition group">
-                            <input type="radio" name="report_format" value="csv" class="hidden peer">
+                        <label id="label-format-csv" class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-green-400 transition group">
+                            <input type="radio" name="report_format" value="csv" class="hidden peer" onchange="updateReportFormatUI()">
                             <i class="fa-solid fa-file-excel text-3xl text-slate-300 peer-checked:text-green-500 mb-2 transition-colors"></i>
                             <span class="text-xs font-bold text-slate-600 peer-checked:text-green-600">Excel / CSV</span>
+                        </label>
+                        <label id="label-format-pdf" class="flex-1 flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-red-400 transition group">
+                            <input type="radio" name="report_format" value="pdf" class="hidden peer" checked onchange="updateReportFormatUI()">
+                            <i class="fa-solid fa-file-pdf text-3xl text-slate-300 peer-checked:text-red-500 mb-2 transition-colors"></i>
+                            <span class="text-xs font-bold text-slate-600 peer-checked:text-red-600">PDF מקצועי</span>
                         </label>
                     </div>
                 </div>
             </div>
-            <div class="pt-4 border-t border-slate-100 mt-2 shrink-0">
-                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">הצג תצוגה מקדימה <i class="fa-solid fa-eye"></i></button>
+            <div class="pt-4 border-t border-slate-100 mt-4 shrink-0">
+                <button id="btn-generate-report" onclick="generateReport()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">
+                    הצג תצוגה מקדימה <i class="fa-solid fa-eye"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -3024,10 +3026,10 @@
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
                 <div class="flex items-center gap-3">
                     <button onclick="document.getElementById('report-preview-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
-                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> תצוגה מקדימה - דוח</h3>
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> תצוגה מקדימה - דוח מנהלים</h3>
                 </div>
                 <div class="flex gap-2">
-                    <button id="btn-download-report-pdf" class="px-5 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm shadow hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-download"></i> הורד PDF</button>
+                    <button id="btn-download-report-pdf" onclick="downloadReportPDF(this)" class="px-5 py-2 bg-slate-800 text-white font-bold rounded-lg text-sm shadow hover:bg-slate-700 transition flex items-center gap-2"><i class="fa-solid fa-download"></i> הורד PDF</button>
                 </div>
             </div>
             
@@ -3039,31 +3041,64 @@
     </div>
 
     <script>
-        // פתיחת מודאל הבחירה
+        // פתיחת מודאל הבחירה מתוך לוח הבקרה
         window.openReportBuilderModal = function() {
             const modal = document.getElementById('report-builder-modal');
-            if (modal) modal.classList.remove('hidden');
+            if (modal) {
+                modal.classList.remove('hidden');
+                updateReportFormatUI(); // הפעלת הלוגיקה מיד בפתיחה
+            }
         };
 
-        // הפקת הדוח - הצגת תצוגה מקדימה
+        // פונקציה לבדיקת הרשאות עיצוב (PDF רק למנהלים מסכם) ולשינוי הכפתור
+        window.updateReportFormatUI = function() {
+            const type = document.getElementById('report-type').value;
+            const pdfRadio = document.querySelector('input[name="report_format"][value="pdf"]');
+            const csvRadio = document.querySelector('input[name="report_format"][value="csv"]');
+            const pdfLabel = document.getElementById('label-format-pdf');
+            const btn = document.getElementById('btn-generate-report');
+
+            // 1. הגבלת פורמט PDF רק לדוח מנהלים
+            if (type !== 'executive') {
+                csvRadio.checked = true; // העבר אוטומטית ל-CSV
+                pdfRadio.disabled = true; // נטרל אפשרות בחירת PDF
+                pdfLabel.style.opacity = '0.4';
+                pdfLabel.style.cursor = 'not-allowed';
+            } else {
+                pdfRadio.disabled = false;
+                pdfLabel.style.opacity = '1';
+                pdfLabel.style.cursor = 'pointer';
+            }
+
+            // 2. עדכון טקסט הכפתור הראשי לפי הפורמט הנבחר
+            const selectedFormat = document.querySelector('input[name="report_format"]:checked').value;
+            
+            if (selectedFormat === 'pdf') {
+                btn.innerHTML = 'הצג תצוגה מקדימה <i class="fa-solid fa-eye"></i>';
+                btn.className = "w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2";
+            } else {
+                btn.innerHTML = 'הפק והורד דוח נתונים <i class="fa-solid fa-file-csv"></i>';
+                btn.className = "w-full bg-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2";
+            }
+        };
+
+        // הפקת הדוח (ניתוב לפי הפורמט הנבחר)
         window.generateReport = function() {
             try {
-                const formatEle = document.querySelector('input[name="report_format"]:checked');
-                const format = formatEle ? formatEle.value : 'pdf';
-                
-                const typeEle = document.getElementById('report-type');
-                const type = typeEle ? typeEle.value : 'executive';
+                const type = document.getElementById('report-type').value;
+                const format = document.querySelector('input[name="report_format"]:checked').value;
 
                 if (format === 'csv') {
+                    // כאן יתבצע ייצוא ה-CSV (מחבר לפונקציה מתוך business-app.js אם קיימת)
                     if(typeof window.downloadCSVReport === 'function') {
                         window.downloadCSVReport(type);
                     } else {
-                        alert('ייצוא CSV יושלם בקרוב. בינתיים נסה ייצוא ל-PDF.');
+                        alert('ייצוא CSV נמצא בפיתוח, או שהפונקציה downloadCSVReport חסרה בקובץ ה-JS.');
                     }
+                    document.getElementById('report-builder-modal').classList.add('hidden');
                 } else if (format === 'pdf') {
                     // סגור את מודאל הבחירה
-                    const buildModal = document.getElementById('report-builder-modal');
-                    if (buildModal) buildModal.classList.add('hidden');
+                    document.getElementById('report-builder-modal').classList.add('hidden');
                     
                     // הזרק את תוכן ה-HTML למיכל התצוגה המקדימה
                     const previewContainer = document.getElementById('report-preview-content');
@@ -3072,47 +3107,7 @@
                     }
                     
                     // פתח את מודאל התצוגה המקדימה
-                    const previewModal = document.getElementById('report-preview-modal');
-                    if (previewModal) {
-                        previewModal.classList.remove('hidden');
-                    }
-
-                    // הגדרת אירוע הלחיצה על כפתור ההורדה
-                    const downloadBtn = document.getElementById('btn-download-report-pdf');
-                    if (downloadBtn) {
-                        downloadBtn.onclick = function() {
-                            const originalText = this.innerHTML;
-                            this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מוריד...';
-                            this.style.pointerEvents = 'none';
-
-                            const typeNames = {
-                                'executive': 'מנהלים',
-                                'accounting': 'חשבונאי',
-                                'inventory': 'מלאי_רכש',
-                                'category': 'מכר_קטגוריות',
-                                'promotion': 'מכר_מבצעים',
-                                'coupon': 'שימוש_קופונים'
-                            };
-                            
-                            const opt = {
-                                margin: [10, 10, 10, 10],
-                                filename: 'Oneflow_Report_' + (typeNames[type] || 'Business') + '_' + new Date().toLocaleDateString('he-IL').replace(/\./g, '-') + '.pdf',
-                                image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: { scale: 2, useCORS: true, logging: false },
-                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                            };
-                            
-                            html2pdf().set(opt).from(previewContainer).save().then(() => {
-                                this.innerHTML = originalText;
-                                this.style.pointerEvents = 'auto';
-                            }).catch(err => {
-                                console.error('PDF Error:', err);
-                                alert('שגיאה בהורדת ה-PDF.');
-                                this.innerHTML = originalText;
-                                this.style.pointerEvents = 'auto';
-                            });
-                        };
-                    }
+                    document.getElementById('report-preview-modal').classList.remove('hidden');
                 }
             } catch (e) {
                 console.error("Error in generateReport:", e);
@@ -3120,35 +3115,41 @@
             }
         };
 
-        // בונה את מחרוזת ה-HTML של הדוח
+        // הפעלת ההורדה בפועל מתוך חלונית התצוגה המקדימה
+        window.downloadReportPDF = function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מוריד PDF...';
+            btn.style.pointerEvents = 'none';
+
+            const element = document.getElementById('report-preview-content');
+            
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: 'Oneflow_Executive_Report_' + new Date().toLocaleDateString('he-IL').replace(/\./g, '-') + '.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+            }).catch(err => {
+                console.error('PDF Error:', err);
+                alert('שגיאה בהורדת ה-PDF. ודא שספריית html2pdf נטענה.');
+                btn.innerHTML = originalText;
+                btn.style.pointerEvents = 'auto';
+            });
+        };
+
+        // יצירת מבנה ה-HTML של הדוח עצמו
         window.buildPDFReportContentString = function(type) {
-            let typeTitle = 'דוח עסקי מסכם';
-            let headersHtml = '';
-
-            if(type === 'executive') typeTitle = 'דוח מנהלים מסכם';
-            if(type === 'accounting') typeTitle = 'דוח עסקאות והכנסות (מפורט)';
-            if(type === 'inventory') typeTitle = 'דוח מכירות ומלאי פריטים';
-            if(type === 'category') typeTitle = 'דוח מכר לפי קטגוריות';
-            if(type === 'promotion') typeTitle = 'דוח ביצועי מבצעים';
-            if(type === 'coupon') typeTitle = 'דוח שימוש בקופונים';
-
-            if (type === 'accounting') {
-                headersHtml = '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">מס\' הזמנה</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">תאריך</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">לקוח</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">סכום</th>';
-            } else if (type === 'category') {
-                headersHtml = '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">קטגוריה</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:center;">נתח מכירות</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">הכנסות (₪)</th>';
-            } else if (type === 'inventory') {
-                headersHtml = '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">שם פריט</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:center;">כמות שנמכרה</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">הכנסות (₪)</th>';
-            } else if (type === 'promotion' || type === 'coupon') {
-                headersHtml = '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">שם הטבה / קופון</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:center;">מימושים</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">שווי הנחה</th>';
-            } else {
-                headersHtml = '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">מדד</th><th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">ערך</th>';
-            }
-
+            // הותאם כרגע רק לדוח מנהלים (executive) מאחר והגבלנו את ה-PDF רק אליו
             const currentDate = new Date().toLocaleDateString('he-IL');
 
             return '<div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px;">' +
                 '<div>' +
-                    '<h1 style="font-size: 28px; font-weight: 800; margin:0; color: #0f172a;">' + typeTitle + '</h1>' +
+                    '<h1 style="font-size: 28px; font-weight: 800; margin:0; color: #0f172a;">דוח מנהלים מסכם</h1>' +
                     '<p style="font-size: 16px; color: #475569; margin-top:8px; font-weight: bold;">מערכת Oneflowlife BIZ</p>' +
                 '</div>' +
                 '<div style="text-align: left;">' +
@@ -3157,10 +3158,13 @@
             '</div>' +
             '<table style="width: 100%; border-collapse: collapse; font-size: 14px;">' +
                 '<thead style="background-color: #f8fafc; color: #1e293b;">' +
-                    '<tr>' + headersHtml + '</tr>' +
+                    '<tr>' +
+                        '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:right;">מדד</th>' +
+                        '<th style="padding:12px; border-bottom:2px solid #cbd5e1; text-align:left;">ערך</th>' +
+                    '</tr>' +
                 '</thead>' +
                 '<tbody>' +
-                    '<tr><td colspan="5" style="padding: 40px; text-align: center; color: #94a3b8; font-style: italic;">הנתונים יוזנו כאן בעת הייצוא המלא.</td></tr>' +
+                    '<tr><td colspan="2" style="padding: 40px; text-align: center; color: #94a3b8; font-style: italic;">הנתונים (גרפים ומספרים) יוזנו לכאן ע"י הפונקציה מתוך business-app.js</td></tr>' +
                 '</tbody>' +
             '</table>' +
             '<div style="margin-top: 60px; font-size: 12px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top:20px;">' +
@@ -3168,5 +3172,6 @@
             '</div>';
         };
     </script>
+    ```
 </body>
 </html>
