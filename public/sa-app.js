@@ -275,6 +275,10 @@ function renderSAGroups() {
         const typeBadge = g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
+        // מציאת אדמין להשתלטות
+        const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
+        const impersonateBtn = adminUser ? `<button onclick="impersonateGroup(${g.id}, ${adminUser.id})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>` : '';
+
         gHtml += `
         <div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm">
             <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
@@ -289,8 +293,9 @@ function renderSAGroups() {
             </div>
             <div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50">
                 <div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap">
-                    <h4 class="text-xs font-bold text-slate-600">משתמשים:</h4>
+                    <h4 class="text-xs font-bold text-slate-600">פעולות:</h4>
                     <div class="flex gap-2">
+                        ${impersonateBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${proToggleBtn}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
@@ -302,6 +307,29 @@ function renderSAGroups() {
     });
     groupsList.innerHTML = gHtml;
 }
+
+window.impersonateGroup = async function(groupId, userId) {
+    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" על הסביבה הזו. להמשיך?')) return;
+    try {
+        const res = await fetch(`${API}/superadmin/impersonate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ groupId, userId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // שמירת הטוקן של הסופר-אדמין בצד כדי שנוכל לחזור
+            localStorage.setItem('ofl_sa_return_token', saToken);
+            // דריסת הסשן הרגיל עם הסשן המזויף (מסומן כהשתלטות)
+            localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group, isImpersonating: true }));
+            
+            // שיגור לסביבה העסקית או הביתית בהתאם לסוג
+            window.location.href = data.group.type === 'BUSINESS' ? '/business.html' : '/';
+        } else {
+            showToast('error', data.error || 'שגיאה ביצירת סשן השתלטות');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
 
 function filterSAGroups() { renderSAGroups(); }
 
