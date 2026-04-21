@@ -3022,12 +3022,12 @@
         </div>
     </div>
 
-    <div id="report-preview-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-2 sm:p-4">
+    <div id="report-preview-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm hidden z-[999999] flex items-center justify-center p-2 sm:p-4">
         <div class="bg-slate-50 w-full max-w-4xl rounded-[2rem] shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden slide-up">
             <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
                 <div class="flex items-center gap-3">
                     <button onclick="document.getElementById('report-preview-modal').classList.add('hidden')" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
-                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> דוח מנהלים מסכם</h3>
+                    <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i class="fa-regular fa-file-pdf text-red-500"></i> תצוגה מקדימה - דוח מנהלים</h3>
                 </div>
                 <div>
                     <button id="btn-download-report-pdf" onclick="downloadReportPDF(this)" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-download"></i> הורד להדפסה (PDF)</button>
@@ -3035,7 +3035,7 @@
             </div>
             
             <div class="flex-1 overflow-y-auto p-4 flex justify-center bg-slate-200/50" id="report-preview-scroll-area">
-                <div id="report-preview-content" class="bg-white shadow-xl flex justify-center" style="width: 100%; max-width: 1040px; margin: 0 auto; min-height: 297mm;">
+                <div id="report-preview-content" class="bg-white shadow-xl" style="width: 790px; margin: 0 auto; box-sizing: border-box;">
                     </div>
             </div>
         </div>
@@ -3093,7 +3093,7 @@
                 const format = document.querySelector('input[name="report_format"]:checked').value;
 
                 if (format === 'csv') {
-                    // חיבור לפונקציות ה-CSV הקיימות באפליקציה שלך בלי לפתוח חלון נוסף
+                    // חיבור לפונקציות ה-CSV
                     if (type === 'accounting' && typeof window.exportOrdersToCSV === 'function') {
                         window.exportOrdersToCSV();
                     } else if (type === 'inventory' && typeof window.exportProductsToCSV === 'function') {
@@ -3107,12 +3107,7 @@
                     
                     const previewContent = document.getElementById('report-preview-content');
                     if (previewContent) {
-                        try {
-                            previewContent.innerHTML = window.buildPDFReportContentString();
-                        } catch(innerErr) {
-                            console.error("HTML Builder Error:", innerErr);
-                            previewContent.innerHTML = '<p class="text-center text-red-500 py-10">שגיאה בבניית הדוח. אנא בדוק נתונים.</p>';
-                        }
+                        previewContent.innerHTML = window.buildPDFReportContentString();
                     }
                     
                     const pModal = document.getElementById('report-preview-modal');
@@ -3127,27 +3122,26 @@
             }
         };
 
-        // הדפסה ל-PDF מתוך התצוגה המקדימה
+        // הדפסה ל-PDF מתוך התצוגה המקדימה (הגדרות מתוקנות לרוחב קבוע למניעת חיתוכים)
         window.downloadReportPDF = function(btn) {
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד להדפסה...';
             btn.style.pointerEvents = 'none';
 
-            // ממרכז ולוקח בדיוק את התוכן של הדף כדי למנוע חיתוך
             const element = document.getElementById('report-preview-content').firstElementChild;
             
             const opt = {
-                margin: [5, 5, 5, 5],
-                filename: 'Executive_Report_' + new Date().toLocaleDateString('he-IL').replace(/\./g, '-') + '.pdf',
+                margin: [10, 0, 10, 0], // איפוס שולי צד כדי למנוע דחיפה של ה-RTL ימינה מדי
+                filename: 'Oneflow_Executive_Report_' + new Date().toLocaleDateString('he-IL').replace(/\./g, '-') + '.pdf',
                 image: { type: 'jpeg', quality: 1 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, scrollX: 0, windowWidth: 800 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             
             html2pdf().set(opt).from(element).save().then(() => {
                 btn.innerHTML = originalText;
                 btn.style.pointerEvents = 'auto';
-                showToast('success', 'הדוח ירד בהצלחה!');
+                showToast('success', 'הדוח ירד בהצלחה למכשיר!');
             }).catch(err => {
                 console.error('PDF Error:', err);
                 showToast('error', 'שגיאה ביצירת קובץ ה-PDF.');
@@ -3156,7 +3150,7 @@
             });
         };
 
-        // יצירת ה-HTML של דוח המנהלים (שואב אוטומטית נתונים מהאנליטיקה המרונדרת!)
+        // יצירת ה-HTML של דוח המנהלים (שואב אוטומטית נתונים מהאנליטיקה המרונדרת)
         window.buildPDFReportContentString = function() {
             // שאיבת נתונים מהדף הנוכחי
             const period = document.getElementById('analytics-report-period')?.innerText || 'התקופה האחרונה';
@@ -3168,15 +3162,14 @@
             // המרת קנבסים של גרפים לתמונה
             let revChartImg = '';
             const revCanvas = document.getElementById('analyticsRevenueChart');
-            if (revCanvas) {
-                try { revChartImg = revCanvas.toDataURL('image/png'); } catch(e) {}
-            }
+            if (revCanvas) { try { revChartImg = revCanvas.toDataURL('image/png', 1.0); } catch(e) {} }
             
             let catChartImg = '';
             const catCanvas = document.getElementById('analyticsCategoryChart');
-            if (catCanvas) {
-                try { catChartImg = catCanvas.toDataURL('image/png'); } catch(e) {}
-            }
+            if (catCanvas) { try { catChartImg = catCanvas.toDataURL('image/png', 1.0); } catch(e) {} }
+
+            // קוד מפת העומסים
+            const heatmapHtml = document.getElementById('analytics-heatmap')?.innerHTML || '<p style="text-align:center; color:#94a3b8; padding: 20px;">אין נתונים מספיקים בתקופה זו</p>';
 
             // יצירת טבלת המוצרים המובילים מהסטייט שכבר נטען במערכת
             let topProductsHtml = '';
@@ -3190,14 +3183,27 @@
                     </tr>
                 `).join('');
             } else {
-                topProductsHtml = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">אין נתונים מספיקים בתקופה זו</td></tr>';
+                topProductsHtml = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">אין נתונים בתקופה זו</td></tr>';
+            }
+
+            // יצירת טבלת המוצרים ללא מכר
+            let slowProductsHtml = '';
+            if (window.analyticsState && window.analyticsState.slowProducts && window.analyticsState.slowProducts.length > 0) {
+                slowProductsHtml = window.analyticsState.slowProducts.slice(0, 10).map((p, i) => `
+                    <tr style="border-bottom: 1px solid #e2e8f0; background: ${i%2===0?'#f8fafc':'#ffffff'};">
+                        <td style="padding: 10px 14px; font-weight: bold; text-align: right; color:#1e293b;">${p.name}</td>
+                        <td style="padding: 10px 14px; text-align: right; color:#475569;">${p.category || 'כללי'}</td>
+                        <td style="padding: 10px 14px; text-align: center; color:#f97316; font-weight: bold;">0 מכירות</td>
+                    </tr>
+                `).join('');
+            } else {
+                slowProductsHtml = '<tr><td colspan="3" style="text-align:center; padding:20px; color:#94a3b8;">מעולה! כל המוצרים נמכרו בתקופה זו.</td></tr>';
             }
 
             const bname = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.name : 'העסק שלי';
             
             let logoSrc = '';
             const dashLogo = document.getElementById('dash-logo-preview');
-            // מוודא שהלוגו קיים ואמיתי
             if (dashLogo && dashLogo.src && dashLogo.src.length > 50 && !dashLogo.src.includes('null') && !dashLogo.classList.contains('hidden')) {
                 logoSrc = dashLogo.src;
             }
@@ -3205,14 +3211,15 @@
             const nb = (str) => String(str || '').replace(/ /g, '\u00A0');
             const currentDate = new Date().toLocaleDateString('he-IL') + ' ' + new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
 
+            // המבנה כאן מסודר אנכית בלוק-אחרי-בלוק (ללא חלוקה לעמודות flex/grid בגרפים הגדולים) כדי למנוע חיתוך.
             return `
-            <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 1040px; box-sizing: border-box; padding: 30px; text-align: right; margin: 0 auto;">
+            <div style="direction: rtl; font-family: Arial, sans-serif; color: #1e293b; background: white; width: 790px; padding: 30px; margin: 0 auto; text-align: right; box-sizing: border-box;">
                 
                 <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom: 3px solid #4f46e5; margin-bottom: 25px; padding-bottom: 15px;" dir="rtl">
                     <tr>
                         <td style="vertical-align: middle; text-align: right; width: 60%;" dir="rtl">
                             <h1 style="margin: 0 0 8px 0; font-size: 32px; font-weight: 900; color: #1e293b;">${nb('דוח מנהלים מסכם')}</h1>
-                            <div style="font-size: 15px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 6px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 14px; color: #0f172a; background: #f8fafc; display: inline-block; padding: 6px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
                                 <span style="font-weight: bold; color: #475569;">${nb('תקופה נבדקת:')}&#x200F;</span> <b style="color: #4f46e5;">${nb(period)}</b>
                             </div>
                         </td>
@@ -3222,37 +3229,43 @@
                     </tr>
                 </table>
 
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; text-align: center;">
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px;">
-                        <div style="font-size: 14px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('הכנסות ברוטו')}</div>
-                        <div style="font-size: 28px; color: #10b981; font-weight: 900;" dir="ltr">${rev}</div>
+                <div style="display: flex; justify-content: space-between; gap: 10px; margin-bottom: 30px; text-align: center;">
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('הכנסות ברוטו')}</div>
+                        <div style="font-size: 24px; color: #10b981; font-weight: 900;" dir="ltr">${rev}</div>
                     </div>
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px;">
-                        <div style="font-size: 14px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('כמות הזמנות')}</div>
-                        <div style="font-size: 28px; color: #3b82f6; font-weight: 900;">${orders}</div>
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('הזמנות')}</div>
+                        <div style="font-size: 24px; color: #3b82f6; font-weight: 900;">${orders}</div>
                     </div>
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px;">
-                        <div style="font-size: 14px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('ממוצע לעסקה')} (AOV)</div>
-                        <div style="font-size: 28px; color: #6366f1; font-weight: 900;" dir="ltr">${avg}</div>
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('ממוצע לעסקה')}</div>
+                        <div style="font-size: 24px; color: #6366f1; font-weight: 900;" dir="ltr">${avg}</div>
                     </div>
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px;">
-                        <div style="font-size: 14px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('לקוחות חוזרים')}</div>
-                        <div style="font-size: 28px; color: #a855f7; font-weight: 900;">${retention}</div>
-                    </div>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                    <div style="width: 48%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white;">
-                        <h3 style="font-size: 16px; margin-top: 0; margin-bottom: 15px; color: #334155; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">${nb('מגמת הכנסות')}</h3>
-                        ${revChartImg ? `<img src="${revChartImg}" style="width: 100%; height: auto;">` : `<p style="text-align:center; color:#94a3b8; padding: 40px;">${nb('אין נתונים לגרף')}</p>`}
-                    </div>
-                    <div style="width: 48%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background: white;">
-                        <h3 style="font-size: 16px; margin-top: 0; margin-bottom: 15px; color: #334155; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">${nb('פילוח לפי קטגוריות')}</h3>
-                        ${catChartImg ? `<img src="${catChartImg}" style="width: 100%; max-height: 220px; object-fit: contain; margin: 0 auto; display: block;">` : `<p style="text-align:center; color:#94a3b8; padding: 40px;">${nb('אין נתונים לגרף')}</p>`}
+                    <div style="flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+                        <div style="font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">${nb('לקוחות חוזרים')}</div>
+                        <div style="font-size: 24px; color: #a855f7; font-weight: 900;">${retention}</div>
                     </div>
                 </div>
 
-                <div class="avoid-break" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; background: white; margin-bottom: 20px; overflow: hidden; page-break-inside: avoid;">
+                <div class="avoid-break" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background: white; margin-bottom: 25px; box-sizing: border-box; page-break-inside: avoid;">
+                    <h3 style="font-size: 18px; margin-top: 0; margin-bottom: 15px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('מגמת הכנסות (גרף מרוכז)')}</h3>
+                    ${revChartImg ? `<img src="${revChartImg}" style="width: 100%; max-height: 250px; object-fit: contain;">` : `<p style="text-align:center; color:#94a3b8; padding: 20px;">${nb('אין נתונים לגרף')}</p>`}
+                </div>
+
+                <div class="avoid-break" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background: white; margin-bottom: 25px; box-sizing: border-box; page-break-inside: avoid;">
+                    <h3 style="font-size: 18px; margin-top: 0; margin-bottom: 15px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('פילוח לפי קטגוריות')}</h3>
+                    ${catChartImg ? `<img src="${catChartImg}" style="width: 100%; max-height: 250px; object-fit: contain; margin: 0 auto; display: block;">` : `<p style="text-align:center; color:#94a3b8; padding: 20px;">${nb('אין נתונים לגרף')}</p>`}
+                </div>
+
+                <div class="avoid-break" style="width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background: white; margin-bottom: 25px; box-sizing: border-box; page-break-inside: avoid; position: relative;">
+                    <h3 style="font-size: 18px; margin-top: 0; margin-bottom: 15px; color: #334155; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">${nb('מפת עומסים (הזמנות לפי שעות וימים)')}</h3>
+                    <div style="transform: scale(0.95); transform-origin: top right;">
+                        ${heatmapHtml}
+                    </div>
+                </div>
+
+                <div class="avoid-break" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; background: white; margin-bottom: 25px; overflow: hidden; page-break-inside: avoid;">
                     <h3 style="font-size: 16px; margin: 0; color: #334155; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">${nb('המוצרים הנמכרים ביותר בתקופה הנבדקת (Top Sellers)')}</h3>
                     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
                         <thead>
@@ -3265,6 +3278,22 @@
                         </thead>
                         <tbody>
                             ${topProductsHtml}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="avoid-break" style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; background: white; margin-bottom: 25px; overflow: hidden; page-break-inside: avoid;">
+                    <h3 style="font-size: 16px; margin: 0; color: #334155; background: #fff7ed; border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">${nb('מלאי עומד / לא נמכרו כלל בתקופה הנבדקת (Slow Movers)')}</h3>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #f97316; color: white;">
+                                <th style="padding: 10px 14px; text-align: right; width: 45%;">${nb('שם המוצר')}</th>
+                                <th style="padding: 10px 14px; text-align: right; width: 30%;">${nb('קטגוריה')}</th>
+                                <th style="padding: 10px 14px; text-align: center; width: 25%;">${nb('סטטוס')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${slowProductsHtml}
                         </tbody>
                     </table>
                 </div>
