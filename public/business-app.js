@@ -8152,8 +8152,11 @@ window.updateStatusScreenClock = function() {
 // --- מודול יומן ותורים (Booking & Calendar) ---
 // ============================================================
 
+let currentCalDate = new Date();
+let currentCalMode = 'day'; // day, week, month
+
 window.switchCalendarTab = function(subTab) {
-    ['schedule', 'requests', 'settings'].forEach(t => {
+    ['main', 'requests', 'settings'].forEach(t => {
         const view = getEl(`cal-view-${t}`); if(view) view.classList.add('hidden');
         const btn = getEl(`btn-cal-tab-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     });
@@ -8161,8 +8164,7 @@ window.switchCalendarTab = function(subTab) {
     const targetView = getEl(`cal-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
     const targetBtn = getEl(`btn-cal-tab-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
 
-    if (subTab === 'schedule') {
-        currentCalDate = new Date();
+    if (subTab === 'main') {
         fetchCalendarData();
     }
 };
@@ -8181,149 +8183,303 @@ window.fetchCalendarData = async function() {
                 getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
                 getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
             }
-            renderCalendarSchedule();
+            // מבטיח שטעינת הצעות המחיר זמינה כדי לשייך תורים
+            if(!storeQuotesCache || storeQuotesCache.length === 0) {
+                try { await fetchStoreQuotes(); } catch(e){}
+            }
+
+            renderCalendar();
             renderCalendarRequests();
             renderCalendarServices();
         }
     } catch(e) { console.error('Error fetching calendar data', e); }
 };
 
-window.renderCalendarSchedule = function() {
-    const list = getEl('cal-events-list');
-    const dateDisplay = getEl('cal-current-date-display');
-    if (!list || !dateDisplay) return;
-
-    // עדכון תצוגת התאריך
-    const today = new Date();
-    const isToday = currentCalDate.getDate() === today.getDate() && currentCalDate.getMonth() === today.getMonth() && currentCalDate.getFullYear() === today.getFullYear();
-    dateDisplay.innerText = isToday ? 'היום' : currentCalDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
-
-    // סינון אירועים (רק מאושרים ולתאריך הספציפי)
-    const targetDateStr = currentCalDate.toISOString().split('T')[0];
-    const todaysEvents = calEventsCache.filter(e => e.event_date === targetDateStr && e.status === 'approved');
-    todaysEvents.sort((a,b) => a.start_time.localeCompare(b.start_time));
-
-    if (todaysEvents.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין אירועים ליום זה</p>';
-        return;
-    }
-
-    list.innerHTML = todaysEvents.map(e => {
-        const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
-        return `
-        <div class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center mb-2">
-            <div class="flex items-start gap-3">
-                <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px]">
-                    <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
-                </div>
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(e.title)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-tag text-cyan-400"></i> ${safeStr(svcName)}</p>
-                    ${e.notes ? `<p class="text-[10px] text-slate-400 mt-1 max-w-[200px] truncate">${safeStr(e.notes)}</p>` : ''}
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="deleteCalendarEvent(${e.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
-            </div>
-        </div>`;
-    }).join('');
+window.setCalMode = function(mode) {
+    currentCalMode = mode;
+    ['day', 'week', 'month'].forEach(m => {
+        const btn = getEl(`btn-cal-mode-${m}`);
+        if(btn) btn.className = m === mode ? 'px-4 py-1.5 text-xs font-bold bg-white text-slate-800 rounded-md shadow-sm transition flex-1 md:flex-none' : 'px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none';
+    });
+    renderCalendar();
 };
 
-window.changeCalendarDate = function(days) {
-    currentCalDate.setDate(currentCalDate.getDate() + days);
-    renderCalendarSchedule();
+window.changeCalDate = function(dir) {
+    if (currentCalMode === 'day') currentCalDate.setDate(currentCalDate.getDate() + dir);
+    else if (currentCalMode === 'week') currentCalDate.setDate(currentCalDate.getDate() + (dir * 7));
+    else if (currentCalMode === 'month') currentCalDate.setMonth(currentCalDate.getMonth() + dir);
+    renderCalendar();
 };
 
-window.renderCalendarRequests = function() {
-    const list = getEl('cal-requests-list');
-    const badge = getEl('cal-pending-badge');
-    if (!list) return;
+window.resetCalDate = function() {
+    currentCalDate = new Date();
+    renderCalendar();
+};
 
-    const pending = calEventsCache.filter(e => e.status === 'pending');
+const getCleanDate = (isoStr) => isoStr ? isoStr.substring(0, 10) : '';
+const getDisplayDate = (d) => d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+
+window.renderCalendar = function() {
+    const container = getEl('cal-main-container');
+    const display = getEl('cal-date-display');
+    if (!container || !display) return;
+
+    const searchQ = (val('cal-search') || '').toLowerCase();
     
-    if (badge) {
-        if (pending.length > 0) { badge.innerText = pending.length; badge.classList.remove('hidden'); }
-        else { badge.classList.add('hidden'); }
-    }
+    // אם יש חיפוש אקטיבי - מציגים תמיד בתצוגת רשימה (List)
+    if (searchQ) {
+        display.innerText = 'תוצאות חיפוש';
+        let filtered = calEventsCache.filter(e => e.status === 'approved' && (
+            (e.title && e.title.toLowerCase().includes(searchQ)) || 
+            (e.customer_phone && e.customer_phone.includes(searchQ)) ||
+            (e.notes && e.notes.toLowerCase().includes(searchQ))
+        ));
 
-    if (pending.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות ממתינות לשיבוץ.</p>';
+        filtered.sort((a,b) => {
+            const dateA = getCleanDate(a.event_date);
+            const dateB = getCleanDate(b.event_date);
+            if(dateA !== dateB) return dateB.localeCompare(dateA); // מהחדש לישן
+            return a.start_time.localeCompare(b.start_time);
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">לא נמצאו אירועים מתאימים.</p>';
+            return;
+        }
+
+        container.innerHTML = `<div class="space-y-2 pb-8">${filtered.map(e => createEventCardHTML(e)).join('')}</div>`;
         return;
     }
 
-    list.innerHTML = pending.map(e => {
-        const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'כללי';
-        const eDate = new Date(e.event_date).toLocaleDateString('he-IL');
-        return `
-        <div class="bg-white p-4 rounded-xl border border-orange-200 shadow-sm flex flex-col mb-3 relative overflow-hidden group">
-            <div class="absolute top-0 right-0 left-0 h-1 bg-orange-400"></div>
-            <div class="flex justify-between items-start mb-2 mt-1">
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">בקשה מלקוח: ${safeStr(e.title)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar text-orange-500 mr-1"></i> ${eDate} בשעה ${e.start_time.substring(0,5)}</p>
-                    <p class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">${safeStr(svcName)}</p>
-                </div>
-                <div class="text-left">
-                    <p class="text-[10px] text-slate-400 font-bold mb-1">טלפון לקוח:</p>
-                    <a href="tel:${safeStr(e.customer_phone)}" class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded dir-ltr border border-slate-200">${safeStr(e.customer_phone || '---')}</a>
-                </div>
-            </div>
-            ${e.notes ? `<div class="bg-orange-50/50 p-2 rounded-lg border border-orange-100 text-[10px] text-orange-800 mb-3"><strong>הערת לקוח:</strong> ${safeStr(e.notes)}</div>` : ''}
+    const todayStr = getCleanDate(new Date().toISOString());
+
+    if (currentCalMode === 'day') {
+        const targetDateStr = currentCalDate.toISOString().split('T')[0];
+        display.innerText = targetDateStr === todayStr ? 'היום' : getDisplayDate(currentCalDate);
+        
+        let todaysEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === targetDateStr && e.status === 'approved');
+        todaysEvents.sort((a,b) => a.start_time.localeCompare(b.start_time));
+        
+        if (todaysEvents.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-400 py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין אירועים ליום זה</p>';
+        } else {
+            container.innerHTML = `<div class="space-y-2 pb-8">${todaysEvents.map(e => createEventCardHTML(e)).join('')}</div>`;
+        }
+
+    } else if (currentCalMode === 'week') {
+        // מציאת יום ראשון של השבוע הנוכחי
+        const startOfWeek = new Date(currentCalDate);
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(endOfWeek.getDate() + 6);
+        
+        display.innerText = `${startOfWeek.toLocaleDateString('he-IL', {day:'numeric', month:'numeric'})} - ${endOfWeek.toLocaleDateString('he-IL', {day:'numeric', month:'numeric'})}`;
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-7 gap-2 pb-8">';
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(startOfWeek);
+            day.setDate(day.getDate() + i);
+            const dStr = day.toISOString().split('T')[0];
+            const isToday = dStr === todayStr;
+            const daysEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === dStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
             
-            <div class="flex gap-2 mt-2 pt-3 border-t border-slate-100">
-                <button onclick="approveCalendarEvent(${e.id})" class="flex-1 bg-green-500 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-green-600 transition"><i class="fa-solid fa-check"></i> אשר ושבץ</button>
-                <button onclick="convertEventToQuote(${e.id})" class="flex-[1.5] bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold shadow hover:bg-indigo-700 transition flex justify-center items-center gap-1.5"><i class="fa-solid fa-file-invoice"></i> הפוך להצעת מחיר</button>
-                <button onclick="deleteCalendarEvent(${e.id}, true)" class="w-10 bg-red-50 text-red-500 py-2 rounded-lg hover:bg-red-100 transition border border-red-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-        </div>`;
-    }).join('');
+            html += `<div class="flex flex-col bg-slate-50/50 rounded-xl border ${isToday ? 'border-cyan-300 shadow-sm' : 'border-slate-100'} p-2 min-h-[150px]">
+                <h5 class="text-center text-xs font-bold mb-2 pb-2 border-b border-slate-200 ${isToday ? 'text-cyan-700' : 'text-slate-600'}">${day.toLocaleDateString('he-IL', {weekday:'short'})} ${day.getDate()}</h5>
+                <div class="flex-1 space-y-1 overflow-y-auto modal-scroll">
+                    ${daysEvents.map(e => `<div onclick="openCalEventModal(${e.id})" class="text-[10px] bg-white p-1.5 rounded border-l-2 border-cyan-500 shadow-sm cursor-pointer hover:bg-cyan-50 transition truncate font-medium"><span class="font-bold text-cyan-800">${e.start_time.substring(0,5)}</span> ${safeStr(e.title)}</div>`).join('')}
+                </div>
+            </div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+
+    } else if (currentCalMode === 'month') {
+        display.innerText = currentCalDate.toLocaleDateString('he-IL', {month:'long', year:'numeric'});
+        const year = currentCalDate.getFullYear();
+        const month = currentCalDate.getMonth();
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        let html = `
+        <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 mb-2">
+            <div>א'</div><div>ב'</div><div>ג'</div><div>ד'</div><div>ה'</div><div>ו'</div><div>ש'</div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 sm:gap-2 pb-8">`;
+        
+        for(let i=0; i<firstDay; i++) { html += `<div class="aspect-square bg-transparent"></div>`; }
+
+        for(let day=1; day<=daysInMonth; day++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const dayEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === dateStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
+            const isToday = dateStr === todayStr;
+            const bgClass = isToday ? 'bg-cyan-50 border-cyan-300 shadow-sm' : 'bg-white border-slate-200 hover:border-cyan-300';
+            
+            let eventsHtml = '';
+            if(dayEvents.length > 0) {
+                dayEvents.slice(0, 2).forEach(e => {
+                    eventsHtml += `<div onclick="event.stopPropagation(); openCalEventModal(${e.id})" class="text-[9px] bg-cyan-100 text-cyan-800 rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold shadow-sm" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
+                });
+                if(dayEvents.length > 2) {
+                    eventsHtml += `<div class="text-[9px] text-slate-500 font-bold bg-slate-100 rounded px-1 py-0.5 text-center">+${dayEvents.length - 2} אירועים</div>`;
+                }
+            }
+
+            html += `
+            <div class="aspect-[4/3] sm:aspect-square ${bgClass} border rounded-lg p-1 flex flex-col hover:shadow-md cursor-pointer transition overflow-hidden" onclick="currentCalDate=new Date('${dateStr}'); setCalMode('day');">
+                <span class="text-xs font-black ${isToday ? 'text-cyan-700' : 'text-slate-600'} mb-0.5">${day}</span>
+                <div class="flex-1 flex flex-col gap-0.5">${eventsHtml}</div>
+            </div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
 };
 
-window.renderCalendarServices = function() {
-    const list = getEl('cal-services-list');
-    if (!list) return;
-
-    if (calServicesCache.length === 0) {
-        list.innerHTML = '<p class="text-[10px] text-slate-400 py-3 text-center">טרם הוגדרו שירותים.</p>';
-        return;
+function createEventCardHTML(e) {
+    const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
+    const hasQuote = e.notes && e.notes.includes('ORDER_REF:');
+    let quoteBadge = '';
+    if(hasQuote) {
+        const orderIdMatch = e.notes.match(/ORDER_REF:(\d+)/);
+        if(orderIdMatch) quoteBadge = `<span class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded text-[9px] font-bold mr-2"><i class="fa-solid fa-file-invoice"></i> מקושר להצעה #${orderIdMatch[1]}</span>`;
     }
 
-    list.innerHTML = calServicesCache.map(s => `
-        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
-            <div>
-                <p class="font-bold text-slate-700 text-xs">${safeStr(s.name)}</p>
-                <p class="text-[9px] text-slate-500 mt-0.5">${s.duration_mins} דק' | מ-₪${s.price}</p>
+    return `
+    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center mb-2 hover:shadow-md transition group relative overflow-hidden cursor-pointer">
+        <div class="flex items-start gap-3 w-full">
+            <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
+                <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">${new Date(getCleanDate(e.event_date)).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'})}</p>
             </div>
-            <button onclick="deleteCalendarService(${s.id})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
+            <div class="flex-1 min-w-0 pr-1">
+                <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(e.title)}</h4>
+                <p class="text-[10px] text-slate-500 mt-0.5 flex flex-wrap gap-2 items-center">
+                    <span><i class="fa-solid fa-tag text-cyan-400"></i> ${safeStr(svcName)}</span>
+                    ${quoteBadge}
+                </p>
+                ${e.customer_phone ? `<p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-phone text-slate-300"></i> <span class="dir-ltr inline-block">${safeStr(e.customer_phone)}</span></p>` : ''}
+            </div>
         </div>
-    `).join('');
-};
+        <i class="fa-solid fa-chevron-left text-slate-300 ml-2"></i>
+    </div>`;
+}
 
-window.openNewEventModal = function() {
-    getEl('cal-event-id').value = '';
-    getEl('cal-event-title').value = '';
-    getEl('cal-event-date').value = currentCalDate.toISOString().split('T')[0];
-    getEl('cal-event-time').value = '10:00';
-    getEl('cal-event-notes').value = '';
+window.openCalEventModal = function(id = null) {
+    const modal = getEl('cal-event-modal');
+    if (!modal) return;
 
+    const titleEl = getEl('cal-event-modal-title');
+    const delBtn = getEl('btn-delete-cal-event');
+    const quoteSel = getEl('cal-event-quote');
+    const quoteViewBtn = getEl('btn-cal-view-quote');
+
+    // אכלוס סלקט השירותים
     const svcSelect = getEl('cal-event-service');
     svcSelect.innerHTML = '<option value="">שירות כללי (לא מוגדר)</option>';
     calServicesCache.forEach(s => {
         svcSelect.innerHTML += `<option value="${s.id}">${safeStr(s.name)}</option>`;
     });
 
-    getEl('cal-event-modal').classList.remove('hidden');
+    // אכלוס הצעות מחיר
+    if (quoteSel) {
+        quoteSel.innerHTML = '<option value="">-- ללא שיוך להצעת מחיר --</option>';
+        if (storeQuotesCache && storeQuotesCache.length > 0) {
+            storeQuotesCache.forEach(q => {
+                const total = parseFloat(q.total_amount || 0).toFixed(0);
+                quoteSel.innerHTML += `<option value="${q.id}">הצעה #${q.id} - ${safeStr(q.customer_name)} (₪${total})</option>`;
+            });
+        }
+    }
+
+    if (id) {
+        const ev = calEventsCache.find(e => e.id === id);
+        if (!ev) return;
+        getEl('cal-event-id').value = ev.id;
+        getEl('cal-event-title').value = ev.title;
+        getEl('cal-event-phone').value = ev.customer_phone || '';
+        getEl('cal-event-date').value = getCleanDate(ev.event_date);
+        getEl('cal-event-time').value = ev.start_time.substring(0,5);
+        if (ev.service_id) svcSelect.value = ev.service_id;
+        else svcSelect.value = '';
+
+        let cleanNotes = ev.notes || '';
+        if (quoteSel && cleanNotes.includes('ORDER_REF:')) {
+            const match = cleanNotes.match(/ORDER_REF:(\d+)/);
+            if (match) {
+                quoteSel.value = match[1];
+                cleanNotes = cleanNotes.replace(match[0], '').trim();
+            }
+        } else if (quoteSel) {
+            quoteSel.value = '';
+        }
+
+        getEl('cal-event-notes').value = cleanNotes;
+
+        titleEl.innerText = 'עריכת אירוע ביומן';
+        delBtn.classList.remove('hidden');
+    } else {
+        getEl('cal-event-id').value = '';
+        getEl('cal-event-title').value = '';
+        getEl('cal-event-phone').value = '';
+        getEl('cal-event-date').value = currentCalDate.toISOString().split('T')[0];
+        getEl('cal-event-time').value = '10:00';
+        svcSelect.value = '';
+        if(quoteSel) quoteSel.value = '';
+        getEl('cal-event-notes').value = '';
+
+        titleEl.innerText = 'אירוע / תור חדש';
+        delBtn.classList.add('hidden');
+    }
+
+    if(typeof toggleQuotePreviewBtn === 'function') toggleQuotePreviewBtn();
+    modal.classList.remove('hidden');
+};
+
+window.toggleQuotePreviewBtn = function() {
+    const sel = getEl('cal-event-quote');
+    const btn = getEl('btn-cal-view-quote');
+    if (!sel || !btn) return;
+    if (sel.value) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
+};
+
+window.viewEventQuote = function() {
+    const selId = val('cal-event-quote');
+    if (!selId) return;
+    // סוגר זמנית את היומן, פותח הצעת מחיר
+    getEl('cal-event-modal').classList.add('hidden');
+    if (typeof openQuotePreview === 'function') {
+        openQuotePreview(selId);
+        // כשהצפייה המקדימה נסגרת, נחזיר למודאל היומן
+        const previewModal = getEl('quote-preview-modal');
+        const oldClose = previewModal.querySelector('button').onclick;
+        previewModal.querySelector('button').onclick = () => {
+            previewModal.classList.add('hidden');
+            getEl('cal-event-modal').classList.remove('hidden');
+            // שחזור הלוגיקה המקורית
+            previewModal.querySelector('button').onclick = oldClose;
+        };
+    }
 };
 
 window.submitCalendarEvent = async function() {
+    const id = val('cal-event-id');
     const title = val('cal-event-title');
+    const phone = val('cal-event-phone');
     const date = val('cal-event-date');
     const time = val('cal-event-time');
+    const quoteId = val('cal-event-quote');
+    let notes = val('cal-event-notes') || '';
     
     if(!title || !date || !time) return showToast('error', 'כותרת, תאריך ושעה הם חובה');
     
+    if (quoteId) {
+        notes = `${notes} ORDER_REF:${quoteId}`.trim();
+    }
+
     const btn = getEl('btn-submit-cal-event');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     
     try {
         const payload = {
@@ -8332,311 +8488,43 @@ window.submitCalendarEvent = async function() {
             eventDate: date,
             startTime: time,
             serviceId: val('cal-event-service') || null,
-            notes: val('cal-event-notes'),
+            notes: notes,
             status: 'approved',
-            customerPhone: ''
+            customerPhone: phone
         };
         
-        const res = await fetch(`${API}/calendar/events`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        let url = `${API}/calendar/events`;
+        let method = 'POST';
+
+        // השרת שלנו כרגע בנוי רק ל-POST (הוספה מחדש) בעת יצירת תור. 
+        // במידה ועורכים אירוע - אנחנו פשוט נמחק את הישן וניצור חדש שקט כדי להשתמש בראוטים הקיימים בלי צורך בעדכון שרת.
+        if (id) {
+            await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
+        }
+
+        const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
         
         if (data.success) {
-            showToast('success', 'התור שובץ בהצלחה ביומן!');
+            showToast('success', id ? 'האירוע עודכן בהצלחה!' : 'התור שובץ בהצלחה ביומן!');
             getEl('cal-event-modal').classList.add('hidden');
             fetchCalendarData();
         } else {
-            showToast('error', data.error || 'שגיאה בשיבוץ התור');
+            showToast('error', data.error || 'שגיאה בשמירה');
         }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> שמור אירוע'; }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור אירוע'; }
 };
 
-window.approveCalendarEvent = async function(id) {
-    try {
-        const res = await fetch(`${API}/calendar/events/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: 'approved' }) });
-        if((await res.json()).success) { showToast('success', 'הבקשה אושרה והתור שובץ!'); fetchCalendarData(); }
-    } catch(e) {}
-};
-
-window.deleteCalendarEvent = async function(id, isReject = false) {
-    if(!confirm(isReject ? 'האם לדחות את הבקשה של הלקוח?' : 'האם לבטל אירוע/תור זה?')) return;
+window.deleteCurrentEvent = async function() {
+    const id = val('cal-event-id');
+    if (!id) return;
+    if(!confirm('האם לבטל ולמחוק אירוע זה מהיומן לחלוטין?')) return;
     try {
         await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
-        showToast('info', isReject ? 'הבקשה נדחתה' : 'התור בוטל');
+        showToast('info', 'האירוע נמחק מהיומן.');
+        getEl('cal-event-modal').classList.add('hidden');
         fetchCalendarData();
     } catch(e) {}
-};
-
-window.convertEventToQuote = function(eventId) {
-    const ev = calEventsCache.find(e => e.id === eventId);
-    if (!ev) return;
-    
-    // פתיחת מודאל הצעת מחיר
-    openNewQuoteModal(true);
-    getEl('quote-cust-name').value = ev.title;
-    getEl('quote-cust-phone').value = ev.customer_phone || '';
-    
-    const eDate = new Date(ev.event_date).toLocaleDateString('he-IL');
-    const svcName = ev.service_id ? (calServicesCache.find(s => s.id === ev.service_id)?.name || '') : '';
-    
-    getEl('quote-intro-text').value = `בהמשך לפנייתכם לתאריך ${eDate}, מצורפת הצעת מחיר לאירוע/שירות ${svcName}.`;
-    
-    // מעדכנים סטטוס ומעבירים לטאב הצעות
-    switchCalendarTab('schedule');
-    switchSalesTab('quotes');
-    showToast('info', 'הפרטים הועברו להצעת מחיר חדשה.');
-};
-
-window.openServiceModal = function() {
-    getEl('cal-service-name').value = '';
-    getEl('cal-service-duration').value = '30';
-    getEl('cal-service-price').value = '';
-    getEl('cal-service-modal').classList.remove('hidden');
-};
-
-window.submitCalendarService = async function() {
-    const name = val('cal-service-name');
-    if(!name) return showToast('error', 'נא להזין שם לשירות');
-    try {
-        await fetch(`${API}/calendar/services`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ groupId: currentGroup.id, name: name, durationMins: val('cal-service-duration'), price: val('cal-service-price') }) 
-        });
-        showToast('success', 'שירות נוסף בהצלחה!');
-        getEl('cal-service-modal').classList.add('hidden');
-        fetchCalendarData();
-    } catch(e) {}
-};
-
-window.deleteCalendarService = async function(id) {
-    if(!confirm('האם להסיר שירות זה? (לא ישפיע על תורים שכבר נקבעו)')) return;
-    try { await fetch(`${API}/calendar/services/${id}`, { method: 'DELETE' }); fetchCalendarData(); } catch(e) {}
-};
-
-window.saveCalendarSettings = async function() {
-    const btn = getEl('btn-save-cal-settings');
-    btn.disabled = true; btn.innerText = 'שומר...';
-    try {
-        const payload = {
-            groupId: currentGroup.id,
-            isActive: getEl('cal-setting-active').checked,
-            openTime: val('cal-setting-open'),
-            closeTime: val('cal-setting-close'),
-            intervalMins: val('cal-setting-interval')
-        };
-        const res = await fetch(`${API}/calendar/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if((await res.json()).success) { showToast('success', 'הגדרות היומן עודכנו!'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור הגדרות יומן'; }
-};
-
-// הזרקה לאתחול (כדי שיטען במעבר טאבים)
-const _originalSwitchTabForCal = window.switchTab;
-if (_originalSwitchTabForCal && !window.calSwitchTabOverridden) {
-    window.switchTab = function(tabId) {
-        _originalSwitchTabForCal(tabId);
-        if (tabId === 'calendar') {
-            window.switchCalendarTab('schedule');
-        }
-    };
-    window.calSwitchTabOverridden = true;
-}
-// נוסיף האזנה לשינויים בסטטוס הזמנות כדי לרענן את מסך ה-Live אם הוא פתוח.
-// נתחבר לפונקציה הקיימת renderStoreOrders.
-const originalRenderStoreOrders = window.renderStoreOrders;
-if (originalRenderStoreOrders && !window.renderStoreOrdersOverriddenForLive) {
-    window.renderStoreOrders = function() {
-        originalRenderStoreOrders(); // קריאה לפונקציה המקורית
-        
-        // אם מסך הסטטוס פתוח, רענן גם אותו
-        const screen = getEl('customer-status-screen');
-        if (screen && !screen.classList.contains('hidden')) {
-            window.renderCustomerStatusScreen();
-        }
-    };
-    window.renderStoreOrdersOverriddenForLive = true;
-}
-
-// ============================================================
-// --- מודול יומן ותורים (Booking & Calendar) ---
-// ============================================================
-
-let currentMonthDate = new Date();
-currentMonthDate.setDate(1);
-
-window.switchCalendarTab = function(subTab) {
-    ['schedule', 'month', 'requests', 'settings'].forEach(t => {
-        const view = getEl(`cal-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-cal-tab-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    });
-    
-    const targetView = getEl(`cal-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-cal-tab-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
-
-    if (subTab === 'schedule' || subTab === 'month') {
-        fetchCalendarData();
-    }
-};
-
-window.fetchCalendarData = async function() {
-    try {
-        const res = await fetch(`${API}/calendar/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success) {
-            calEventsCache = data.events || [];
-            calServicesCache = data.services || [];
-            if (data.settings) {
-                calSettingsCache = data.settings;
-                getEl('cal-setting-active').checked = calSettingsCache.is_active;
-                getEl('cal-setting-open').value = calSettingsCache.open_time || '09:00';
-                getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
-                getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
-            }
-            window.renderCalendarSchedule();
-            window.renderCalendarMonth();
-            renderCalendarRequests();
-            renderCalendarServices();
-        }
-    } catch(e) { console.error('Error fetching calendar data', e); }
-};
-
-window.renderCalendarSchedule = function() {
-    const list = getEl('cal-events-list');
-    if (!list) return;
-
-    const searchQ = (val('cal-search') || '').toLowerCase();
-    const startD = val('cal-filter-start');
-    const endD = val('cal-filter-end');
-
-    let filtered = calEventsCache.filter(e => e.status === 'approved');
-
-    // חיתוך זמן ה-ISO מהשרת (YYYY-MM-DD) כדי לפתור את באג התאריכים
-    const getCleanDate = (isoStr) => {
-        if(!isoStr) return '';
-        return isoStr.substring(0, 10);
-    };
-
-    if (startD) {
-        filtered = filtered.filter(e => getCleanDate(e.event_date) >= startD);
-    } else if (!searchQ) {
-        // אם אין חיפוש פעיל, כברירת מחדל נציג אירועים מהיום והלאה
-        const todayStr = new Date().toISOString().split('T')[0];
-        filtered = filtered.filter(e => getCleanDate(e.event_date) >= todayStr);
-    }
-
-    if (endD) {
-        filtered = filtered.filter(e => getCleanDate(e.event_date) <= endD);
-    }
-
-    if (searchQ) {
-        filtered = filtered.filter(e => 
-            (e.title && e.title.toLowerCase().includes(searchQ)) || 
-            (e.customer_phone && e.customer_phone.includes(searchQ)) ||
-            (e.notes && e.notes.toLowerCase().includes(searchQ))
-        );
-    }
-
-    filtered.sort((a,b) => {
-        const dateA = getCleanDate(a.event_date);
-        const dateB = getCleanDate(b.event_date);
-        if(dateA !== dateB) return dateA.localeCompare(dateB);
-        return a.start_time.localeCompare(b.start_time);
-    });
-
-    if (filtered.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">לא נמצאו אירועים/תורים לתקופה זו</p>';
-        return;
-    }
-
-    let html = '';
-    let currentDateHeader = '';
-
-    filtered.forEach(e => {
-        const eDateStr = getCleanDate(e.event_date);
-        if (eDateStr !== currentDateHeader) {
-            const dateObj = new Date(eDateStr);
-            html += `<h4 class="font-bold text-slate-700 text-sm mt-4 mb-2 border-b border-slate-100 pb-1"><i class="fa-regular fa-calendar text-cyan-500 mr-1"></i> ${dateObj.toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</h4>`;
-            currentDateHeader = eDateStr;
-        }
-
-        const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
-        html += `
-        <div class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center mb-2 hover:shadow-md transition group relative overflow-hidden">
-            <div class="flex items-start gap-3">
-                <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
-                    <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
-                </div>
-                <div class="flex-1 pr-1">
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(e.title)}</h4>
-                    <p class="text-[10px] text-slate-500 mt-0.5 flex flex-wrap gap-2 items-center">
-                        <span><i class="fa-solid fa-tag text-cyan-400"></i> ${safeStr(svcName)}</span>
-                        ${e.customer_phone ? `<span class="bg-slate-50 px-1 rounded border border-slate-100"><i class="fa-solid fa-phone text-slate-400"></i> <a href="tel:${safeStr(e.customer_phone)}" class="text-blue-500 dir-ltr inline-block hover:underline">${safeStr(e.customer_phone)}</a></span>` : ''}
-                    </p>
-                    ${e.notes ? `<p class="text-[10px] text-slate-400 mt-1 max-w-[250px] truncate">${safeStr(e.notes)}</p>` : ''}
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="deleteCalendarEvent(${e.id})" class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition border border-slate-100 shadow-sm"><i class="fa-solid fa-trash-can text-xs"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-};
-
-window.changeCalendarMonth = function(dir) {
-    currentMonthDate.setMonth(currentMonthDate.getMonth() + dir);
-    window.renderCalendarMonth();
-};
-
-window.renderCalendarMonth = function() {
-    const grid = getEl('cal-month-grid');
-    const display = getEl('cal-month-display');
-    if(!grid || !display) return;
-
-    display.innerText = currentMonthDate.toLocaleDateString('he-IL', {month:'long', year:'numeric'});
-    
-    const year = currentMonthDate.getFullYear();
-    const month = currentMonthDate.getMonth();
-    
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    let html = '';
-    
-    // ימים ריקים לפני תחילת החודש
-    for(let i=0; i<firstDay; i++) {
-        html += `<div class="aspect-square bg-transparent"></div>`;
-    }
-
-    const getCleanDate = (isoStr) => isoStr ? isoStr.substring(0, 10) : '';
-
-    for(let day=1; day<=daysInMonth; day++) {
-        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const dayEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === dateStr && e.status === 'approved');
-        
-        const today = new Date();
-        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-        const bgClass = isToday ? 'bg-cyan-50 border-cyan-300 shadow-sm' : 'bg-white border-slate-200 hover:border-cyan-300';
-        
-        let eventsHtml = '';
-        if(dayEvents.length > 0) {
-            const displayEvents = dayEvents.slice(0, 2);
-            displayEvents.forEach(e => {
-                eventsHtml += `<div class="text-[9px] bg-cyan-100 text-cyan-800 rounded px-1 py-0.5 mb-0.5 truncate leading-none font-bold" title="${safeStr(e.title)}">${e.start_time.substring(0,5)} ${safeStr(e.title)}</div>`;
-            });
-            if(dayEvents.length > 2) {
-                eventsHtml += `<div class="text-[9px] text-slate-500 font-bold bg-slate-100 rounded px-1 py-0.5 text-center">+${dayEvents.length - 2}</div>`;
-            }
-        }
-
-        html += `
-        <div class="aspect-[4/3] sm:aspect-square ${bgClass} border rounded-lg p-1 flex flex-col hover:shadow-md cursor-pointer transition overflow-hidden" onclick="document.getElementById('cal-filter-start').value='${dateStr}'; document.getElementById('cal-filter-end').value='${dateStr}'; window.switchCalendarTab('schedule');">
-            <span class="text-xs font-black ${isToday ? 'text-cyan-700' : 'text-slate-600'} mb-0.5">${day}</span>
-            <div class="flex-1 flex flex-col gap-0.5">
-                ${eventsHtml}
-            </div>
-        </div>`;
-    }
-
-    grid.innerHTML = html;
 };
 
 window.renderCalendarRequests = function() {
@@ -8704,57 +8592,6 @@ window.renderCalendarServices = function() {
     `).join('');
 };
 
-window.openNewEventModal = function() {
-    getEl('cal-event-id').value = '';
-    getEl('cal-event-title').value = '';
-    getEl('cal-event-date').value = new Date().toISOString().split('T')[0];
-    getEl('cal-event-time').value = '10:00';
-    getEl('cal-event-notes').value = '';
-
-    const svcSelect = getEl('cal-event-service');
-    svcSelect.innerHTML = '<option value="">שירות כללי (לא מוגדר)</option>';
-    calServicesCache.forEach(s => {
-        svcSelect.innerHTML += `<option value="${s.id}">${safeStr(s.name)}</option>`;
-    });
-
-    getEl('cal-event-modal').classList.remove('hidden');
-};
-
-window.submitCalendarEvent = async function() {
-    const title = val('cal-event-title');
-    const date = val('cal-event-date');
-    const time = val('cal-event-time');
-    
-    if(!title || !date || !time) return showToast('error', 'כותרת, תאריך ושעה הם חובה');
-    
-    const btn = getEl('btn-submit-cal-event');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    
-    try {
-        const payload = {
-            groupId: currentGroup.id,
-            title: title,
-            eventDate: date,
-            startTime: time,
-            serviceId: val('cal-event-service') || null,
-            notes: val('cal-event-notes'),
-            status: 'approved',
-            customerPhone: ''
-        };
-        
-        const res = await fetch(`${API}/calendar/events`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'התור שובץ בהצלחה ביומן!');
-            getEl('cal-event-modal').classList.add('hidden');
-            fetchCalendarData();
-        } else {
-            showToast('error', data.error || 'שגיאה בשיבוץ התור');
-        }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> שמור אירוע'; }
-};
-
 window.approveCalendarEvent = async function(id) {
     try {
         const res = await fetch(`${API}/calendar/events/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: 'approved' }) });
@@ -8779,13 +8616,12 @@ window.convertEventToQuote = function(eventId) {
     getEl('quote-cust-name').value = ev.title;
     getEl('quote-cust-phone').value = ev.customer_phone || '';
     
-    const getCleanDate = (isoStr) => isoStr ? isoStr.substring(0, 10) : '';
     const eDate = new Date(getCleanDate(ev.event_date)).toLocaleDateString('he-IL');
     const svcName = ev.service_id ? (calServicesCache.find(s => s.id === ev.service_id)?.name || '') : '';
     
     getEl('quote-intro-text').value = `בהמשך לפנייתכם לתאריך ${eDate}, מצורפת הצעת מחיר לאירוע/שירות ${svcName}.`;
     
-    window.switchCalendarTab('schedule');
+    window.switchCalendarTab('main');
     window.switchTab('sales');
     window.switchSalesTab('quotes');
     showToast('info', 'הפרטים הועברו להצעת מחיר חדשה.');
@@ -8839,7 +8675,7 @@ if (!window._originalSwitchTabForCal) {
     window.switchTab = function(tabId) {
         if(window._originalSwitchTabForCal) window._originalSwitchTabForCal(tabId);
         if (tabId === 'calendar') {
-            if(typeof window.switchCalendarTab === 'function') window.switchCalendarTab('schedule');
+            if(typeof window.switchCalendarTab === 'function') window.switchCalendarTab('main');
         }
     };
 }
