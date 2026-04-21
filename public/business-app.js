@@ -8380,16 +8380,25 @@ function createEventCardHTML(e) {
     const svcName = e.service_id ? (calServicesCache.find(s => s.id === e.service_id)?.name || 'שירות כללי') : 'אירוע/פגישה';
     const hasQuote = e.notes && e.notes.includes('ORDER_REF:');
     let quoteBadge = '';
+    let displayTime = e.start_time.substring(0,5);
+    
+    // זיהוי תגיות זמן בתוך ההערות
+    if (e.notes && e.notes.includes('[ALL_DAY]')) {
+        displayTime = 'יום שלם';
+    } else if (e.notes && e.notes.includes('[EVENING]')) {
+        displayTime = 'ערב';
+    }
+
     if(hasQuote) {
         const orderIdMatch = e.notes.match(/ORDER_REF:(\d+)/);
         if(orderIdMatch) quoteBadge = `<span class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded text-[9px] font-bold mr-2"><i class="fa-solid fa-file-invoice"></i> מקושר להצעה #${orderIdMatch[1]}</span>`;
     }
 
     return `
-    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center hover:shadow-md transition group relative overflow-hidden cursor-pointer">
+    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center hover:shadow-md transition group relative overflow-hidden cursor-pointer mb-2">
         <div class="flex items-start gap-3 w-full">
             <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
-                <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
+                <p class="font-black text-cyan-700 text-[11px] leading-tight">${displayTime}</p>
                 <p class="text-[9px] text-slate-400 mt-0.5">${new Date(window.getCleanDate(e.event_date)).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'})}</p>
             </div>
             <div class="flex-1 min-w-0 pr-1">
@@ -8429,18 +8438,42 @@ window.openCalEventModal = function(id = null) {
         }
     }
 
-    if (id) {
+if (id) {
         const ev = calEventsCache.find(e => e.id === id);
         if (!ev) return;
         getEl('cal-event-id').value = ev.id;
         getEl('cal-event-title').value = ev.title;
         getEl('cal-event-phone').value = ev.customer_phone || '';
         getEl('cal-event-date').value = window.getCleanDate(ev.event_date);
-        getEl('cal-event-time').value = ev.start_time.substring(0,5);
+        
+        let cleanNotes = ev.notes || '';
+        
+        // זיהוי סוג התזמון לפי תגיות בהערות
+        const timeTypeSelect = getEl('cal-event-time-type');
+        const timeInput = getEl('cal-event-time');
+        
+        if (cleanNotes.includes('[ALL_DAY]')) {
+            timeTypeSelect.value = 'ALL_DAY';
+            timeInput.value = '00:00';
+            timeInput.disabled = true;
+            timeInput.style.opacity = '0.5';
+            cleanNotes = cleanNotes.replace('[ALL_DAY]', '').trim();
+        } else if (cleanNotes.includes('[EVENING]')) {
+            timeTypeSelect.value = 'EVENING';
+            timeInput.value = '19:00';
+            timeInput.disabled = true;
+            timeInput.style.opacity = '0.5';
+            cleanNotes = cleanNotes.replace('[EVENING]', '').trim();
+        } else {
+            timeTypeSelect.value = 'specific';
+            timeInput.value = ev.start_time.substring(0,5);
+            timeInput.disabled = false;
+            timeInput.style.opacity = '1';
+        }
+
         if (ev.service_id) svcSelect.value = ev.service_id;
         else svcSelect.value = '';
 
-        let cleanNotes = ev.notes || '';
         if (quoteSel && cleanNotes.includes('ORDER_REF:')) {
             const match = cleanNotes.match(/ORDER_REF:(\d+)/);
             if (match) {
@@ -8460,7 +8493,16 @@ window.openCalEventModal = function(id = null) {
         getEl('cal-event-title').value = '';
         getEl('cal-event-phone').value = '';
         getEl('cal-event-date').value = currentCalDate.toISOString().split('T')[0];
-        getEl('cal-event-time').value = '10:00';
+        
+        const timeTypeSelect = getEl('cal-event-time-type');
+        const timeInput = getEl('cal-event-time');
+        if(timeTypeSelect) timeTypeSelect.value = 'specific';
+        if(timeInput) {
+            timeInput.value = '10:00';
+            timeInput.disabled = false;
+            timeInput.style.opacity = '1';
+        }
+        
         svcSelect.value = '';
         if(quoteSel) quoteSel.value = '';
         getEl('cal-event-notes').value = '';
@@ -8502,10 +8544,20 @@ window.submitCalendarEvent = async function() {
     const title = val('cal-event-title');
     const phone = val('cal-event-phone');
     const date = val('cal-event-date');
-    const time = val('cal-event-time');
+    let time = val('cal-event-time');
     const quoteId = val('cal-event-quote');
+    const timeType = val('cal-event-time-type') || 'specific';
     let notes = val('cal-event-notes') || '';
     
+    // אם נבחר יום שלם או ערב שלם, נקבע את השעה ל-00:00 (כדי שיסודר נכון ביומן) ונדחוף תגית ל-notes
+    if (timeType === 'ALL_DAY') {
+        time = '00:00';
+        notes = `${notes} [ALL_DAY]`.trim();
+    } else if (timeType === 'EVENING') {
+        time = '19:00'; // שעה דיפולטיבית כדי שיסודר בערב
+        notes = `${notes} [EVENING]`.trim();
+    }
+
     if(!title || !date || !time) return showToast('error', 'כותרת, תאריך ושעה הם חובה');
     
     if (quoteId) {
