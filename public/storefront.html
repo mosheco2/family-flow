@@ -1259,7 +1259,7 @@
             }
         }
 
-        // === פונקציות קביעת תור (Booking B2C) ===
+// === פונקציות קביעת תור (Booking B2C) ===
         window.openBookingModal = function() {
             if (!storeData || !storeData.calendarSettings) return;
             
@@ -1277,7 +1277,7 @@
                 svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
             }
 
-            generateAvailableTimeSlots();
+            window.generateAvailableTimeSlots();
             
             // מילוי אוטומטי ללקוחות מחוברים
             try {
@@ -1375,7 +1375,7 @@
             }
         };
 
-        function scrollCategories(direction) {
+        window.scrollCategories = function(direction) {
             const container = document.getElementById('categories-container');
             if (container) {
                 const scrollAmount = 200; 
@@ -1384,9 +1384,9 @@
                     behavior: 'smooth'
                 });
             }
-        }
+        };
 
-        function updateScrollButtonsVisibility() {
+        window.updateScrollButtonsVisibility = function() {
             const container = document.getElementById('categories-container');
             const rightBtn = document.getElementById('scroll-right-btn');
             const leftBtn = document.getElementById('scroll-left-btn');
@@ -1402,13 +1402,13 @@
             
             leftBtn.style.opacity = isAtEnd ? '0.3' : '1';
             leftBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
-        }
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('categories-container');
             if (container) {
-                container.addEventListener('scroll', updateScrollButtonsVisibility);
-                setTimeout(updateScrollButtonsVisibility, 800); 
+                container.addEventListener('scroll', window.updateScrollButtonsVisibility);
+                setTimeout(window.updateScrollButtonsVisibility, 800); 
             }
         });
 
