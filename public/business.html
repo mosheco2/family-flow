@@ -643,6 +643,7 @@
                                         <button onclick="if(typeof resetCalDate==='function') resetCalDate()" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition mr-2 hidden sm:block">חזור להיום</button>
                                     </div>
                                     <div class="flex gap-1 bg-slate-200/50 p-1 rounded-lg w-full md:w-auto justify-center">
+                                        <button id="btn-cal-mode-agenda" onclick="if(typeof setCalMode==='function') setCalMode('agenda')" class="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none">רצף</button>
                                         <button id="btn-cal-mode-day" onclick="if(typeof setCalMode==='function') setCalMode('day')" class="px-4 py-1.5 text-xs font-bold bg-white text-slate-800 rounded-md shadow-sm transition flex-1 md:flex-none">יום</button>
                                         <button id="btn-cal-mode-week" onclick="if(typeof setCalMode==='function') setCalMode('week')" class="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none">שבוע</button>
                                         <button id="btn-cal-mode-month" onclick="if(typeof setCalMode==='function') setCalMode('month')" class="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none">חודש</button>
