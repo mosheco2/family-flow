@@ -4774,11 +4774,45 @@ async function submitGlobalAI() {
     const inputEl = getEl('global-ai-input'); const query = inputEl.value.trim(); if (!query) return;
     const chatBox = getEl('global-ai-chat'); chatBox.innerHTML += `<div class="bg-indigo-600 text-white p-3 rounded-xl rounded-tl-none shadow-sm text-sm self-end max-w-[85%] fade-in">${safeStr(query)}</div>`; inputEl.value = '';
     const btn = getEl('btn-global-ai-submit'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
-    const systemContext = { active_orders: storeOrdersCache.filter(o => o.status !== 'completed'), employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})), pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})), recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount})) };
+    
+    // הזרקת קונטקסט עשיר והוראות הפעלה לעוזרת הווירטואלית האקטיבית
+    const systemContext = { 
+        active_orders: storeOrdersCache.filter(o => o.status !== 'completed'), 
+        employees: membersCache.map(m => ({name: m.nickname, role: m.role, budget: m.balance})), 
+        pantry_inventory: pantryCache.map(p => ({item: p.item_name, qty: p.quantity})), 
+        recent_expenses: allTransactions.filter(t => t.type === 'expense').slice(0, 10).map(t => ({desc: t.description, amount: t.amount})),
+        instructions: "You are the business AI assistant. You have full access to the business data. If the user asks to create a task for an employee or a project, output exactly [ACTION:ADD_TASK|Task Title] at the very end of your answer. If they ask to buy, order or add an item to the procurement/shopping list, output exactly [ACTION:ADD_SHOP|Item Name] at the very end. Keep your answers brief and in Hebrew."
+    };
+    
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id }) }); const data = await res.json();
         if (!handleAIResponseCheck(data)) { getEl('global-ai-modal').classList.add('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; return; }
-        if (data.success && data.answer) { chatBox.innerHTML += `<div class="bg-white p-3 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in">${data.answer.replace(/\n/g, '<br>')}</div>`; chatBox.scrollTop = chatBox.scrollHeight; } else { showToast('error', 'שגיאה בתשובת ה-AI'); }
+        
+        if (data.success && data.answer) { 
+            let answerText = data.answer;
+            let actionHtml = '';
+            
+            // AI Action Parser - זיהוי בקשה לפתיחת טיקט/משימה
+            const taskMatch = answerText.match(/\[ACTION:ADD_TASK\|(.*?)\]/);
+            if (taskMatch) {
+                const taskTitle = taskMatch[1].trim();
+                answerText = answerText.replace(taskMatch[0], '');
+                actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openTaskModal(); setTimeout(() => document.getElementById('task-title').value='${safeStr(taskTitle)}', 300);" class="mt-3 w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list-check"></i> פתיחת משימה: ${safeStr(taskTitle)}</button>`;
+            }
+            
+            // AI Action Parser - זיהוי בקשה להוספת ציוד לרכש
+            const shopMatch = answerText.match(/\[ACTION:ADD_SHOP\|(.*?)\]/);
+            if (shopMatch) {
+                const shopItem = shopMatch[1].trim();
+                answerText = answerText.replace(shopMatch[0], '');
+                actionHtml += `<button onclick="document.getElementById('global-ai-modal').classList.add('hidden'); openShopModal(); setTimeout(() => document.getElementById('shop-item').value='${safeStr(shopItem)}', 300);" class="mt-3 w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-cart-shopping"></i> הוסף לרכש: ${safeStr(shopItem)}</button>`;
+            }
+            
+            chatBox.innerHTML += `<div class="bg-white p-3.5 rounded-xl rounded-tr-none shadow-sm border border-slate-100 text-sm text-slate-700 self-start max-w-[85%] fade-in leading-relaxed">${answerText.trim().replace(/\n/g, '<br>')}${actionHtml}</div>`; 
+            chatBox.scrollTop = chatBox.scrollHeight; 
+        } else { 
+            showToast('error', 'שגיאה בתשובת ה-AI'); 
+        }
     } catch(e) { showToast('error', 'תקלת רשת מול מנוע ה-AI'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; }
 }
 
