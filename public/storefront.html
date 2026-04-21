@@ -1307,7 +1307,7 @@
             if (modal) modal.classList.remove('hidden');
         };
 
-window.generateAvailableTimeSlots = function() {
+window.generateAvailableTimeSlots = async function() {
             const timeSelect = getEl('book-time');
             if (!timeSelect) return;
 
@@ -1319,6 +1319,21 @@ window.generateAvailableTimeSlots = function() {
 
             const dateInput = getEl('book-date');
             const selectedDateStr = dateInput ? dateInput.value : '';
+            if (!selectedDateStr) return;
+
+            // --- תוספת: שאיבת אירועים עדכניים מהשרת בזמן אמת ---
+            timeSelect.innerHTML = '<option value="">בודק זמינות בזמן אמת...</option>';
+            try {
+                const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
+                const calData = await calRes.json();
+                if (calData.success) {
+                    storeData.calendarEvents = calData.events || [];
+                }
+            } catch(e) {
+                console.warn('Using cached calendar events');
+            }
+            // --------------------------------------------------
+
             const now = new Date();
             const isToday = selectedDateStr === now.toISOString().split('T')[0];
 
