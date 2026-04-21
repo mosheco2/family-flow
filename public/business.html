@@ -575,6 +575,7 @@
                             <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn tab-active">ראשי 🏠</button>
                             <button onclick="switchTab('timeclock')" id="tab-timeclock" class="tab-btn">נוכחות ⏱️</button>
                             <button onclick="switchTab('shifts')" id="tab-shifts" class="tab-btn">משמרות 🗓️</button>
+                            <button onclick="switchTab('calendar')" id="tab-calendar" class="tab-btn bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-transparent shadow-md">יומן ותורים 📅</button>
                             <button onclick="switchTab('shop')" id="tab-shop" class="tab-btn">רכש 🛒</button>
                             <button onclick="switchTab('pantry')" id="tab-pantry" class="tab-btn">מלאי 📦</button>
                             <button onclick="switchTab('foodcost')" id="tab-foodcost" class="tab-btn bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent shrink-0 shadow-md">פוד קוסט 🍽️</button>
@@ -620,9 +621,77 @@
                             </div>
                         </div>
 
-                        <div id="unified-feed-list" class="space-y-3 pb-8"></div>
+<div id="unified-feed-list" class="space-y-3 pb-8"></div>
                     </div>
-                    
+
+                    <div id="content-calendar" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
+                            
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
+                                <button id="btn-cal-tab-schedule" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('schedule')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">היומן שלי</button>
+                                <button id="btn-cal-tab-requests" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('requests')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition relative">בקשות שיבוץ <span id="cal-pending-badge" class="hidden absolute top-0 left-0 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center">0</span></button>
+                                <button id="btn-cal-tab-settings" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות ושירותים</button>
+                            </div>
+
+                            <div id="cal-view-schedule" class="space-y-4">
+                                <div class="flex justify-between items-center mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="if(typeof changeCalendarDate==='function') changeCalendarDate(-1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                        <span id="cal-current-date-display" class="font-bold text-slate-800 text-sm w-28 text-center">היום</span>
+                                        <button onclick="if(typeof changeCalendarDate==='function') changeCalendarDate(1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                    </div>
+                                    <button onclick="if(typeof openNewEventModal==='function') openNewEventModal()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-cyan-700 transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> הוסף תור</button>
+                                </div>
+                                <div id="cal-events-list" class="space-y-2 pb-8 min-h-[200px]">
+                                    <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין אירועים ליום זה</p>
+                                </div>
+                            </div>
+
+                            <div id="cal-view-requests" class="hidden space-y-4 pb-8 min-h-[200px]">
+                                <div class="bg-cyan-50 border border-cyan-100 p-3 rounded-xl mb-2 text-xs text-cyan-800">
+                                    <i class="fa-solid fa-circle-info"></i> לקוחות יכולים לשלוח בקשות לשיבוץ תור או אירוע דרך עמוד החנות שלכם. כאן תוכלו לאשר אותם או להפוך אותם להצעת מחיר.
+                                </div>
+                                <div id="cal-requests-list" class="space-y-3">
+                                    <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות ממתינות</p>
+                                </div>
+                            </div>
+
+                            <div id="cal-view-settings" class="hidden space-y-5 pb-8">
+                                <div class="bg-cyan-50 p-4 rounded-xl border border-cyan-100 flex items-center justify-between shadow-sm">
+                                    <div>
+                                        <h4 class="font-bold text-cyan-900 text-sm mb-1">הפעלת מודול הזמנת תורים בחנות</h4>
+                                        <p class="text-[10px] text-cyan-700">מאפשר ללקוחות לשלוח בקשות לתורים ואירועים דרך הלינק שלכם</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="cal-setting-active" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                                    </label>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-list-check text-cyan-500 mr-1"></i> שירותים הניתנים להזמנה</h4>
+                                    <div id="cal-services-list" class="space-y-2 mb-3 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                                    <button onclick="if(typeof openServiceModal==='function') openServiceModal()" class="w-full bg-slate-50 text-slate-600 border border-dashed border-slate-300 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 hover:text-cyan-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף שירות (למשל: תספורת גברים / קייטרינג חלבי)</button>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-clock text-cyan-500 mr-1"></i> שעות פעילות וזמינות</h4>
+                                    <div class="grid grid-cols-2 gap-3 mb-3">
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת פתיחה יומית:</label><input type="time" id="cal-setting-open" class="modern-input py-2 text-sm bg-slate-50" value="09:00"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת סגירה יומית:</label><input type="time" id="cal-setting-close" class="modern-input py-2 text-sm bg-slate-50" value="18:00"></div>
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הפרש דקות בין תורים (למשל: 30 דקות לתור):</label>
+                                            <input type="number" id="cal-setting-interval" class="modern-input py-2 text-sm bg-slate-50 text-center" value="30" min="15" step="5">
+                                            <p class="text-[9px] text-slate-400 mt-1">* לעסקים של אירועים גדולים, מומלץ להגדיר שירות של מספר שעות ולא לאפשר בחירה מצומצמת.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="if(typeof saveCalendarSettings==='function') saveCalendarSettings()" id="btn-save-cal-settings" class="w-full bg-slate-800 text-white py-3.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור הגדרות יומן</button>
+                            </div>
+                        </div>
+                    </div>
                     <div id="content-customers" class="hidden">
                         <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                             <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">לקוחות 🤝</h3>
@@ -1694,8 +1763,73 @@
             </div>
         </div>
 
-<div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
+<div id="cal-event-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto modal-scroll">
+                <button onclick="document.getElementById('cal-event-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3" id="cal-event-modal-title">אירוע / תור חדש</h3>
+                <input type="hidden" id="cal-event-id">
+                
+                <div class="space-y-3 mb-6">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כותרת / לקוח (חובה):</label>
+                        <input type="text" id="cal-event-title" class="modern-input py-2 text-sm bg-white" placeholder="שם הלקוח, חברה או סוג האירוע">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג שירות:</label>
+                        <select id="cal-event-service" class="modern-input py-2 text-sm bg-white font-bold text-cyan-700"></select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">תאריך:</label>
+                            <input type="date" id="cal-event-date" class="modern-input py-2 text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">שעת התחלה:</label>
+                            <input type="time" id="cal-event-time" class="modern-input py-2 text-sm bg-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">הערות נוספות ודרישות (אופציונלי):</label>
+                        <textarea id="cal-event-notes" class="modern-input py-2 text-sm h-16 bg-white"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2 border-t border-slate-100">
+                    <button onclick="document.getElementById('cal-event-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
+                    <button onclick="if(typeof submitCalendarEvent==='function') submitCalendarEvent()" id="btn-submit-cal-event" class="w-2/3 bg-cyan-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-check"></i> שמור אירוע</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="cal-service-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative">
+                <h3 class="text-lg font-black text-slate-800 mb-4 border-b border-slate-100 pb-2"><i class="fa-solid fa-tag text-cyan-500 mr-1"></i> הגדרת שירות לקביעת תור</h3>
+                <input type="hidden" id="cal-service-id">
+                <div class="space-y-3 mb-6">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השירות (יוצג ללקוח):</label>
+                        <input type="text" id="cal-service-name" class="modern-input py-2 text-sm bg-white" placeholder="למשל: אירוע צהריים (עד 50 איש) / טיפול קוסמטי">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">משך משוער (בדקות):</label>
+                            <input type="number" id="cal-service-duration" class="modern-input py-2 text-sm bg-white text-center" value="30">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 block mb-1">מחיר התחלתי (₪):</label>
+                            <input type="number" id="cal-service-price" class="modern-input py-2 text-sm bg-white text-center" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('cal-service-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition text-sm">ביטול</button>
+                    <button onclick="if(typeof submitCalendarService==='function') submitCalendarService()" class="flex-[1.5] bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md hover:bg-slate-700 transition text-sm flex items-center justify-center gap-1.5"><i class="fa-solid fa-save"></i> הוסף שירות</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="generic-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[90] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl text-center relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
                 <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <i class="fa-solid fa-bell text-4xl text-blue-500 mb-4 mt-2"></i>
                 <h3 class="text-2xl font-bold mb-4 text-slate-800" id="generic-alert-title">הודעה</h3>
