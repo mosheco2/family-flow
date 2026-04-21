@@ -1413,6 +1413,152 @@
         });
 
         initStore();
+     // ==========================================
+        // תיקון: הגדרת פונקציות היומן כזמינות גלובלית
+        // ==========================================
+        window.openBookingModal = function() {
+            if (!storeData || !storeData.calendarSettings) {
+                showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
+                return;
+            }
+            
+            // עדכון תאריך מינימום להיום
+            const dateInput = getEl('book-date');
+            if (dateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.min = today;
+                dateInput.value = today;
+            }
+
+            // טעינת שירותים לתיבת הבחירה
+            const svcSelect = getEl('book-service');
+            if (svcSelect) {
+                if (storeData.calendarServices && storeData.calendarServices.length > 0) {
+                    svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
+                } else {
+                    svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
+                }
+            }
+
+            window.generateAvailableTimeSlots();
+            
+            // מילוי אוטומטי של שם וטלפון ללקוחות מחוברים (אם יש session)
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session && session.user) {
+                    if(!getEl('book-name').value) getEl('book-name').value = session.user.nickname || '';
+                    if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
+                }
+            } catch(e) {}
+
+            const modal = getEl('booking-modal');
+            if (modal) modal.classList.remove('hidden');
+        };
+
+        window.generateAvailableTimeSlots = function() {
+            const timeSelect = getEl('book-time');
+            if (!timeSelect) return;
+
+            const calSettings = storeData.calendarSettings;
+            if (!calSettings || !calSettings.open_time || !calSettings.close_time) {
+                timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
+                return;
+            }
+
+            const openTimeStr = calSettings.open_time;
+            const closeTimeStr = calSettings.close_time;
+            const interval = parseInt(calSettings.interval_mins) || 30;
+
+            let [openH, openM] = openTimeStr.split(':').map(Number);
+            let [closeH, closeM] = closeTimeStr.split(':').map(Number);
+            
+            const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
+            const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
+            
+            let html = '';
+            let current = new Date(startTime);
+            
+            const now = new Date();
+            const dateInput = getEl('book-date');
+            const isToday = dateInput ? dateInput.value === now.toISOString().split('T')[0] : false;
+
+            while (current <= endTime) {
+                // הצג רק שעות שעדיין לא עברו (אם נבחר התאריך של היום)
+                if (!isToday || current > now) {
+                    const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+                    html += `<option value="${timeStr}">${timeStr}</option>`;
+                }
+                current.setMinutes(current.getMinutes() + interval);
+            }
+
+            if (html === '') {
+                html = '<option value="">אין שעות פנויות לתאריך זה</option>';
+            }
+            timeSelect.innerHTML = html;
+        };
+
+        window.submitBookingRequest = async function() {
+            const name = val('book-name');
+            const phone = val('book-phone');
+            const date = val('book-date');
+            const time = val('book-time');
+            const serviceId = val('book-service');
+            const notes = val('book-notes');
+
+            if (!name || !phone || !date || !time) {
+                return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
+            }
+
+            const btn = getEl('btn-submit-booking');
+            if (btn) {
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...';
+            }
+
+            const payload = {
+                groupId: storeData.groupId,
+                title: name,
+                eventDate: date,
+                startTime: time,
+                serviceId: serviceId || null,
+                notes: notes,
+                customerPhone: phone,
+                status: 'pending' // הבקשה תמתין לאישור מנהל העסק ביומן
+            };
+
+            try {
+                const res = await fetch(`${API}/calendar/events`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    getEl('booking-modal').classList.add('hidden');
+                    
+                    // מציג מסך הצלחה חלופי (קיים בחנות)
+                    const successText = getEl('success-message-text');
+                    if(successText) successText.innerText = 'בקשתך נשלחה לעסק. נציג ייצור קשר בהקדם לאישור סופי.';
+                    
+                    const successBox = getEl('success-order-box');
+                    if(successBox) successBox.classList.add('hidden'); 
+                    
+                    const successScreen = getEl('success-screen');
+                    if(successScreen) successScreen.classList.remove('hidden');
+                    
+                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                } else {
+                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת רשת בשליחת הבקשה');
+            } finally {
+                if (btn) {
+                    btn.disabled = false; 
+                    btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
+                }
+            }
+        };
     </script>
 2. הוספת תצוגת יומן חודשית + חיפוש וסינון לאירועים (business.html)
 הוספנו את האפשרויות לדפדף ביומן החודשי, וכן סרגל חיפוש חכם וסינון טווח תאריכים במסך הניהול!
