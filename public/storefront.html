@@ -1307,7 +1307,7 @@
             if (modal) modal.classList.remove('hidden');
         };
 
-        window.generateAvailableTimeSlots = function() {
+window.generateAvailableTimeSlots = function() {
             const timeSelect = getEl('book-time');
             if (!timeSelect) return;
 
@@ -1316,6 +1316,26 @@
                 timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
                 return;
             }
+
+            const dateInput = getEl('book-date');
+            const selectedDateStr = dateInput ? dateInput.value : '';
+            const now = new Date();
+            const isToday = selectedDateStr === now.toISOString().split('T')[0];
+
+            // שולפים את כל האירועים של היום הספציפי
+            const todaysEvents = (storeData.calendarEvents || [])
+                .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'));
+
+            // חסימה חכמה: בודקים אם יש אירוע של "יום שלם" שנועל את כל הלו"ז
+            const hasAllDayEvent = todaysEvents.some(e => e.notes && e.notes.includes('[ALL_DAY]'));
+
+            if (hasAllDayEvent) {
+                timeSelect.innerHTML = '<option value="">היום סגור לאירוע (אין תורים)</option>';
+                return; // עוצרים כאן, לא מייצרים שעות בכלל!
+            }
+
+            // אם אין אירוע של יום שלם, אוספים את השעות התפוסות הרגילות
+            const bookedTimes = todaysEvents.map(e => e.start_time.substring(0, 5));
 
             const openTimeStr = calSettings.open_time;
             const closeTimeStr = calSettings.close_time;
@@ -1327,23 +1347,13 @@
             const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
             const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
             
-            const dateInput = getEl('book-date');
-            const selectedDateStr = dateInput ? dateInput.value : '';
-            const now = new Date();
-            const isToday = selectedDateStr === now.toISOString().split('T')[0];
-
-            // שולפים את כל השעות שכבר תפוסות ביומן לתאריך שנבחר (סטטוס מאושר או ממתין)
-            const bookedTimes = (storeData.calendarEvents || [])
-                .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'))
-                .map(e => e.start_time.substring(0, 5));
-
             let html = '';
             let current = new Date(startTime);
 
             while (current <= endTime) {
                 const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
                 
-                // בודקים 2 דברים: 1. שהשעה לא עברה (אם זה היום). 2. שהשעה לא תפוסה כבר ביומן.
+                // מוודאים שהשעה לא עברה ושהיא לא תפוסה ביומן
                 const isTimePassed = isToday && current <= now;
                 const isBooked = bookedTimes.includes(timeStr);
 
