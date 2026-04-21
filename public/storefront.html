@@ -106,6 +106,9 @@
 
     <div class="glass-header sticky top-0 z-40">
         <div class="p-4 pb-2 flex items-center gap-2">
+            <button onclick="window.toggleSideMenu(true)" class="w-12 h-12 shrink-0 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-black transition shadow-md" title="תפריט קטגוריות">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
             <div class="relative flex-1">
                 <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                 <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
@@ -114,6 +117,18 @@
                 <i class="fa-solid fa-list text-lg"></i>
             </button>
         </div>
+        <div class="relative w-full px-2 pb-2 group">
+            <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:text-black hover:scale-110 transition border border-slate-200">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <div class="cat-slider hide-scrollbar px-8" id="categories-container"></div>
+
+            <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:text-black hover:scale-110 transition border border-slate-200">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+        </div>
+    </div>
         <div class="relative w-full px-2 pb-2 group">
             <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-black hover:scale-110 transition hidden md:flex border border-slate-200">
                 <i class="fa-solid fa-chevron-right text-xs"></i>
@@ -1343,13 +1358,12 @@
         // ==========================================
         // תיקון: הגדרת פונקציות היומן כזמינות גלובלית
         // ==========================================
-        window.openBookingModal = function() {
+      window.openBookingModal = async function() {
             if (!storeData || !storeData.calendarSettings) {
                 showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
                 return;
             }
             
-            // עדכון תאריך מינימום להיום
             const dateInput = getEl('book-date');
             if (dateInput) {
                 const today = new Date().toISOString().split('T')[0];
@@ -1357,7 +1371,6 @@
                 dateInput.value = today;
             }
 
-            // טעינת שירותים לתיבת הבחירה
             const svcSelect = getEl('book-service');
             if (svcSelect) {
                 if (storeData.calendarServices && storeData.calendarServices.length > 0) {
@@ -1367,9 +1380,12 @@
                 }
             }
 
-            window.generateAvailableTimeSlots();
+            // פתיחת המודאל מיד והצגת סטטוס טעינה
+            const modal = getEl('booking-modal');
+            if (modal) modal.classList.remove('hidden');
+
+            await window.generateAvailableTimeSlots();
             
-            // מילוי אוטומטי של שם וטלפון ללקוחות מחוברים (אם יש session)
             try {
                 const session = JSON.parse(localStorage.getItem('ofl_session'));
                 if (session && session.user) {
@@ -1377,12 +1393,9 @@
                     if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
                 }
             } catch(e) {}
-
-            const modal = getEl('booking-modal');
-            if (modal) modal.classList.remove('hidden');
         };
 
-window.generateAvailableTimeSlots = async function() {
+        window.generateAvailableTimeSlots = async function() {
             const timeSelect = getEl('book-time');
             if (!timeSelect) return;
 
@@ -1397,9 +1410,10 @@ window.generateAvailableTimeSlots = async function() {
             if (!selectedDateStr) return;
 
             timeSelect.innerHTML = '<option value="">בודק זמינות מול היומן...</option>';
+            timeSelect.disabled = true;
 
             try {
-                // Fetch חי עם חותמת זמן שמונעת בוודאות טעינת נתונים ישנים (Bypass Cache)
+                // Fetch חי וישיר מול השרת ללא שימוש במטמון
                 const fetchUrl = `${API}/calendar/${storeData.groupId}?t=${new Date().getTime()}`;
                 const freshRes = await fetch(fetchUrl, { cache: 'no-store' });
                 const freshData = await freshRes.json();
@@ -1418,7 +1432,8 @@ window.generateAvailableTimeSlots = async function() {
             const hasAllDayEvent = todaysEvents.some(e => e.notes && e.notes.includes('[ALL_DAY]'));
 
             if (hasAllDayEvent) {
-                timeSelect.innerHTML = '<option value="">היום סגור לאירוע (אין תורים)</option>';
+                timeSelect.innerHTML = '<option value="">היום סגור לאירוע / ימי חופש</option>';
+                timeSelect.disabled = true;
                 return;
             }
 
@@ -1450,41 +1465,101 @@ window.generateAvailableTimeSlots = async function() {
             }
 
             timeSelect.innerHTML = html || '<option value="">אין שעות פנויות לתאריך זה</option>';
+            timeSelect.disabled = false;
         };
 
-        // תיקון החיצים - עבודה עם ערכים מוחלטים והיפוך כיוונים
+        window.submitBookingRequest = async function() {
+            const name = val('book-name');
+            const phone = val('book-phone');
+            const date = val('book-date');
+            const time = val('book-time');
+            const serviceId = val('book-service');
+            const notes = val('book-notes');
+
+            if (!name || !phone || !date || !time) {
+                return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
+            }
+
+            const btn = getEl('btn-submit-booking');
+            if (btn) {
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...';
+            }
+
+            const payload = {
+                groupId: storeData.groupId,
+                title: name,
+                eventDate: date,
+                startTime: time,
+                serviceId: serviceId || null,
+                notes: notes,
+                customerPhone: phone,
+                status: 'pending'
+            };
+
+            try {
+                const res = await fetch(`${API}/calendar/events`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    getEl('booking-modal').classList.add('hidden');
+                    const successText = getEl('success-message-text');
+                    if(successText) successText.innerText = 'בקשתך נשלחה לעסק. נציג ייצור קשר בהקדם לאישור סופי.';
+                    const successBox = getEl('success-order-box');
+                    if(successBox) successBox.classList.add('hidden'); 
+                    const successScreen = getEl('success-screen');
+                    if(successScreen) successScreen.classList.remove('hidden');
+                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                } else {
+                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת רשת בשליחת הבקשה');
+            } finally {
+                if (btn) {
+                    btn.disabled = false; 
+                    btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
+                }
+            }
+        };
+
         window.scrollCategories = function(direction) {
-            const container = getEl('categories-container');
+            const container = document.getElementById('categories-container');
             if (container) {
-                // גלילה חלקה שעובדת מצוין ב-RTL
+                // תיקון ל-RTL Scrolling
+                const isRTL = window.getComputedStyle(container).direction === 'rtl';
                 const scrollAmount = 250; 
+                const sign = isRTL ? -1 : 1;
                 container.scrollBy({
-                    left: direction * scrollAmount,
+                    left: direction * sign * scrollAmount,
                     behavior: 'smooth'
                 });
             }
         };
 
         window.updateScrollButtonsVisibility = function() {
-            const container = getEl('categories-container');
-            const rightBtn = getEl('scroll-right-btn');
-            const leftBtn = getEl('scroll-left-btn');
+            const container = document.getElementById('categories-container');
+            const rightBtn = document.getElementById('scroll-right-btn');
+            const leftBtn = document.getElementById('scroll-left-btn');
             
             if (!container || !rightBtn || !leftBtn) return;
 
-            // ב-RTL (עברית) הדפדפן מחשב גלילה בצורה הפוכה 
-            // בודקים אם יש אפשרות גלילה בכלל
             const maxScroll = container.scrollWidth - container.clientWidth;
-            
             if (maxScroll <= 0) {
                 rightBtn.style.display = 'none';
                 leftBtn.style.display = 'none';
                 return;
+            } else {
+                rightBtn.style.display = 'flex';
+                leftBtn.style.display = 'flex';
             }
 
-            // חישוב מוחלט שמתאים לכל הדפדפנים ב-RTL
-            const isAtEnd = Math.abs(container.scrollLeft) <= 5;
-            const isAtStart = Math.abs(container.scrollLeft) >= (maxScroll - 5);
+            const scrollPos = Math.abs(container.scrollLeft);
+            const isAtEnd = scrollPos <= 5; 
+            const isAtStart = scrollPos >= (maxScroll - 5);
 
             rightBtn.style.opacity = isAtStart ? '0.3' : '1';
             rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
@@ -1494,10 +1569,12 @@ window.generateAvailableTimeSlots = async function() {
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const container = getEl('categories-container');
+            const container = document.getElementById('categories-container');
             if (container) {
                 container.addEventListener('scroll', window.updateScrollButtonsVisibility);
-                setTimeout(window.updateScrollButtonsVisibility, 800); 
+                setTimeout(() => {
+                    window.updateScrollButtonsVisibility();
+                }, 1000); 
             }
         });
 
