@@ -7831,24 +7831,6 @@ window.changeAnalyticsPage = function(table, delta) {
     }
 };
 
-window.openReportBuilderModal = function() {
-    const modal = getEl('report-builder-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    } else {
-        showToast('error', 'חלון מחולל הדוחות לא נמצא במסך.');
-    }
-};
-
-window.generateReport = async function() {
-    const reportType = val('report-type');
-    const modal = getEl('report-builder-modal');
-    if(modal) modal.classList.add('hidden');
-    
-    if (reportType === 'accounting') exportOrdersToCSV();
-    else if (reportType === 'inventory') exportProductsToCSV();
-};
-
 window.exportOrdersToCSV = function() {
     if (!storeOrdersCache || storeOrdersCache.length === 0) return showToast('error', 'אין נתונים לייצוא');
     
