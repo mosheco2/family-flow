@@ -308,29 +308,28 @@ function renderSAGroups() {
     groupsList.innerHTML = gHtml;
 }
 
-window.impersonateGroup = async function(groupId, userId) {
+window.impersonateGroup = function(groupId, userId) {
     if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" על הסביבה הזו. להמשיך?')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/impersonate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ groupId, userId })
-        });
-        const data = await res.json();
-        if (data.success) {
-            // שמירת הטוקן של הסופר-אדמין בצד כדי שנוכל לחזור
-            localStorage.setItem('ofl_sa_return_token', saToken);
-            // דריסת הסשן הרגיל עם הסשן המזויף (מסומן כהשתלטות)
-            localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group, isImpersonating: true }));
-            
-            // שיגור לסביבה העסקית או הביתית בהתאם לסוג
-            window.location.href = data.group.type === 'BUSINESS' ? '/business.html' : '/';
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת סשן השתלטות');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    
+    // שליפת הנתונים ישירות מהזיכרון המקומי של הסופר אדמין!
+    const targetGroup = saAllGroups.find(g => g.id === groupId);
+    const targetUser = saAllUsers.find(u => u.id === userId);
+    
+    if (targetGroup && targetUser) {
+        // שומרים את הטוקן של האדמין כדי שנוכל לחזור
+        localStorage.setItem('ofl_sa_return_token', saToken);
+        
+        // מרכיבים סשן מזויף לגישה כ-Admin רגיל של הסביבה הנבחרת
+        localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
+        
+        showToast('success', 'מתחבר לסביבת הלקוח...');
+        setTimeout(() => {
+            window.location.href = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
+        }, 500);
+    } else {
+        showToast('error', 'שגיאה: הלקוח לא נמצא במערכת');
+    }
 };
-
 function filterSAGroups() { renderSAGroups(); }
 
 async function saDeleteUser(id) {
