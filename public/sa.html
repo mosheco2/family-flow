@@ -68,30 +68,92 @@
                     <button onclick="logoutSA()" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition">התנתק</button>
                 </div>
                 
-                <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 overflow-x-auto modal-scroll whitespace-nowrap">
-                    <button id="btn-sa-tab-stats" onclick="switchSATab('stats')" class="flex-1 py-3 px-4 text-sm font-bold bg-white text-slate-800 rounded-xl shadow-sm transition">ראשי וסטטיסטיקה</button>
-                   <button id="btn-sa-tab-comm" onclick="switchSATab('comm')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">קהילות וחיבורים</button>
+               <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8 overflow-x-auto modal-scroll whitespace-nowrap">
+                    <button id="btn-sa-tab-pulse" onclick="switchSATab('pulse')" class="flex-1 py-3 px-4 text-sm font-bold bg-slate-800 text-white rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fa-solid fa-heart-pulse text-red-400 animate-pulse"></i> דופק חי</button>
+                    <button id="btn-sa-tab-stats" onclick="switchSATab('stats')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">סטטיסטיקה מורחבת</button>
+                    <button id="btn-sa-tab-comm" onclick="switchSATab('comm')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">קהילות וחיבורים</button>
                     <button id="btn-sa-tab-biz" onclick="switchSATab('biz')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">ניהול עסקים</button>
                     <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm">קריאות שירות <i class="fa-solid fa-headset ml-1"></i></button>
                     <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">הודעות ובאנרים</button>
                     <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">משתמשים והגדרות</button>
                 </div>
 
-                <div id="sa-view-stats" class="space-y-8 fade-in">
+                <div id="sa-view-pulse" class="space-y-6 fade-in">
+                    <div class="bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl text-white relative overflow-hidden border border-slate-800">
+                        <div id="pulse-anomaly-alert" class="hidden absolute top-0 right-0 left-0 bg-red-600 text-white py-1.5 text-center text-xs font-bold animate-pulse z-20">
+                            <i class="fa-solid fa-triangle-exclamation"></i> זוהתה אנומליה או חוסר פעילות בעסק פעיל! בדוק את הלוג.
+                        </div>
+                        
+                        <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-red-600 via-orange-500 to-red-600 opacity-90 z-10"></div>
+                        <div class="absolute -right-20 -top-20 w-64 h-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                        
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative z-10 gap-4">
+                            <div>
+                                <h2 class="text-2xl font-black flex items-center gap-3"><i class="fa-solid fa-satellite-dish text-red-400"></i> ניטור מערכת בזמן אמת</h2>
+                                <p class="text-slate-400 text-sm mt-1">צפה בפעולות המשתמשים, בעומסים ובתקלות כפי שהן מתרחשות כעת.</p>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs font-bold bg-white/10 px-4 py-2 rounded-full border border-white/10 shadow-inner">
+                                <div class="w-2.5 h-2.5 rounded-full bg-green-400 animate-ping"></div> System Online
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
+                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
+                                <span class="text-4xl font-black text-white" id="pulse-active-users">--</span>
+                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-white transition">משתמשים פעילים</span>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
+                                <span class="text-4xl font-black text-green-400" id="pulse-orders-today">--</span>
+                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-green-300 transition">הזמנות (24 ש')</span>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
+                                <span class="text-4xl font-black text-purple-400" id="pulse-ai-reqs">--</span>
+                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-purple-300 transition">קריאות AI ב-24 ש'</span>
+                            </div>
+                            <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-center text-center backdrop-blur-sm transition hover:bg-white/10 group">
+                                <span class="text-4xl font-black text-orange-400" id="pulse-errors">0</span>
+                                <span class="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider group-hover:text-orange-300 transition">תקלות שרת נרשמו</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-black/40 rounded-2xl border border-white/10 overflow-hidden relative z-10">
+                            <div class="bg-white/5 px-5 py-3 border-b border-white/10 flex justify-between items-center">
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-widest">זרם פעולות אחרונות (Live Stream)</h3>
+                                <button onclick="loadSAData()" class="text-slate-400 hover:text-white transition text-xs flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i> רענן ידנית</button>
+                            </div>
+                            <div id="pulse-live-stream" class="space-y-1.5 p-3 h-72 overflow-y-auto modal-scroll text-xs">
+                                <div class="text-center text-slate-500 py-12 flex flex-col items-center gap-3">
+                                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-600"></i>
+                                    <span>מתחבר לערוץ הנתונים...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sa-view-stats" class="hidden space-y-8 fade-in">
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
                             <i class="fa-solid fa-house-user text-2xl text-indigo-500 mb-2"></i>
-                            <span class="text-2xl font-black text-indigo-700" id="sa-stat-families">0</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-black text-indigo-700" id="sa-stat-families">0</span>
+                                <i class="fa-solid fa-arrow-trend-up text-indigo-400 text-[10px] mb-1"></i>
+                            </div>
                             <span class="text-[10px] text-indigo-600 font-bold mt-1">משפחות פעילות</span>
                         </div>
                         <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
                             <i class="fa-solid fa-users text-2xl text-emerald-500 mb-2"></i>
-                            <span class="text-2xl font-black text-emerald-700" id="sa-stat-family-users">0</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-black text-emerald-700" id="sa-stat-family-users">0</span>
+                            </div>
                             <span class="text-[10px] text-emerald-600 font-bold mt-1">משתמשים (משפחות)</span>
                         </div>
                         <div class="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
                             <i class="fa-solid fa-building text-2xl text-blue-500 mb-2"></i>
-                            <span class="text-2xl font-black text-blue-700" id="sa-stat-businesses">0</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-black text-blue-700" id="sa-stat-businesses">0</span>
+                                <i class="fa-solid fa-arrow-trend-up text-blue-400 text-[10px] mb-1"></i>
+                            </div>
                             <span class="text-[10px] text-blue-600 font-bold mt-1">עסקים פעילים</span>
                         </div>
                         <div class="bg-sky-50 border border-sky-100 p-4 rounded-2xl flex flex-col items-center justify-center text-center shadow-sm">
@@ -110,7 +172,6 @@
                             <span class="text-[10px] text-purple-600 font-bold mt-1">חיבורים מאושרים</span>
                         </div>
                     </div>
-
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8">
                         <h2 class="text-xl font-bold mb-4 text-slate-800"><i class="fa-solid fa-bolt text-yellow-500 mr-2"></i> פעילות אחרונה במערכת</h2>
                         <div id="sa-activity-list" class="space-y-2 h-80 overflow-y-auto pr-2 modal-scroll"></div>
