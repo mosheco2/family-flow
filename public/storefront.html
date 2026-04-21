@@ -62,14 +62,14 @@
             </div>
     </div>
 
-    <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-4">
+    <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-0">
         <div id="store-hero-banner" class="w-full h-40 sm:h-48 bg-slate-100 relative overflow-hidden shrink-0">
             <div class="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 flex items-center justify-center text-slate-300">
                 <i class="fa-solid fa-image text-5xl opacity-30"></i>
             </div>
         </div>
         
-        <div class="relative px-6 pt-0 text-center sm:text-right flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full max-w-4xl mx-auto">
+        <div class="relative px-6 pt-0 text-center sm:text-right flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full max-w-4xl mx-auto pb-4">
             <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white shadow-lg p-1.5 flex items-center justify-center relative overflow-hidden -mt-12 z-20 border border-slate-50 shrink-0">
                 <img id="store-logo" src="" class="w-full h-full object-cover rounded-xl hidden">
                 <div id="store-logo-placeholder" class="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
@@ -78,10 +78,7 @@
             </div>
             
             <div class="flex-1 flex flex-col items-center sm:items-start pt-2 z-20 w-full">
-                <div class="flex items-center gap-3 mb-1">
-                    <button onclick="window.toggleSideMenu(true)" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition sm:hidden border border-slate-200 shadow-sm"><i class="fa-solid fa-bars"></i></button>
-                    <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">...</h1>
-                </div>
+                <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
                 <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
                 
                 <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
@@ -94,56 +91,48 @@
                 <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 w-max mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
             </div>
         </div>
-
-        <div class="px-6 mt-4 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest overflow-hidden w-full max-w-4xl mx-auto">
-            <span class="hover:text-black cursor-pointer transition flex items-center gap-1" onclick="window.filterCategory('all')"><i class="fa-solid fa-house"></i> החנות</span>
-            <i class="fa-solid fa-chevron-left text-[8px] opacity-50"></i>
-            <span id="breadcrumb-current" class="text-slate-900 truncate">כל המוצרים</span>
-        </div>
         
-        <div id="store-promotions-banner" class="w-full m-0 p-0 mt-3 border-t border-slate-100"></div>
+        <div id="store-promotions-banner" class="w-full m-0 p-0 border-t border-slate-100"></div>
     </header>
 
-    <div class="glass-header sticky top-0 z-40">
-        <div class="p-4 pb-2 flex items-center gap-2">
-            <button onclick="window.toggleSideMenu(true)" class="w-12 h-12 shrink-0 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-black transition shadow-md" title="תפריט קטגוריות">
-                <i class="fa-solid fa-bars text-lg"></i>
-            </button>
-            <div class="relative flex-1">
-                <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
+    <div class="glass-header sticky top-0 z-40 shadow-sm border-b border-slate-100">
+        <div class="p-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-3">
+                <button onclick="window.toggleSideMenu(true)" class="w-10 h-10 shrink-0 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-black transition shadow-md" title="תפריט קטגוריות">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div id="store-breadcrumbs" class="flex-1 flex items-center gap-2 text-[11px] font-bold text-slate-500 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200">
+                    <span class="hover:text-slate-900 cursor-pointer transition flex items-center gap-1" onclick="window.filterCategory('all')"><i class="fa-solid fa-house"></i> החנות</span>
+                    <i class="fa-solid fa-chevron-left text-[8px] opacity-40"></i>
+                    <span id="breadcrumb-current" class="text-slate-900 truncate">כל המוצרים</span>
+                </div>
             </div>
-            <button onclick="window.toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
-                <i class="fa-solid fa-list text-lg"></i>
-            </button>
+            
+            <div class="flex items-center gap-2">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש מוצר..." class="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-xl py-2.5 pr-9 pl-4 outline-none focus:border-slate-400 transition shadow-sm">
+                </div>
+                <button onclick="window.toggleViewMode()" id="view-mode-btn" class="w-10 h-10 shrink-0 bg-white text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-50 transition shadow-sm border border-slate-200" title="החלף תצוגה">
+                    <i class="fa-solid fa-list"></i>
+                </button>
+            </div>
         </div>
-        <div class="relative w-full px-2 pb-2 group">
-            <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:text-black hover:scale-110 transition border border-slate-200">
-                <i class="fa-solid fa-chevron-right text-xs"></i>
-            </button>
 
-            <div class="cat-slider hide-scrollbar px-8" id="categories-container"></div>
-
-            <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:text-black hover:scale-110 transition border border-slate-200">
-                <i class="fa-solid fa-chevron-left text-xs"></i>
-            </button>
-        </div>
-    </div>
-        <div class="relative w-full px-2 pb-2 group">
-            <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-black hover:scale-110 transition hidden md:flex border border-slate-200">
-                <i class="fa-solid fa-chevron-right text-xs"></i>
+        <div class="relative w-full px-2 pb-2 group border-t border-slate-100 pt-2">
+            <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:scale-110 transition border border-slate-200">
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
             </button>
 
             <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
 
-            <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-1 top-1/2 -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-black hover:scale-110 transition hidden md:flex border border-slate-200">
-                <i class="fa-solid fa-chevron-left text-xs"></i>
+            <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:scale-110 transition border border-slate-200">
+                <i class="fa-solid fa-chevron-left text-[10px]"></i>
             </button>
         </div>
     </div>
-        
-        <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
-    </div>
+    
+    <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
 
     <div id="cart-footer" class="fixed bottom-0 sm:bottom-4 left-0 right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-xl bg-white border-t border-slate-200 p-4 sm:rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-40 flex justify-between items-center hidden slide-up">
         <div>
@@ -1358,7 +1347,7 @@
         // ==========================================
         // תיקון: הגדרת פונקציות היומן כזמינות גלובלית
         // ==========================================
-      window.openBookingModal = async function() {
+window.openBookingModal = async function() {
             if (!storeData || !storeData.calendarSettings) {
                 showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
                 return;
@@ -1380,7 +1369,6 @@
                 }
             }
 
-            // פתיחת המודאל מיד והצגת סטטוס טעינה
             const modal = getEl('booking-modal');
             if (modal) modal.classList.remove('hidden');
 
@@ -1413,11 +1401,14 @@
             timeSelect.disabled = true;
 
             try {
-                // Fetch חי וישיר מול השרת ללא שימוש במטמון
-                const fetchUrl = `${API}/calendar/${storeData.groupId}?t=${new Date().getTime()}`;
-                const freshRes = await fetch(fetchUrl, { cache: 'no-store' });
-                const freshData = await freshRes.json();
+                // Fetch חי ישירות מול השרת למניעת מטמון לחלוטין! (Cache Buster + Headers)
+                const fetchUrl = `${API}/calendar/${storeData.groupId}?_nocache=${new Date().getTime()}`;
+                const freshRes = await fetch(fetchUrl, {
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
+                });
                 
+                const freshData = await freshRes.json();
                 if (freshData.success) {
                     storeData.calendarEvents = freshData.events || [];
                 }
@@ -1529,9 +1520,9 @@
         window.scrollCategories = function(direction) {
             const container = document.getElementById('categories-container');
             if (container) {
-                // תיקון ל-RTL Scrolling
                 const isRTL = window.getComputedStyle(container).direction === 'rtl';
                 const scrollAmount = 250; 
+                // היפוך הכיוון כך שימינה ושמאלה יעבדו בצורה נכונה ב-RTL
                 const sign = isRTL ? -1 : 1;
                 container.scrollBy({
                     left: direction * sign * scrollAmount,
@@ -1557,6 +1548,7 @@
                 leftBtn.style.display = 'flex';
             }
 
+            // חישוב מוחלט שעובד בכל הדפדפנים ב-RTL
             const scrollPos = Math.abs(container.scrollLeft);
             const isAtEnd = scrollPos <= 5; 
             const isAtStart = scrollPos >= (maxScroll - 5);
