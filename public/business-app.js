@@ -8152,8 +8152,9 @@ window.updateStatusScreenClock = function() {
 // --- מודול יומן ותורים (Booking & Calendar) ---
 // ============================================================
 
-let currentCalDate = new Date();
-let currentCalMode = 'day'; // day, week, month
+// תוקן: שימוש בהשמה ללא let כדי למנוע קריסת SyntaxError (מסך לבן) עקב הגדרה כפולה
+currentCalDate = new Date();
+window.currentCalMode = window.currentCalMode || 'day'; // day, week, month
 
 window.switchCalendarTab = function(subTab) {
     ['main', 'requests', 'settings'].forEach(t => {
@@ -8196,7 +8197,7 @@ window.fetchCalendarData = async function() {
 };
 
 window.setCalMode = function(mode) {
-    currentCalMode = mode;
+    window.currentCalMode = mode;
     ['day', 'week', 'month'].forEach(m => {
         const btn = getEl(`btn-cal-mode-${m}`);
         if(btn) btn.className = m === mode ? 'px-4 py-1.5 text-xs font-bold bg-white text-slate-800 rounded-md shadow-sm transition flex-1 md:flex-none' : 'px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none';
@@ -8205,9 +8206,9 @@ window.setCalMode = function(mode) {
 };
 
 window.changeCalDate = function(dir) {
-    if (currentCalMode === 'day') currentCalDate.setDate(currentCalDate.getDate() + dir);
-    else if (currentCalMode === 'week') currentCalDate.setDate(currentCalDate.getDate() + (dir * 7));
-    else if (currentCalMode === 'month') currentCalDate.setMonth(currentCalDate.getMonth() + dir);
+    if (window.currentCalMode === 'day') currentCalDate.setDate(currentCalDate.getDate() + dir);
+    else if (window.currentCalMode === 'week') currentCalDate.setDate(currentCalDate.getDate() + (dir * 7));
+    else if (window.currentCalMode === 'month') currentCalDate.setMonth(currentCalDate.getMonth() + dir);
     renderCalendar();
 };
 
@@ -8216,8 +8217,8 @@ window.resetCalDate = function() {
     renderCalendar();
 };
 
-const getCleanDate = (isoStr) => isoStr ? isoStr.substring(0, 10) : '';
-const getDisplayDate = (d) => d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+window.getCleanDate = (isoStr) => isoStr ? isoStr.substring(0, 10) : '';
+window.getDisplayDate = (d) => d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
 
 window.renderCalendar = function() {
     const container = getEl('cal-main-container');
@@ -8226,7 +8227,6 @@ window.renderCalendar = function() {
 
     const searchQ = (val('cal-search') || '').toLowerCase();
     
-    // אם יש חיפוש אקטיבי - מציגים תמיד בתצוגת רשימה (List)
     if (searchQ) {
         display.innerText = 'תוצאות חיפוש';
         let filtered = calEventsCache.filter(e => e.status === 'approved' && (
@@ -8236,9 +8236,9 @@ window.renderCalendar = function() {
         ));
 
         filtered.sort((a,b) => {
-            const dateA = getCleanDate(a.event_date);
-            const dateB = getCleanDate(b.event_date);
-            if(dateA !== dateB) return dateB.localeCompare(dateA); // מהחדש לישן
+            const dateA = window.getCleanDate(a.event_date);
+            const dateB = window.getCleanDate(b.event_date);
+            if(dateA !== dateB) return dateB.localeCompare(dateA); 
             return a.start_time.localeCompare(b.start_time);
         });
 
@@ -8251,13 +8251,13 @@ window.renderCalendar = function() {
         return;
     }
 
-    const todayStr = getCleanDate(new Date().toISOString());
+    const todayStr = window.getCleanDate(new Date().toISOString());
 
-    if (currentCalMode === 'day') {
+    if (window.currentCalMode === 'day') {
         const targetDateStr = currentCalDate.toISOString().split('T')[0];
-        display.innerText = targetDateStr === todayStr ? 'היום' : getDisplayDate(currentCalDate);
+        display.innerText = targetDateStr === todayStr ? 'היום' : window.getDisplayDate(currentCalDate);
         
-        let todaysEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === targetDateStr && e.status === 'approved');
+        let todaysEvents = calEventsCache.filter(e => window.getCleanDate(e.event_date) === targetDateStr && e.status === 'approved');
         todaysEvents.sort((a,b) => a.start_time.localeCompare(b.start_time));
         
         if (todaysEvents.length === 0) {
@@ -8266,8 +8266,7 @@ window.renderCalendar = function() {
             container.innerHTML = `<div class="space-y-2 pb-8">${todaysEvents.map(e => createEventCardHTML(e)).join('')}</div>`;
         }
 
-    } else if (currentCalMode === 'week') {
-        // מציאת יום ראשון של השבוע הנוכחי
+    } else if (window.currentCalMode === 'week') {
         const startOfWeek = new Date(currentCalDate);
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
         const endOfWeek = new Date(startOfWeek);
@@ -8281,7 +8280,7 @@ window.renderCalendar = function() {
             day.setDate(day.getDate() + i);
             const dStr = day.toISOString().split('T')[0];
             const isToday = dStr === todayStr;
-            const daysEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === dStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
+            const daysEvents = calEventsCache.filter(e => window.getCleanDate(e.event_date) === dStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
             
             html += `<div class="flex flex-col bg-slate-50/50 rounded-xl border ${isToday ? 'border-cyan-300 shadow-sm' : 'border-slate-100'} p-2 min-h-[150px]">
                 <h5 class="text-center text-xs font-bold mb-2 pb-2 border-b border-slate-200 ${isToday ? 'text-cyan-700' : 'text-slate-600'}">${day.toLocaleDateString('he-IL', {weekday:'short'})} ${day.getDate()}</h5>
@@ -8293,7 +8292,7 @@ window.renderCalendar = function() {
         html += '</div>';
         container.innerHTML = html;
 
-    } else if (currentCalMode === 'month') {
+    } else if (window.currentCalMode === 'month') {
         display.innerText = currentCalDate.toLocaleDateString('he-IL', {month:'long', year:'numeric'});
         const year = currentCalDate.getFullYear();
         const month = currentCalDate.getMonth();
@@ -8311,7 +8310,7 @@ window.renderCalendar = function() {
 
         for(let day=1; day<=daysInMonth; day++) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-            const dayEvents = calEventsCache.filter(e => getCleanDate(e.event_date) === dateStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
+            const dayEvents = calEventsCache.filter(e => window.getCleanDate(e.event_date) === dateStr && e.status === 'approved').sort((a,b) => a.start_time.localeCompare(b.start_time));
             const isToday = dateStr === todayStr;
             const bgClass = isToday ? 'bg-cyan-50 border-cyan-300 shadow-sm' : 'bg-white border-slate-200 hover:border-cyan-300';
             
@@ -8326,7 +8325,7 @@ window.renderCalendar = function() {
             }
 
             html += `
-            <div class="aspect-[4/3] sm:aspect-square ${bgClass} border rounded-lg p-1 flex flex-col hover:shadow-md cursor-pointer transition overflow-hidden" onclick="currentCalDate=new Date('${dateStr}'); setCalMode('day');">
+            <div class="aspect-[4/3] sm:aspect-square ${bgClass} border rounded-lg p-1 flex flex-col hover:shadow-md cursor-pointer transition overflow-hidden" onclick="currentCalDate=new Date('${dateStr}'); window.setCalMode('day');">
                 <span class="text-xs font-black ${isToday ? 'text-cyan-700' : 'text-slate-600'} mb-0.5">${day}</span>
                 <div class="flex-1 flex flex-col gap-0.5">${eventsHtml}</div>
             </div>`;
@@ -8350,7 +8349,7 @@ function createEventCardHTML(e) {
         <div class="flex items-start gap-3 w-full">
             <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
                 <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
-                <p class="text-[9px] text-slate-400 mt-0.5">${new Date(getCleanDate(e.event_date)).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'})}</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">${new Date(window.getCleanDate(e.event_date)).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'})}</p>
             </div>
             <div class="flex-1 min-w-0 pr-1">
                 <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(e.title)}</h4>
@@ -8374,14 +8373,12 @@ window.openCalEventModal = function(id = null) {
     const quoteSel = getEl('cal-event-quote');
     const quoteViewBtn = getEl('btn-cal-view-quote');
 
-    // אכלוס סלקט השירותים
     const svcSelect = getEl('cal-event-service');
     svcSelect.innerHTML = '<option value="">שירות כללי (לא מוגדר)</option>';
     calServicesCache.forEach(s => {
         svcSelect.innerHTML += `<option value="${s.id}">${safeStr(s.name)}</option>`;
     });
 
-    // אכלוס הצעות מחיר
     if (quoteSel) {
         quoteSel.innerHTML = '<option value="">-- ללא שיוך להצעת מחיר --</option>';
         if (storeQuotesCache && storeQuotesCache.length > 0) {
@@ -8398,7 +8395,7 @@ window.openCalEventModal = function(id = null) {
         getEl('cal-event-id').value = ev.id;
         getEl('cal-event-title').value = ev.title;
         getEl('cal-event-phone').value = ev.customer_phone || '';
-        getEl('cal-event-date').value = getCleanDate(ev.event_date);
+        getEl('cal-event-date').value = window.getCleanDate(ev.event_date);
         getEl('cal-event-time').value = ev.start_time.substring(0,5);
         if (ev.service_id) svcSelect.value = ev.service_id;
         else svcSelect.value = '';
@@ -8447,17 +8444,14 @@ window.toggleQuotePreviewBtn = function() {
 window.viewEventQuote = function() {
     const selId = val('cal-event-quote');
     if (!selId) return;
-    // סוגר זמנית את היומן, פותח הצעת מחיר
     getEl('cal-event-modal').classList.add('hidden');
     if (typeof openQuotePreview === 'function') {
         openQuotePreview(selId);
-        // כשהצפייה המקדימה נסגרת, נחזיר למודאל היומן
         const previewModal = getEl('quote-preview-modal');
         const oldClose = previewModal.querySelector('button').onclick;
         previewModal.querySelector('button').onclick = () => {
             previewModal.classList.add('hidden');
             getEl('cal-event-modal').classList.remove('hidden');
-            // שחזור הלוגיקה המקורית
             previewModal.querySelector('button').onclick = oldClose;
         };
     }
@@ -8496,8 +8490,6 @@ window.submitCalendarEvent = async function() {
         let url = `${API}/calendar/events`;
         let method = 'POST';
 
-        // השרת שלנו כרגע בנוי רק ל-POST (הוספה מחדש) בעת יצירת תור. 
-        // במידה ועורכים אירוע - אנחנו פשוט נמחק את הישן וניצור חדש שקט כדי להשתמש בראוטים הקיימים בלי צורך בעדכון שרת.
         if (id) {
             await fetch(`${API}/calendar/events/${id}`, { method: 'DELETE' });
         }
@@ -8616,7 +8608,7 @@ window.convertEventToQuote = function(eventId) {
     getEl('quote-cust-name').value = ev.title;
     getEl('quote-cust-phone').value = ev.customer_phone || '';
     
-    const eDate = new Date(getCleanDate(ev.event_date)).toLocaleDateString('he-IL');
+    const eDate = new Date(window.getCleanDate(ev.event_date)).toLocaleDateString('he-IL');
     const svcName = ev.service_id ? (calServicesCache.find(s => s.id === ev.service_id)?.name || '') : '';
     
     getEl('quote-intro-text').value = `בהמשך לפנייתכם לתאריך ${eDate}, מצורפת הצעת מחיר לאירוע/שירות ${svcName}.`;
@@ -8669,7 +8661,7 @@ window.saveCalendarSettings = async function() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור הגדרות יומן'; }
 };
 
-// הזרקה לאתחול (כדי שיטען במעבר טאבים) - תוקן למניעת שגיאות כפילות
+// הזרקה לאתחול (כדי שיטען במעבר טאבים)
 if (!window._originalSwitchTabForCal) {
     window._originalSwitchTabForCal = window.switchTab;
     window.switchTab = function(tabId) {
@@ -8680,13 +8672,10 @@ if (!window._originalSwitchTabForCal) {
     };
 }
 
-// נוסיף האזנה לשינויים בסטטוס הזמנות כדי לרענן את מסך ה-Live אם הוא פתוח.
 if (!window._originalRenderStoreOrders) {
     window._originalRenderStoreOrders = window.renderStoreOrders;
     window.renderStoreOrders = function() {
         if(window._originalRenderStoreOrders) window._originalRenderStoreOrders(); 
-        
-        // אם מסך הסטטוס פתוח, רענן גם אותו
         const screen = document.getElementById('customer-status-screen');
         if (screen && !screen.classList.contains('hidden')) {
             if(typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
