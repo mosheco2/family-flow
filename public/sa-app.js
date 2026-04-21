@@ -309,21 +309,26 @@ function renderSAGroups() {
 }
 
 window.impersonateGroup = function(groupId, userId) {
-    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" על הסביבה הזו. להמשיך?')) return;
+    if(!confirm('השתלטות: אתה עומד להיכנס למערכת ב"מצב תמיכה" בסביבה המקורית של הלקוח. להמשיך?')) return;
     
     // שליפת הנתונים ישירות מהזיכרון המקומי של הסופר אדמין!
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     const targetUser = saAllUsers.find(u => u.id === userId);
     
     if (targetGroup && targetUser) {
-        // שומרים את הטוקן של האדמין כדי שנוכל לחזור
+        // 1. שומרים את הטוקן של הסופר-אדמין בצד כדי שנוכל לחזור אליו אחר כך
         localStorage.setItem('ofl_sa_return_token', saToken);
         
-        // מרכיבים סשן מזויף לגישה כ-Admin רגיל של הסביבה הנבחרת
+        // 2. קריטי: מוחקים זמנית את הטוקן מהדפדפן כדי שהמערכת של הלקוח לא תטען את מסך הסופר-אדמין!
+        localStorage.removeItem('ofl_sa_token');
+        
+        // 3. מרכיבים סשן מזויף לגישה כ-Admin רגיל של הסביבה הנבחרת
         localStorage.setItem('ofl_session', JSON.stringify({ user: targetUser, group: targetGroup, isImpersonating: true }));
         
-        showToast('success', 'מתחבר לסביבת הלקוח...');
+        showToast('success', 'מתחבר לסביבת הלקוח במצב תמיכה...');
+        
         setTimeout(() => {
+            // שיגור לסביבה העסקית או הביתית של הלקוח
             window.location.href = targetGroup.type === 'BUSINESS' ? '/business.html' : '/';
         }, 500);
     } else {
