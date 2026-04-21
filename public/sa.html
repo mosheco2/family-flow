@@ -76,6 +76,35 @@
                     <button id="btn-sa-tab-support" onclick="switchSATab('support')" class="flex-1 py-3 px-4 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl transition shadow-sm">קריאות שירות <i class="fa-solid fa-headset ml-1"></i></button>
                     <button id="btn-sa-tab-content" onclick="switchSATab('content')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">הודעות ובאנרים</button>
                     <button id="btn-sa-tab-users" onclick="switchSATab('users')" class="flex-1 py-3 px-4 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-xl transition">משתמשים והגדרות</button>
+                    <button id="btn-sa-tab-partners" onclick="switchSATab('partners')" class="flex-1 py-3 px-4 text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 rounded-xl transition shadow-sm">שותפים ומטמיעים <i class="fa-solid fa-handshake ml-1"></i></button>
+                </div>
+
+                <div id="sa-view-partners" class="hidden space-y-8 fade-in">
+                    <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-handshake text-emerald-500"></i> ניהול שותפים חיצוניים</h2>
+                                <p class="text-sm text-slate-500 mt-1">הקמת יוזרים למטמיעים חיצוניים ומעקב אחר הלקוחות והעמלות שלהם.</p>
+                            </div>
+                            <button onclick="openSAAddPartnerModal()" class="bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-emerald-600 transition"><i class="fa-solid fa-plus mr-1"></i> הקם שותף חדש</button>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-right whitespace-nowrap">
+                                <thead class="text-xs text-slate-500 bg-slate-50 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 rounded-tr-lg">שם השותף</th>
+                                        <th class="px-4 py-3">אימייל גישה</th>
+                                        <th class="px-4 py-3 text-center">לקוחות משויכים</th>
+                                        <th class="px-4 py-3 text-center rounded-tl-lg">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sa-partners-table-body" class="divide-y divide-slate-100">
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">אין שותפים רשומים במערכת עדיין.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="sa-view-pulse" class="space-y-6 fade-in">
