@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    < src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
         body { font-family: 'Heebo', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
@@ -66,11 +66,11 @@
                     <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
                     <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
                     
-                        <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
+                    <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
                         <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
                         <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                         <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
-                        <button id="btn-book-appointment" onclick="openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
+                        <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
                     </div>
 
                     <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 w-max mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
@@ -84,20 +84,20 @@
             <div class="p-4 pb-2 flex items-center gap-2">
                 <div class="relative flex-1">
                     <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" id="search-input" onkeyup="handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
+                    <input type="text" id="search-input" onkeyup="window.handleSearch()" placeholder="חיפוש..." class="w-full bg-slate-100 border-none text-slate-700 text-sm rounded-xl py-3 pr-10 pl-4 outline-none focus:ring-2 focus:ring-slate-900 transition shadow-sm">
                 </div>
-                <button onclick="toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
+                <button onclick="window.toggleViewMode()" id="view-mode-btn" class="w-12 h-12 shrink-0 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center hover:bg-slate-200 transition shadow-sm border border-slate-200" title="החלף תצוגה">
                     <i class="fa-solid fa-list text-lg"></i>
                 </button>
             </div>
             <div class="relative w-full px-2 pb-2">
-                <button id="scroll-right-btn" onclick="scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
+                <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
                     <i class="fa-solid fa-chevron-right text-xs"></i>
                 </button>
 
                 <div class="cat-slider hide-scrollbar px-6" id="categories-container"></div>
 
-                <button id="scroll-left-btn" onclick="scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
+                <button id="scroll-left-btn" onclick="window.scrollCategories(-1)" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white rounded-full shadow-md text-slate-600 hover:text-slate-900 transition hidden md:flex border border-slate-200">
                     <i class="fa-solid fa-chevron-left text-xs"></i>
                 </button>
             </div>
@@ -114,7 +114,7 @@
                 <span id="cart-count" class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mb-1 border border-slate-200">0</span>
             </div>
         </div>
-        <button onclick="openCheckoutModal()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-black transition active:scale-95 flex items-center gap-2 shadow-lg">
+        <button onclick="window.openCheckoutModal()" class="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-black transition active:scale-95 flex items-center gap-2 shadow-lg">
             לתשלום <i class="fa-solid fa-arrow-left text-sm"></i>
         </button>
     </div>
@@ -126,11 +126,11 @@
                 <div id="prod-modal-placeholder" class="w-full h-full flex items-center justify-center text-slate-300">
                     <i class="fa-solid fa-image text-5xl"></i>
                 </div>
-                <button onclick="closeProductModal()" class="absolute top-4 right-4 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="window.closeProductModal()" class="absolute top-4 right-4 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="p-5 flex-1 overflow-y-auto modal-scroll flex flex-col relative">
-                <button id="prod-modal-close-alt" onclick="closeProductModal()" class="absolute top-4 left-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition hidden z-10"><i class="fa-solid fa-xmark"></i></button>
+                <button id="prod-modal-close-alt" onclick="window.closeProductModal()" class="absolute top-4 left-4 w-8 h-8 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition hidden z-10"><i class="fa-solid fa-xmark"></i></button>
                 <div class="flex justify-between items-start mb-2">
                     <h3 class="text-2xl font-black text-slate-900 leading-tight transition-all" id="prod-modal-name"></h3>
                     <span id="prod-modal-price" class="text-xl font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 shrink-0 mr-3"></span>
@@ -144,9 +144,9 @@
             <div class="p-4 border-t border-slate-100 bg-white shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-between bg-slate-100 rounded-xl p-1 w-28 shrink-0">
-                        <button onclick="updateModalQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
+                        <button onclick="window.updateModalQty(-1)" class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-600"><i class="fa-solid fa-minus"></i></button>
                         <span id="prod-modal-qty" class="font-bold text-slate-900 text-sm">1</span>
-                        <button onclick="updateModalQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
+                        <button onclick="window.updateModalQty(1)" class="w-8 h-8 rounded-lg bg-slate-900 text-white shadow-sm flex items-center justify-center"><i class="fa-solid fa-plus"></i></button>
                     </div>
                     <button id="btn-add-with-mod" class="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center items-center gap-2 text-base">
                         <span id="prod-btn-text">הוסף לסל</span> <span id="mod-total-display" class="font-normal text-sm bg-white/20 px-2 py-0.5 rounded ml-1"></span>
@@ -160,7 +160,7 @@
         <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] slide-up overflow-hidden">
             <div class="flex justify-between items-center p-5 border-b border-slate-100 shrink-0">
                 <h3 class="text-2xl font-black text-slate-900">העגלה שלך</h3>
-                <button onclick="closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+                <button onclick="window.closeCheckoutModal()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="flex-1 overflow-y-auto modal-scroll p-5">
@@ -176,8 +176,8 @@
 
                 <form id="checkout-form" class="space-y-4">
                     <div class="flex bg-slate-100 p-1 rounded-xl">
-                        <button type="button" id="btn-delivery-false" onclick="toggleDelivery(false)" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">איסוף עצמי</button>
-                        <button type="button" id="btn-delivery-true" onclick="toggleDelivery(true)" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">משלוח עד הבית</button>
+                        <button type="button" id="btn-delivery-false" onclick="window.toggleDelivery(false)" class="flex-1 py-2 text-sm font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">איסוף עצמי</button>
+                        <button type="button" id="btn-delivery-true" onclick="window.toggleDelivery(true)" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">משלוח עד הבית</button>
                     </div>
                     <input type="hidden" id="is-delivery" value="false">
 
@@ -209,8 +209,8 @@
                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4">
                         <h4 class="font-bold text-sm text-slate-800 mb-3"><i class="fa-regular fa-clock text-indigo-500 mr-1"></i> מתי תרצו את ההזמנה?</h4>
                         <div class="flex bg-slate-200/50 p-1 rounded-xl mb-3">
-                            <button type="button" id="btn-time-asap" onclick="toggleTargetTime('asap')" class="flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200">בהקדם האפשרי</button>
-                            <button type="button" id="btn-time-future" onclick="toggleTargetTime('future')" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent">הזמנה עתידית</button>
+                            <button type="button" id="btn-time-asap" onclick="window.toggleTargetTime('asap')" class="flex-1 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition border border-indigo-200">בהקדם האפשרי</button>
+                            <button type="button" id="btn-time-future" onclick="window.toggleTargetTime('future')" class="flex-1 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 rounded-lg transition border border-transparent">הזמנה עתידית</button>
                         </div>
                         <div id="target-time-container" class="hidden fade-in">
                             <label class="text-[10px] font-bold text-slate-500 block mb-1.5">בחרו תאריך ושעה רצויים:</label>
@@ -223,67 +223,66 @@
             </div>
 
             <div class="p-5 border-t border-slate-100 bg-white shrink-0">
-
-            <div class="p-5 border-t border-slate-100 bg-white shrink-0">
-                <button type="button" onclick="submitOrder(event)" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl text-lg hover:bg-black transition active:scale-95 flex justify-center items-center gap-2">
+                <button type="button" onclick="window.submitOrder(event)" id="btn-submit-order" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl text-lg hover:bg-black transition active:scale-95 flex justify-center items-center gap-2">
                     <span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded"></span> <i class="fa-solid fa-paper-plane"></i>
                 </button>
             </div>
         </div>
     </div>
 
-   <div id="success-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center hidden slide-up">
-            <div class="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner border border-green-100"><i class="fa-solid fa-check"></i></div>
-            <h2 class="text-3xl font-black text-slate-900 mb-2">תודה רבה! 🎉</h2>
-            <p id="success-message-text" class="text-slate-500 font-medium mb-8">ההזמנה התקבלה ותטופל בהקדם.</p>
-            <div id="success-order-box" class="bg-slate-50 p-6 rounded-2xl w-full max-w-xs border border-slate-200 shadow-sm mb-8">
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">מספר אסמכתא</p>
-                <p id="success-order-id" class="text-3xl font-black text-slate-900 font-mono tracking-wider">#0000</p>
-            </div>
-            <button onclick="resetStoreAfterOrder()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
+    <div id="success-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-6 text-center hidden slide-up">
+        <div class="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner border border-green-100"><i class="fa-solid fa-check"></i></div>
+        <h2 class="text-3xl font-black text-slate-900 mb-2">תודה רבה! 🎉</h2>
+        <p id="success-message-text" class="text-slate-500 font-medium mb-8">ההזמנה התקבלה ותטופל בהקדם.</p>
+        <div id="success-order-box" class="bg-slate-50 p-6 rounded-2xl w-full max-w-xs border border-slate-200 shadow-sm mb-8">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">מספר אסמכתא</p>
+            <p id="success-order-id" class="text-3xl font-black text-slate-900 font-mono tracking-wider">#0000</p>
         </div>
+        <button onclick="window.resetStoreAfterOrder()" class="text-slate-900 text-sm font-bold bg-slate-100 px-6 py-2.5 rounded-full hover:bg-slate-200 transition">חזרה לחנות</button>
+    </div>
 
-        <div id="booking-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up overflow-hidden">
-                <button onclick="document.getElementById('booking-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
-                <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-regular fa-calendar-check text-cyan-500 mr-1"></i> קביעת תור / בקשת אירוע</h3>
-                
-                <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-5">
+    <div id="booking-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up overflow-hidden">
+            <button onclick="document.getElementById('booking-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="text-xl font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 shrink-0"><i class="fa-regular fa-calendar-check text-cyan-500 mr-1"></i> קביעת תור / בקשת אירוע</h3>
+            
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-5">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">1. מה תרצו לקבוע?</label>
+                    <select id="book-service" class="modern-input py-3 text-sm bg-slate-50 font-bold text-cyan-700 border-cyan-100 focus:border-cyan-400">
+                        <option value="">טוען שירותים...</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-2">1. מה תרצו לקבוע?</label>
-                        <select id="book-service" class="modern-input py-3 text-sm bg-slate-50 font-bold text-cyan-700 border-cyan-100 focus:border-cyan-400">
-                            <option value="">טוען שירותים...</option>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">2. באיזה תאריך?</label>
+                        <input type="date" id="book-date" onchange="window.generateAvailableTimeSlots()" class="modern-input py-3 text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-2">3. שעה רצויה:</label>
+                        <select id="book-time" class="modern-input py-3 text-sm bg-white text-center dir-ltr">
+                            <option value="">בחרו תאריך קודם</option>
                         </select>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-2">2. באיזה תאריך?</label>
-                            <input type="date" id="book-date" onchange="generateAvailableTimeSlots()" class="modern-input py-3 text-sm bg-white">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 block mb-2">3. שעה רצויה:</label>
-                            <select id="book-time" class="modern-input py-3 text-sm bg-white text-center dir-ltr">
-                                <option value="">בחרו תאריך קודם</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label class="text-xs font-bold text-slate-800 block mb-3 border-b border-slate-100 pb-2">4. פרטים אישיים ליצירת קשר</label>
-                        <input type="text" id="book-name" class="modern-input py-2.5 text-sm bg-white mb-2" placeholder="שם מלא (חובה)">
-                        <input type="tel" id="book-phone" class="modern-input py-2.5 text-sm bg-white text-left dir-ltr mb-3" placeholder="טלפון (חובה)">
-                        <textarea id="book-notes" class="modern-input py-2 text-sm bg-white h-16" placeholder="הערות מיוחדות, בקשות לאירוע..."></textarea>
-                    </div>
                 </div>
 
-                <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
-                    <button onclick="submitBookingRequest()" id="btn-submit-booking" class="w-full bg-cyan-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2">שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i></button>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label class="text-xs font-bold text-slate-800 block mb-3 border-b border-slate-100 pb-2">4. פרטים אישיים ליצירת קשר</label>
+                    <input type="text" id="book-name" class="modern-input py-2.5 text-sm bg-white mb-2" placeholder="שם מלא (חובה)">
+                    <input type="tel" id="book-phone" class="modern-input py-2.5 text-sm bg-white text-left dir-ltr mb-3" placeholder="טלפון (חובה)">
+                    <textarea id="book-notes" class="modern-input py-2 text-sm bg-white h-16" placeholder="הערות מיוחדות, בקשות לאירוע..."></textarea>
                 </div>
             </div>
-        </div>
 
- <script>
+            <div class="pt-4 border-t border-slate-100 shrink-0 bg-white">
+                <button onclick="window.submitBookingRequest()" id="btn-submit-booking" class="w-full bg-cyan-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2">שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JS Globals
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -291,6 +290,7 @@
         let searchQuery = '';
         let currentModifierProduct = null;
         let currentModifierBasePrice = 0;
+        let currentModalQty = 1;
         
         let isCurrentProductPizza = false;
         let currentPizzaToppings = [];
@@ -349,7 +349,6 @@
                 if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
                 storeData.groupId = gId;
 
-                // שאיבת הגדרות היומן חייבת לקרות אחרי שיש לנו את gId
                 try {
                     const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
                     const calData = await calRes.json();
@@ -401,10 +400,10 @@
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
-                renderHeader();
-                extractCategories();
-                renderPromotionsBanner();
-                renderCatalog();
+                window.renderHeader();
+                window.extractCategories();
+                window.renderPromotionsBanner();
+                window.renderCatalog();
 
                 getEl('loading-screen').classList.add('hidden');
                 getEl('store-app').classList.remove('hidden');
@@ -416,7 +415,7 @@
             }
         }
         
-        function renderPromotionsBanner() {
+        window.renderPromotionsBanner = function() {
             const bannerContainer = getEl('store-promotions-banner');
             if (!bannerContainer) return;
             
@@ -445,9 +444,9 @@
             });
             promoHtml += `</div>`;
             bannerContainer.innerHTML = promoHtml;
-        }
+        };
 
-        function renderHeader() {
+        window.renderHeader = function() {
             getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
             if(storeData.settings.logo_url) { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
             if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
@@ -477,32 +476,38 @@
                 showContactRow = true;
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
-        }
+        };
 
-        function extractCategories() {
+        window.extractCategories = function() {
             const container = getEl('categories-container'); if (!storeData.catalog) return;
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
             
             let html = '';
             const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
             if (tabPromos.length > 0) {
-                html += `<button onclick="filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
+                html += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
             }
             
-            html += `<button onclick="filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
-            categories.forEach(cat => { html += `<button onclick="filterCategory('${safeStr(cat)}')" id="cat-btn-${safeStr(cat)}" class="cat-btn shadow-sm">${safeStr(cat)}</button>`; });
+            html += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
+            categories.forEach(cat => { html += `<button onclick="window.filterCategory('${safeStr(cat)}')" id="cat-btn-${safeStr(cat)}" class="cat-btn shadow-sm">${safeStr(cat)}</button>`; });
             container.innerHTML = html;
-        }
+        };
 
-        function filterCategory(cat) {
-            currentCategory = cat; document.querySelectorAll('.cat-btn').forEach(btn => { btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); btn.classList.remove('bg-slate-900', 'text-white'); });
+        window.filterCategory = function(cat) {
+            currentCategory = cat; 
+            document.querySelectorAll('.cat-btn').forEach(btn => { 
+                btn.classList.remove('cat-active'); btn.classList.add('shadow-sm'); btn.classList.remove('bg-slate-900', 'text-white'); 
+            });
             const activeBtn = getEl(cat === 'all' ? 'cat-btn-all' : `cat-btn-${cat}`);
             if(activeBtn) { activeBtn.classList.add('cat-active'); activeBtn.classList.remove('shadow-sm'); }
             if(cat === 'promotions' && activeBtn) { activeBtn.classList.add('bg-slate-900', 'text-white'); activeBtn.classList.remove('bg-pink-50', 'text-pink-700', 'border-pink-200'); }
-            renderCatalog();
-        }
+            window.renderCatalog();
+        };
 
-        function handleSearch() { searchQuery = val('search-input').toLowerCase(); renderCatalog(); }
+        window.handleSearch = function() { 
+            searchQuery = val('search-input').toLowerCase(); 
+            window.renderCatalog(); 
+        };
 
         window.toggleViewMode = function() {
             catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
@@ -512,10 +517,10 @@
                     ? '<i class="fa-solid fa-list text-lg"></i>' 
                     : '<i class="fa-solid fa-border-all text-lg"></i>';
             }
-            renderCatalog();
+            window.renderCatalog();
         };
 
-        function renderCatalog() {
+        window.renderCatalog = function() {
             const container = getEl('catalog-container');
             
             if (currentCategory === 'promotions') {
@@ -611,18 +616,18 @@
 
                 const pType = item.product_type || 'retail';
                 const btnText = pType === 'pizza_builder' ? 'הרכב פיצה' : (pType === 'service' ? 'הזמן שירות' : (pType === 'food' ? 'בחר מנה' : 'פרטים והוספה'));
-                const actionHtml = `<button onclick="openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
+                const actionHtml = `<button onclick="window.openProductModal(${item.id}); event.stopPropagation();" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
 
                 if (catalogViewMode === 'grid') {
-                    html += `<div onclick="openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
+                    html += `<div onclick="window.openProductModal(${item.id})" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
-                    html += `<div onclick="openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
+                    html += `<div onclick="window.openProductModal(${item.id})" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex justify-between items-end mt-2"><div class="flex items-center">${priceHtml}</div><div class="w-24">${actionHtml}</div></div></div></div>`;
                 }
             });
             container.innerHTML = html + '</div>';
-        }
+        };
 
-        function calculateModTotal() {
+        window.calculateModTotal = function() {
             let totalOptions = 0;
             
             if (isCurrentProductPizza) {
@@ -641,16 +646,16 @@
             const grandTotal = (currentModifierBasePrice + totalOptions) * currentModalQty;
             const displayEl = getEl('mod-total-display');
             if (displayEl) displayEl.innerText = `(₪${grandTotal.toFixed(2)})`;
-        }
+        };
 
-        function updateModalQty(delta) {
+        window.updateModalQty = function(delta) {
             currentModalQty += delta;
             if(currentModalQty < 1) currentModalQty = 1;
             getEl('prod-modal-qty').innerText = currentModalQty;
-            calculateModTotal();
-        }
+            window.calculateModTotal();
+        };
 
-        function openProductModal(itemId) {
+        window.openProductModal = function(itemId) {
             const item = storeData.catalog.find(i => i.id === itemId); if(!item) return;
             currentModifierProduct = item; 
             currentModifierBasePrice = parseFloat(item.price) || 0;
@@ -718,7 +723,7 @@
                         html += `
                         <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-500 transition group relative overflow-hidden">
                             <div class="flex items-center gap-3">
-                                <input type="${stepQty === 1 ? 'radio' : 'checkbox'}" name="bundle_step_${sIdx}" value="${safeStr(subItem.name)}" data-id="${subItem.id}" class="bundle-input w-5 h-5 accent-indigo-600" onchange="checkBundleSelection(${sIdx}, ${stepQty}, this)">
+                                <input type="${stepQty === 1 ? 'radio' : 'checkbox'}" name="bundle_step_${sIdx}" value="${safeStr(subItem.name)}" data-id="${subItem.id}" class="bundle-input w-5 h-5 accent-indigo-600" onchange="window.checkBundleSelection(${sIdx}, ${stepQty}, this)">
                                 <div class="flex flex-col">
                                     <span class="text-sm font-bold text-slate-700">${safeStr(subItem.name)}</span>
                                     <span class="text-[10px] text-slate-400">${safeStr(subItem.description || '')}</span>
@@ -748,7 +753,7 @@
                         html += `
                         <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-900 transition group">
                             <div class="flex items-center gap-3">
-                                <input type="${isSingle ? 'radio' : 'checkbox'}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="calculateModTotal()">
+                                <input type="${isSingle ? 'radio' : 'checkbox'}" name="mod_group_${idx}" value="${safeStr(valOpt.name)}" data-price="${valOpt.price}" class="${isSingle ? 'mod-radio' : 'mod-checkbox'} w-5 h-5 accent-slate-900" onchange="window.calculateModTotal()">
                                 <span class="text-sm font-medium text-slate-700">${safeStr(valOpt.name)}</span>
                             </div>
                             ${priceBadge}
@@ -764,7 +769,7 @@
                 window.renderPizzaBuilderUI();
             }
 
-            calculateModTotal();
+            window.calculateModTotal();
             
             getEl('btn-add-with-mod').onclick = () => {
                 let selections = [];
@@ -819,13 +824,13 @@
                 }
                 
                 const finalName = selections.length > 0 ? `${item.name} (${selections.join(', ')})` : item.name;
-                updateCart(`${item.id}_${selections.join('-')}`, currentModalQty, finalName, totalPrice, item.id);
-                closeProductModal(); 
+                window.updateCart(`${item.id}_${selections.join('-')}`, currentModalQty, finalName, totalPrice, item.id);
+                window.closeProductModal(); 
                 showToast('success', 'התווסף לסל! 🛒');
             };
             
             getEl('product-modal').classList.remove('hidden');
-        }
+        };
 
         window.checkBundleSelection = function(stepIdx, max, input) {
             const checked = document.querySelectorAll(`input[name="bundle_step_${stepIdx}"]:checked`);
@@ -952,7 +957,7 @@
             else pizzaState[activePizzaTopping][qIdx] = 0;
             
             window.renderPizzaBuilderUI();
-            calculateModTotal();
+            window.calculateModTotal();
         };
 
         window.fillPizza = function(action) {
@@ -969,22 +974,22 @@
                 pizzaState[activePizzaTopping][3] = 1;
             }
             window.renderPizzaBuilderUI();
-            calculateModTotal();
+            window.calculateModTotal();
         };
 
-        function closeProductModal() { getEl('product-modal').classList.add('hidden'); }
+        window.closeProductModal = function() { getEl('product-modal').classList.add('hidden'); };
         
-        function updateCart(cartKey, delta, name, price, originalCatalogId = null) {
+        window.updateCart = function(cartKey, delta, name, price, originalCatalogId = null) {
             const catId = originalCatalogId || cartKey; 
             if (!cart[cartKey]) cart[cartKey] = { catalogId: catId, name, price, qty: 0 };
             
             cart[cartKey].qty += delta;
             if (cart[cartKey].qty <= 0) delete cart[cartKey];
 
-            renderCatalog(); updateCartFooter();
-        }
+            window.renderCatalog(); window.updateCartFooter();
+        };
 
-        function calculateCartDetails() {
+        window.calculateCartDetails = function() {
             let baseTotal = 0; let totalQty = 0;
             let itemsForPromo = [];
             
@@ -1033,17 +1038,17 @@
             if (discountAmount > baseTotal) discountAmount = baseTotal;
             finalTotal = baseTotal - discountAmount;
             return { baseTotal, finalTotal, discountAmount, totalQty };
-        }
+        };
 
-        function updateCartFooter() {
-            const calc = calculateCartDetails();
+        window.updateCartFooter = function() {
+            const calc = window.calculateCartDetails();
             const footer = getEl('cart-footer');
             if (calc.totalQty > 0) { 
                 getEl('cart-count').innerText = calc.totalQty; 
                 getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`; 
                 footer.classList.remove('hidden'); 
             } else footer.classList.add('hidden');
-        }
+        };
 
         window.toggleDelivery = function(isDel) {
             getEl('is-delivery').value = isDel;
@@ -1066,11 +1071,11 @@
                 getEl('cust-street').required = false;
                 getEl('cust-house').required = false;
             }
-            openCheckoutModal(); // חישוב מחדש של הסה"כ עם דמי משלוח
+            window.openCheckoutModal(); // חישוב מחדש של הסה"כ עם דמי משלוח
         };
 
-        function openCheckoutModal() {
-            const calc = calculateCartDetails();
+        window.openCheckoutModal = function() {
+            const calc = window.calculateCartDetails();
             let itemsHtml = '';
             
             // מילוי אוטומטי של שם המשתמש אם הוא הגיע מתוך אפליקציית המשפחות!
@@ -1084,7 +1089,7 @@
 
             Object.values(cart).forEach((item, index) => {
                 const itemTotal = item.qty * item.price;
-                itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
+                itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="window.updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
             
             // תוספת דמי משלוח
@@ -1111,7 +1116,7 @@
             
             getEl('final-submit-price').innerText = `(₪${totalWithDelivery.toFixed(2)})`;
 
-            const minOrder = parseFloat(storeData.settings.min_order) || 0; 
+            const minOrder = parseFloat(storeData.settings?.min_order) || 0; 
             const btnSubmit = getEl('btn-submit-order'); 
             const warning = getEl('checkout-min-warning');
             
@@ -1128,15 +1133,15 @@
             }
             
             getEl('checkout-modal').classList.remove('hidden');
-        }
+        };
 
-        function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
+        window.closeCheckoutModal = function() { getEl('checkout-modal').classList.add('hidden'); };
 
         window.resetStoreAfterOrder = function() {
             getEl('success-screen').classList.add('hidden');
             cart = {};
-            renderCatalog();
-            updateCartFooter();
+            window.renderCatalog();
+            window.updateCartFooter();
             getEl('checkout-form').reset();
             
             // שומרים על שם המשתמש גם לאחר האיפוס (אם הגיע מתוך האפליקציה)
@@ -1148,8 +1153,8 @@
                 }
             } catch(e) {}
 
-            toggleDelivery(false);
-            toggleTargetTime('asap');
+            window.toggleDelivery(false);
+            window.toggleTargetTime('asap');
             window.scrollTo({top: 0, behavior: 'smooth'});
         };
 
@@ -1178,13 +1183,13 @@
             }
         };
 
-        async function submitOrder(e) {
+        window.submitOrder = async function(e) {
             e.preventDefault(); 
             const btn = getEl('btn-submit-order'); 
             btn.disabled = true; 
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
 
-            const calc = calculateCartDetails();
+            const calc = window.calculateCartDetails();
             const items = [];
             Object.values(cart).forEach(i => { items.push({ catalogId: i.catalogId, name: i.name, quantity: i.qty, price: i.price }); });
 
@@ -1246,7 +1251,7 @@
                         } catch(e) { console.warn("Failed to set target date"); }
                     }
 
-                    confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); 
+                    try{ confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#000', '#4f46e5', '#10b981'] }); } catch(e){}
                     getEl('checkout-modal').classList.add('hidden'); 
                     getEl('cart-footer').classList.add('hidden'); 
                     getEl('success-order-id').innerText = `#${data.orderId}`; 
@@ -1257,163 +1262,9 @@
                 btn.disabled = false; 
                 btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
             }
-        }
-
-// === פונקציות קביעת תור (Booking B2C) ===
-        window.openBookingModal = function() {
-            if (!storeData || !storeData.calendarSettings) return;
-            
-            // עדכון תאריך מינימום להיום
-            const dateInput = getEl('book-date');
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.min = today;
-            dateInput.value = today;
-
-            // טעינת שירותים
-            const svcSelect = getEl('book-service');
-            if (storeData.calendarServices && storeData.calendarServices.length > 0) {
-                svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
-            } else {
-                svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
-            }
-
-            window.generateAvailableTimeSlots();
-            
-            // מילוי אוטומטי ללקוחות מחוברים
-            try {
-                const session = JSON.parse(localStorage.getItem('ofl_session'));
-                if (session && session.user) {
-                    if(!getEl('book-name').value) getEl('book-name').value = session.user.nickname || '';
-                    if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
-                }
-            } catch(e) {}
-
-            getEl('booking-modal').classList.remove('hidden');
         };
 
-        window.generateAvailableTimeSlots = function() {
-            const timeSelect = getEl('book-time');
-            const calSettings = storeData.calendarSettings;
-            if (!calSettings || !calSettings.open_time || !calSettings.close_time) {
-                timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
-                return;
-            }
-
-            const openTimeStr = calSettings.open_time;
-            const closeTimeStr = calSettings.close_time;
-            const interval = parseInt(calSettings.interval_mins) || 30;
-
-            let [openH, openM] = openTimeStr.split(':').map(Number);
-            let [closeH, closeM] = closeTimeStr.split(':').map(Number);
-            
-            const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
-            const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
-            
-            let html = '';
-            let current = new Date(startTime);
-            
-            const now = new Date();
-            const isToday = getEl('book-date').value === now.toISOString().split('T')[0];
-
-            while (current <= endTime) {
-                // מסנן שעות שכבר עברו אם בחרנו להיום
-                if (!isToday || current > now) {
-                    const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
-                    html += `<option value="${timeStr}">${timeStr}</option>`;
-                }
-                current.setMinutes(current.getMinutes() + interval);
-            }
-
-            if (html === '') html = '<option value="">אין שעות פנויות להיום</option>';
-            timeSelect.innerHTML = html;
-        };
-
-        window.submitBookingRequest = async function() {
-            const name = val('book-name');
-            const phone = val('book-phone');
-            const date = val('book-date');
-            const time = val('book-time');
-            const serviceId = val('book-service');
-            const notes = val('book-notes');
-
-            if (!name || !phone || !date || !time) return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
-
-            const btn = getEl('btn-submit-booking');
-            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר בקשה...';
-
-            const payload = {
-                groupId: storeData.groupId,
-                title: name,
-                eventDate: date,
-                startTime: time,
-                serviceId: serviceId || null,
-                notes: notes,
-                customerPhone: phone,
-                status: 'pending' // נשמר כממתין לאישור מנהל
-            };
-
-            try {
-                const res = await fetch(`${API}/calendar/events`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    getEl('booking-modal').classList.add('hidden');
-                    getEl('success-message-text').innerText = 'בקשתך לשיבוץ נשלחה לעסק ותטופל בהקדם. נציג יצור איתך קשר לאישור.';
-                    getEl('success-order-box').classList.add('hidden'); 
-                    getEl('success-screen').classList.remove('hidden');
-                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
-                } else {
-                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-                }
-            } catch(e) {
-                showToast('error', 'שגיאת רשת בשליחת הבקשה');
-            } finally {
-                btn.disabled = false; btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
-            }
-        };
-
-        window.scrollCategories = function(direction) {
-            const container = document.getElementById('categories-container');
-            if (container) {
-                const scrollAmount = 200; 
-                container.scrollBy({
-                    left: direction * scrollAmount,
-                    behavior: 'smooth'
-                });
-            }
-        };
-
-        window.updateScrollButtonsVisibility = function() {
-            const container = document.getElementById('categories-container');
-            const rightBtn = document.getElementById('scroll-right-btn');
-            const leftBtn = document.getElementById('scroll-left-btn');
-            
-            if (!container || !rightBtn || !leftBtn) return;
-
-            const isAtStart = container.scrollLeft === 0;
-            const maxScroll = container.scrollWidth - container.clientWidth;
-            const isAtEnd = Math.abs(container.scrollLeft) >= (maxScroll - 5);
-
-            rightBtn.style.opacity = isAtStart ? '0.3' : '1';
-            rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
-            
-            leftBtn.style.opacity = isAtEnd ? '0.3' : '1';
-            leftBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
-        };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('categories-container');
-            if (container) {
-                container.addEventListener('scroll', window.updateScrollButtonsVisibility);
-                setTimeout(window.updateScrollButtonsVisibility, 800); 
-            }
-        });
-
-        initStore();
-     // ==========================================
+        // ==========================================
         // תיקון: הגדרת פונקציות היומן כזמינות גלובלית
         // ==========================================
         window.openBookingModal = function() {
@@ -1559,96 +1410,45 @@
                 }
             }
         };
+
+        window.scrollCategories = function(direction) {
+            const container = document.getElementById('categories-container');
+            if (container) {
+                const scrollAmount = 200; 
+                container.scrollBy({
+                    left: direction * scrollAmount,
+                    behavior: 'smooth'
+                });
+            }
+        };
+
+        window.updateScrollButtonsVisibility = function() {
+            const container = document.getElementById('categories-container');
+            const rightBtn = document.getElementById('scroll-right-btn');
+            const leftBtn = document.getElementById('scroll-left-btn');
+            
+            if (!container || !rightBtn || !leftBtn) return;
+
+            const isAtStart = container.scrollLeft === 0;
+            const maxScroll = container.scrollWidth - container.clientWidth;
+            const isAtEnd = Math.abs(container.scrollLeft) >= (maxScroll - 5);
+
+            rightBtn.style.opacity = isAtStart ? '0.3' : '1';
+            rightBtn.style.pointerEvents = isAtStart ? 'none' : 'auto';
+            
+            leftBtn.style.opacity = isAtEnd ? '0.3' : '1';
+            leftBtn.style.pointerEvents = isAtEnd ? 'none' : 'auto';
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('categories-container');
+            if (container) {
+                container.addEventListener('scroll', window.updateScrollButtonsVisibility);
+                setTimeout(window.updateScrollButtonsVisibility, 800); 
+            }
+        });
+
+        initStore();
     </script>
-2. הוספת תצוגת יומן חודשית + חיפוש וסינון לאירועים (business.html)
-הוספנו את האפשרויות לדפדף ביומן החודשי, וכן סרגל חיפוש חכם וסינון טווח תאריכים במסך הניהול!
-חפש את אזור היומן (<div id="content-calendar" class="hidden">), ומחק מ- ועד ל- (סביב שורות 460-500).
-הדבק במקומם את הבלוק הבא:
-
-HTML
-                    <div id="content-calendar" class="hidden">
-                        <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
-                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
-                            
-                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
-                                <button id="btn-cal-tab-schedule" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('schedule')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">לוז יומי / רשימה</button>
-                                <button id="btn-cal-tab-month" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('month')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">יומן חודשי</button>
-                                <button id="btn-cal-tab-requests" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('requests')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition relative">בקשות שיבוץ <span id="cal-pending-badge" class="hidden absolute top-0 left-0 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center">0</span></button>
-                                <button id="btn-cal-tab-settings" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות ושירותים</button>
-                            </div>
-
-                            <div id="cal-view-schedule" class="space-y-4">
-                                <div class="flex flex-col sm:flex-row gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                    <div class="relative flex-1">
-                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                        <input type="text" id="cal-search" oninput="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" placeholder="חיפוש אירוע, לקוח או טלפון..." class="modern-input py-2 pr-9 pl-3 text-sm bg-white shadow-sm h-full">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <input type="date" id="cal-filter-start" onchange="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" class="modern-input py-2 text-sm bg-white shadow-sm">
-                                        <span class="text-xs text-slate-400 font-bold">-</span>
-                                        <input type="date" id="cal-filter-end" onchange="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" class="modern-input py-2 text-sm bg-white shadow-sm">
-                                    </div>
-                                    <button onclick="if(typeof openNewEventModal==='function') openNewEventModal()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-cyan-700 transition flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-plus"></i> הוסף תור</button>
-                                </div>
-                                <div id="cal-events-list" class="space-y-2 pb-8 min-h-[200px]"></div>
-                            </div>
-
-                            <div id="cal-view-month" class="hidden space-y-4 pb-8">
-                                <div class="flex justify-between items-center mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                    <button onclick="if(typeof changeCalendarMonth==='function') changeCalendarMonth(1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-right text-xs"></i></button>
-                                    <span id="cal-month-display" class="font-bold text-slate-800 text-base w-40 text-center"></span>
-                                    <button onclick="if(typeof changeCalendarMonth==='function') changeCalendarMonth(-1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-                                </div>
-                                <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 mb-2">
-                                    <div>א'</div><div>ב'</div><div>ג'</div><div>ד'</div><div>ה'</div><div>ו'</div><div>ש'</div>
-                                </div>
-                                <div id="cal-month-grid" class="grid grid-cols-7 gap-1 sm:gap-2"></div>
-                            </div>
-
-                            <div id="cal-view-requests" class="hidden space-y-4 pb-8 min-h-[200px]">
-                                <div class="bg-cyan-50 border border-cyan-100 p-3 rounded-xl mb-2 text-xs text-cyan-800">
-                                    <i class="fa-solid fa-circle-info"></i> לקוחות יכולים לשלוח בקשות לשיבוץ תור או אירוע דרך עמוד החנות שלכם. כאן תוכלו לאשר אותם או להפוך אותם להצעת מחיר.
-                                </div>
-                                <div id="cal-requests-list" class="space-y-3">
-                                    <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות ממתינות</p>
-                                </div>
-                            </div>
-
-                            <div id="cal-view-settings" class="hidden space-y-5 pb-8">
-                                <div class="bg-cyan-50 p-4 rounded-xl border border-cyan-100 flex items-center justify-between shadow-sm">
-                                    <div>
-                                        <h4 class="font-bold text-cyan-900 text-sm mb-1">הפעלת מודול הזמנת תורים בחנות</h4>
-                                        <p class="text-[10px] text-cyan-700">מאפשר ללקוחות לשלוח בקשות לתורים ואירועים דרך הלינק שלכם</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="cal-setting-active" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
-                                    </label>
-                                </div>
-
-                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-list-check text-cyan-500 mr-1"></i> שירותים הניתנים להזמנה</h4>
-                                    <div id="cal-services-list" class="space-y-2 mb-3 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
-                                    <button onclick="if(typeof openServiceModal==='function') openServiceModal()" class="w-full bg-slate-50 text-slate-600 border border-dashed border-slate-300 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 hover:text-cyan-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף שירות (למשל: תספורת גברים / קייטרינג חלבי)</button>
-                                </div>
-
-                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-clock text-cyan-500 mr-1"></i> שעות פעילות וזמינות</h4>
-                                    <div class="grid grid-cols-2 gap-3 mb-3">
-                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת פתיחה יומית:</label><input type="time" id="cal-setting-open" class="modern-input py-2 text-sm bg-slate-50" value="09:00"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת סגירה יומית:</label><input type="time" id="cal-setting-close" class="modern-input py-2 text-sm bg-slate-50" value="18:00"></div>
-                                        <div class="col-span-2">
-                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הפרש דקות בין תורים (למשל: 30 דקות לתור):</label>
-                                            <input type="number" id="cal-setting-interval" class="modern-input py-2 text-sm bg-slate-50 text-center" value="30" min="15" step="5">
-                                            <p class="text-[9px] text-slate-400 mt-1">* לעסקים של אירועים גדולים, מומלץ להגדיר שירות של מספר שעות ולא לאפשר בחירה מצומצמת.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <button onclick="if(typeof saveCalendarSettings==='function') saveCalendarSettings()" id="btn-save-cal-settings" class="w-full bg-slate-800 text-white py-3.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור הגדרות יומן</button>
-                            </div>
-                        </div>
-                    </div>
-                    ```
 </body>
 </html>
