@@ -677,7 +677,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','calendar','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -1115,6 +1115,7 @@ const ALL_TABS = [
     { id: 'feed', name: 'ראשי 🏠' },
     { id: 'timeclock', name: 'נוכחות ⏱️' },
     { id: 'shifts', name: 'משמרות 🗓️' },
+    { id: 'calendar', name: 'יומן ותורים 📅' },
     { id: 'shop', name: 'רכש ארגוני 🛒' },
     { id: 'pantry', name: 'ניהול מלאי 📦' },
     { id: 'sales', name: 'מכירות / חנות 🛍️' },
@@ -1132,7 +1133,7 @@ const ALL_TABS = [
 
 const ROLE_DEFAULTS = {
     'ADMIN': ALL_TABS.map(t => t.id),
-    'MANAGER': ['feed', 'timeclock', 'shifts', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
+    'MANAGER': ['feed', 'timeclock', 'shifts', 'calendar', 'shop', 'pantry', 'tasks', 'academy', 'sales', 'customers'],
     'SENIOR': ['feed', 'timeclock', 'shifts', 'pantry', 'tasks', 'academy'],
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
