@@ -355,6 +355,7 @@
                     if (calData.success && calData.settings && calData.settings.is_active) {
                         storeData.calendarSettings = calData.settings;
                         storeData.calendarServices = calData.services || [];
+                        storeData.calendarEvents = calData.events || []; // שמירת האירועים כדי לסנן חלונות תפוסים
                         const bookBtn = getEl('btn-book-appointment');
                         if (bookBtn) {
                             bookBtn.classList.remove('hidden');
@@ -1326,19 +1327,30 @@
             const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
             const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
             
+            const dateInput = getEl('book-date');
+            const selectedDateStr = dateInput ? dateInput.value : '';
+            const now = new Date();
+            const isToday = selectedDateStr === now.toISOString().split('T')[0];
+
+            // שולפים את כל השעות שכבר תפוסות ביומן לתאריך שנבחר (סטטוס מאושר או ממתין)
+            const bookedTimes = (storeData.calendarEvents || [])
+                .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'))
+                .map(e => e.start_time.substring(0, 5));
+
             let html = '';
             let current = new Date(startTime);
-            
-            const now = new Date();
-            const dateInput = getEl('book-date');
-            const isToday = dateInput ? dateInput.value === now.toISOString().split('T')[0] : false;
 
             while (current <= endTime) {
-                // הצג רק שעות שעדיין לא עברו (אם נבחר התאריך של היום)
-                if (!isToday || current > now) {
-                    const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+                const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+                
+                // בודקים 2 דברים: 1. שהשעה לא עברה (אם זה היום). 2. שהשעה לא תפוסה כבר ביומן.
+                const isTimePassed = isToday && current <= now;
+                const isBooked = bookedTimes.includes(timeStr);
+
+                if (!isTimePassed && !isBooked) {
                     html += `<option value="${timeStr}">${timeStr}</option>`;
                 }
+                
                 current.setMinutes(current.getMinutes() + interval);
             }
 
