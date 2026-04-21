@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    < src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></>
 
     <style>
         body { font-family: 'Heebo', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
@@ -283,7 +283,7 @@
             </div>
         </div>
 
-    <script>
+ <script>
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
         let storeData = null;
         let cart = {}; 
@@ -331,7 +331,7 @@
                 return document.body.innerHTML = "<h1 class='text-center mt-20 text-xl font-bold'>קישור שגוי</h1>";
             }
 
-           try {
+            try {
                 let fetchUrl = `${API}/storefront/${storeCode}`;
                 if (communityId) fetchUrl += `?communityId=${communityId}`;
                 
@@ -339,44 +339,17 @@
                 const data = await res.json();
                 
                 const isActive = data.settings && isTrue(data.settings.is_active);
-if (!data.success || !isActive) {
-                    getEl('loading-screen').classList.add('hidden');
-                    return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
-                }
+                if (!data.success || !isActive) {
+                    getEl('loading-screen').classList.add('hidden');
+                    return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
+                }
 
-                if (data.communityData) {
-                    const discount = parseFloat(data.communityData.discount_pct) || 0;
-                    if (data.catalog && discount > 0) {
-                        data.catalog.forEach(item => {
-                            item.original_price = parseFloat(item.price);
-                            item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
-                            if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
-                            item.is_community_discount = true;
-                        });
-                    }
-                    
-                    const heroHeader = document.querySelector('header');
-                    if (heroHeader) {
-                        heroHeader.insertAdjacentHTML('afterbegin', `
-                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
-                                    <div class="flex flex-col justify-center text-right">
-                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
-                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `);
-                    }
-                }
+                storeData = data;
+                let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
+                if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
+                storeData.groupId = gId;
 
-                storeData = data;
-                let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
-                if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
-                storeData.groupId = gId;
-
-                // מערכת היומן: מתבצעת כעת *אחרי* שיש לנו את מזהה הקבוצה
+                // שאיבת הגדרות היומן חייבת לקרות אחרי שיש לנו את gId
                 try {
                     const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
                     const calData = await calRes.json();
@@ -390,9 +363,36 @@ if (!data.success || !isActive) {
                         }
                     }
                 } catch(e) { console.warn('Calendar module not active'); }
-                
-                try {
-                    if (storeData.groupId) {
+
+                if (data.communityData) {
+                    const discount = parseFloat(data.communityData.discount_pct) || 0;
+                    if (data.catalog && discount > 0) {
+                        data.catalog.forEach(item => {
+                            item.original_price = parseFloat(item.price);
+                            item.price = (item.original_price * (1 - (discount / 100))).toFixed(2);
+                            if (item.price.endsWith('.00')) item.price = item.price.replace('.00', '');
+                            item.is_community_discount = true;
+                        });
+                    }
+                    
+                    const heroHeader = document.querySelector('header');
+                    if (heroHeader) {
+                        heroHeader.insertAdjacentHTML('afterbegin', `
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 px-4 shadow-lg flex justify-between items-center w-full" dir="rtl">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner shrink-0"><i class="fa-solid fa-house-flag text-xl"></i></div>
+                                    <div class="flex flex-col justify-center text-right">
+                                        <p class="font-bold text-sm leading-tight tracking-wide">קהילת ${safeStr(data.communityData.name)}</p>
+                                        <div class="text-[10px] opacity-90 font-medium bg-emerald-700/50 px-1.5 py-0.5 rounded inline-flex items-center gap-1 w-fit mt-0.5"><span>הנחת קהילה פעילה:</span><span class="font-black" dir="ltr">${discount}%</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    }
+                }
+                
+                try {
+                    if (storeData.groupId) {
                         const promoRes = await fetch(`${API}/store/promotions/${storeData.groupId}`);
                         const promoData = await promoRes.json();
                         if (promoData.success && promoData.promotions) {
@@ -478,168 +478,7 @@ if (!data.success || !isActive) {
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
         }
-if (hasLogo) {
-                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.remove('hidden');
-                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.remove('hidden');
-            } else {
-                if(getEl('btn-generate-banner-ai')) getEl('btn-generate-banner-ai').classList.add('hidden');
-                if(getEl('btn-generate-banner-ai-wiz')) getEl('btn-generate-banner-ai-wiz').classList.add('hidden');
-            }
 
-            // --- טיפול חכם בבאנר רקע ---
-            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBannerEl = getEl('main-header-banner');
-            
-            if (hasBanner) {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getEl(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getEl(id); if(el) el.classList.add('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getEl(id); if(el) el.value = data.settings.banner_url;
-                });
-            } else {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getEl(id); if(el) { el.src = ''; el.classList.add('hidden'); }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getEl(id); if(el) el.classList.remove('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getEl(id); if(el) el.value = 'DELETE';
-                });
-            }
-
-            if (data.settings.modifier_presets) {
-                try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
-                renderPresetSelector();
-            }
-        }
-    } catch(e) { console.error(e); }
-}
-
-// === פונקציות קביעת תור (Booking B2C) ===
-window.openBookingModal = function() {
-    if (!storeData || !storeData.calendarSettings) return;
-    
-    // עדכון תאריך מינימום להיום
-    const dateInput = getEl('book-date');
-    const today = new Date().toISOString().split('T')[0];
-    dateInput.min = today;
-    dateInput.value = today;
-
-    // טעינת שירותים
-    const svcSelect = getEl('book-service');
-    if (storeData.calendarServices && storeData.calendarServices.length > 0) {
-        svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
-    } else {
-        svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
-    }
-
-    generateAvailableTimeSlots();
-    
-    // מילוי אוטומטי ללקוחות מחוברים (אם יש קוקי)
-    try {
-        const session = JSON.parse(localStorage.getItem('ofl_session'));
-        if (session && session.user) {
-            if(!getEl('book-name').value) getEl('book-name').value = session.user.nickname || '';
-            if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
-        }
-    } catch(e) {}
-
-    getEl('booking-modal').classList.remove('hidden');
-};
-
-window.generateAvailableTimeSlots = function() {
-    const timeSelect = getEl('book-time');
-    const calSettings = storeData.calendarSettings;
-    if (!calSettings || !calSettings.open_time || !calSettings.close_time) {
-        timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
-        return;
-    }
-
-    const openTimeStr = calSettings.open_time; // "09:00"
-    const closeTimeStr = calSettings.close_time; // "18:00"
-    const interval = parseInt(calSettings.interval_mins) || 30;
-
-    let [openH, openM] = openTimeStr.split(':').map(Number);
-    let [closeH, closeM] = closeTimeStr.split(':').map(Number);
-    
-    const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
-    const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
-    
-    let html = '';
-    let current = new Date(startTime);
-    
-    const now = new Date();
-    const isToday = getEl('book-date').value === now.toISOString().split('T')[0];
-
-    while (current <= endTime) {
-        // מסנן שעות שכבר עברו אם בחרנו להיום
-        if (!isToday || current > now) {
-            const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
-            html += `<option value="${timeStr}">${timeStr}</option>`;
-        }
-        current.setMinutes(current.getMinutes() + interval);
-    }
-
-    if (html === '') html = '<option value="">אין שעות פנויות להיום</option>';
-    timeSelect.innerHTML = html;
-};
-
-window.submitBookingRequest = async function() {
-    const name = val('book-name');
-    const phone = val('book-phone');
-    const date = val('book-date');
-    const time = val('book-time');
-    const serviceId = val('book-service');
-    const notes = val('book-notes');
-
-    if (!name || !phone || !date || !time) return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
-
-    const btn = getEl('btn-submit-booking');
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר בקשה...';
-
-    const payload = {
-        groupId: storeData.groupId,
-        title: name,
-        eventDate: date,
-        startTime: time,
-        serviceId: serviceId || null,
-        notes: notes,
-        customerPhone: phone,
-        status: 'pending' // נשמר כממתין לאישור מנהל
-    };
-
-    try {
-        const res = await fetch(`${API}/calendar/events`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            getEl('booking-modal').classList.add('hidden');
-            getEl('success-message-text').innerText = 'בקשתך לשיבוץ נשלחה לעסק ותטופל בהקדם. נציג יצור איתך קשר לאישור.';
-            getEl('success-order-box').classList.add('hidden'); // בלי מספר הזמנה לתור
-            getEl('success-screen').classList.remove('hidden');
-            try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
-        } else {
-            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
-        }
-    } catch(e) {
-        showToast('error', 'שגיאת רשת בשליחת הבקשה');
-    } finally {
-        btn.disabled = false; btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
-    }
-};
-// ===========================================
-
-async function saveStoreSettings() {
         function extractCategories() {
             const container = getEl('categories-container'); if (!storeData.catalog) return;
             const categories = new Set(); storeData.catalog.forEach(item => { if(item.category) categories.add(item.category.trim()); });
@@ -958,11 +797,11 @@ async function saveStoreSettings() {
                             let parts = [];
                             if (activeQ1.length > 0) {
                                 if (activeQ1.length === 4) parts.push('מגש שלם');
-                                else parts.push(`ברבעים ${activeQ1.join(', ')}`);
+                                else parts.push(`רבעים ${activeQ1.join(', ')}`);
                             }
                             if (activeQ2.length > 0) {
                                 if (activeQ2.length === 4) parts.push('כפול על הכל');
-                                else parts.push(`כפול ברבעים ${activeQ2.join(', ')}`);
+                                else parts.push(`כפול רבעים ${activeQ2.join(', ')}`);
                             }
                             
                             selections.push(`${t.name} (${parts.join(' | ')})`);
@@ -1231,19 +1070,19 @@ async function saveStoreSettings() {
         };
 
         function openCheckoutModal() {
-            const calc = calculateCartDetails();
-            let itemsHtml = '';
-            
-            // מילוי אוטומטי של שם המשתמש אם הוא הגיע מתוך אפליקציית המשפחות!
-            try {
-                const session = JSON.parse(localStorage.getItem('ofl_session'));
-                if (session && session.user && session.user.nickname) {
-                    const nameInput = getEl('cust-name');
-                    if (nameInput && !nameInput.value) nameInput.value = session.user.nickname;
-                }
-            } catch(e) {}
+            const calc = calculateCartDetails();
+            let itemsHtml = '';
+            
+            // מילוי אוטומטי של שם המשתמש אם הוא הגיע מתוך אפליקציית המשפחות!
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session && session.user && session.user.nickname) {
+                    const nameInput = getEl('cust-name');
+                    if (nameInput && !nameInput.value) nameInput.value = session.user.nickname;
+                }
+            } catch(e) {}
 
-            Object.values(cart).forEach((item, index) => {
+            Object.values(cart).forEach((item, index) => {
                 const itemTotal = item.qty * item.price;
                 itemsHtml += `<div class="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 bg-slate-50/50 px-3 rounded-xl mb-2"><div class="flex items-center gap-3"><span class="bg-white text-slate-900 font-black w-7 h-7 flex items-center justify-center rounded-md border border-slate-200 shadow-sm text-xs">${item.qty}</span><div class="flex flex-col"><span class="font-bold text-slate-800 text-sm">${safeStr(item.name.split(' (')[0])}</span>${item.name.includes('(') ? `<span class="text-[10px] text-slate-500">${safeStr(item.name.substring(item.name.indexOf('(')))}</span>` : ''}</div></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${itemTotal.toFixed(2)}</span><button onclick="updateCart('${Object.keys(cart)[index]}', -${item.qty}, '', 0)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can text-xs"></i></button></div></div>`;
             });
@@ -1291,7 +1130,7 @@ async function saveStoreSettings() {
             getEl('checkout-modal').classList.remove('hidden');
         }
 
-function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
+        function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden'); }
 
         window.resetStoreAfterOrder = function() {
             getEl('success-screen').classList.add('hidden');
@@ -1419,6 +1258,123 @@ function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden');
                 btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
             }
         }
+
+        // === פונקציות קביעת תור (Booking B2C) ===
+        window.openBookingModal = function() {
+            if (!storeData || !storeData.calendarSettings) return;
+            
+            // עדכון תאריך מינימום להיום
+            const dateInput = getEl('book-date');
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.min = today;
+            dateInput.value = today;
+
+            // טעינת שירותים
+            const svcSelect = getEl('book-service');
+            if (storeData.calendarServices && storeData.calendarServices.length > 0) {
+                svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
+            } else {
+                svcSelect.innerHTML = '<option value="">פגישה / תור כללי</option>';
+            }
+
+            generateAvailableTimeSlots();
+            
+            // מילוי אוטומטי ללקוחות מחוברים
+            try {
+                const session = JSON.parse(localStorage.getItem('ofl_session'));
+                if (session && session.user) {
+                    if(!getEl('book-name').value) getEl('book-name').value = session.user.nickname || '';
+                    if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
+                }
+            } catch(e) {}
+
+            getEl('booking-modal').classList.remove('hidden');
+        };
+
+        window.generateAvailableTimeSlots = function() {
+            const timeSelect = getEl('book-time');
+            const calSettings = storeData.calendarSettings;
+            if (!calSettings || !calSettings.open_time || !calSettings.close_time) {
+                timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
+                return;
+            }
+
+            const openTimeStr = calSettings.open_time;
+            const closeTimeStr = calSettings.close_time;
+            const interval = parseInt(calSettings.interval_mins) || 30;
+
+            let [openH, openM] = openTimeStr.split(':').map(Number);
+            let [closeH, closeM] = closeTimeStr.split(':').map(Number);
+            
+            const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
+            const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
+            
+            let html = '';
+            let current = new Date(startTime);
+            
+            const now = new Date();
+            const isToday = getEl('book-date').value === now.toISOString().split('T')[0];
+
+            while (current <= endTime) {
+                // מסנן שעות שכבר עברו אם בחרנו להיום
+                if (!isToday || current > now) {
+                    const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+                    html += `<option value="${timeStr}">${timeStr}</option>`;
+                }
+                current.setMinutes(current.getMinutes() + interval);
+            }
+
+            if (html === '') html = '<option value="">אין שעות פנויות להיום</option>';
+            timeSelect.innerHTML = html;
+        };
+
+        window.submitBookingRequest = async function() {
+            const name = val('book-name');
+            const phone = val('book-phone');
+            const date = val('book-date');
+            const time = val('book-time');
+            const serviceId = val('book-service');
+            const notes = val('book-notes');
+
+            if (!name || !phone || !date || !time) return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
+
+            const btn = getEl('btn-submit-booking');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעביר בקשה...';
+
+            const payload = {
+                groupId: storeData.groupId,
+                title: name,
+                eventDate: date,
+                startTime: time,
+                serviceId: serviceId || null,
+                notes: notes,
+                customerPhone: phone,
+                status: 'pending' // נשמר כממתין לאישור מנהל
+            };
+
+            try {
+                const res = await fetch(`${API}/calendar/events`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    getEl('booking-modal').classList.add('hidden');
+                    getEl('success-message-text').innerText = 'בקשתך לשיבוץ נשלחה לעסק ותטופל בהקדם. נציג יצור איתך קשר לאישור.';
+                    getEl('success-order-box').classList.add('hidden'); 
+                    getEl('success-screen').classList.remove('hidden');
+                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                } else {
+                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת רשת בשליחת הבקשה');
+            } finally {
+                btn.disabled = false; btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
+            }
+        };
+
         function scrollCategories(direction) {
             const container = document.getElementById('categories-container');
             if (container) {
@@ -1458,5 +1414,95 @@ function closeCheckoutModal() { getEl('checkout-modal').classList.add('hidden');
 
         initStore();
     </script>
+2. הוספת תצוגת יומן חודשית + חיפוש וסינון לאירועים (business.html)
+הוספנו את האפשרויות לדפדף ביומן החודשי, וכן סרגל חיפוש חכם וסינון טווח תאריכים במסך הניהול!
+חפש את אזור היומן (<div id="content-calendar" class="hidden">), ומחק מ- ועד ל- (סביב שורות 460-500).
+הדבק במקומם את הבלוק הבא:
+
+HTML
+                    <div id="content-calendar" class="hidden">
+                        <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4 relative overflow-hidden">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">יומן ותורים 📅</h3>
+                            
+                            <div class="flex bg-slate-100 p-1.5 rounded-xl mb-4 overflow-x-auto modal-scroll whitespace-nowrap">
+                                <button id="btn-cal-tab-schedule" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('schedule')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">לוז יומי / רשימה</button>
+                                <button id="btn-cal-tab-month" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('month')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">יומן חודשי</button>
+                                <button id="btn-cal-tab-requests" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('requests')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition relative">בקשות שיבוץ <span id="cal-pending-badge" class="hidden absolute top-0 left-0 bg-red-500 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center">0</span></button>
+                                <button id="btn-cal-tab-settings" onclick="if(typeof switchCalendarTab==='function') switchCalendarTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות ושירותים</button>
+                            </div>
+
+                            <div id="cal-view-schedule" class="space-y-4">
+                                <div class="flex flex-col sm:flex-row gap-2 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <div class="relative flex-1">
+                                        <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                        <input type="text" id="cal-search" oninput="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" placeholder="חיפוש אירוע, לקוח או טלפון..." class="modern-input py-2 pr-9 pl-3 text-sm bg-white shadow-sm h-full">
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="date" id="cal-filter-start" onchange="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" class="modern-input py-2 text-sm bg-white shadow-sm">
+                                        <span class="text-xs text-slate-400 font-bold">-</span>
+                                        <input type="date" id="cal-filter-end" onchange="if(typeof renderCalendarSchedule==='function') renderCalendarSchedule()" class="modern-input py-2 text-sm bg-white shadow-sm">
+                                    </div>
+                                    <button onclick="if(typeof openNewEventModal==='function') openNewEventModal()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-cyan-700 transition flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-plus"></i> הוסף תור</button>
+                                </div>
+                                <div id="cal-events-list" class="space-y-2 pb-8 min-h-[200px]"></div>
+                            </div>
+
+                            <div id="cal-view-month" class="hidden space-y-4 pb-8">
+                                <div class="flex justify-between items-center mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                    <button onclick="if(typeof changeCalendarMonth==='function') changeCalendarMonth(1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                    <span id="cal-month-display" class="font-bold text-slate-800 text-base w-40 text-center"></span>
+                                    <button onclick="if(typeof changeCalendarMonth==='function') changeCalendarMonth(-1)" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center transition border border-slate-200 shadow-sm"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                </div>
+                                <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-500 mb-2">
+                                    <div>א'</div><div>ב'</div><div>ג'</div><div>ד'</div><div>ה'</div><div>ו'</div><div>ש'</div>
+                                </div>
+                                <div id="cal-month-grid" class="grid grid-cols-7 gap-1 sm:gap-2"></div>
+                            </div>
+
+                            <div id="cal-view-requests" class="hidden space-y-4 pb-8 min-h-[200px]">
+                                <div class="bg-cyan-50 border border-cyan-100 p-3 rounded-xl mb-2 text-xs text-cyan-800">
+                                    <i class="fa-solid fa-circle-info"></i> לקוחות יכולים לשלוח בקשות לשיבוץ תור או אירוע דרך עמוד החנות שלכם. כאן תוכלו לאשר אותם או להפוך אותם להצעת מחיר.
+                                </div>
+                                <div id="cal-requests-list" class="space-y-3">
+                                    <p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות ממתינות</p>
+                                </div>
+                            </div>
+
+                            <div id="cal-view-settings" class="hidden space-y-5 pb-8">
+                                <div class="bg-cyan-50 p-4 rounded-xl border border-cyan-100 flex items-center justify-between shadow-sm">
+                                    <div>
+                                        <h4 class="font-bold text-cyan-900 text-sm mb-1">הפעלת מודול הזמנת תורים בחנות</h4>
+                                        <p class="text-[10px] text-cyan-700">מאפשר ללקוחות לשלוח בקשות לתורים ואירועים דרך הלינק שלכם</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="cal-setting-active" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:right-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                                    </label>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-list-check text-cyan-500 mr-1"></i> שירותים הניתנים להזמנה</h4>
+                                    <div id="cal-services-list" class="space-y-2 mb-3 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                                    <button onclick="if(typeof openServiceModal==='function') openServiceModal()" class="w-full bg-slate-50 text-slate-600 border border-dashed border-slate-300 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 hover:text-cyan-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף שירות (למשל: תספורת גברים / קייטרינג חלבי)</button>
+                                </div>
+
+                                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <h4 class="font-bold text-slate-800 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-clock text-cyan-500 mr-1"></i> שעות פעילות וזמינות</h4>
+                                    <div class="grid grid-cols-2 gap-3 mb-3">
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת פתיחה יומית:</label><input type="time" id="cal-setting-open" class="modern-input py-2 text-sm bg-slate-50" value="09:00"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 block mb-1">שעת סגירה יומית:</label><input type="time" id="cal-setting-close" class="modern-input py-2 text-sm bg-slate-50" value="18:00"></div>
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 block mb-1">הפרש דקות בין תורים (למשל: 30 דקות לתור):</label>
+                                            <input type="number" id="cal-setting-interval" class="modern-input py-2 text-sm bg-slate-50 text-center" value="30" min="15" step="5">
+                                            <p class="text-[9px] text-slate-400 mt-1">* לעסקים של אירועים גדולים, מומלץ להגדיר שירות של מספר שעות ולא לאפשר בחירה מצומצמת.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="if(typeof saveCalendarSettings==='function') saveCalendarSettings()" id="btn-save-cal-settings" class="w-full bg-slate-800 text-white py-3.5 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-save"></i> שמור הגדרות יומן</button>
+                            </div>
+                        </div>
+                    </div>
+                    ```
 </body>
 </html>
