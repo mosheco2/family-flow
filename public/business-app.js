@@ -8152,9 +8152,8 @@ window.updateStatusScreenClock = function() {
 // --- מודול יומן ותורים (Booking & Calendar) ---
 // ============================================================
 
-// תוקן: שימוש בהשמה ללא let כדי למנוע קריסת SyntaxError (מסך לבן) עקב הגדרה כפולה
 currentCalDate = new Date();
-window.currentCalMode = window.currentCalMode || 'day'; // day, week, month
+window.currentCalMode = window.currentCalMode || 'day'; // day, week, month, agenda
 
 window.switchCalendarTab = function(subTab) {
     ['main', 'requests', 'settings'].forEach(t => {
@@ -8184,7 +8183,6 @@ window.fetchCalendarData = async function() {
                 getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
                 getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
             }
-            // מבטיח שטעינת הצעות המחיר זמינה כדי לשייך תורים
             if(!storeQuotesCache || storeQuotesCache.length === 0) {
                 try { await fetchStoreQuotes(); } catch(e){}
             }
@@ -8198,7 +8196,7 @@ window.fetchCalendarData = async function() {
 
 window.setCalMode = function(mode) {
     window.currentCalMode = mode;
-    ['day', 'week', 'month'].forEach(m => {
+    ['day', 'week', 'month', 'agenda'].forEach(m => {
         const btn = getEl(`btn-cal-mode-${m}`);
         if(btn) btn.className = m === mode ? 'px-4 py-1.5 text-xs font-bold bg-white text-slate-800 rounded-md shadow-sm transition flex-1 md:flex-none' : 'px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition flex-1 md:flex-none';
     });
@@ -8209,6 +8207,7 @@ window.changeCalDate = function(dir) {
     if (window.currentCalMode === 'day') currentCalDate.setDate(currentCalDate.getDate() + dir);
     else if (window.currentCalMode === 'week') currentCalDate.setDate(currentCalDate.getDate() + (dir * 7));
     else if (window.currentCalMode === 'month') currentCalDate.setMonth(currentCalDate.getMonth() + dir);
+    else if (window.currentCalMode === 'agenda') currentCalDate.setDate(currentCalDate.getDate() + (dir * 30)); // קופץ 30 יום קדימה/אחורה באג'נדה
     renderCalendar();
 };
 
@@ -8238,12 +8237,12 @@ window.renderCalendar = function() {
         filtered.sort((a,b) => {
             const dateA = window.getCleanDate(a.event_date);
             const dateB = window.getCleanDate(b.event_date);
-            if(dateA !== dateB) return dateB.localeCompare(dateA); 
+            if(dateA !== dateB) return dateA.localeCompare(dateB); 
             return a.start_time.localeCompare(b.start_time);
         });
 
         if (filtered.length === 0) {
-            container.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">לא נמצאו אירועים מתאימים.</p>';
+            container.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">לא נמצאו אירועים מתאימים לחיפוש.</p>';
             return;
         }
 
@@ -8332,6 +8331,47 @@ window.renderCalendar = function() {
         }
         html += '</div>';
         container.innerHTML = html;
+
+    } else if (window.currentCalMode === 'agenda') {
+        display.innerText = 'תצוגת רצף';
+        const cutoffDate = new Date(currentCalDate);
+        cutoffDate.setHours(0,0,0,0);
+        
+        let upcomingEvents = calEventsCache.filter(e => {
+            if(e.status !== 'approved') return false;
+            const evDate = new Date(window.getCleanDate(e.event_date));
+            evDate.setHours(0,0,0,0);
+            return evDate >= cutoffDate;
+        });
+
+        upcomingEvents.sort((a,b) => {
+            const dateA = window.getCleanDate(a.event_date);
+            const dateB = window.getCleanDate(b.event_date);
+            if(dateA !== dateB) return dateA.localeCompare(dateB); 
+            return a.start_time.localeCompare(b.start_time);
+        });
+
+        if (upcomingEvents.length === 0) {
+            container.innerHTML = '<p class="text-center text-slate-400 py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">אין אירועים עתידיים להצגה.</p>';
+            return;
+        }
+
+        let html = '<div class="space-y-3 pb-8">';
+        let currentDateGroup = '';
+        
+        upcomingEvents.forEach(e => {
+            const dateStr = window.getCleanDate(e.event_date);
+            if (dateStr !== currentDateGroup) {
+                const dateObj = new Date(dateStr);
+                const isToday = dateStr === todayStr;
+                const headerText = isToday ? 'היום' : window.getDisplayDate(dateObj);
+                html += `<h4 class="font-bold text-slate-500 text-xs mt-4 mb-2 border-b border-slate-100 pb-1">${headerText}</h4>`;
+                currentDateGroup = dateStr;
+            }
+            html += createEventCardHTML(e);
+        });
+        html += '</div>';
+        container.innerHTML = html;
     }
 };
 
@@ -8345,7 +8385,7 @@ function createEventCardHTML(e) {
     }
 
     return `
-    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center mb-2 hover:shadow-md transition group relative overflow-hidden cursor-pointer">
+    <div onclick="openCalEventModal(${e.id})" class="bg-white p-3 rounded-xl border-r-4 border-cyan-500 shadow-sm flex justify-between items-center hover:shadow-md transition group relative overflow-hidden cursor-pointer">
         <div class="flex items-start gap-3 w-full">
             <div class="text-center bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-[50px] shrink-0">
                 <p class="font-black text-cyan-700 text-sm">${e.start_time.substring(0,5)}</p>
@@ -8371,7 +8411,6 @@ window.openCalEventModal = function(id = null) {
     const titleEl = getEl('cal-event-modal-title');
     const delBtn = getEl('btn-delete-cal-event');
     const quoteSel = getEl('cal-event-quote');
-    const quoteViewBtn = getEl('btn-cal-view-quote');
 
     const svcSelect = getEl('cal-event-service');
     svcSelect.innerHTML = '<option value="">שירות כללי (לא מוגדר)</option>';
@@ -8661,7 +8700,6 @@ window.saveCalendarSettings = async function() {
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור הגדרות יומן'; }
 };
 
-// הזרקה לאתחול (כדי שיטען במעבר טאבים)
 if (!window._originalSwitchTabForCal) {
     window._originalSwitchTabForCal = window.switchTab;
     window.switchTab = function(tabId) {
