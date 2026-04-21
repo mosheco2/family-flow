@@ -121,7 +121,20 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS family_group_id INT`); } catch(e) {}
     
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
-      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+     try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+
+      // טבלאות מערכת היומן והתורים
+      try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, open_time VARCHAR(10) DEFAULT '09:00', close_time VARCHAR(10) DEFAULT '18:00', interval_mins INT DEFAULT 30, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
+      
+      try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_services (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(150) NOT NULL, duration_mins INT DEFAULT 30, price DECIMAL(10,2) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
+      
+      try { 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_events (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, service_id INT REFERENCES calendar_services(id) ON DELETE SET NULL, title VARCHAR(200) NOT NULL, customer_phone VARCHAR(50), notes TEXT, event_date DATE NOT NULL, start_time TIME NOT NULL, status VARCHAR(20) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+      } catch(e) {}
 
       client.release();
   })
@@ -3214,6 +3227,77 @@ app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
         if(dbClient) dbClient.release();
     }
 });
+
+// ============================================================
+// --- CALENDAR & BOOKING ENDPOINTS ---
+// ============================================================
+
+// שליפת הגדרות היומן, השירותים והאירועים
+app.get('/api/calendar/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const setRes = await pool.query('SELECT * FROM calendar_settings WHERE group_id=$1', [groupId]);
+        const srvRes = await pool.query('SELECT * FROM calendar_services WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
+        
+        let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
+        res.json({ success: true, settings, services: srvRes.rows, events: evtRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירת הגדרות יומן
+app.post('/api/calendar/settings', async (req, res) => {
+    try {
+        const { groupId, isActive, openTime, closeTime, intervalMins } = req.body;
+        await pool.query(`
+            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins) 
+            VALUES ($1, $2, $3, $4, $5) 
+            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, updated_at=CURRENT_TIMESTAMP
+        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת סוג שירות ליומן
+app.post('/api/calendar/services', async (req, res) => {
+    try {
+        const { groupId, name, durationMins, price } = req.body;
+        await pool.query('INSERT INTO calendar_services (group_id, name, duration_mins, price) VALUES ($1, $2, $3, $4)', [groupId, name, parseInt(durationMins) || 30, parseFloat(price) || 0]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/calendar/services/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM calendar_services WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספת אירוע/תור
+app.post('/api/calendar/events', async (req, res) => {
+    try {
+        const { groupId, serviceId, title, customerPhone, notes, eventDate, startTime, status } = req.body;
+        await pool.query(
+            `INSERT INTO calendar_events (group_id, service_id, title, customer_phone, notes, event_date, start_time, status) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
+            [groupId, serviceId || null, title, customerPhone || '', notes || '', eventDate, startTime, status || 'pending']
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס לאירוע (אישור/ביטול)
+app.put('/api/calendar/events/:id/status', async (req, res) => {
+    try {
+        await pool.query('UPDATE calendar_events SET status=$1 WHERE id=$2', [req.body.status, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/calendar/events/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM calendar_events WHERE id=$1', [req.params.id]); res.json({ success: true }); } 
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
