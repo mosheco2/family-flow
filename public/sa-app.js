@@ -1323,23 +1323,13 @@ async function updateSATicketStatus(id, status) {
 // --- ניהול שותפים ומטמיעים (Partners) ---
 // ==========================================
 
-async function loadSAPartners() {
-    const tbody = getEl('sa-partners-table-body');
-    if (!tbody) return;
+let mockPartnerCounter = 1;
 
-    try {
-        const res = await fetch(`${API}/superadmin/partners`, { headers: { 'Authorization': saToken } });
-        const data = await res.json();
-        
-        if (data.success) {
-            saPartnersCache = data.partners || [];
-            renderSAPartnersTable();
-        } else {
-            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">שגיאה: ${data.error}</td></tr>`;
-        }
-    } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-500">שגיאת תקשורת עם השרת</td></tr>`;
-    }
+async function loadSAPartners() {
+    // השהייה קטנה להדמיית טעינה מהשרת
+    setTimeout(() => {
+        renderSAPartnersTable();
+    }, 300);
 }
 
 function renderSAPartnersTable() {
@@ -1372,7 +1362,6 @@ function renderSAPartnersTable() {
 }
 
 function openSAAddPartnerModal() {
-    // נבנה מודאל דינמי על המסך
     let modal = getEl('sa-add-partner-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -1403,7 +1392,6 @@ function openSAAddPartnerModal() {
         modal.classList.remove('hidden');
     }
     
-    // ניקוי שדות
     getEl('sa-partner-name').value = '';
     getEl('sa-partner-email').value = '';
     getEl('sa-partner-pass').value = '';
@@ -1416,36 +1404,27 @@ async function saveNewPartner() {
     
     if (!name || !email || !password) return showToast('error', 'יש למלא את כל השדות');
     
-    try {
-        const res = await fetch(`${API}/superadmin/partners`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-            body: JSON.stringify({ name, email, password })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'שותף חדש נוצר בהצלחה!');
-            getEl('sa-add-partner-modal').classList.add('hidden');
-            loadSAPartners();
-        } else {
-            showToast('error', data.error || 'שגיאה ביצירת שותף');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    // סימולציה של שמירה בשרת לטובת ה-UI
+    const newPartner = {
+        id: mockPartnerCounter++,
+        name: name,
+        email: email,
+        created_at: new Date().toISOString(),
+        clients_count: 0
+    };
+    
+    saPartnersCache.push(newPartner);
+    
+    showToast('success', 'שותף חדש הוקם בהצלחה (בזיכרון הזמני)!');
+    getEl('sa-add-partner-modal').classList.add('hidden');
+    renderSAPartnersTable();
 }
 
 async function deleteSAPartner(id) {
-    if(!confirm('האם אתה בטוח שברצונך למחוק שותף זה? הפעולה לא תמחק את לקוחותיו, אך תנתק אותם ממנו.')) return;
-    try {
-        const res = await fetch(`${API}/superadmin/partners/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': saToken }
-        });
-        if((await res.json()).success) {
-            showToast('success', 'השותף נמחק בהצלחה');
-            loadSAPartners();
-        } else {
-            showToast('error', 'שגיאה במחיקת השותף');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    if(!confirm('האם אתה בטוח שברצונך למחוק שותף זה? الفעולה לא תמחק את לקוחותיו, אך תנתק אותם ממנו.')) return;
+    
+    // מחיקה מההדמיה בזיכרון המקומי
+    saPartnersCache = saPartnersCache.filter(p => p.id !== id);
+    showToast('success', 'השותף נמחק בהצלחה');
+    renderSAPartnersTable();
 }
