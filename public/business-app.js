@@ -97,7 +97,48 @@ const hidePreloaderAndShowAuth = (view = 'login') => {
     const preloader = getEl('app-preloader');
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
 };
+// === מנגנון השתלטות סופר-אדמין (Impersonation Mode) ===
+function checkImpersonationMode() {
+    try {
+        const session = JSON.parse(localStorage.getItem('ofl_session'));
+        if (session && session.isImpersonating) {
+            // אם המשתמש הוא סופר-אדמין בהשתלטות, הזרק פס אזהרה לראש העמוד
+            if (!document.getElementById('impersonation-warning-bar')) {
+                const warningBar = document.createElement('div');
+                warningBar.id = 'impersonation-warning-bar';
+                warningBar.className = 'fixed top-0 left-0 right-0 z-[9999999] bg-red-600 text-white p-2 flex justify-center items-center gap-4 shadow-md font-bold text-sm text-center';
+                warningBar.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-user-secret text-lg animate-pulse"></i> 
+                        מצב תמיכה והשתלטות! אתה צופה כרגע בנתוני הלקוח: ${session.group.name}
+                    </div>
+                    <button onclick="exitImpersonationMode()" class="bg-white text-red-600 px-4 py-1 rounded-full text-xs font-black shadow-sm hover:bg-slate-100 transition">סיים וחזור ל-SA</button>
+                `;
+                document.body.prepend(warningBar);
+                
+                // דחיפת הדשבורד קצת למטה כדי שהפס לא יסתיר כלום
+                setTimeout(() => {
+                    const dashContainer = document.getElementById('dashboard-container');
+                    if (dashContainer) dashContainer.style.marginTop = '40px';
+                }, 100);
+            }
+        }
+    } catch(e) {}
+}
 
+window.exitImpersonationMode = function() {
+    const returnToken = localStorage.getItem('ofl_sa_return_token');
+    if (returnToken) {
+        localStorage.setItem('ofl_sa_token', returnToken);
+        localStorage.removeItem('ofl_sa_return_token');
+    }
+    localStorage.removeItem('ofl_session');
+    window.location.href = '/sa.html'; // חזרה למסך הסופר-אדמין
+};
+
+// הפעלת הבדיקה
+checkImpersonationMode();
+// =======================================================
 window.onload = async () => { 
     initAccessibility();
     const btnMonthly = getEl('btn-forecast-monthly'); const btnYearly = getEl('btn-forecast-yearly');
