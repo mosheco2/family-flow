@@ -1197,7 +1197,7 @@ function enforcePermissions() {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
     }
 
-    // 1. הסתרה מוחלטת לפי תפקיד (Role)
+    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מבוצע רק עבור עובדים שאינם מנהלים
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
@@ -1209,11 +1209,13 @@ function enforcePermissions() {
         }
     });
 
-    // 2. אכיפת מנעולים (Feature Flags)
+    // 2. אכיפת מנעולים (Feature Flags) - חל על מנהלים ועובדים כאחד
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
+        // אם הכפתור הוסתר כבר כי העובד לא מורשה אליו (בשלב 1), אין טעם לשים עליו מנעול
         if (!btn || btn.style.display === 'none') return; 
         
+        // הגנה: פיצ'רים חדשים שלא היו קיימים נחשבים כפתוחים כברירת מחדל
         const isModuleActive = flag !== undefined ? flag : true;
 
         if (!isModuleActive) {
@@ -1258,6 +1260,7 @@ function enforcePermissions() {
         if (aiBtn2) aiBtn2.style.display = 'inline-block';
     }
 
+    // וידוא שהמשתמש לא תקוע על טאב שנסגר פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
@@ -1348,6 +1351,7 @@ window.requestModuleUnlock = async function(moduleName) {
     }
 };
 
+// יירוט לחיצות על טאבים נעולים
 if (!window.switchTabOverridden) {
     const originalSwitchTab = window.switchTab;
     window.switchTab = function(tabId) {
