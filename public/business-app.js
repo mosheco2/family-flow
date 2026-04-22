@@ -1188,47 +1188,63 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // --- אכיפת מודולים ומנויים של הסופר-אדמין (Feature Flags) ---
-    // ברירת מחדל: הכל פתוח אם לא הוגדר אחרת, למניעת חסימת לקוחות ישנים
+    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין ---
     let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true };
-    
     if (currentGroup.features) {
-        try {
-            features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features;
-        } catch(e) {}
-    } else if (currentGroup.has_store !== undefined) {
-        // תאימות לאחור (Backward Compatibility)
-        features = {
-            store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai
-        };
+        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
+    } else if (currentGroup.has_foodcost !== undefined) {
+         features = { store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai };
     }
 
-    // מניעת גישה ברמת המשתמש (מעלים טאבים אסורים לפי Role)
+    // 1. הסתרה מוחלטת לפי תפקיד (Role)
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) btn.style.display = 'inline-block';
-            else btn.style.display = 'none';
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
         }
     });
 
-    // --- חיתוך מודולים ברמת החברה (חזק יותר מסיווג העובד) ---
-    const enforceModule = (flag, tabId) => {
+    // 2. אכיפת מנעולים למודולים סגורים ברמת העסק
+    const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
-        if (btn && !flag) btn.style.display = 'none'; 
+        if (!btn || btn.style.display === 'none') return; 
+        
+        if (!flag) {
+            // המודול נעול - נשים מנעול ונחליף פונקציונליות
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openLockedModuleModal(moduleName);
+            };
+            if (!btn.querySelector('.fa-lock')) {
+                btn.innerHTML = `<i class="fa-solid fa-lock opacity-50 ml-1"></i> ` + btn.innerHTML;
+                btn.classList.add('opacity-75', 'grayscale', 'cursor-not-allowed');
+            }
+        } else {
+            // המודול פתוח - נחזיר למצב תקין
+            btn.onclick = () => switchTab(tabId);
+            const lockIcon = btn.querySelector('.fa-lock');
+            if (lockIcon) lockIcon.remove();
+            btn.classList.remove('opacity-75', 'grayscale', 'cursor-not-allowed');
+        }
     };
 
-    enforceModule(features.store, 'sales');
-    enforceModule(features.b2b, 'shop');
-    enforceModule(features.academy, 'academy');
-    enforceModule(features.calendar, 'calendar');
-    enforceModule(features.finance, 'bank');
-    enforceModule(features.inventory, 'pantry');
-    enforceModule(features.crm, 'customers');
-    enforceModule(features.deliveries, 'deliveries');
-    enforceModule(features.foodcost, 'foodcost');
+    // הפעלת האכיפה והמנעולים על הטאבים
+    enforceModule(features.store, 'sales', 'חנות ציבורית ומכירות');
+    enforceModule(features.b2b, 'shop', 'רכש ארגוני וספקים (B2B)');
+    enforceModule(features.academy, 'academy', 'מרכז הכשרות ולומדות');
+    enforceModule(features.calendar, 'calendar', 'יומן חכם ותורים');
+    enforceModule(features.finance, 'bank', 'ניהול כספים עובדים');
+    enforceModule(features.inventory, 'pantry', 'ניהול מלאי מחסן');
+    enforceModule(features.crm, 'customers', 'מועדון לקוחות (CRM)');
+    enforceModule(features.deliveries, 'deliveries', 'מערך שליחויות');
+    enforceModule(features.foodcost, 'foodcost', 'עץ מוצר ופוד-קוסט');
 
-    // נעילת מודול ה-AI (כפתורים וצף)
+    // נעילת עוזר ה-AI הראשי (מוסתר לחלוטין אם אין הרשאה)
     const aiBtn1 = getEl('btn-global-ai');
     const aiBtn2 = getEl('btn-sp-ai');
     if (!features.ai) {
@@ -1239,10 +1255,12 @@ function enforcePermissions() {
         if (aiBtn2) aiBtn2.style.display = 'inline-block';
     }
 
-    // וידוא שהמשתמש לא נשאר בטאב מוסתר
+    // וידוא שהמשתמש לא תקוע על טאב שנסגר לו פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none') switchTab('feed');
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('cursor-not-allowed')) {
+            switchTab('feed');
+        }
     });
 
     // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
@@ -1253,6 +1271,7 @@ function enforcePermissions() {
         scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
     }
     
+    // ניהול תצוגות מנהל רגילות
     if (!isAdmin) {
         if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
         if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
@@ -1272,6 +1291,75 @@ function enforcePermissions() {
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
     }
 }
+
+// =====================================
+// מודול Upsell (מודולים נעולים)
+// =====================================
+window.openLockedModuleModal = function(moduleName) {
+    let modal = getEl('locked-module-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'locked-module-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
+                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">מודול נעול</h3>
+                <p class="text-sm text-slate-500 mb-8 leading-relaxed">המודול המבוקש <strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגור בחבילה הנוכחית של העסק.<br>כדי להפעיל אותו, יש להגיש בקשה למנהל המערכת.</p>
+                <button id="btn-req-unlock" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center justify-center gap-2">
+                    שליחת בקשה לפתיחה <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    getEl('locked-module-name').innerText = moduleName;
+    
+    const btn = getEl('btn-req-unlock');
+    btn.onclick = () => requestModuleUnlock(moduleName);
+    
+    modal.classList.remove('hidden');
+};
+
+window.requestModuleUnlock = async function(moduleName) {
+    const btn = getEl('btn-req-unlock');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
+    
+    try {
+        const payload = {
+            groupId: currentGroup.id,
+            groupName: currentGroup.name,
+            userId: currentUser.id,
+            userName: currentUser.nickname,
+            userEmail: currentGroup.admin_email || 'לא ידוע',
+            subject: `בקשת שדרוג / פתיחת מודול: ${moduleName}`,
+            description: `היי, המערכת חסמה אותי מלגשת ל-"${moduleName}". אשמח שתפתחו לי את המודול הזה בסביבת העבודה שלי כדי שאוכל להתחיל להשתמש בו. נא ליצור איתי קשר.`
+        };
+
+        const res = await fetch(`${API}/support/ticket`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'בקשתך נשלחה בהצלחה! מנהל המערכת יצור איתך קשר בהקדם.');
+            getEl('locked-module-modal').classList.add('hidden');
+            try { triggerConfetti(); } catch(e){}
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת בקשה לפתיחה <i class="fa-solid fa-paper-plane"></i>';
+    }
+};
 
 function openPermissionsModal(id, name, role, permissionsStr) {
     getEl('perm-user-id').value = id;
@@ -1473,12 +1561,21 @@ async function fetchData() {
             currentUser.balance = data.user.balance || 0; 
         }
         
-        if(data.group) {
+if(data.group) {
             currentGroup.ai_tokens = data.group.ai_tokens; 
             currentGroup.is_premium = data.group.is_premium;
             currentGroup.community_id = data.group.community_id;
-            currentGroup.is_onboarded = data.group.is_onboarded; // עדכון מצב מהשרת
+            currentGroup.is_onboarded = data.group.is_onboarded; 
+            currentGroup.features = data.group.features; // סנכרון הרשאות מודולים מהשרת!
+            
+            // תאימות לאחור
+            ['has_store','has_b2b','has_academy','has_calendar','has_finance','has_inventory','has_crm','has_deliveries','has_foodcost','has_ai'].forEach(k => {
+                if(data.group[k] !== undefined) currentGroup[k] = data.group[k];
+            });
+
             localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            setTimeout(enforcePermissions, 100); // אכיפה מיידית של השינויים בממשק!
+            
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
             
             const profileUp = document.getElementById('profile-upgrade-section');
