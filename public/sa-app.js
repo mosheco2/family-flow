@@ -468,19 +468,26 @@ function openSAEditGroupModal(id, name, email) {
     getEl('sa-edit-group-name').value = name;
     getEl('sa-edit-group-email').value = email || '';
     
-    // סימון Feature Flags קיימים (או דיפולט הגיוני אם טרם הוגדר)
-    getEl('flag-store').checked = group ? !!group.has_store : true;
-    getEl('flag-b2b').checked = group ? !!group.has_b2b : false;
-    getEl('flag-academy').checked = group ? !!group.has_academy : true;
-    getEl('flag-calendar').checked = group ? !!group.has_calendar : false;
+    // שליפה חכמה של ההרשאות ישירות ממסד הנתונים
+    let f = { store: true, b2b: false, academy: true, calendar: false, finance: true, inventory: true, crm: true, deliveries: false, foodcost: false, ai: true };
     
-    // מודולים חדשים
-    getEl('flag-finance').checked = group ? !!group.has_finance : true;
-    getEl('flag-inventory').checked = group ? !!group.has_inventory : true;
-    getEl('flag-crm').checked = group ? !!group.has_crm : true;
-    getEl('flag-deliveries').checked = group ? !!group.has_deliveries : false;
-    getEl('flag-foodcost').checked = group ? !!group.has_foodcost : false;
-    getEl('flag-ai').checked = group ? !!group.has_ai : true;
+    if (group && group.features) {
+        try {
+            f = typeof group.features === 'string' ? JSON.parse(group.features) : group.features;
+        } catch(e) {}
+    }
+    
+    // החלת ההגדרות על הצ'קבוקסים
+    getEl('flag-store').checked = !!f.store;
+    getEl('flag-b2b').checked = !!f.b2b;
+    getEl('flag-academy').checked = !!f.academy;
+    getEl('flag-calendar').checked = !!f.calendar;
+    getEl('flag-finance').checked = !!f.finance;
+    getEl('flag-inventory').checked = !!f.inventory;
+    getEl('flag-crm').checked = !!f.crm;
+    getEl('flag-deliveries').checked = !!f.deliveries;
+    getEl('flag-foodcost').checked = !!f.foodcost;
+    getEl('flag-ai').checked = !!f.ai;
 
     getEl('sa-edit-group-modal').classList.remove('hidden');
 }
@@ -506,21 +513,12 @@ async function saveSAEditGroup() {
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
     
     try {
-        // עדכון מקומי מהיר בזיכרון (כדי שה-UI יתעדכן מייד)
+        // שומר את ההרשאות בזיכרון המקומי למניעת איפוס בעת רענון המסך!
         const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
         if(groupIndex > -1) {
             saAllGroups[groupIndex].name = name;
             saAllGroups[groupIndex].admin_email = adminEmail;
-            saAllGroups[groupIndex].has_store = flags.store;
-            saAllGroups[groupIndex].has_b2b = flags.b2b;
-            saAllGroups[groupIndex].has_academy = flags.academy;
-            saAllGroups[groupIndex].has_calendar = flags.calendar;
-            saAllGroups[groupIndex].has_finance = flags.finance;
-            saAllGroups[groupIndex].has_inventory = flags.inventory;
-            saAllGroups[groupIndex].has_crm = flags.crm;
-            saAllGroups[groupIndex].has_deliveries = flags.deliveries;
-            saAllGroups[groupIndex].has_foodcost = flags.foodcost;
-            saAllGroups[groupIndex].has_ai = flags.ai;
+            saAllGroups[groupIndex].features = flags; // העדכון הקריטי!
         }
 
         const res = await fetch(`${API}/sa/groups/${id}`, { 
