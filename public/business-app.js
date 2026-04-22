@@ -1281,7 +1281,6 @@ function enforcePermissions() {
         if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
         if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
     }
-}
 
 // =====================================
 // מודול Upsell (מודולים נעולים)
