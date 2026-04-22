@@ -1191,13 +1191,13 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין כולל המודולים החדשים ---
-    let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true };
+    // קריאת הרשאות הפיצ'רים מהסופר-אדמין כולל משמרות ושאר המודולים
+    let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, shifts: true };
     if (currentGroup.features) {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
     }
 
-    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מבוצע רק עבור עובדים שאינם מנהלים
+    // 1. הסתרה מוחלטת לפי תפקיד (Role)
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
@@ -1209,13 +1209,11 @@ function enforcePermissions() {
         }
     });
 
-    // 2. אכיפת מנעולים (Feature Flags) - תקף גם למנהלים
+    // 2. אכיפת מנעולים (Feature Flags)
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
-        // אם הכפתור הוסתר כבר כי העובד לא מורשה אליו, אין טעם לשים עליו מנעול
         if (!btn || btn.style.display === 'none') return; 
         
-        // הגנה: פיצ'רים חדשים שלא היו קיימים באובייקט הישן (undefined) ייחשבו כפתוחים
         const isModuleActive = flag !== undefined ? flag : true;
 
         if (!isModuleActive) {
@@ -1247,6 +1245,7 @@ function enforcePermissions() {
     enforceModule(features.tasks, 'tasks', 'ניהול משימות ופרויקטים');
     enforceModule(features.community, 'community', 'חיבור לקהילות');
     enforceModule(features.members, 'members', 'ניהול צוות עובדים');
+    enforceModule(features.shifts, 'shifts', 'סידור עבודה ומשמרות');
 
     // נעילת עוזר ה-AI
     const aiBtn1 = getEl('btn-global-ai');
@@ -1273,6 +1272,7 @@ function enforcePermissions() {
         scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
     }
     
+    // ניהול תצוגות מנהל
     if (!isAdmin) {
         ['bank-admin-view','admin-loans-panel','admin-members-tools','timeclock-admin-view','academy-admin-view','admin-shop-tools','shop-requests-container','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.add('hidden'); });
     } else {
@@ -1348,7 +1348,6 @@ window.requestModuleUnlock = async function(moduleName) {
     }
 };
 
-// יירוט לחיצות על טאבים נעולים
 if (!window.switchTabOverridden) {
     const originalSwitchTab = window.switchTab;
     window.switchTab = function(tabId) {
