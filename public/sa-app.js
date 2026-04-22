@@ -469,7 +469,7 @@ function openSAEditGroupModal(id, name, email) {
     getEl('sa-edit-group-email').value = email || '';
     
     // שליפה חכמה של ההרשאות ישירות ממסד הנתונים
-    let f = { store: true, b2b: false, academy: true, calendar: false, finance: true, inventory: true, crm: true, deliveries: false, foodcost: false, ai: true };
+    let f = { store: true, b2b: false, academy: true, calendar: false, finance: true, inventory: true, crm: true, deliveries: false, foodcost: false, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true };
     
     if (group && group.features) {
         try {
@@ -477,17 +477,25 @@ function openSAEditGroupModal(id, name, email) {
         } catch(e) {}
     }
     
-    // החלת ההגדרות על הצ'קבוקסים
-    getEl('flag-store').checked = !!f.store;
-    getEl('flag-b2b').checked = !!f.b2b;
-    getEl('flag-academy').checked = !!f.academy;
-    getEl('flag-calendar').checked = !!f.calendar;
-    getEl('flag-finance').checked = !!f.finance;
-    getEl('flag-inventory').checked = !!f.inventory;
-    getEl('flag-crm').checked = !!f.crm;
-    getEl('flag-deliveries').checked = !!f.deliveries;
-    getEl('flag-foodcost').checked = !!f.foodcost;
-    getEl('flag-ai').checked = !!f.ai;
+    // החלת ההגדרות על כל הצ'קבוקסים
+    const setCb = (id, val) => { const el = getEl(id); if (el) el.checked = !!val; };
+    setCb('flag-store', f.store);
+    setCb('flag-b2b', f.b2b);
+    setCb('flag-academy', f.academy);
+    setCb('flag-calendar', f.calendar);
+    setCb('flag-finance', f.finance);
+    setCb('flag-inventory', f.inventory);
+    setCb('flag-crm', f.crm);
+    setCb('flag-deliveries', f.deliveries);
+    setCb('flag-foodcost', f.foodcost);
+    setCb('flag-ai', f.ai);
+    setCb('flag-timeclock', f.timeclock !== undefined ? f.timeclock : true);
+    setCb('flag-cashflow', f.cashflow !== undefined ? f.cashflow : true);
+    setCb('flag-budget', f.budget !== undefined ? f.budget : true);
+    setCb('flag-forecast', f.forecast !== undefined ? f.forecast : true);
+    setCb('flag-tasks', f.tasks !== undefined ? f.tasks : true);
+    setCb('flag-community', f.community !== undefined ? f.community : true);
+    setCb('flag-members', f.members !== undefined ? f.members : true);
 
     getEl('sa-edit-group-modal').classList.remove('hidden');
 }
@@ -497,28 +505,36 @@ async function saveSAEditGroup() {
     const name = val('sa-edit-group-name');
     const adminEmail = val('sa-edit-group-email');
     
+    const getCb = (id) => { const el = getEl(id); return el ? el.checked : true; };
+
     const flags = {
-        store: getEl('flag-store').checked,
-        b2b: getEl('flag-b2b').checked,
-        academy: getEl('flag-academy').checked,
-        calendar: getEl('flag-calendar').checked,
-        finance: getEl('flag-finance').checked,
-        inventory: getEl('flag-inventory').checked,
-        crm: getEl('flag-crm').checked,
-        deliveries: getEl('flag-deliveries').checked,
-        foodcost: getEl('flag-foodcost').checked,
-        ai: getEl('flag-ai').checked
+        store: getCb('flag-store'),
+        b2b: getCb('flag-b2b'),
+        academy: getCb('flag-academy'),
+        calendar: getCb('flag-calendar'),
+        finance: getCb('flag-finance'),
+        inventory: getCb('flag-inventory'),
+        crm: getCb('flag-crm'),
+        deliveries: getCb('flag-deliveries'),
+        foodcost: getCb('flag-foodcost'),
+        ai: getCb('flag-ai'),
+        timeclock: getCb('flag-timeclock'),
+        cashflow: getCb('flag-cashflow'),
+        budget: getCb('flag-budget'),
+        forecast: getCb('flag-forecast'),
+        tasks: getCb('flag-tasks'),
+        community: getCb('flag-community'),
+        members: getCb('flag-members')
     };
 
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
     
     try {
-        // שומר את ההרשאות בזיכרון המקומי למניעת איפוס בעת רענון המסך!
         const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
         if(groupIndex > -1) {
             saAllGroups[groupIndex].name = name;
             saAllGroups[groupIndex].admin_email = adminEmail;
-            saAllGroups[groupIndex].features = flags; // העדכון הקריטי!
+            saAllGroups[groupIndex].features = flags; 
         }
 
         const res = await fetch(`${API}/sa/groups/${id}`, { 
