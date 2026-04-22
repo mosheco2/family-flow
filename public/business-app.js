@@ -1179,6 +1179,9 @@ const ROLE_DEFAULTS = {
     'MEMBER': ['feed', 'timeclock', 'shifts', 'tasks', 'academy']
 };
 
+// =====================================
+// ניהול הרשאות ופיצ'רים (Feature Flags)
+// =====================================
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
     const isAdmin = currentUser.role === 'ADMIN';
@@ -1188,6 +1191,7 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
+    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין ---
     let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true };
     if (currentGroup.features) {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
@@ -1195,32 +1199,39 @@ function enforcePermissions() {
          features = { store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai };
     }
 
+    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מה שמותר לעובד לראות
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) btn.style.display = 'inline-block';
-            else btn.style.display = 'none';
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
         }
     });
 
-    // מנגנון מנעולים יציב מבוסס CSS Classes בלבד
+    // 2. אכיפת מנעולים למודולים סגורים ברמת העסק (Feature Flags)
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
         if (!btn || btn.style.display === 'none') return; 
         
         if (!flag) {
+            // המודול נעול - נשים מנעול מבוסס CSS ודאטה
             btn.classList.add('locked-module', 'opacity-60', 'grayscale');
             btn.dataset.lockedName = moduleName;
             if (!btn.querySelector('.fa-lock')) {
                 btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
             }
         } else {
+            // המודול פתוח - נחזיר למצב תקין
             btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
             const lockIcon = btn.querySelector('.fa-lock');
             if (lockIcon) lockIcon.remove();
         }
     };
 
+    // הפעלת האכיפה והמנעולים על הטאבים
     enforceModule(features.store, 'sales', 'חנות ציבורית ומכירות');
     enforceModule(features.b2b, 'shop', 'רכש ארגוני וספקים (B2B)');
     enforceModule(features.academy, 'academy', 'מרכז הכשרות ולומדות');
@@ -1231,6 +1242,7 @@ function enforcePermissions() {
     enforceModule(features.deliveries, 'deliveries', 'מערך שליחויות');
     enforceModule(features.foodcost, 'foodcost', 'עץ מוצר ופוד-קוסט');
 
+    // נעילת עוזר ה-AI הראשי (מוסתר לחלוטין אם אין הרשאה)
     const aiBtn1 = getEl('btn-global-ai');
     const aiBtn2 = getEl('btn-sp-ai');
     if (!features.ai) {
@@ -1241,6 +1253,7 @@ function enforcePermissions() {
         if (aiBtn2) aiBtn2.style.display = 'inline-block';
     }
 
+    // וידוא שהמשתמש לא תקוע על טאב שנסגר לו פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
@@ -1248,6 +1261,7 @@ function enforcePermissions() {
         }
     });
 
+    // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
     const scrollContainer = getEl('slider-scroll');
     const tabSales = getEl('tab-sales');
     const tabDeliveries = getEl('tab-deliveries');
@@ -1255,32 +1269,13 @@ function enforcePermissions() {
         scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
     }
     
+    // ניהול תצוגות מנהל רגילות לעומת עובד
     if (!isAdmin) {
         ['bank-admin-view','admin-loans-panel','admin-members-tools','timeclock-admin-view','academy-admin-view','admin-shop-tools','shop-requests-container','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.add('hidden'); });
     } else {
         ['bank-admin-view','admin-members-tools','timeclock-admin-view','academy-admin-view','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.remove('hidden'); });
     }
 }
-    
-    // ניהול תצוגות מנהל רגילות
-    if (!isAdmin) {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.add('hidden');
-        if(getEl('admin-loans-panel')) getEl('admin-loans-panel').classList.add('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.add('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.add('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.add('hidden');
-        if(getEl('admin-shop-tools')) getEl('admin-shop-tools').classList.add('hidden');
-        if(getEl('shop-requests-container')) getEl('shop-requests-container').classList.add('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.add('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.add('hidden');
-    } else {
-        if(getEl('bank-admin-view')) getEl('bank-admin-view').classList.remove('hidden');
-        if(getEl('admin-members-tools')) getEl('admin-members-tools').classList.remove('hidden');
-        if(getEl('timeclock-admin-view')) getEl('timeclock-admin-view').classList.remove('hidden');
-        if(getEl('academy-admin-view')) getEl('academy-admin-view').classList.remove('hidden');
-        if(getEl('btn-sales-catalog')) getEl('btn-sales-catalog').classList.remove('hidden');
-        if(getEl('btn-sales-settings')) getEl('btn-sales-settings').classList.remove('hidden');
-    }
 
 // =====================================
 // מודול Upsell (מודולים נעולים)
@@ -1351,90 +1346,16 @@ window.requestModuleUnlock = async function(moduleName) {
     }
 };
 
-function openPermissionsModal(id, name, role, permissionsStr) {
-    getEl('perm-user-id').value = id;
-    getEl('perm-user-name').innerText = `עריכת הרשאות לעובד: ${name}`;
-    let perms = {};
-    try { perms = JSON.parse(permissionsStr); } catch(e) {}
-    const userTabs = perms.tabs || ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
-    const selectEl = getEl('perm-role-select');
-    if (selectEl) {
-        selectEl.value = role === 'ADMIN' ? 'ADMIN' : (role || 'MEMBER');
-        selectEl.className = role === 'ADMIN' ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold' : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    renderTabsCheckboxes(userTabs);
-    getEl('permissions-modal').classList.remove('hidden');
-}
-
-function applyRoleDefaults(role) {
-    const selectEl = getEl('perm-role-select');
-    if (selectEl) {
-        selectEl.className = role === 'ADMIN' ? 'modern-input py-2 text-sm bg-purple-50 border-purple-200 text-purple-800 font-bold' : 'modern-input py-2 text-sm bg-indigo-50 border-indigo-100 text-indigo-800 font-bold';
-    }
-    renderTabsCheckboxes(ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER']);
-}
-
-function renderTabsCheckboxes(activeTabs) {
-    const container = getEl('perm-tabs-container');
-    if(!container) return;
-    container.innerHTML = ALL_TABS.map(tab => {
-        const isChecked = activeTabs.includes(tab.id) ? 'checked' : '';
-        const isDisabled = tab.id === 'feed' ? 'disabled' : ''; 
-        const opacity = isDisabled ? 'opacity-50' : '';
-        return `
-        <label class="flex items-center gap-2 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 shadow-sm hover:border-indigo-300 transition ${opacity}">
-            <input type="checkbox" value="${tab.id}" class="perm-tab-cb w-4 h-4 accent-indigo-600" ${isChecked} ${isDisabled}>
-            <span class="text-xs font-bold text-slate-700">${tab.name}</span>
-        </label>
-        `;
-    }).join('');
-}
-
-async function submitPermissions() {
-    const id = val('perm-user-id');
-    const role = val('perm-role-select');
-    const checkedTabs = Array.from(document.querySelectorAll('.perm-tab-cb:checked')).map(cb => cb.value);
-    if (!checkedTabs.includes('feed')) checkedTabs.push('feed');
-
-    const btn = getEl('btn-submit-permissions');
-    if(btn) { btn.disabled = true; btn.innerText = 'שומר בשרת...'; }
-    
-    try {
-        const res = await fetch(`${API}/users/${id}/permissions`, { 
-            method: 'PUT', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ tabs: checkedTabs, role: role }) 
-        });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
-            getEl('permissions-modal').classList.add('hidden');
-            fetchMembers(); 
-            
-            if (String(id) === String(currentUser.id)) {
-                currentUser.role = role;
-                currentUser.permissions = { tabs: checkedTabs };
-                enforcePermissions();
-            }
-        } else {
-            showToast('error', data.error);
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הרשאות'; } }
-}
-
+// יירוט לחיצות על טאבים נעולים (מנגנון ה-Upsell)
 if (!window.switchTabOverridden) {
     const originalSwitchTab = window.switchTab;
     window.switchTab = function(tabId) {
-        
-        // מיירט לחיצה על מודול נעול (Upsell)
         const targetBtn = document.getElementById(`tab-${tabId}`);
         if (targetBtn && targetBtn.classList.contains('locked-module')) {
             const modName = targetBtn.dataset.lockedName || 'מודול נבחר';
             if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; // מונע את המעבר לטאב!
+            return; // עוצר את המעבר לטאב ומקפיץ פופ-אפ שדרוג!
         }
-        
         originalSwitchTab(tabId);
         setTimeout(enforcePermissions, 50);
     };
