@@ -468,11 +468,19 @@ function openSAEditGroupModal(id, name, email) {
     getEl('sa-edit-group-name').value = name;
     getEl('sa-edit-group-email').value = email || '';
     
-    // סימון Feature Flags קיימים (או דיפולט)
+    // סימון Feature Flags קיימים (או דיפולט הגיוני אם טרם הוגדר)
     getEl('flag-store').checked = group ? !!group.has_store : true;
     getEl('flag-b2b').checked = group ? !!group.has_b2b : false;
     getEl('flag-academy').checked = group ? !!group.has_academy : true;
     getEl('flag-calendar').checked = group ? !!group.has_calendar : false;
+    
+    // מודולים חדשים
+    getEl('flag-finance').checked = group ? !!group.has_finance : true;
+    getEl('flag-inventory').checked = group ? !!group.has_inventory : true;
+    getEl('flag-crm').checked = group ? !!group.has_crm : true;
+    getEl('flag-deliveries').checked = group ? !!group.has_deliveries : false;
+    getEl('flag-foodcost').checked = group ? !!group.has_foodcost : false;
+    getEl('flag-ai').checked = group ? !!group.has_ai : true;
 
     getEl('sa-edit-group-modal').classList.remove('hidden');
 }
@@ -486,13 +494,19 @@ async function saveSAEditGroup() {
         store: getEl('flag-store').checked,
         b2b: getEl('flag-b2b').checked,
         academy: getEl('flag-academy').checked,
-        calendar: getEl('flag-calendar').checked
+        calendar: getEl('flag-calendar').checked,
+        finance: getEl('flag-finance').checked,
+        inventory: getEl('flag-inventory').checked,
+        crm: getEl('flag-crm').checked,
+        deliveries: getEl('flag-deliveries').checked,
+        foodcost: getEl('flag-foodcost').checked,
+        ai: getEl('flag-ai').checked
     };
 
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
     
     try {
-        // עדכון מקומי מהיר בזיכרון
+        // עדכון מקומי מהיר בזיכרון (כדי שה-UI יתעדכן מייד)
         const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
         if(groupIndex > -1) {
             saAllGroups[groupIndex].name = name;
@@ -501,6 +515,12 @@ async function saveSAEditGroup() {
             saAllGroups[groupIndex].has_b2b = flags.b2b;
             saAllGroups[groupIndex].has_academy = flags.academy;
             saAllGroups[groupIndex].has_calendar = flags.calendar;
+            saAllGroups[groupIndex].has_finance = flags.finance;
+            saAllGroups[groupIndex].has_inventory = flags.inventory;
+            saAllGroups[groupIndex].has_crm = flags.crm;
+            saAllGroups[groupIndex].has_deliveries = flags.deliveries;
+            saAllGroups[groupIndex].has_foodcost = flags.foodcost;
+            saAllGroups[groupIndex].has_ai = flags.ai;
         }
 
         const res = await fetch(`${API}/sa/groups/${id}`, { 
@@ -509,7 +529,6 @@ async function saveSAEditGroup() {
             body: JSON.stringify({ name, adminEmail, features: flags }) 
         });
         
-        // גם אם ה-Backend עדיין לא תומך במאה אחוז בשמירת ה-flags, אנחנו מעדכנים תצוגה
         showToast('success', 'פרטי הסביבה וההרשאות עודכנו בהצלחה!');
         getEl('sa-edit-group-modal').classList.add('hidden');
         renderSAGroups();
