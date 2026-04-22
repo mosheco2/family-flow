@@ -468,8 +468,7 @@ function openSAEditGroupModal(id, name, email) {
     getEl('sa-edit-group-name').value = name;
     getEl('sa-edit-group-email').value = email || '';
     
-    // שליפה חכמה של ההרשאות ישירות ממסד הנתונים
-    let f = { store: true, b2b: false, academy: true, calendar: false, finance: true, inventory: true, crm: true, deliveries: false, foodcost: false, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true };
+    let f = { store: true, b2b: false, academy: true, calendar: false, finance: true, inventory: true, crm: true, deliveries: false, foodcost: false, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, shifts: true };
     
     if (group && group.features) {
         try {
@@ -477,7 +476,6 @@ function openSAEditGroupModal(id, name, email) {
         } catch(e) {}
     }
     
-    // החלת ההגדרות על כל הצ'קבוקסים
     const setCb = (id, val) => { const el = getEl(id); if (el) el.checked = !!val; };
     setCb('flag-store', f.store);
     setCb('flag-b2b', f.b2b);
@@ -496,6 +494,7 @@ function openSAEditGroupModal(id, name, email) {
     setCb('flag-tasks', f.tasks !== undefined ? f.tasks : true);
     setCb('flag-community', f.community !== undefined ? f.community : true);
     setCb('flag-members', f.members !== undefined ? f.members : true);
+    setCb('flag-shifts', f.shifts !== undefined ? f.shifts : true); 
 
     getEl('sa-edit-group-modal').classList.remove('hidden');
 }
@@ -524,7 +523,8 @@ async function saveSAEditGroup() {
         forecast: getCb('flag-forecast'),
         tasks: getCb('flag-tasks'),
         community: getCb('flag-community'),
-        members: getCb('flag-members')
+        members: getCb('flag-members'),
+        shifts: getCb('flag-shifts') 
     };
 
     if (!name || !adminEmail) return showToast('error', 'שם ומייל לא יכולים להיות ריקים');
@@ -549,6 +549,10 @@ async function saveSAEditGroup() {
         
     } catch (e) { showToast('error', 'שגיאת רשת בשמירת ההרשאות'); }
 }
+
+window.toggleAllSAFlags = function(checked) {
+    document.querySelectorAll('.flag-cb').forEach(cb => cb.checked = checked);
+};
 
 // לוגיקת שיגור הודעות (Broadcast Center)
 async function sendBroadcastMessage() {
