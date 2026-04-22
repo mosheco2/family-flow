@@ -1188,6 +1188,22 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
+    // --- אכיפת מודולים ומנויים של הסופר-אדמין (Feature Flags) ---
+    // ברירת מחדל: הכל פתוח אם לא הוגדר אחרת, למניעת חסימת לקוחות ישנים
+    let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true };
+    
+    if (currentGroup.features) {
+        try {
+            features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features;
+        } catch(e) {}
+    } else if (currentGroup.has_store !== undefined) {
+        // תאימות לאחור (Backward Compatibility)
+        features = {
+            store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai
+        };
+    }
+
+    // מניעת גישה ברמת המשתמש (מעלים טאבים אסורים לפי Role)
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
@@ -1196,6 +1212,34 @@ function enforcePermissions() {
         }
     });
 
+    // --- חיתוך מודולים ברמת החברה (חזק יותר מסיווג העובד) ---
+    const enforceModule = (flag, tabId) => {
+        const btn = getEl(`tab-${tabId}`);
+        if (btn && !flag) btn.style.display = 'none'; 
+    };
+
+    enforceModule(features.store, 'sales');
+    enforceModule(features.b2b, 'shop');
+    enforceModule(features.academy, 'academy');
+    enforceModule(features.calendar, 'calendar');
+    enforceModule(features.finance, 'bank');
+    enforceModule(features.inventory, 'pantry');
+    enforceModule(features.crm, 'customers');
+    enforceModule(features.deliveries, 'deliveries');
+    enforceModule(features.foodcost, 'foodcost');
+
+    // נעילת מודול ה-AI (כפתורים וצף)
+    const aiBtn1 = getEl('btn-global-ai');
+    const aiBtn2 = getEl('btn-sp-ai');
+    if (!features.ai) {
+        if (aiBtn1) aiBtn1.style.display = 'none';
+        if (aiBtn2) aiBtn2.style.display = 'none';
+    } else {
+        if (aiBtn1) aiBtn1.style.display = 'flex';
+        if (aiBtn2) aiBtn2.style.display = 'inline-block';
+    }
+
+    // וידוא שהמשתמש לא נשאר בטאב מוסתר
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none') switchTab('feed');
