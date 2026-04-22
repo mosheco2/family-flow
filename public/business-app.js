@@ -1191,15 +1191,13 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין ---
-    let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true };
+    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין כולל המודולים החדשים ---
+    let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true, timeclock: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true };
     if (currentGroup.features) {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
-    } else if (currentGroup.has_foodcost !== undefined) {
-         features = { store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai };
     }
 
-    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מה שמותר לעובד לראות
+    // 1. הסתרה מוחלטת לפי תפקיד (Role) - מבוצע רק עבור עובדים שאינם מנהלים
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
@@ -1211,41 +1209,49 @@ function enforcePermissions() {
         }
     });
 
-    // 2. אכיפת מנעולים למודולים סגורים ברמת העסק (Feature Flags)
+    // 2. אכיפת מנעולים (Feature Flags) - תקף גם למנהלים
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
+        // אם הכפתור הוסתר כבר כי העובד לא מורשה אליו, אין טעם לשים עליו מנעול
         if (!btn || btn.style.display === 'none') return; 
         
-        if (!flag) {
-            // המודול נעול - נשים מנעול מבוסס CSS ודאטה
+        // הגנה: פיצ'רים חדשים שלא היו קיימים באובייקט הישן (undefined) ייחשבו כפתוחים
+        const isModuleActive = flag !== undefined ? flag : true;
+
+        if (!isModuleActive) {
             btn.classList.add('locked-module', 'opacity-60', 'grayscale');
             btn.dataset.lockedName = moduleName;
             if (!btn.querySelector('.fa-lock')) {
                 btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
             }
         } else {
-            // המודול פתוח - נחזיר למצב תקין
             btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
             const lockIcon = btn.querySelector('.fa-lock');
             if (lockIcon) lockIcon.remove();
         }
     };
 
-    // הפעלת האכיפה והמנעולים על הטאבים
     enforceModule(features.store, 'sales', 'חנות ציבורית ומכירות');
     enforceModule(features.b2b, 'shop', 'רכש ארגוני וספקים (B2B)');
     enforceModule(features.academy, 'academy', 'מרכז הכשרות ולומדות');
     enforceModule(features.calendar, 'calendar', 'יומן חכם ותורים');
-    enforceModule(features.finance, 'bank', 'ניהול כספים עובדים');
+    enforceModule(features.finance, 'bank', 'ניהול כספים');
     enforceModule(features.inventory, 'pantry', 'ניהול מלאי מחסן');
     enforceModule(features.crm, 'customers', 'מועדון לקוחות (CRM)');
     enforceModule(features.deliveries, 'deliveries', 'מערך שליחויות');
     enforceModule(features.foodcost, 'foodcost', 'עץ מוצר ופוד-קוסט');
+    enforceModule(features.timeclock, 'timeclock', 'שעון נוכחות');
+    enforceModule(features.cashflow, 'cashflow', 'תזרים מזומנים');
+    enforceModule(features.budget, 'budget', 'תקציבים ויעדים');
+    enforceModule(features.forecast, 'forecast', 'תשקיף עתידי');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות ופרויקטים');
+    enforceModule(features.community, 'community', 'חיבור לקהילות');
+    enforceModule(features.members, 'members', 'ניהול צוות עובדים');
 
-    // נעילת עוזר ה-AI הראשי (מוסתר לחלוטין אם אין הרשאה)
+    // נעילת עוזר ה-AI
     const aiBtn1 = getEl('btn-global-ai');
     const aiBtn2 = getEl('btn-sp-ai');
-    if (!features.ai) {
+    if (features.ai !== undefined && !features.ai) {
         if (aiBtn1) aiBtn1.style.display = 'none';
         if (aiBtn2) aiBtn2.style.display = 'none';
     } else {
@@ -1253,7 +1259,6 @@ function enforcePermissions() {
         if (aiBtn2) aiBtn2.style.display = 'inline-block';
     }
 
-    // וידוא שהמשתמש לא תקוע על טאב שנסגר לו פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
         if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
@@ -1261,7 +1266,6 @@ function enforcePermissions() {
         }
     });
 
-    // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
     const scrollContainer = getEl('slider-scroll');
     const tabSales = getEl('tab-sales');
     const tabDeliveries = getEl('tab-deliveries');
@@ -1269,7 +1273,6 @@ function enforcePermissions() {
         scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
     }
     
-    // ניהול תצוגות מנהל רגילות לעומת עובד
     if (!isAdmin) {
         ['bank-admin-view','admin-loans-panel','admin-members-tools','timeclock-admin-view','academy-admin-view','admin-shop-tools','shop-requests-container','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.add('hidden'); });
     } else {
@@ -1303,7 +1306,6 @@ window.openLockedModuleModal = function(moduleName) {
     }
     
     getEl('locked-module-name').innerText = moduleName;
-    
     const btn = getEl('btn-req-unlock');
     btn.onclick = () => requestModuleUnlock(moduleName);
     
@@ -1346,7 +1348,7 @@ window.requestModuleUnlock = async function(moduleName) {
     }
 };
 
-// יירוט לחיצות על טאבים נעולים (מנגנון ה-Upsell)
+// יירוט לחיצות על טאבים נעולים
 if (!window.switchTabOverridden) {
     const originalSwitchTab = window.switchTab;
     window.switchTab = function(tabId) {
@@ -1354,7 +1356,7 @@ if (!window.switchTabOverridden) {
         if (targetBtn && targetBtn.classList.contains('locked-module')) {
             const modName = targetBtn.dataset.lockedName || 'מודול נבחר';
             if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; // עוצר את המעבר לטאב ומקפיץ פופ-אפ שדרוג!
+            return; 
         }
         originalSwitchTab(tabId);
         setTimeout(enforcePermissions, 50);
