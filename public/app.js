@@ -3872,12 +3872,213 @@ window.handleFamilyPhotoUpload = async function(event) {
     });
 };
 
+// =====================================
+// ניהול הרשאות ופיצ'רים (Feature Flags)
+// =====================================
+const ALL_TABS = [
+    { id: 'feed', name: 'ראשי 🏠' },
+    { id: 'tasks', name: 'משימות הבית ✅' },
+    { id: 'shop', name: 'רשימת סופר 🛒' },
+    { id: 'myorders', name: 'משלוחים 🛵' },
+    { id: 'bank', name: 'הבנק המשפחתי 🏦' },
+    { id: 'cashflow', name: 'תזרים עו"ש 💸' },
+    { id: 'community', name: 'קהילה מקומית 🏘️' },
+    { id: 'academy', name: 'לומדות חינוך 🎓' },
+    { id: 'members', name: 'ניהול משפחה 👨‍👩‍👧‍👦' },
+    { id: 'budget', name: 'ניהול תקציב 📊' },
+    { id: 'pantry', name: 'ניהול מזווה 📦' },
+    { id: 'recipes', name: 'שף פרטי 👨‍🍳' },
+    { id: 'forecast', name: 'תשקיף כלכלי 📅' }
+];
+
+const ROLE_DEFAULTS = {
+    'ADMIN': ALL_TABS.map(t => t.id),
+    'MANAGER': ['feed', 'tasks', 'shop', 'pantry', 'academy', 'recipes'],
+    'SENIOR': ['feed', 'tasks', 'shop', 'pantry', 'academy'],
+    'MEMBER': ['feed', 'tasks', 'shop', 'academy']
+};
+
+function enforcePermissions() {
+    if (!currentUser || !currentGroup) return;
+    const isAdmin = currentUser.role === 'ADMIN';
+    let userTabs = [];
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
+    } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
+
+    // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
+    // במערכת המשפחתית שמות המודולים טיפה שונים, אנחנו עושים תאימות:
+    let features = { store: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, ai: true, cashflow: true, budget: true, forecast: true, tasks: true, community: true, members: true, recipes: true };
+    
+    if (currentGroup.features) {
+        try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
+    }
+
+    // 1. הסתרה מוחלטת לפי תפקיד הילד/הורה (Role) - מבוצע רק עבור מי שאינו הורה מנהל
+    ALL_TABS.forEach(tab => {
+        const btn = getEl(`tab-${tab.id}`);
+        if(btn) {
+            if (userTabs.includes(tab.id) || isAdmin) {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+    });
+
+    // 2. אכיפת מנעולים (Feature Flags) שנסגרו ע"י הסופר-אדמין לכלל המשפחה
+    const enforceModule = (flag, tabId, moduleName) => {
+        const btn = getEl(`tab-${tabId}`);
+        if (!btn || btn.style.display === 'none') return; 
+        
+        const isModuleActive = flag !== undefined ? flag : true;
+
+        if (!isModuleActive) {
+            // המודול ננעל - הופכים לאפור ושמים מנעול
+            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
+            btn.dataset.lockedName = moduleName;
+            if (!btn.querySelector('.fa-lock')) {
+                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
+            }
+        } else {
+            // שחרור מנעול
+            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
+            const lockIcon = btn.querySelector('.fa-lock');
+            if (lockIcon) lockIcon.remove();
+        }
+    };
+
+    // הפעלת האכיפה לפי המודולים במסך העריכה באדמין:
+    enforceModule(features.store, 'shop', 'רשימת קניות חכמה');
+    enforceModule(features.academy, 'academy', 'מרכז הכשרות ואתגרים');
+    enforceModule(features.finance, 'bank', 'הבנק המשפחתי ודמי כיס');
+    enforceModule(features.inventory, 'pantry', 'ניהול מלאי בבית');
+    enforceModule(features.crm, 'myorders', 'הזמנות מקהילות'); 
+    enforceModule(features.cashflow, 'cashflow', 'מעקב תזרים הוצאות');
+    enforceModule(features.budget, 'budget', 'תקציבים ויעדים לילדים');
+    enforceModule(features.forecast, 'forecast', 'תשקיף משפחתי עתידי');
+    enforceModule(features.tasks, 'tasks', 'ניהול משימות וצ'ופרים');
+    enforceModule(features.community, 'community', 'חיבור לקהילות שכונתיות');
+    enforceModule(features.members, 'members', 'ניהול משתמשי המשפחה');
+    // פוד קוסט של עסקים, מתורגם למתכונים אצל משפחות:
+    enforceModule(features.foodcost, 'recipes', 'מתכונים חכמים ממלאי'); 
+
+    // הגבלת אלמנטים של העוזרת הווירטואלית AI
+    const aiBtnMain = getEl('btn-global-ai');
+    if (features.ai !== undefined && !features.ai) {
+        if (aiBtnMain) aiBtnMain.style.display = 'none';
+        document.querySelectorAll('.fa-wand-magic-sparkles').forEach(icon => {
+            const parentBtn = icon.closest('button');
+            if (parentBtn && !parentBtn.classList.contains('locked-module')) {
+                parentBtn.classList.add('opacity-50', 'grayscale', 'cursor-not-allowed');
+                parentBtn.onclick = (e) => { e.stopPropagation(); openLockedModuleModal('כלי בינה מלאכותית חכמים'); };
+            }
+        });
+    }
+
+    // וידוא שהמשתמש לא תקוע בטאב נעול
+    const activeTabs = document.querySelectorAll('.tab-active');
+    activeTabs.forEach(activeBtn => {
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
+            if(activeBtn.id !== 'tab-feed') switchTab('feed');
+        }
+    });
+}
+
+// =====================================
+// מודול Upsell וחלון מודול נעול
+// =====================================
+window.openLockedModuleModal = function(moduleName) {
+    let modal = getEl('locked-module-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'locked-module-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 fade-in';
+        modal.innerHTML = `
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative text-center border border-slate-100">
+                <button onclick="document.getElementById('locked-module-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-50 rounded-full transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
+                <div class="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-slate-200">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-2xl font-black text-slate-800 mb-2">פיצ'ר נעול 🔒</h3>
+                <p class="text-sm text-slate-500 mb-8 leading-relaxed">היכולת להשתמש ב-<strong id="locked-module-name" class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"></strong> סגורה בחבילה הנוכחית שלכם.<br>רוצים לפתוח את הנעילה ולהרחיב את המערכת?</p>
+                <button id="btn-req-unlock" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    getEl('locked-module-name').innerText = moduleName;
+    const btn = getEl('btn-req-unlock');
+    btn.onclick = () => requestModuleUnlock(moduleName);
+    
+    modal.classList.remove('hidden');
+};
+
+window.requestModuleUnlock = async function(moduleName) {
+    const btn = getEl('btn-req-unlock');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח פנייה...';
+    
+    try {
+        const payload = {
+            groupId: currentGroup.id,
+            groupName: currentGroup.name,
+            userId: currentUser.id,
+            userName: currentUser.nickname,
+            userEmail: currentGroup.admin_email || 'לא ידוע',
+            subject: `בקשת שדרוג חבילה / משפחה: פתיחת ${moduleName}`,
+            description: `היי צוות, אשמח לקבל פרטים ועלויות לגבי הוספת המודול "${moduleName}" למערכת המשפחתית שלנו. אנא צרו איתי קשר.`
+        };
+
+        const res = await fetch(`${API}/support/ticket`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'מעולה! שלחנו פנייה לצוות. נחזור אליכם בהקדם האפשרי.');
+            getEl('locked-module-modal').classList.add('hidden');
+            try { triggerConfetti(); } catch(e){}
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הפנייה');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת. נסו שוב מאוחר יותר.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'שליחת בקשה לשדרוג חבילה <i class="fa-solid fa-paper-plane"></i>';
+    }
+};
+
+// יירוט לחיצות על טאבים נעולים (כדי שלא יכנסו לעמוד ריק)
+if (!window.switchTabOverridden) {
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabId) {
+        const targetBtn = document.getElementById(`tab-${tabId}`);
+        if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            const modName = targetBtn.dataset.lockedName || 'מודול נעול';
+            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return; // מונע כניסה למסך
+        }
+        originalSwitchTab(tabId);
+        setTimeout(enforcePermissions, 50);
+    };
+    window.switchTabOverridden = true;
+}
+
+// קריאה ראשונית כשכל הדף נטען
+setTimeout(enforcePermissions, 1500);
+
 // הוספת מזהה גרסה בתחתית המסך
 (function addVersionBadge() {
     if (!document.getElementById('oneflow-version-badge')) {
         const badge = document.createElement('div');
         badge.id = 'oneflow-version-badge';
-        badge.innerHTML = 'גרסה 2.1.6 (עיצוב Header, תמונת משפחה במובייל)';
+        badge.innerHTML = 'גרסה 2.1.8 (סנכרון מלא לסופר-אדמין ושליטה בחבילות)';
         badge.className = 'w-full text-center mt-8 pb-4 text-slate-400 text-xs font-mono';
         document.body.appendChild(badge);
     }
