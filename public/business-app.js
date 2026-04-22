@@ -1188,7 +1188,6 @@ function enforcePermissions() {
         userTabs = perms.tabs || ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
-    // --- קריאת הרשאות הפיצ'רים מהסופר-אדמין ---
     let features = { store: true, b2b: true, academy: true, calendar: true, finance: true, inventory: true, crm: true, deliveries: true, foodcost: true, ai: true };
     if (currentGroup.features) {
         try { features = typeof currentGroup.features === 'string' ? JSON.parse(currentGroup.features) : currentGroup.features; } catch(e) {}
@@ -1196,44 +1195,32 @@ function enforcePermissions() {
          features = { store: !!currentGroup.has_store, b2b: !!currentGroup.has_b2b, academy: !!currentGroup.has_academy, calendar: !!currentGroup.has_calendar, finance: !!currentGroup.has_finance, inventory: !!currentGroup.has_inventory, crm: !!currentGroup.has_crm, deliveries: !!currentGroup.has_deliveries, foodcost: !!currentGroup.has_foodcost, ai: !!currentGroup.has_ai };
     }
 
-    // 1. הסתרה מוחלטת לפי תפקיד (Role)
     ALL_TABS.forEach(tab => {
         const btn = getEl(`tab-${tab.id}`);
         if(btn) {
-            if (userTabs.includes(tab.id) || isAdmin) {
-                btn.style.display = 'inline-block';
-            } else {
-                btn.style.display = 'none';
-            }
+            if (userTabs.includes(tab.id) || isAdmin) btn.style.display = 'inline-block';
+            else btn.style.display = 'none';
         }
     });
 
-    // 2. אכיפת מנעולים למודולים סגורים ברמת העסק
+    // מנגנון מנעולים יציב מבוסס CSS Classes בלבד
     const enforceModule = (flag, tabId, moduleName) => {
         const btn = getEl(`tab-${tabId}`);
         if (!btn || btn.style.display === 'none') return; 
         
         if (!flag) {
-            // המודול נעול - נשים מנעול ונחליף פונקציונליות
-            btn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openLockedModuleModal(moduleName);
-            };
+            btn.classList.add('locked-module', 'opacity-60', 'grayscale');
+            btn.dataset.lockedName = moduleName;
             if (!btn.querySelector('.fa-lock')) {
-                btn.innerHTML = `<i class="fa-solid fa-lock opacity-50 ml-1"></i> ` + btn.innerHTML;
-                btn.classList.add('opacity-75', 'grayscale', 'cursor-not-allowed');
+                btn.innerHTML = `<i class="fa-solid fa-lock text-red-500 ml-1"></i> ` + btn.innerHTML;
             }
         } else {
-            // המודול פתוח - נחזיר למצב תקין
-            btn.onclick = () => switchTab(tabId);
+            btn.classList.remove('locked-module', 'opacity-60', 'grayscale');
             const lockIcon = btn.querySelector('.fa-lock');
             if (lockIcon) lockIcon.remove();
-            btn.classList.remove('opacity-75', 'grayscale', 'cursor-not-allowed');
         }
     };
 
-    // הפעלת האכיפה והמנעולים על הטאבים
     enforceModule(features.store, 'sales', 'חנות ציבורית ומכירות');
     enforceModule(features.b2b, 'shop', 'רכש ארגוני וספקים (B2B)');
     enforceModule(features.academy, 'academy', 'מרכז הכשרות ולומדות');
@@ -1244,7 +1231,6 @@ function enforcePermissions() {
     enforceModule(features.deliveries, 'deliveries', 'מערך שליחויות');
     enforceModule(features.foodcost, 'foodcost', 'עץ מוצר ופוד-קוסט');
 
-    // נעילת עוזר ה-AI הראשי (מוסתר לחלוטין אם אין הרשאה)
     const aiBtn1 = getEl('btn-global-ai');
     const aiBtn2 = getEl('btn-sp-ai');
     if (!features.ai) {
@@ -1255,21 +1241,26 @@ function enforcePermissions() {
         if (aiBtn2) aiBtn2.style.display = 'inline-block';
     }
 
-    // וידוא שהמשתמש לא תקוע על טאב שנסגר לו פתאום
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
-        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('cursor-not-allowed')) {
-            switchTab('feed');
+        if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
+            if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }
     });
 
-    // הזזת טאב שליחויות להיות צמוד מיד אחרי טאב חנות ומכירות
     const scrollContainer = getEl('slider-scroll');
     const tabSales = getEl('tab-sales');
     const tabDeliveries = getEl('tab-deliveries');
     if (scrollContainer && tabSales && tabDeliveries) {
         scrollContainer.insertBefore(tabDeliveries, tabSales.nextSibling);
     }
+    
+    if (!isAdmin) {
+        ['bank-admin-view','admin-loans-panel','admin-members-tools','timeclock-admin-view','academy-admin-view','admin-shop-tools','shop-requests-container','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.add('hidden'); });
+    } else {
+        ['bank-admin-view','admin-members-tools','timeclock-admin-view','academy-admin-view','btn-sales-catalog','btn-sales-settings'].forEach(id => { const e=getEl(id); if(e) e.classList.remove('hidden'); });
+    }
+}
     
     // ניהול תצוגות מנהל רגילות
     if (!isAdmin) {
@@ -1433,9 +1424,18 @@ async function submitPermissions() {
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הרשאות'; } }
 }
 
-const originalSwitchTab = window.switchTab;
-if (originalSwitchTab && !window.switchTabOverridden) {
+if (!window.switchTabOverridden) {
+    const originalSwitchTab = window.switchTab;
     window.switchTab = function(tabId) {
+        
+        // מיירט לחיצה על מודול נעול (Upsell)
+        const targetBtn = document.getElementById(`tab-${tabId}`);
+        if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            const modName = targetBtn.dataset.lockedName || 'מודול נבחר';
+            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return; // מונע את המעבר לטאב!
+        }
+        
         originalSwitchTab(tabId);
         setTimeout(enforcePermissions, 50);
     };
