@@ -76,7 +76,7 @@ pool.connect()
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS ai_tokens INT DEFAULT 10'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS last_token_reset DATE DEFAULT CURRENT_DATE'); } catch(e) {}
-
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
 // מערכת קריאות שירות
       try { await client.query(`CREATE TABLE IF NOT EXISTS support_tickets (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, subject VARCHAR(255), description TEXT, status VARCHAR(20) DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS log JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
@@ -541,13 +541,17 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין ---
+// --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
 app.put('/api/sa/groups/:id', async (req, res) => {
-    try {
-        const { name, adminEmail } = req.body;
-        await pool.query('UPDATE family_groups SET name=$1, admin_email=$2 WHERE id=$3', [name, adminEmail, req.params.id]);
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    try {
+        const { name, adminEmail, features } = req.body;
+        if (features !== undefined) {
+            await pool.query('UPDATE family_groups SET name=$1, admin_email=$2, features=$3 WHERE id=$4', [name, adminEmail, JSON.stringify(features), req.params.id]);
+        } else {
+            await pool.query('UPDATE family_groups SET name=$1, admin_email=$2 WHERE id=$3', [name, adminEmail, req.params.id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- עריכת שם משתמש וסיסמה מהאדמין ---
