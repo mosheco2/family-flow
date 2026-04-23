@@ -8193,3 +8193,236 @@ window.getAnalyticsAIInsight = async function() {
         } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
     });
 };
+// ==========================================
+// --- OVERRIDE UI & POS LOGIC (DO NOT DELETE) ---
+// ==========================================
+
+window.injectBusinessUI = function() {
+    // Force cleanup of old duplications
+    ['content-sales', 'pos-modifiers-modal', 'pos-tender-modal'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.remove();
+    });
+
+    const contentFeed = document.getElementById('content-feed');
+    if(contentFeed && !document.getElementById('content-shifts')) {
+        contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
+    }
+
+    const custContainer = document.getElementById('content-customers');
+    if (custContainer && !document.getElementById('cust-main-tabs')) {
+        custContainer.innerHTML = `
+            <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
+                <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
+                <div id="cust-main-tabs" class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto whitespace-nowrap">
+                    <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
+                    <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
+                </div>
+                <div id="cust-main-view-list">
+                    <div class="flex flex-col sm:flex-row gap-3 mb-4 mt-2">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="text" id="filter-customer-search" oninput="if(typeof window.renderStoreCustomers === 'function') window.renderStoreCustomers()" placeholder="חיפוש לקוח..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pr-10 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                        </div>
+                        <button onclick="if(typeof window.openCustomerModal === 'function') window.openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                    </div>
+                    <div id="store-customers-list" class="space-y-3 pb-8"></div>
+                </div>
+                <div id="cust-main-view-history" class="hidden"><div id="cust-main-history-list" class="space-y-3 pb-8"></div></div>
+            </div>
+        `;
+    }
+
+    const contentShifts = document.getElementById('content-shifts');
+    if(contentShifts && !document.getElementById('content-sales')) {
+        contentShifts.insertAdjacentHTML('afterend', `
+            <div id="content-sales" class="hidden">
+                <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול חנות ומכירות 🛍️</h3>
+                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
+                        <button id="btn-sales-pos" onclick="window.switchSalesTab('pos')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition"><i class="fa-solid fa-cash-register text-emerald-500 mr-1"></i> קופה (POS)</button>
+                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
+                        <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
+                        <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
+                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">מבצעים</button>
+                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
+                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">דוחות</button>
+                    </div>
+                    
+                    <div id="sales-view-pos" class="hidden h-[75vh] flex flex-col md:flex-row gap-4">
+                        <div class="w-full md:w-[65%] bg-slate-50 rounded-2xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
+                            <div class="p-3 bg-white border-b border-slate-200 shadow-sm z-10 flex gap-2 items-center">
+                                <div class="relative flex-1">
+                                    <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2 pr-9 pl-3 rounded-xl text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition dir-rtl">
+                                </div>
+                            </div>
+                            <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
+                            <div class="flex-1 overflow-y-auto p-3 modal-scroll dir-rtl">
+                                <div id="pos-catalog-grid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3"></div>
+                            </div>
+                        </div>
+
+                        <div class="w-full md:w-[35%] bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl">
+                            <div class="p-4 bg-indigo-600 text-white flex justify-between items-center shadow-md z-10">
+                                <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-cash-register"></i> קופה</h3>
+                                <button onclick="window.clearPOSCart()" class="text-indigo-200 hover:text-white transition text-xs font-bold"><i class="fa-solid fa-trash-can mr-1"></i>נקה קופה</button>
+                            </div>
+                            <div class="p-3 border-b border-slate-100 bg-slate-50 flex gap-2">
+                                <input type="tel" id="pos-customer-phone" oninput="window.checkPOSCustomer()" placeholder="מס' טלפון לחבר מועדון..." class="modern-input py-2 text-sm w-full dir-ltr text-left border-slate-200 focus:border-indigo-500">
+                            </div>
+                            <div id="pos-cust-indicator" class="px-3 text-[10px] font-bold hidden"></div>
+                            <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-3 bg-slate-50/30"></div>
+                            <div class="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                                <div class="flex justify-between items-end mb-4">
+                                    <span class="text-sm font-bold text-slate-500" id="pos-items-count">0 פריטים</span>
+                                    <span class="text-3xl font-black text-indigo-700 dir-ltr" id="pos-total-display">₪0.00</span>
+                                </div>
+                                <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-2">
+                                    מעבר לתשלום <i class="fa-solid fa-credit-card"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="sales-view-orders" class="space-y-4"><div id="store-orders-list" class="space-y-3 pb-8"></div></div>
+                    <div id="sales-view-quotes" class="hidden space-y-4"><div id="store-quotes-list" class="space-y-3 pb-8"></div></div>
+                    <div id="sales-view-catalog" class="hidden space-y-4"><div id="store-catalog-list" class="space-y-3 pb-8"></div></div>
+                    <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
+                    <div id="sales-view-settings" class="hidden space-y-4"></div>
+                    <div id="sales-view-analytics" class="hidden space-y-4"></div>
+                </div>
+            </div>`);
+
+        // Inject Tender Modal
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="pos-tender-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-[110] flex items-center justify-center p-2 sm:p-4 fade-in">
+            <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] dir-rtl">
+                <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-800">סיכום וסליקה</h3>
+                        <p class="text-xs text-slate-400 font-bold" id="tender-order-summary">פיצול תשלומים וחישוב עודף</p>
+                    </div>
+                    <button onclick="document.getElementById('pos-tender-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-white text-slate-400 flex items-center justify-center hover:text-slate-600 shadow-sm border border-slate-100 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6 modal-scroll grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 text-center">
+                            <span class="text-xs font-bold text-indigo-400 block mb-1">סה"כ לתשלום:</span>
+                            <span class="text-4xl font-black text-indigo-700 dir-ltr" id="tender-total-due">₪0.00</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="window.setTenderMethod('cash')" id="btn-tender-cash" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white">
+                                <i class="fa-solid fa-money-bill-1-wave text-2xl text-emerald-500"></i>
+                                <span class="text-xs font-black text-slate-700">מזומן</span>
+                            </button>
+                            <button onclick="window.setTenderMethod('credit')" id="btn-tender-credit" class="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2 hover:border-indigo-200 transition bg-white">
+                                <i class="fa-solid fa-credit-card text-2xl text-blue-500"></i>
+                                <span class="text-xs font-black text-slate-700">אשראי / דיגיטלי</span>
+                            </button>
+                        </div>
+                        
+                        <div id="tender-on-account-container" class="hidden">
+                            <button onclick="window.setTenderMethod('on_account')" id="btn-tender-account" class="w-full p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-center gap-3 hover:border-indigo-200 transition bg-white">
+                                <i class="fa-solid fa-user-clock text-xl text-amber-500"></i>
+                                <span class="text-xs font-black text-slate-700">רישום "הקפה" (על החשבון)</span>
+                            </button>
+                        </div>
+
+                        <div class="relative">
+                            <label class="text-[10px] font-black text-slate-400 block mb-1.5 mr-2">סכום שהתקבל (₪):</label>
+                            <input type="number" id="tender-input-amount" class="w-full bg-slate-100 border-none rounded-2xl py-4 px-6 text-2xl font-black text-center text-slate-800 focus:ring-4 focus:ring-indigo-100 transition dir-ltr" placeholder="0.00">
+                            <div class="grid grid-cols-3 gap-2 mt-3" id="cash-shortcuts">
+                                <button onclick="window.addTenderShortcut(20)" class="bg-white border border-slate-200 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">₪20</button>
+                                <button onclick="window.addTenderShortcut(50)" class="bg-white border border-slate-200 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">₪50</button>
+                                <button onclick="window.addTenderShortcut(100)" class="bg-white border border-slate-200 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition">₪100</button>
+                            </div>
+                        </div>
+                        <button onclick="window.addPaymentToSplit()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-slate-700 transition">הוסף לתשלום (פיצול)</button>
+                    </div>
+
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-inner flex-1 flex flex-col">
+                            <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">פירוט תקבולים:</h4>
+                            <div id="tender-payments-list" class="flex-1 space-y-2 mb-4 overflow-y-auto modal-scroll"></div>
+                            
+                            <div class="space-y-2 border-t border-slate-100 pt-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-slate-500">שולם עד כה:</span>
+                                    <span class="text-sm font-black text-slate-700 dir-ltr" id="tender-paid-so-far">₪0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 rounded-xl bg-orange-50 border border-orange-100" id="tender-balance-row">
+                                    <span class="text-xs font-black text-orange-700" id="tender-balance-label">יתרה לתשלום:</span>
+                                    <span class="text-lg font-black text-orange-800 dir-ltr" id="tender-balance-val">₪0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-100 p-4 rounded-2xl">
+                             <label class="flex items-center gap-2 cursor-pointer group">
+                                <input type="checkbox" id="tender-send-receipt" checked class="w-5 h-5 accent-indigo-600 rounded">
+                                <span class="text-xs font-bold text-slate-600 group-hover:text-slate-800 transition">שלח קבלה אוטומטית ל-WhatsApp</span>
+                             </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-slate-50 border-t border-slate-100 shrink-0">
+                    <button id="btn-finalize-pos" onclick="window.finalizePOSOrder()" disabled class="w-full py-5 bg-slate-300 text-white rounded-3xl font-black text-xl shadow-xl transition-all flex justify-center items-center gap-2 cursor-not-allowed">
+                        סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`);
+
+        // Inject Modifiers Modal
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="bg-indigo-600 p-5 flex justify-between items-center text-white shrink-0">
+                    <h3 class="text-xl font-black truncate pr-2 flex items-center gap-2"><i class="fa-solid fa-utensils"></i> <span id="pos-mod-title">הרכבת מנה</span></h3>
+                    <button onclick="document.getElementById('pos-modifiers-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/40 transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="pos-mod-groups" class="flex-1 overflow-y-auto p-5 modal-scroll bg-slate-50 space-y-4 dir-rtl"></div>
+                <div class="p-4 bg-white border-t border-slate-100 shrink-0">
+                    <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-lg">אשר והוסף למנה <i class="fa-solid fa-plus ml-1"></i></button>
+                </div>
+            </div>
+        </div>`);
+    }
+
+    if(!document.getElementById('tab-sales')) {
+        const tabBank = document.getElementById('tab-bank');
+        if(tabBank) {
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
+        }
+    }
+};
+
+window.switchSalesTab = function(subTab) {
+    if (!subTab) return;
+
+    ['pos', 'orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    
+    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
+    if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
+    if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
+    if(subTab === 'marketing') { if (typeof fetchStoreMarketing === 'function') fetchStoreMarketing(); } 
+    if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
+    if(subTab === 'quotes') {
+        const list = document.getElementById('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+    }
+    if (subTab === 'analytics') {
+        setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
+    }
+};
