@@ -4183,6 +4183,27 @@ function copyStoreLink() {
 async function fetchStoreCatalog() {
     try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); renderStoreCatalog(); } catch(e) {}
 }
+
+function renderStoreCatalog() {
+    const list = getEl('store-catalog-list');
+    if(!storeCatalogCache || storeCatalogCache.length === 0) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים בקטלוג. לחצו על "מוצר חדש" כדי להתחיל.</p>'; return;
+    }
+    let html = '';
+    storeCatalogCache.forEach(p => {
+        let badgeHtml = '';
+        if (p.badge_text) {
+            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
+            const bgClass = colors[p.badge_color] || 'bg-red-500';
+            badgeHtml = `<div class="absolute -top-2 -right-2 ${bgClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 border border-white">${safeStr(p.badge_text)}</div>`;
+        }
+        
+        const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
+        const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
+        
+        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
+    }); list.innerHTML = html;
+}
 function renderPresetSelector() {
     const sel = getEl('preset-selector'); if (!sel) return;
     if (storeModifierPresets.length > 0) {
@@ -8254,59 +8275,22 @@ window.injectBusinessUI = function() {
     }
 };
 
-window.fetchStoreCatalog = async function() {
-    try { 
-        const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); 
-        storeCatalogCache = await res.json(); 
-        
-        // מרענן גם את הקטלוג של המנהל וגם את הקטלוג של הקופה
-        window.renderStoreCatalog(); 
-        if (typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory || 'all');
-    } catch(e) {}
-};
-
-window.renderStoreCatalog = function() {
-    const list = getEl('store-catalog-list');
-    if(!list) return;
-    if(!storeCatalogCache || storeCatalogCache.length === 0) {
-        list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים בקטלוג. לחצו על "מוצר חדש" כדי להתחיל.</p>'; return;
-    }
-    let html = '';
-    storeCatalogCache.forEach(p => {
-        let badgeHtml = '';
-        if (p.badge_text) {
-            const colors = { 'red':'bg-red-500', 'green':'bg-green-500', 'blue':'bg-blue-500', 'yellow':'bg-yellow-500 text-yellow-900' };
-            const bgClass = colors[p.badge_color] || 'bg-red-500';
-            badgeHtml = `<div class="absolute -top-2 -right-2 ${bgClass} text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 border border-white">${safeStr(p.badge_text)}</div>`;
-        }
-        
-        const imgHtml = p.image_url ? `<div class="relative shrink-0">${badgeHtml}<img src="${p.image_url}" class="w-14 h-14 rounded-xl object-cover border border-slate-100 shadow-sm"></div>` : `<div class="relative shrink-0">${badgeHtml}<div class="w-14 h-14 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center border border-slate-200 shadow-sm"><i class="fa-solid fa-box text-xl"></i></div></div>`;
-        const activeColor = p.is_available ? 'text-green-600 bg-green-50 border-green-200' : 'text-slate-500 bg-slate-100 border-slate-200';
-        
-        html += `<div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2"><div class="flex items-center gap-3 min-w-0 flex-1">${imgHtml}<div class="min-w-0 flex-1"><h4 class="font-bold text-slate-800 text-sm truncate pr-1">${safeStr(p.name)}</h4><p class="text-xs font-bold text-indigo-600 mt-0.5">₪${p.price} <span class="font-normal text-slate-400 text-[10px] ml-1 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">(${safeStr(p.category || 'כללי')})</span></p></div></div><div class="flex items-center gap-2 self-start sm:self-auto shrink-0 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="toggleStoreProduct(${p.id}, ${!p.is_available})" class="text-[10px] font-bold px-3 py-1.5 rounded-lg border transition ${activeColor}">${p.is_available ? 'זמין' : 'מוסתר'}</button><button onclick="openStoreProductModal(${p.id})" class="text-slate-500 hover:text-indigo-600 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="deleteStoreProduct(${p.id})" class="text-slate-400 hover:text-red-500 bg-white shadow-sm w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;
-    }); list.innerHTML = html;
-};
-
-window.switchSalesTab = async function(subTab) {
+window.switchSalesTab = function(subTab) {
     ['pos', 'orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
-        const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = getEl(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
     });
     
-    const targetView = getEl(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
-    const targetBtn = getEl(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
 
-    // משיכת נתונים אוטומטית במעבר לקופה או לקטלוג
-    if(subTab === 'pos') { 
-        if (!storeCatalogCache || storeCatalogCache.length === 0) await window.fetchStoreCatalog();
-        if (typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog('all'); 
-    }
+    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
     if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
-    if(subTab === 'catalog') { await window.fetchStoreCatalog(); }
+    if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
     if(subTab === 'marketing') { if (typeof fetchStoreMarketing === 'function') fetchStoreMarketing(); } 
     if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
     if(subTab === 'quotes') {
-        const list = getEl('store-quotes-list');
+        const list = document.getElementById('store-quotes-list');
         if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
         if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
     }
@@ -8314,6 +8298,17 @@ window.switchSalesTab = async function(subTab) {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
     }
 };
+
+// עדכון טאב נבחר אוטומטית ברקע
+setInterval(() => {
+    const tabSales = document.getElementById('tab-sales');
+    if (tabSales && tabSales.classList.contains('tab-active')) {
+        const ordersView = document.getElementById('sales-view-orders');
+        if (ordersView && !ordersView.classList.contains('hidden')) {
+            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+        }
+    }
+}, 20000);
 
 // ==========================================
 // --- POS (Point of Sale) & Modifiers ---
