@@ -8100,7 +8100,6 @@ window.getAnalyticsAIInsight = async function() {
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
     }
-};
 
 setInterval(() => {
     const tabSales = getEl('tab-sales');
