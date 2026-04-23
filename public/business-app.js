@@ -8104,6 +8104,30 @@ setInterval(() => {
     }
 }, 20000);
 
+window.switchSalesTab = function(subTab) {
+    ['pos', 'orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    
+    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
+    if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
+    if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
+    if(subTab === 'marketing') { if (typeof fetchStoreMarketing === 'function') fetchStoreMarketing(); } 
+    if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
+    if(subTab === 'quotes') {
+        const list = document.getElementById('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+    }
+    if (subTab === 'analytics') {
+        setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
+    }
+};
+
 // עדכון טאב נבחר אוטומטית ברקע
 setInterval(() => {
     const tabSales = document.getElementById('tab-sales');
