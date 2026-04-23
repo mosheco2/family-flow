@@ -8197,6 +8197,10 @@ window.getAnalyticsAIInsight = async function() {
 // --- OVERRIDE UI & POS LOGIC (DO NOT DELETE) ---
 // ==========================================
 
+// ==========================================
+// --- OVERRIDE UI & POS LOGIC (DO NOT DELETE) ---
+// ==========================================
+
 window.injectBusinessUI = function() {
     // Force cleanup of old duplications
     ['content-sales', 'pos-modifiers-modal', 'pos-tender-modal'].forEach(id => {
@@ -8243,14 +8247,14 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
                         <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
-                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">מבצעים</button>
+                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
-                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">דוחות</button>
+                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">אנליטיקה</button>
                     </div>
                     
                     <div id="sales-view-pos" class="hidden h-[75vh] flex flex-col md:flex-row gap-4">
                         <div class="w-full md:w-[65%] bg-slate-50 rounded-2xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
-                            <div class="p-3 bg-white border-b border-slate-200 shadow-sm z-10 flex gap-2 items-center">
+                            <div class="p-3 bg-white border-b border-slate-200 flex gap-2 items-center">
                                 <div class="relative flex-1">
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                                     <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2 pr-9 pl-3 rounded-xl text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition dir-rtl">
@@ -8287,13 +8291,221 @@ window.injectBusinessUI = function() {
                     <div id="sales-view-orders" class="space-y-4"><div id="store-orders-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-quotes" class="hidden space-y-4"><div id="store-quotes-list" class="space-y-3 pb-8"></div></div>
                     <div id="sales-view-catalog" class="hidden space-y-4"><div id="store-catalog-list" class="space-y-3 pb-8"></div></div>
-                    <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
-                    <div id="sales-view-settings" class="hidden space-y-4"></div>
-                    <div id="sales-view-analytics" class="hidden space-y-4"></div>
+                    
+                    <div id="sales-view-marketing" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">ניהול מבצעים</h4>
+                            <button onclick="if(typeof openPromotionModal === 'function') openPromotionModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> מבצע חדש</button>
+                        </div>
+                        <div id="store-promotions-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-settings" class="hidden space-y-6 pb-12">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h4 class="font-black text-slate-800 mb-4">הגדרות חנות כלליות</h4>
+                            <div class="space-y-4">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded">
+                                    <span class="font-bold text-slate-700 text-sm">החנות פעילה ומקבלת הזמנות</span>
+                                </label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm w-full"><option value="retail">קמעונאות / כללי</option><option value="food">מזון / מסעדה</option><option value="services">שירותים</option></select></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">הודעת פתיחה:</label><input type="text" id="store-welcome-msg" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי):</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סלוגן:</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm w-full"></div>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לחנות הציבורית:</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="store-public-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
+                                        <button onclick="copyStoreLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 class="font-black text-slate-800 mb-4 mt-8">עיצוב ומיתוג</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                     <label class="text-xs font-bold text-slate-500 mb-2 block">לוגו:</label>
+                                     <div class="flex items-center gap-4">
+                                         <div class="relative w-20 h-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0">
+                                             <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                             <i id="store-logo-placeholder" class="fa-solid fa-image text-slate-300 text-2xl"></i>
+                                         </div>
+                                         <div class="flex flex-col gap-2">
+                                             <button onclick="document.getElementById('store-logo-upload').click()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100">העלה תמונה</button>
+                                             <button onclick="clearStoreLogo()" id="btn-clear-logo" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition border border-red-100 hidden">הסר</button>
+                                         </div>
+                                         <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                         <input type="hidden" id="store-logo-base64">
+                                     </div>
+                                </div>
+                                <div>
+                                     <label class="text-xs font-bold text-slate-500 mb-2 block">באנר עליון:</label>
+                                     <div class="flex items-center gap-4">
+                                         <div class="relative w-32 h-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0">
+                                             <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                             <i id="store-banner-placeholder" class="fa-solid fa-image text-slate-300 text-2xl"></i>
+                                         </div>
+                                         <div class="flex flex-col gap-2">
+                                             <button onclick="document.getElementById('store-banner-upload').click()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100">העלה תמונה</button>
+                                             <button onclick="clearStoreBg()" id="btn-clear-bg" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition border border-red-100 hidden">הסר</button>
+                                             <button id="btn-generate-banner-ai" onclick="generateBannerAI()" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-purple-700 transition shadow-sm hidden"><i class="fa-solid fa-wand-magic-sparkles"></i> רקע ב-AI</button>
+                                         </div>
+                                         <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
+                                         <input type="hidden" id="store-banner-base64">
+                                     </div>
+                                </div>
+                            </div>
+
+                            <h4 class="font-black text-slate-800 mb-4 mt-8">תבניות הרכבה (Modifiers)</h4>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div class="flex justify-between items-center mb-3">
+                                    <select id="preset-selector" onchange="loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-2/3 bg-white hidden"></select>
+                                </div>
+                                <div id="modifiers-builder-container" class="space-y-3"></div>
+                                <button onclick="addModifierGroup()" class="mt-3 bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm w-full"><i class="fa-solid fa-plus mr-1"></i> הוסף קבוצת בחירה חדשה (תוספות / הרכבה)</button>
+                            </div>
+
+                            <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-lg">שמור הגדרות חנות</button>
+                        </div>
+                    </div>
+
+                    <div id="sales-view-analytics" class="hidden space-y-4 pb-12">
+                        <div class="flex flex-col md:flex-row justify-between gap-3 mb-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-chart-pie text-indigo-500 mr-1"></i> אנליטיקה</h3>
+                                <span id="analytics-report-period" class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md font-medium"></span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <select id="analytics-time-filter" onchange="toggleCustomDateFilters()" class="modern-input py-1.5 px-3 text-xs font-bold text-slate-700 bg-slate-50 border-slate-200 focus:border-indigo-400">
+                                    <option value="today">היום</option><option value="7">7 ימים אחרונים</option><option value="30" selected>30 ימים אחרונים</option><option value="90">3 חודשים אחרונים</option><option value="365">שנה אחרונה</option><option value="all">כל הזמן</option><option value="custom">תאריכים מותאמים</option>
+                                </select>
+                                <select id="analytics-type-filter" onchange="renderAnalytics()" class="modern-input py-1.5 px-3 text-xs font-bold text-slate-700 bg-slate-50 border-slate-200 focus:border-indigo-400">
+                                    <option value="all">הכל (משלוחים + חנות + הצעות)</option><option value="store">חנות וקופה (ללא משלוחים)</option><option value="delivery">משלוחים בלבד</option><option value="quote">הצעות מחיר (שאושרו)</option>
+                                </select>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition"><input type="checkbox" id="analytics-compare-toggle" onchange="renderAnalytics()" class="accent-indigo-600 w-4 h-4">השוואה לתקופה קודמת</label>
+                                <button onclick="getAnalyticsAIInsight()" class="bg-purple-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-purple-700 transition flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+                            </div>
+                        </div>
+                        <div id="analytics-custom-dates" class="hidden flex gap-3 mb-4 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                            <div class="flex-1"><label class="text-[10px] font-bold text-indigo-800 block mb-1">מתאריך:</label><input type="date" id="analytics-date-from" onchange="renderAnalytics()" class="modern-input py-1.5 text-xs w-full bg-white"></div>
+                            <div class="flex-1"><label class="text-[10px] font-bold text-indigo-800 block mb-1">עד תאריך:</label><input type="date" id="analytics-date-to" onchange="renderAnalytics()" class="modern-input py-1.5 text-xs w-full bg-white"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">סה"כ הכנסות</span>
+                                <span id="analytics-kpi-rev" class="text-2xl font-black text-indigo-700 dir-ltr text-right">₪0</span>
+                                <div id="analytics-kpi-rev-trend" class="text-[10px] font-bold mt-1 h-4"></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">הזמנות</span>
+                                <span id="analytics-kpi-orders" class="text-2xl font-black text-slate-800">0</span>
+                                <div id="analytics-kpi-orders-trend" class="text-[10px] font-bold mt-1 h-4"></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ממוצע להזמנה</span>
+                                <span id="analytics-kpi-avg" class="text-2xl font-black text-emerald-600 dir-ltr text-right">₪0</span>
+                                <div id="analytics-kpi-avg-trend" class="text-[10px] font-bold mt-1 h-4"></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">לקוחות חוזרים</span>
+                                <span id="analytics-kpi-retention" class="text-2xl font-black text-orange-500">0%</span>
+                                <div id="analytics-kpi-cust-count" class="text-[9px] text-slate-400 font-bold mt-1 h-4 truncate"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col min-h-[300px]">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-slate-700 text-sm">הכנסות לאורך זמן</h4>
+                                    <button id="btn-clear-cat-filter" onclick="clearAnalyticsCategoryFilter()" class="hidden text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-solid fa-times mr-1"></i> נקה סינון קטגוריה</button>
+                                </div>
+                                <div class="relative flex-1 w-full"><canvas id="analyticsRevenueChart"></canvas></div>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col min-h-[300px]">
+                                <h4 class="font-bold text-slate-700 text-sm mb-4">הכנסות לפי קטגוריה</h4>
+                                <div class="relative flex-1 w-full"><canvas id="analyticsCategoryChart"></canvas></div>
+                                <p class="text-[9px] text-center text-slate-400 mt-2">* לחץ על פלח בעוגה כדי לסנן את שאר הנתונים לפיו</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-arrow-trend-up text-green-500 mr-1"></i> הנמכרים ביותר</h4>
+                                    <select id="analytics-top-by" onchange="renderAnalytics()" class="modern-input py-1 px-2 text-[10px] font-bold bg-slate-50 border-slate-200 focus:border-indigo-400">
+                                        <option value="revenue">לפי הכנסה (₪)</option><option value="volume">לפי כמות (יח')</option>
+                                    </select>
+                                </div>
+                                <div class="overflow-x-auto modal-scroll flex-1">
+                                    <table class="w-full text-right border-collapse min-w-[300px]">
+                                        <thead><tr class="border-b-2 border-slate-100 text-[10px] text-slate-400 font-black tracking-wider"><th class="pb-2 w-8">#</th><th class="pb-2">מוצר</th><th class="pb-2 text-center">כמות</th><th class="pb-2 text-left">הכנסה</th></tr></thead>
+                                        <tbody id="analytics-top-products"></tbody>
+                                    </table>
+                                </div>
+                                <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
+                                    <button onclick="changeAnalyticsPage('top', -1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                    <span id="analytics-top-page-info" class="text-[10px] font-bold text-slate-400"></span>
+                                    <button onclick="changeAnalyticsPage('top', 1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-arrow-trend-down text-red-500 mr-1"></i> דורש שיפור (ללא מכירות)</h4>
+                                </div>
+                                <div class="overflow-x-auto modal-scroll flex-1">
+                                    <table class="w-full text-right border-collapse min-w-[300px]">
+                                        <thead><tr class="border-b-2 border-slate-100 text-[10px] text-slate-400 font-black tracking-wider"><th class="pb-2">מוצר</th><th class="pb-2">קטגוריה</th><th class="pb-2 text-center">סטטוס</th></tr></thead>
+                                        <tbody id="analytics-slow-products"></tbody>
+                                    </table>
+                                </div>
+                                <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
+                                    <button onclick="changeAnalyticsPage('slow', -1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                                    <span id="analytics-slow-page-info" class="text-[10px] font-bold text-slate-400"></span>
+                                    <button onclick="changeAnalyticsPage('slow', 1)" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                            <h4 class="font-bold text-slate-700 text-sm mb-4">מפת חום - עומסים והזמנות</h4>
+                            <div id="analytics-heatmap" class="overflow-x-auto modal-scroll pb-2"></div>
+                            <div class="flex items-center justify-end gap-2 mt-3 text-[9px] text-slate-400 font-bold">
+                                <span>פחות עומס</span>
+                                <div class="w-24 h-2 rounded-full" style="background: linear-gradient(to left, #f97316, #f1f5f9);"></div>
+                                <span>עומס גבוה</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="font-bold text-slate-700 text-sm">נתונים גולמיים</h4>
+                                <span id="analytics-orders-count-label" class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold"></span>
+                            </div>
+                            <div class="overflow-x-auto modal-scroll max-h-64">
+                                <table class="w-full text-right border-collapse min-w-[600px]">
+                                    <thead class="sticky top-0 bg-slate-100/90 backdrop-blur-sm z-10 shadow-sm">
+                                        <tr class="text-[10px] text-slate-500 font-black tracking-wider">
+                                            <th class="py-2.5 px-4 rounded-tr-lg">מזהה</th><th class="py-2.5 px-4">תאריך ושעה</th><th class="py-2.5 px-4">לקוח</th><th class="py-2.5 px-4">סוג</th><th class="py-2.5 px-4">סטטוס</th><th class="py-2.5 px-4 rounded-tl-lg text-left">סה"כ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="analytics-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>`);
 
-        // Inject Tender Modal
+        // הזרקת מודאל הסליקה (Tender Screen)
         document.body.insertAdjacentHTML('beforeend', `
         <div id="pos-tender-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-[110] flex items-center justify-center p-2 sm:p-4 fade-in">
             <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] dir-rtl">
@@ -8376,20 +8588,22 @@ window.injectBusinessUI = function() {
             </div>
         </div>`);
 
-        // Inject Modifiers Modal
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-indigo-600 p-5 flex justify-between items-center text-white shrink-0">
-                    <h3 class="text-xl font-black truncate pr-2 flex items-center gap-2"><i class="fa-solid fa-utensils"></i> <span id="pos-mod-title">הרכבת מנה</span></h3>
-                    <button onclick="document.getElementById('pos-modifiers-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/40 transition"><i class="fa-solid fa-xmark"></i></button>
+        const oldModModal = document.getElementById('pos-modifiers-modal');
+        if(!oldModModal) {
+            document.body.insertAdjacentHTML('beforeend', `
+            <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
+                <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                    <div class="bg-indigo-600 p-5 flex justify-between items-center text-white shrink-0">
+                        <h3 class="text-xl font-black truncate pr-2 flex items-center gap-2"><i class="fa-solid fa-utensils"></i> <span id="pos-mod-title">הרכבת מנה</span></h3>
+                        <button onclick="document.getElementById('pos-modifiers-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/40 transition"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div id="pos-mod-groups" class="flex-1 overflow-y-auto p-5 modal-scroll bg-slate-50 space-y-4 dir-rtl"></div>
+                    <div class="p-4 bg-white border-t border-slate-100 shrink-0">
+                        <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-lg">אשר והוסף למנה <i class="fa-solid fa-plus ml-1"></i></button>
+                    </div>
                 </div>
-                <div id="pos-mod-groups" class="flex-1 overflow-y-auto p-5 modal-scroll bg-slate-50 space-y-4 dir-rtl"></div>
-                <div class="p-4 bg-white border-t border-slate-100 shrink-0">
-                    <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-lg">אשר והוסף למנה <i class="fa-solid fa-plus ml-1"></i></button>
-                </div>
-            </div>
-        </div>`);
+            </div>`);
+        }
     }
 
     if(!document.getElementById('tab-sales')) {
@@ -8398,6 +8612,32 @@ window.injectBusinessUI = function() {
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
+    }
+};
+
+window.switchSalesTab = function(subTab) {
+    if (!subTab) return;
+
+    ['pos', 'orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
+        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    });
+    
+    const targetView = document.getElementById(`sales-view-${subTab}`); if(targetView) targetView.classList.remove('hidden');
+    const targetBtn = document.getElementById(`btn-sales-${subTab}`); if(targetBtn) targetBtn.className = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+
+    if(subTab === 'pos') { window.renderPOSCatalog('all'); }
+    if(subTab === 'orders') { if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); }
+    if(subTab === 'catalog') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); }
+    if(subTab === 'marketing') { if (typeof fetchStoreMarketing === 'function') fetchStoreMarketing(); } 
+    if(subTab === 'settings') { if (typeof fetchStoreSettings === 'function') fetchStoreSettings(); }
+    if(subTab === 'quotes') {
+        const list = document.getElementById('store-quotes-list');
+        if(list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען הצעות מחיר...</p>';
+        if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+    }
+    if (subTab === 'analytics') {
+        setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
     }
 };
 
