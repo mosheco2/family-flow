@@ -8290,7 +8290,6 @@ window.renderStoreCatalog = function() {
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
     }
-};
 window.switchSalesTab = function(subTab) {
     ['pos', 'orders', 'catalog', 'marketing', 'settings', 'quotes', 'analytics'].forEach(t => {
         const view = getEl(`sales-view-${t}`); if(view) view.classList.add('hidden');
