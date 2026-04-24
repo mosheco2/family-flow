@@ -528,6 +528,7 @@ window.injectBusinessUI = function() {
                 </div>
             </div>`);
 
+        // הוספת מודאל המודפיירים של הקופה (הרכבת מנה / תוספות)
         document.body.insertAdjacentHTML('beforeend', `
         <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
             <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -542,6 +543,7 @@ window.injectBusinessUI = function() {
             </div>
         </div>`);
     }
+
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
         if(tabBank) {
