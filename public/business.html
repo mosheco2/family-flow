@@ -897,6 +897,7 @@
                                 </div>
                             </div>
                             <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
+                                onclick="switchSalesTab('pos')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition"><i class="fa-solid fa-cash-register text-emerald-500 mr-1"></i> קופה (POS)</button>
                                 <button id="btn-sales-orders" onclick="switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
                                 <button id="btn-sales-quotes" onclick="switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                                 <button id="btn-sales-catalog" onclick="switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מוצרים</button>
@@ -904,7 +905,39 @@
                                 <button id="btn-sales-analytics" onclick="switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">אנליטיקה 📊</button>
                                 <button id="btn-sales-settings" onclick="switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
                             </div>
-
+                            <div id="sales-view-pos" class="hidden h-[75vh] flex flex-col md:flex-row gap-4">
+                                <div class="w-full md:w-[65%] bg-slate-50 rounded-2xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
+                                    <div class="p-3 bg-white border-b border-slate-200 shadow-sm z-10 flex gap-2 items-center">
+                                        <div class="relative flex-1">
+                                            <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2 pr-9 pl-3 rounded-xl text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition dir-rtl">
+                                        </div>
+                                    </div>
+                                    <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
+                                    <div class="flex-1 overflow-y-auto p-3 modal-scroll dir-rtl">
+                                        <div id="pos-catalog-grid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3"></div>
+                                    </div>
+                                </div>
+                                <div class="w-full md:w-[35%] bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl">
+                                    <div class="p-4 bg-indigo-600 text-white flex justify-between items-center shadow-md z-10">
+                                        <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-cash-register"></i> קופה</h3>
+                                        <button onclick="window.clearPOSCart()" class="text-indigo-200 hover:text-white transition text-xs font-bold"><i class="fa-solid fa-trash-can mr-1"></i>נקה קופה</button>
+                                    </div>
+                                    <div class="p-3 border-b border-slate-100 bg-slate-50 flex gap-2">
+                                        <input type="tel" id="pos-customer-phone" placeholder="מס' טלפון לחבר מועדון..." class="modern-input py-2 text-sm w-full dir-ltr text-left border-slate-200 focus:border-indigo-500">
+                                    </div>
+                                    <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-3 bg-slate-50/30"></div>
+                                    <div class="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                                        <div class="flex justify-between items-end mb-4">
+                                            <span class="text-sm font-bold text-slate-500" id="pos-items-count">0 פריטים</span>
+                                            <span class="text-3xl font-black text-indigo-700 dir-ltr" id="pos-total-display">₪0.00</span>
+                                        </div>
+                                        <button id="btn-submit-pos" onclick="window.submitPOSOrder()" class="w-full bg-emerald-500 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-2">
+                                            אישור ותשלום <i class="fa-solid fa-check-double"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                             <div id="sales-view-orders" class="space-y-4">
                                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2">
                                     <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
