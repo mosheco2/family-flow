@@ -544,9 +544,55 @@ window.injectBusinessUI = function() {
         </div>`);
     }
 
+    if(!getEl('content-pos')) {
+        const contentSales = getEl('content-sales');
+        if(contentSales) {
+            contentSales.insertAdjacentHTML('afterend', `
+            <div id="content-pos" class="hidden h-[85vh] flex flex-col md:flex-row gap-4 pb-20 mt-4">
+                <div class="w-full md:w-[65%] bg-slate-50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
+                    <div class="p-3 bg-white border-b border-slate-200 flex gap-2 items-center shadow-sm z-10">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
+                        </div>
+                    </div>
+                    <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
+                    <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
+                        <div id="pos-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-[35%] bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl text-right">
+                    <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow-md z-10">
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-receipt"></i> החשבון</h3>
+                        <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                    </div>
+                    <div class="p-4 border-b border-slate-100 bg-slate-50">
+                        <div class="relative">
+                            <i class="fa-solid fa-user-tag absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400"></i>
+                            <input type="tel" id="pos-customer-phone" oninput="window.checkPOSCustomer()" placeholder="מספר טלפון לזיהוי לקוח..." class="w-full py-3 pr-11 pl-4 rounded-xl border border-slate-200 text-sm focus:border-indigo-500 outline-none transition font-bold dir-ltr text-left shadow-sm">
+                        </div>
+                        <div id="pos-cust-indicator" class="mt-2 px-1 hidden"></div>
+                    </div>
+                    <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
+                    <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
+                        <div class="flex justify-between items-end mb-4">
+                            <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
+                            <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
+                        </div>
+                        <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
+                            תשלום <i class="fa-solid fa-credit-card"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`);
+        }
+    }
+
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
         if(tabBank) {
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('pos')" id="tab-pos" class="tab-btn bg-gradient-to-r from-emerald-500 to-green-600 text-white border-transparent shadow-md font-black px-5 ml-2">קופה (POS) 💰</button>`);
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
@@ -769,7 +815,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','timeclock','shifts','calendar','shop','pantry','sales','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
+    ['feed','timeclock','shifts','calendar','shop','pantry','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -777,10 +823,10 @@ function switchTab(t) {
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active'); 
     
     // ניהול פוטר עגלה ו-FAB
-    if (t !== 'shop') { 
+    if (t !== 'shop' && t !== 'pos') { 
         const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
         const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
-    } else { 
+    } else if (t === 'shop') { 
         try { renderShopList(); } catch(e) {} 
     }
     
@@ -801,6 +847,7 @@ function switchTab(t) {
     if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
+    if (t === 'pos') try { window.renderPOSCatalog('all'); } catch(e) {}
 }
 
 function updateBatteryUI() {
@@ -9269,3 +9316,213 @@ if (!window._originalRenderStoreOrders) {
         }
     };
 }
+// ==========================================
+// --- לוגיקת קופה (POS) ---
+// ==========================================
+window.posCart = [];
+window.posCurrentCategory = 'all';
+window.posSplitPayments = [];
+window.tenderMethod = 'cash';
+window.posCurrentCustomer = null;
+window.currentPOSProduct = null;
+window.currentPOSModifiers = [];
+
+window.renderPOSCatalog = function(cat = 'all') {
+    window.posCurrentCategory = cat;
+    const grid = document.getElementById('pos-catalog-grid');
+    const catTabs = document.getElementById('pos-categories-tabs');
+    if(!grid || !catTabs) return;
+
+    const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
+    catTabs.innerHTML = categories.map(c => 
+        `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${c === cat ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-200'}">${c === 'all' ? 'הכל' : safeStr(c)}</button>`
+    ).join('');
+
+    let products = storeCatalogCache.filter(p => p.is_available);
+    if(cat !== 'all') products = products.filter(p => (p.category || 'כללי') === cat);
+    const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
+    if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
+
+    grid.innerHTML = products.map(p => {
+        const hasMods = p.options_text && p.options_text.length > 10;
+        return `
+        <div onclick="window.addPOSItem(${p.id})" class="bg-white rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full">
+            ${hasMods ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-10"><i class="fa-solid fa-list-ul ml-1"></i>הרכבה</span>` : ''}
+            <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden">
+                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-utensils text-3xl text-slate-300"></i>`}
+            </div>
+            <div class="p-4 flex-1 flex flex-col justify-between text-right">
+                <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
+                <span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${parseFloat(p.price).toFixed(2)}</span>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.addPOSItem = function(id) {
+    const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
+    if (p.options_text && p.options_text.length > 10) {
+        try { 
+            const parsed = JSON.parse(p.options_text);
+            if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); return; }
+        } catch(e) {}
+    }
+    const existing = window.posCart.find(i => i.real_id === p.id && !i.modifiers);
+    if(existing) existing.qty++;
+    else window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: p.name, price: parseFloat(p.price), qty: 1, modifiers: null });
+    window.renderPOSCart();
+};
+
+window.renderPOSCart = function() {
+    const list = document.getElementById('pos-cart-list');
+    const totalEl = document.getElementById('pos-total-display');
+    const countEl = document.getElementById('pos-items-count');
+    if(!list) return;
+    if(window.posCart.length === 0) {
+        list.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300 py-10 opacity-60"><i class="fa-solid fa-cart-shopping text-5xl mb-4"></i><p class="font-bold text-sm">העגלה ריקה</p></div>`;
+        totalEl.innerText = '₪0.00'; countEl.innerText = '0 פריטים'; return;
+    }
+    let total = 0; let count = 0;
+    list.innerHTML = window.posCart.map((item, idx) => {
+        const rowTotal = item.price * item.qty; total += rowTotal; count += item.qty;
+        const modTxt = item.modifiers ? `<div class="text-[10px] text-slate-500 mt-2 font-medium leading-relaxed">${item.modifiers.map(m => `<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 ml-1 inline-block">+ ${m.name}</span>`).join('')}</div>` : '';
+        return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 slide-up text-right relative overflow-hidden">
+            <div class="absolute right-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-2xl"></div>
+            <div class="flex justify-between items-start mb-3 pr-2">
+                <div class="flex-1 pr-1 overflow-hidden">
+                    <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h5>
+                    ${modTxt}
+                </div>
+                <span class="font-black text-slate-800 text-sm dir-ltr">₪${rowTotal.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between items-center bg-slate-50 rounded-xl p-1.5 border border-slate-100 pr-2">
+                <button onclick="window.posRemoveItem(${idx})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                <div class="flex items-center gap-4 bg-white rounded-lg border border-slate-200 shadow-sm px-1.5">
+                    <button onclick="window.updatePOSQty(${idx}, -1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">-</button>
+                    <span class="font-black text-base w-6 text-center text-slate-800">${item.qty}</span>
+                    <button onclick="window.updatePOSQty(${idx}, 1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">+</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    totalEl.innerText = `₪${total.toFixed(2)}`;
+    countEl.innerText = `${count} פריטים`;
+};
+
+window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
+window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
+window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
+
+window.checkPOSCustomer = function() {
+    const phone = document.getElementById('pos-customer-phone').value;
+    const indicator = document.getElementById('pos-cust-indicator');
+    if (phone.length >= 9 && storeCustomersCache) {
+        const c = storeCustomersCache.find(x => x.phone === phone);
+        if (c) { 
+            window.posCurrentCustomer = c; 
+            indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
+            indicator.classList.remove('hidden');
+            document.getElementById('tender-on-account-container').classList.remove('hidden');
+            return;
+        }
+    }
+    window.posCurrentCustomer = null; indicator.classList.add('hidden'); document.getElementById('tender-on-account-container').classList.add('hidden');
+};
+
+window.openPOSTender = function() {
+    if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
+    window.posSplitPayments = []; window.tenderMethod = 'cash';
+    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
+    document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
+    document.getElementById('tender-input-amount').value = total.toFixed(2);
+    document.getElementById('pos-tender-modal').classList.remove('hidden');
+    window.setTenderMethod('cash'); window.updateTenderDisplay();
+};
+
+window.setTenderMethod = function(m) {
+    window.tenderMethod = m;
+    ['cash', 'credit', 'account'].forEach(btn => document.getElementById(`btn-tender-${btn}`).classList.remove('border-indigo-600', 'bg-indigo-50/50'));
+    document.getElementById(`btn-tender-${m === 'on_account' ? 'account' : m}`).classList.add('border-indigo-600', 'bg-indigo-50/50');
+};
+
+window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
+
+window.addPaymentToSplit = function() {
+    const amt = parseFloat(document.getElementById('tender-input-amount').value) || 0; if(amt <= 0) return;
+    const names = { 'cash': 'מזומן', 'credit': 'אשראי', 'on_account': 'הקפה' };
+    window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod], amount: amt });
+    window.updateTenderDisplay();
+};
+
+window.updateTenderDisplay = function() {
+    const list = document.getElementById('tender-payments-list');
+    let totalDue = 0; window.posCart.forEach(i => totalDue += (i.price * i.qty));
+    let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
+    list.innerHTML = window.posSplitPayments.map((p, i) => `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm mb-2"><span class="font-bold text-slate-700">${p.name}</span><div class="flex items-center gap-3"><strong class="text-base text-slate-800">₪${p.amount.toFixed(2)}</strong><button onclick="window.posSplitPayments.splice(${i},1); window.updateTenderDisplay();" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button></div></div>`).join('');
+    const balance = totalDue - paid;
+    const btn = document.getElementById('btn-finalize-pos');
+    if (balance <= 0) {
+        document.getElementById('tender-balance-label').innerText = "עודף להחזרה:"; document.getElementById('tender-balance-val').innerText = `₪${Math.abs(balance).toFixed(2)}`;
+        btn.disabled = false; btn.classList.replace('bg-slate-300', 'bg-emerald-500'); btn.classList.remove('cursor-not-allowed', 'opacity-50');
+    } else {
+        document.getElementById('tender-balance-label').innerText = "יתרה לתשלום:"; document.getElementById('tender-balance-val').innerText = `₪${balance.toFixed(2)}`;
+        document.getElementById('tender-input-amount').value = balance.toFixed(2);
+        btn.disabled = true; btn.classList.replace('bg-emerald-500', 'bg-slate-300'); btn.classList.add('cursor-not-allowed', 'opacity-50');
+    }
+};
+
+window.openPOSModifiersModal = function(p, mods) {
+    window.currentPOSProduct = p; window.currentPOSModifiers = mods;
+    document.getElementById('pos-mod-title').innerText = p.name;
+    document.getElementById('pos-mod-groups').innerHTML = mods.map((g, gi) => `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-2">
+                <h4 class="font-black text-slate-800 text-base">${safeStr(g.name)}</h4>
+                <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">${g.type==='multiple' ? 'בחירה חופשית' : 'חובה (1)'}</span>
+            </div>
+            <div class="space-y-2">
+                ${g.options.map((o, oi) => `
+                    <label class="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <input type="${g.type==='multiple'?'checkbox':'radio'}" name="mod_g_${gi}" value="${oi}" class="w-5 h-5 accent-indigo-600" ${!g.type==='multiple' && oi===0 ? 'checked' : ''}>
+                            <span class="text-sm font-bold text-slate-700 group-hover:text-indigo-800 transition">${safeStr(o.name)}</span>
+                        </div>
+                        ${o.price>0?`<span class="text-xs font-black text-indigo-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm dir-ltr">+₪${o.price}</span>`:''}
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+    document.getElementById('pos-modifiers-modal').classList.remove('hidden');
+};
+
+window.submitPOSModifiers = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    window.currentPOSModifiers.forEach((g, gi) => {
+        const checked = document.querySelectorAll(`input[name="mod_g_${gi}"]:checked`);
+        checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
+    });
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    document.getElementById('pos-modifiers-modal').classList.add('hidden'); window.renderPOSCart();
+};
+
+window.finalizePOSOrder = async function() {
+    const btn = document.getElementById('btn-finalize-pos'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד...';
+    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
+    const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price * i.qty, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
+    try {
+        const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, customerName: window.posCurrentCustomer?.name || 'לקוח קופה', customerPhone: document.getElementById('pos-customer-phone').value, items, totalAmount: total, isDelivery: false, notes: 'עסקת קופה (POS) | אמצעי תשלום: ' + JSON.stringify(window.posSplitPayments) }) });
+        if((await res.json()).success) {
+            if(document.getElementById('tender-send-receipt').checked && document.getElementById('pos-customer-phone').value) {
+                const waMsg = encodeURIComponent(`היי ${window.posCurrentCustomer?.name || ''}, תודה שקנית ב-${currentGroup.name}! 🙏\nההזמנה שלך בוצעה בהצלחה.\nסה"כ לתשלום: ₪${total.toFixed(2)}`);
+                window.open(`https://wa.me/972${document.getElementById('pos-customer-phone').value.substring(1)}?text=${waMsg}`, '_blank');
+            }
+            showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
+            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+            document.getElementById('pos-customer-phone').value = '';
+            window.checkPOSCustomer();
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
+};
