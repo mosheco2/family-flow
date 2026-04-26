@@ -4326,6 +4326,75 @@ window.processDebtPayment = async function(phone, amount) {
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
 
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                if (o.items && typeof o.items === 'string') {
+                    const itemsArr = JSON.parse(o.items);
+                    const metaItem = itemsArr.find(i => i.is_quote_metadata);
+                    if (metaItem && metaItem.data) {
+                        const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
+                        if (meta.payments) {
+                            meta.payments.forEach(p => {
+                                if (p.method === 'on_account') debt += p.amount;
+                                if (p.method === 'debt_payment') debt -= p.amount;
+                            });
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח קבוע';
+    
+    const metaData = { 
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
+    };
+    
+    const items = [
+        { catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) }
+    ];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false 
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התשלום');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
 window.openCustomerModal = function(id = null, tab = 'details') {
     let modal = document.getElementById('customer-modal');
     if (modal) modal.remove(); 
@@ -4403,17 +4472,14 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     
     modal = document.getElementById('customer-modal');
     
-    if (id) {
-        const c = storeCustomersCache.find(x => String(x.id) === String(id));
-        if (c) {
-            if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
-            document.getElementById('cust-name').value = c.name || '';
-            document.getElementById('cust-phone').value = c.phone || '';
-            document.getElementById('cust-email').value = c.email || '';
-            document.getElementById('cust-business-id').value = c.business_id || '';
-            document.getElementById('cust-notes').value = c.notes || '';
-            document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
-        }
+    if (c) {
+        if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
+        document.getElementById('cust-name').value = c.name || '';
+        document.getElementById('cust-phone').value = c.phone || '';
+        document.getElementById('cust-email').value = c.email || '';
+        document.getElementById('cust-business-id').value = c.business_id || '';
+        document.getElementById('cust-notes').value = c.notes || '';
+        document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
         document.getElementById('cust-name').value = '';
@@ -8596,6 +8662,9 @@ setInterval(() => {
 // ==========================================
 // --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
 // ==========================================
+// ==========================================
+// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
+// ==========================================
 window.posCart = [];
 window.posCurrentCategory = 'all';
 window.posSplitPayments = [];
@@ -8663,7 +8732,6 @@ window.renderPOSCart = function() {
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
-    // הזרקה דינמית של תצוגת המע"מ כדי להבטיח שהיא קיימת בעגלת הקופה
     let vatDisplay = document.getElementById('pos-vat-display');
     if (!vatDisplay && countEl) {
         const totalContainer = countEl.parentNode;
@@ -8732,6 +8800,7 @@ window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.po
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const indicator = document.getElementById('pos-cust-indicator');
+    const tenderAccountBtn = document.getElementById('tender-on-account-container');
     
     if (phone.length >= 9 && storeCustomersCache) {
         const c = storeCustomersCache.find(x => x.phone === phone);
@@ -8741,11 +8810,13 @@ window.checkPOSCustomer = function() {
                 indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
                 indicator.classList.remove('hidden');
             }
+            if(tenderAccountBtn) tenderAccountBtn.classList.remove('hidden');
             return;
         }
     }
     window.posCurrentCustomer = null; 
     if(indicator) indicator.classList.add('hidden'); 
+    if(tenderAccountBtn) tenderAccountBtn.classList.add('hidden');
 };
 
 window.openPOSTender = function() {
@@ -8755,7 +8826,6 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
-    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -8780,6 +8850,12 @@ window.openPOSTender = function() {
         }
     }
     
+    const tenderAccountBtn = document.getElementById('tender-on-account-container');
+    if(tenderAccountBtn) {
+        if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
+        else tenderAccountBtn.classList.add('hidden');
+    }
+
     document.getElementById('pos-tender-modal').classList.remove('hidden');
     window.setTenderMethod('cash'); window.updateTenderDisplay();
 };
@@ -8878,7 +8954,6 @@ window.finalizePOSOrder = async function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח מזדמן';
     
-    // מכין את הפריטים לשמירה. השרת נופל אם ה-catalogId חסר במזהה כללי (זר/מוכר), אז מגן על המזהים.
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
     const vatSettings = window.getVatSettings();
@@ -8891,11 +8966,10 @@ window.finalizePOSOrder = async function() {
     }
     
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
-    // עוקף בעיית שרת (השרת לא שומר את notes) – דוחף את המידע החשוב לפריט דמה עם מזהה 999999 (שהשרת מתעלם ממנו).
+    // אובייקט "דמה" שנושא את המידע החשוב אך עוקף את שגיאת המפתח הזר במסד הנתונים
     items.push({ catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
     try {
-        // עקיפת "שגיאת הרשת": השרת קורס אם מקבל status: 'completed' בשלב היצירה המקורית. נשלח רק מה שהשרת מצפה לו.
         const res = await fetch(`${API}/store/orders`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: total, isDelivery: false }) 
@@ -8905,7 +8979,7 @@ window.finalizePOSOrder = async function() {
         if(data.success) {
             const newOrderId = data.orderId || data.id;
             
-            // עדכון הסטטוס בשאילתה נפרדת כדי למנוע קריסה
+            // עדכון הסטטוס לקומפליט נעשה כאן למנוע שגיאת רשת בבקשה המקורית
             if (newOrderId) {
                 await fetch(`${API}/store/orders/status`, { 
                     method: 'POST', headers: {'Content-Type':'application/json'}, 
@@ -8957,7 +9031,6 @@ window.printPOSReceipt = function(orderId = null) {
     const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
     if(!idToPrint) return;
     
-    // משהה קלות כדי לתת לשרת לעדכן את המטמון
     setTimeout(() => {
         const order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
         if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
@@ -8966,7 +9039,6 @@ window.printPOSReceipt = function(orderId = null) {
         const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
         
         rawItems.forEach(i => {
-            // החרגת פריטי מטא-דאטה מההדפסה (הצגת פריטים רגילים ותשלומי חוב)
             if (i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
             if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
@@ -9034,7 +9106,7 @@ window.printPOSReceipt = function(orderId = null) {
             iframe.contentWindow.print();
             showToast('success', 'הקבלה נשלחה להדפסה');
         }, 500);
-    }, 300);
+    }, 500);
 };
 
 window.fetchStoreSettings = async function() {
