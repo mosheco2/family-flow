@@ -1948,24 +1948,25 @@ app.get('/api/store/orders/:groupId', async (req, res) => {
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
     try {
-        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails } = req.body;
+        const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status } = req.body;
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
         
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
+        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
         
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
         const actualDeliveryFee = parseFloat(deliveryFee) || 0;
         const isDeliv = isDelivery === true || isDelivery === 'true';
         
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
+        const initialStatus = status || 'new';
         
-        // תיקון קריטי: אנחנו דורסים במפורש את quote_status ל-NULL בהזמנות רגילות מהקופה
         const oRes = await dbClient.query(
-            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL) RETURNING id', 
-            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, 'new', isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId]
+            'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10) RETURNING id', 
+            [groupId, customerName, customerPhone, parseFloat(totalAmount)||0, initialStatus, isDeliv, actualDeliveryFee, deliveryDetailsStr, familyGroupId, notes || null]
         );
         const orderId = oRes.rows[0].id;
         
@@ -1973,7 +1974,7 @@ app.post('/api/store/orders', async (req, res) => {
         await dbClient.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
         
         for (let item of items) {
-            if (item.catalogId === 999999 || item.is_delivery_metadata) continue;
+            if (item.catalogId === 999999 || item.is_quote_metadata || item.is_delivery_metadata) continue;
             
             await dbClient.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)', [orderId, item.catalogId, item.name, item.quantity, item.price]);
             itemsHtmlList += `<li>${item.name} - כמות: ${item.quantity} - ₪${item.price}</li>`;
@@ -1985,12 +1986,9 @@ app.post('/api/store/orders', async (req, res) => {
         
         await dbClient.query('COMMIT');
 
-        // תיקון יצירת הלקוח ברקע: חיפוש גם לפי שם וגם לפי טלפון
         setTimeout(async () => {
             try {
                 if (!customerName) return;
-                
-                // בדיקה אם הלקוח כבר קיים (לפי טלפון קודם, ואז לפי שם)
                 let custExist;
                 if (customerPhone) {
                      custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND (phone = $2 OR name = $3)', [groupId, customerPhone, customerName]);
@@ -1998,7 +1996,6 @@ app.post('/api/store/orders', async (req, res) => {
                      custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [groupId, customerName]);
                 }
 
-                // אם הלקוח לא קיים, יוצרים אותו
                 if (custExist.rows.length === 0) {
                     await pool.query(
                         `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
@@ -2006,7 +2003,6 @@ app.post('/api/store/orders', async (req, res) => {
                         [groupId, customerName, customerPhone || '', `נוצר אוטומטית מהזמנה בקופה #${orderId}`]
                     );
                 } else {
-                    // עדכון טלפון ללקוח קיים אם לא היה לו
                     if (customerPhone) {
                         const custId = custExist.rows[0].id;
                         await pool.query('UPDATE store_customers SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = \'\')', [customerPhone, custId]);
