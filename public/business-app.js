@@ -390,6 +390,7 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 window.injectBusinessUI = function() {
+    // מניעת כפילויות במקרה של קריאה חוזרת
     ['content-shifts', 'cust-main-tabs', 'content-sales', 'content-pos'].forEach(id => {
         const el = document.getElementById(id); if(el) el.remove();
     });
@@ -470,10 +471,11 @@ window.injectBusinessUI = function() {
                         </div>
                         <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
                         <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
-                            <div class="flex justify-between items-end mb-4">
+                            <div class="flex justify-between items-end mb-1">
                                 <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
                                 <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                             </div>
+                            <div id="pos-vat-display" class="text-left text-[11px] text-slate-500 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>
                             <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
                                 תשלום <i class="fa-solid fa-credit-card"></i>
                             </button>
@@ -563,7 +565,11 @@ window.injectBusinessUI = function() {
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי):</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סלוגן:</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm w-full"></div>
                                 </div>
+                                
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לחנות הציבורית:</label>
                                     <div class="flex gap-2">
@@ -578,11 +584,12 @@ window.injectBusinessUI = function() {
                                          <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
                                          <div class="flex items-center gap-3">
                                              <div class="relative w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                                 <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                                 <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
                                                  <i id="store-logo-placeholder" class="fa-solid fa-store text-2xl text-slate-300"></i>
                                              </div>
                                              <div class="flex flex-col gap-2 w-full">
                                                  <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                 <button onclick="clearImage('store-logo')" id="btn-clear-logo" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
                                              </div>
                                              <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
                                              <input type="hidden" id="store-logo-base64">
@@ -592,16 +599,28 @@ window.injectBusinessUI = function() {
                                          <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
                                          <div class="flex items-center gap-3 mb-2">
                                              <div class="relative w-24 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                                 <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                                 <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="openStoreImageModal(this.src)" title="לחץ להגדלה">
                                                  <i id="store-banner-placeholder" class="fa-regular fa-image text-2xl text-slate-300"></i>
                                              </div>
                                              <div class="flex flex-col gap-2 w-full">
                                                  <button onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                 <button onclick="clearImage('store-banner')" id="btn-clear-bg" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק רקע</button>
                                              </div>
                                              <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
                                              <input type="hidden" id="store-banner-base64">
                                          </div>
+                                         <button id="btn-generate-banner-ai" onclick="generateBannerAI()" class="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full hidden"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
                                     </div>
+                                </div>
+
+                                <h4 class="font-black text-slate-800 mb-4 mt-8">תבניות הרכבה (Modifiers)</h4>
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <label class="text-xs font-bold text-slate-700">תבניות קיימות במערכת:</label>
+                                        <select id="preset-selector" onchange="loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-2/3 bg-white hidden"></select>
+                                    </div>
+                                    <div id="modifiers-builder-container" class="space-y-3"></div>
+                                    <button onclick="addModifierGroup()" class="mt-3 bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm w-full"><i class="fa-solid fa-plus mr-1"></i> הוסף קבוצת בחירה חדשה (תוספות / הרכבה)</button>
                                 </div>
                             </div>
                             <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
@@ -8375,10 +8394,16 @@ window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
+    const vatDisplay = document.getElementById('pos-vat-display');
+    const vatValEl = document.getElementById('pos-vat-val');
+
     if(!list) return;
     if(window.posCart.length === 0) {
         list.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300 py-10 opacity-60"><i class="fa-solid fa-cart-shopping text-5xl mb-4"></i><p class="font-bold text-sm">העגלה ריקה</p></div>`;
-        totalEl.innerText = '₪0.00'; countEl.innerText = '0 פריטים'; return;
+        if(totalEl) totalEl.innerText = '₪0.00'; 
+        if(countEl) countEl.innerText = '0 פריטים'; 
+        if(vatDisplay) vatDisplay.classList.add('hidden');
+        return;
     }
     let total = 0; let count = 0;
     list.innerHTML = window.posCart.map((item, idx) => {
@@ -8404,8 +8429,22 @@ window.renderPOSCart = function() {
             </div>
         </div>`;
     }).join('');
-    totalEl.innerText = `₪${total.toFixed(2)}`;
-    countEl.innerText = `${count} פריטים`;
+    
+    if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
+    if(countEl) countEl.innerText = `${count} פריטים`;
+    
+    if(vatDisplay) {
+        const vatSettings = window.getVatSettings ? window.getVatSettings() : { enabled: false, rate: 18 };
+        if(vatSettings && vatSettings.enabled) {
+            const rate = vatSettings.rate || 18;
+            const subtotal = total / (1 + (rate / 100));
+            const vatAmount = total - subtotal;
+            if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
+            vatDisplay.classList.remove('hidden');
+        } else {
+            vatDisplay.classList.add('hidden');
+        }
+    }
 };
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
