@@ -4180,6 +4180,75 @@ window.processDebtPayment = async function(phone, amount) {
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
 
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                if (o.notes && o.notes.includes('{')) {
+                    const meta = JSON.parse(o.notes);
+                    if (meta.payments) {
+                        meta.payments.forEach(p => {
+                            if (p.method === 'on_account') debt += p.amount;
+                            if (p.method === 'debt_payment') debt -= p.amount;
+                        });
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח קבוע';
+    
+    const metaData = { 
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
+    };
+    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData)
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            const newOrderId = data.orderId || data.id;
+            if (newOrderId) {
+                await fetch(`${API}/store/orders/status`, { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                });
+            }
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התשלום');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
 window.openCustomerModal = function(id = null, tab = 'details') {
     let modal = document.getElementById('customer-modal');
     if (modal) modal.remove(); 
@@ -4257,14 +4326,17 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     
     modal = document.getElementById('customer-modal');
     
-    if (c) {
-        if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
-        document.getElementById('cust-name').value = c.name || '';
-        document.getElementById('cust-phone').value = c.phone || '';
-        document.getElementById('cust-email').value = c.email || '';
-        document.getElementById('cust-business-id').value = c.business_id || '';
-        document.getElementById('cust-notes').value = c.notes || '';
-        document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
+    if (id) {
+        const c = storeCustomersCache.find(x => String(x.id) === String(id));
+        if (c) {
+            if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
+            document.getElementById('cust-name').value = c.name || '';
+            document.getElementById('cust-phone').value = c.phone || '';
+            document.getElementById('cust-email').value = c.email || '';
+            document.getElementById('cust-business-id').value = c.business_id || '';
+            document.getElementById('cust-notes').value = c.notes || '';
+            document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
+        }
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
         document.getElementById('cust-name').value = '';
@@ -8448,6 +8520,9 @@ setInterval(() => {
 // --- לוגיקת קופה (POS) ---
 // ============================================================
 
+// ==========================================
+// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
+// ==========================================
 window.posCart = [];
 window.posCurrentCategory = 'all';
 window.posSplitPayments = [];
@@ -8515,14 +8590,10 @@ window.renderPOSCart = function() {
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
-    // הזרקה דינמית של תצוגת המע"מ לעגלה עצמה
     let vatDisplay = document.getElementById('pos-vat-display');
-    if (!vatDisplay && countEl) {
-        const totalContainer = countEl.parentNode;
-        if(totalContainer) {
-            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
-            vatDisplay = document.getElementById('pos-vat-display');
-        }
+    if (!vatDisplay && totalEl) {
+        totalEl.parentNode.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+        vatDisplay = document.getElementById('pos-vat-display');
     }
 
     if(!list) return;
@@ -8533,6 +8604,7 @@ window.renderPOSCart = function() {
         if(vatDisplay) vatDisplay.classList.add('hidden');
         return;
     }
+    
     let total = 0; let count = 0;
     list.innerHTML = window.posCart.map((item, idx) => {
         const rowTotal = item.price * item.qty; total += rowTotal; count += item.qty;
@@ -8561,7 +8633,6 @@ window.renderPOSCart = function() {
     if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
     if(countEl) countEl.innerText = `${count} פריטים`;
     
-    // חישוב המע"מ הדינמי והצגתו
     if(vatDisplay) {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled) {
@@ -8584,6 +8655,7 @@ window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.po
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const indicator = document.getElementById('pos-cust-indicator');
+    const tenderAccountBtn = document.getElementById('tender-on-account-container');
     
     if (phone.length >= 9 && storeCustomersCache) {
         const c = storeCustomersCache.find(x => x.phone === phone);
@@ -8593,11 +8665,13 @@ window.checkPOSCustomer = function() {
                 indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
                 indicator.classList.remove('hidden');
             }
+            if(tenderAccountBtn) tenderAccountBtn.classList.remove('hidden');
             return;
         }
     }
     window.posCurrentCustomer = null; 
     if(indicator) indicator.classList.add('hidden'); 
+    if(tenderAccountBtn) tenderAccountBtn.classList.add('hidden');
 };
 
 window.openPOSTender = function() {
@@ -8607,7 +8681,6 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
-    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -8630,6 +8703,12 @@ window.openPOSTender = function() {
         } else {
             tenderVatDisplay.classList.add('hidden');
         }
+    }
+    
+    const tenderAccountBtn = document.getElementById('tender-on-account-container');
+    if(tenderAccountBtn) {
+        if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
+        else tenderAccountBtn.classList.add('hidden');
     }
 
     document.getElementById('pos-tender-modal').classList.remove('hidden');
@@ -8732,7 +8811,6 @@ window.finalizePOSOrder = async function() {
     
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
-    // שמירת כל נתוני המע"מ ואמצעי התשלום לקבלה עתידית (הדפסה מתוך כרטיס הזמנה)
     const vatSettings = window.getVatSettings();
     let vatDetails = null;
     if (vatSettings && vatSettings.enabled) {
@@ -8745,10 +8823,19 @@ window.finalizePOSOrder = async function() {
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
 
     try {
-        const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: total, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed' }) });
+        const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: total, isDelivery: false, notes: JSON.stringify(metaData) }) });
         const data = await res.json();
         
         if(data.success) {
+            const newOrderId = data.orderId || data.id;
+            
+            if (newOrderId) {
+                await fetch(`${API}/store/orders/status`, { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                });
+            }
+
             if(document.getElementById('tender-send-receipt').checked && phone) {
                 let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
                 waMsg += `הזמנה #${Date.now().toString().slice(-4)}\n`;
@@ -8773,12 +8860,10 @@ window.finalizePOSOrder = async function() {
             
             showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); 
             
-            // עדכון רשימת ההזמנות כדי שההזמנה החדשה תיכנס מיד להיסטוריה (ומשם נשלוף להדפסה)
             if(typeof window.fetchStoreOrders === 'function') {
                 await window.fetchStoreOrders();
             }
             
-            const newOrderId = data.orderId || data.id || (storeOrdersCache && storeOrdersCache.length > 0 ? storeOrdersCache[0].id : null);
             if(newOrderId) window.printPOSReceipt(newOrderId);
 
             window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
@@ -8794,78 +8879,82 @@ window.finalizePOSOrder = async function() {
 window.printPOSReceipt = function(orderId = null) {
     const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
     if(!idToPrint) return;
-    const order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
-    if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
     
-    let itemsHtml = '';
-    const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
-    
-    rawItems.forEach(i => {
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
-    });
-    
-    let vatHtml = '';
-    let paymentsHtml = '';
-    
-    try {
-        if(order.notes && order.notes.includes('{')) {
-            const meta = JSON.parse(order.notes);
-            if (meta.vat && meta.vat.enabled) {
-                vatHtml = `
-                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
-                        <div style="display:flex; justify-content:space-between;"><span>סכום ביניים:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
-                        <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
-                    </div>
-                `;
-            }
-            if (meta.payments && meta.payments.length > 0) {
-                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
-                meta.payments.forEach(p => {
-                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><span>₪${p.amount.toFixed(2)}</span></div>`;
-                });
-                paymentsHtml += `</div>`;
-            }
-        }
-    } catch(e) {}
-    
-    const receiptHtml = `
-        <html dir="rtl">
-        <head><title>קבלה ${order.id}</title>
-        <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
-        </head>
-        <body>
-            <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
-            <div style="text-align:center; margin-bottom:15px; font-size:12px;">קבלה / הזמנה #${order.id}<br>${new Date(order.created_at || Date.now()).toLocaleString('he-IL')}</div>
-            <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
-                ${itemsHtml}
-            </div>
-            ${vatHtml}
-            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
-                <span>סה"כ שולם:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
-            </div>
-            ${paymentsHtml}
-            <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
-        </body>
-        </html>
-    `;
-
-    let iframe = document.getElementById('receipt-printer-frame');
-    if(!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'receipt-printer-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(receiptHtml);
-    iframe.contentWindow.document.close();
-    
+    // משהה את ההדפסה קלות כדי לתת למערכת לטעון את ההזמנה החדשה למטמון אם צריך
     setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        showToast('success', 'הקבלה נשלחה להדפסה');
-    }, 500);
+        const order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
+        if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
+        
+        let itemsHtml = '';
+        const rawItems = Array.isArray(order.items) ? order.items.filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))) : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
+        
+        rawItems.forEach(i => {
+            itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+            if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
+        });
+        
+        let vatHtml = '';
+        let paymentsHtml = '';
+        
+        try {
+            if(order.notes && order.notes.includes('{')) {
+                const meta = JSON.parse(order.notes);
+                if (meta.vat && meta.vat.enabled) {
+                    vatHtml = `
+                        <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                            <div style="display:flex; justify-content:space-between;"><span>סכום ביניים:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
+                            <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
+                        </div>
+                    `;
+                }
+                if (meta.payments && meta.payments.length > 0) {
+                    paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
+                    meta.payments.forEach(p => {
+                        paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><span>₪${p.amount.toFixed(2)}</span></div>`;
+                    });
+                    paymentsHtml += `</div>`;
+                }
+            }
+        } catch(e) {}
+        
+        const receiptHtml = `
+            <html dir="rtl">
+            <head><title>קבלה ${order.id}</title>
+            <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+            </head>
+            <body>
+                <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
+                <div style="text-align:center; margin-bottom:15px; font-size:12px;">קבלה / הזמנה #${order.id}<br>${new Date(order.created_at || Date.now()).toLocaleString('he-IL')}</div>
+                <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
+                    ${itemsHtml}
+                </div>
+                ${vatHtml}
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+                    <span>סה"כ שולם:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
+                </div>
+                ${paymentsHtml}
+                <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
+            </body>
+            </html>
+        `;
+
+        let iframe = document.getElementById('receipt-printer-frame');
+        if(!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'receipt-printer-frame';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+        iframe.contentWindow.document.open();
+        iframe.contentWindow.document.write(receiptHtml);
+        iframe.contentWindow.document.close();
+        
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            showToast('success', 'הקבלה נשלחה להדפסה');
+        }, 500);
+    }, 300);
 };
 
 window.fetchStoreSettings = async function() {
