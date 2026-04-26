@@ -470,12 +470,12 @@ window.injectBusinessUI = function() {
                             <div id="pos-cust-indicator" class="mt-2 px-1 hidden"></div>
                         </div>
                         <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
-                        <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
+                        <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0 relative">
                             <div class="flex justify-between items-end mb-1">
                                 <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
                                 <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                             </div>
-                            <div id="pos-vat-display" class="text-left text-[11px] text-slate-500 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>
+                            <div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>
                             <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
                                 תשלום <i class="fa-solid fa-credit-card"></i>
                             </button>
@@ -4114,6 +4114,68 @@ window.processDebtPayment = async function(phone, amount) {
             showToast('success', 'החוב שולם בהצלחה!');
             if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
             if (customer) window.openCustomerModal(customer.id, 'details');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                if (o.notes && o.notes.includes('{')) {
+                    const meta = JSON.parse(o.notes);
+                    if (meta.payments) {
+                        meta.payments.forEach(p => {
+                            if (p.method === 'on_account') debt += p.amount;
+                            if (p.method === 'debt_payment') debt -= p.amount;
+                        });
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח קבוע';
+    
+    const metaData = { 
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
+    };
+    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התשלום');
         }
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
@@ -8453,7 +8515,7 @@ window.renderPOSCart = function() {
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
-    // הזרקה דינמית של תצוגת המע"מ כדי להבטיח שהיא קיימת ב-DOM של הקופה
+    // הזרקה דינמית של תצוגת המע"מ לעגלה עצמה
     let vatDisplay = document.getElementById('pos-vat-display');
     if (!vatDisplay && countEl) {
         const totalContainer = countEl.parentNode;
@@ -8499,6 +8561,7 @@ window.renderPOSCart = function() {
     if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
     if(countEl) countEl.innerText = `${count} פריטים`;
     
+    // חישוב המע"מ הדינמי והצגתו
     if(vatDisplay) {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled) {
@@ -8521,7 +8584,6 @@ window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.po
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const indicator = document.getElementById('pos-cust-indicator');
-    const tenderAccountBtn = document.getElementById('tender-on-account-container');
     
     if (phone.length >= 9 && storeCustomersCache) {
         const c = storeCustomersCache.find(x => x.phone === phone);
@@ -8531,13 +8593,11 @@ window.checkPOSCustomer = function() {
                 indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
                 indicator.classList.remove('hidden');
             }
-            if(tenderAccountBtn) tenderAccountBtn.classList.remove('hidden');
             return;
         }
     }
     window.posCurrentCustomer = null; 
     if(indicator) indicator.classList.add('hidden'); 
-    if(tenderAccountBtn) tenderAccountBtn.classList.add('hidden');
 };
 
 window.openPOSTender = function() {
@@ -8547,7 +8607,7 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
-    // הזרקה וחישוב דינמי של תצוגת מע"מ גם בחלון הסליקה עצמו
+    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -8570,13 +8630,6 @@ window.openPOSTender = function() {
         } else {
             tenderVatDisplay.classList.add('hidden');
         }
-    }
-    
-    // ווידוא שכפתור ההקפה מוצג רק אם זוהה לקוח (למניעת הקפות פתוחות)
-    const tenderAccountBtn = document.getElementById('tender-on-account-container');
-    if(tenderAccountBtn) {
-        if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
-        else tenderAccountBtn.classList.add('hidden');
     }
 
     document.getElementById('pos-tender-modal').classList.remove('hidden');
@@ -8679,6 +8732,7 @@ window.finalizePOSOrder = async function() {
     
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
+    // שמירת כל נתוני המע"מ ואמצעי התשלום לקבלה עתידית (הדפסה מתוך כרטיס הזמנה)
     const vatSettings = window.getVatSettings();
     let vatDetails = null;
     if (vatSettings && vatSettings.enabled) {
@@ -8688,7 +8742,6 @@ window.finalizePOSOrder = async function() {
         vatDetails = { enabled: true, rate: rate, subtotal: subtotal, vatAmount: vatAmount };
     }
     
-    // שמירת כל נתוני המע"מ ואמצעי התשלום לקבלה עתידית (הדפסה מתוך כרטיס הזמנה)
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
 
     try {
@@ -8797,7 +8850,6 @@ window.printPOSReceipt = function(orderId = null) {
         </html>
     `;
 
-    // הדפסה מוסתרת דרך iframe (תומך במדפסות תרמיות POS)
     let iframe = document.getElementById('receipt-printer-frame');
     if(!iframe) {
         iframe = document.createElement('iframe');
