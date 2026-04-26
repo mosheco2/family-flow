@@ -4058,6 +4058,66 @@ window.processDebtPayment = async function(phone, amount) {
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
 
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                if (o.notes && o.notes.includes('{')) {
+                    const meta = JSON.parse(o.notes);
+                    if (meta.payments) {
+                        meta.payments.forEach(p => {
+                            if (p.method === 'on_account') debt += p.amount;
+                            if (p.method === 'debt_payment') debt -= p.amount;
+                        });
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח מזדמן';
+    
+    const metaData = { 
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
+    };
+    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
 window.openCustomerModal = function(id = null, tab = 'details') {
     let modal = document.getElementById('customer-modal');
     if (modal) modal.remove(); 
@@ -8322,9 +8382,6 @@ setInterval(() => {
     }
 }, 20000);
 
-// ==========================================
-// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
-// ==========================================
 window.posCart = [];
 window.posCurrentCategory = 'all';
 window.posSplitPayments = [];
@@ -8333,15 +8390,12 @@ window.posCurrentCustomer = null;
 window.currentPOSProduct = null;
 window.currentPOSModifiers = [];
 
-// פונקציית שליפת הגדרות מע"מ דינמית
 window.getVatSettings = function() {
-    if (typeof currentGroup === 'undefined' || !currentGroup || !currentGroup.id) return { enabled: true, rate: 18 };
     try {
-        const savedVat = localStorage.getItem('ofl_vat_' + currentGroup.id);
+        const id = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : '';
+        const savedVat = localStorage.getItem('ofl_vat_' + id);
         return savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
-    } catch(e) {
-        return { enabled: true, rate: 18 };
-    }
+    } catch(e) { return { enabled: true, rate: 18 }; }
 };
 
 window.renderPOSCatalog = function(cat = 'all') {
@@ -8394,8 +8448,16 @@ window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
-    const vatDisplay = document.getElementById('pos-vat-display');
-    const vatValEl = document.getElementById('pos-vat-val');
+    
+    // הזרקה דינמית של תצוגת המע"מ כדי להבטיח שהיא קיימת ב-DOM
+    let vatDisplay = document.getElementById('pos-vat-display');
+    if (!vatDisplay && countEl) {
+        const totalContainer = countEl.parentNode;
+        if(totalContainer) {
+            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+            vatDisplay = document.getElementById('pos-vat-display');
+        }
+    }
 
     if(!list) return;
     if(window.posCart.length === 0) {
@@ -8434,11 +8496,12 @@ window.renderPOSCart = function() {
     if(countEl) countEl.innerText = `${count} פריטים`;
     
     if(vatDisplay) {
-        const vatSettings = window.getVatSettings ? window.getVatSettings() : { enabled: false, rate: 18 };
+        const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled) {
             const rate = vatSettings.rate || 18;
             const subtotal = total / (1 + (rate / 100));
             const vatAmount = total - subtotal;
+            const vatValEl = document.getElementById('pos-vat-val');
             if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
             vatDisplay.classList.remove('hidden');
         } else {
@@ -8480,21 +8543,32 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
-    // שליפת הגדרות מע"מ והצגתן בסליקה
-    const vatSettings = window.getVatSettings();
-    const vatDisplay = document.getElementById('tender-vat-display');
-    if (vatSettings && vatSettings.enabled) {
-        const rate = vatSettings.rate || 18;
-        const subtotal = total / (1 + (rate / 100));
-        const vatAmount = total - subtotal;
-        const vatValEl = document.getElementById('tender-vat-val');
-        if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
-        if(vatDisplay) vatDisplay.classList.remove('hidden');
-    } else {
-        if(vatDisplay) vatDisplay.classList.add('hidden');
+    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
+    let tenderVatDisplay = document.getElementById('tender-vat-display');
+    if (!tenderVatDisplay) {
+        const tenderDueEl = document.getElementById('tender-total-due');
+        if (tenderDueEl && tenderDueEl.parentNode) {
+            tenderDueEl.parentNode.classList.add('relative');
+            tenderDueEl.parentNode.insertAdjacentHTML('beforeend', `<div id="tender-vat-display" class="absolute bottom-2 left-0 right-0 text-[10px] text-indigo-400 font-bold hidden">כולל מע"מ: ₪<span id="tender-vat-val">0.00</span></div>`);
+            tenderVatDisplay = document.getElementById('tender-vat-display');
+        }
+    }
+
+    if (tenderVatDisplay) {
+        const vatSettings = window.getVatSettings();
+        if (vatSettings && vatSettings.enabled) {
+            const rate = vatSettings.rate || 18;
+            const subtotal = total / (1 + (rate / 100));
+            const vatAmount = total - subtotal;
+            const tenderVatVal = document.getElementById('tender-vat-val');
+            if(tenderVatVal) tenderVatVal.innerText = vatAmount.toFixed(2);
+            tenderVatDisplay.classList.remove('hidden');
+        } else {
+            tenderVatDisplay.classList.add('hidden');
+        }
     }
     
-    // ווידוא שכפתור ההקפה מוצג (HTML override) רק אם יש לקוח מזוהה
+    // ווידוא שכפתור ההקפה מוצג רק אם זוהה לקוח
     const tenderAccountBtn = document.getElementById('tender-on-account-container');
     if(tenderAccountBtn) {
         if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
@@ -8617,6 +8691,7 @@ window.finalizePOSOrder = async function() {
         const data = await res.json();
         
         if(data.success) {
+            // טיפול בשליחת קבלה לווצאפ כולל מע"מ ופירוט
             if(document.getElementById('tender-send-receipt').checked && phone) {
                 let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
                 waMsg += `הזמנה #${Date.now().toString().slice(-4)}\n`;
@@ -8696,10 +8771,7 @@ window.printPOSReceipt = function(orderId = null) {
         }
     } catch(e) {}
     
-    const receiptWin = window.open('', '', 'width=350,height=600');
-    if(!receiptWin) return showToast('error', 'הדפדפן חוסם חלונות קופצים. אפשר פופ-אפים כדי להדפיס.');
-    
-    receiptWin.document.write(`
+    const receiptHtml = `
         <html dir="rtl">
         <head><title>קבלה ${order.id}</title>
         <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
@@ -8718,13 +8790,113 @@ window.printPOSReceipt = function(orderId = null) {
             <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
         </body>
         </html>
-    `);
-    receiptWin.document.close();
-    receiptWin.focus();
-    setTimeout(() => { receiptWin.print(); receiptWin.close(); }, 500);
+    `;
+
+    // עקיפת חסימות פופאפים בעזרת iframe נסתר
+    let iframe = document.getElementById('receipt-printer-frame');
+    if(!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt-printer-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(receiptHtml);
+    iframe.contentWindow.document.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        showToast('success', 'הקבלה נשלחה להדפסה');
+    }, 500);
 };
 
-// עדכון הגדרות החנות ושמירת המע"מ ללא פגיעה בשרת
+window.fetchStoreSettings = async function() {
+    try {
+        const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.settings) {
+            const getElSafe = (id) => document.getElementById(id);
+            if(getElSafe('store-is-active')) getElSafe('store-is-active').checked = data.settings.is_active;
+            if(getElSafe('store-welcome-msg')) getElSafe('store-welcome-msg').value = data.settings.welcome_message || '';
+            if(getElSafe('store-phone')) getElSafe('store-phone').value = data.settings.phone || '';
+            if(getElSafe('store-min-order')) getElSafe('store-min-order').value = data.settings.min_order || '';
+            if(getElSafe('store-slogan')) getElSafe('store-slogan').value = data.settings.slogan || '';
+            if(getElSafe('store-type')) getElSafe('store-type').value = data.settings.store_type || 'retail';
+            if(getElSafe('store-open-time')) getElSafe('store-open-time').value = data.settings.open_time || '';
+            if(getElSafe('store-close-time')) getElSafe('store-close-time').value = data.settings.close_time || '';
+            if(getElSafe('store-whatsapp')) getElSafe('store-whatsapp').value = data.settings.whatsapp_number || '';
+            if(getElSafe('store-public-link')) getElSafe('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
+            
+            const headerSlogan = getElSafe('main-header-slogan');
+            if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
+
+            const savedVat = localStorage.getItem('ofl_vat_' + currentGroup.id);
+            if(savedVat) {
+                window.storeVatSettings = JSON.parse(savedVat);
+                if(getElSafe('store-include-vat')) getElSafe('store-include-vat').checked = window.storeVatSettings.enabled;
+                if(getElSafe('store-vat-rate')) getElSafe('store-vat-rate').value = window.storeVatSettings.rate;
+            }
+
+            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
+            const logoUrl = data.settings.logo_url;
+            
+            ['store-logo-preview', 'wizard-logo-preview', 'dash-logo-preview'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) { 
+                    if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                    else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+                }
+            });
+            
+            ['store-logo-placeholder', 'wizard-logo-icon', 'dash-logo-placeholder'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) {
+                    if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                    else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+                }
+            });
+
+            ['store-logo-base64', 'wizard-logo-base64'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) el.value = hasLogo ? logoUrl : 'DELETE';
+            });
+
+            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
+            const headerBannerEl = getElSafe('main-header-banner');
+            
+            if (hasBanner) {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getElSafe(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
+                });
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.classList.add('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.value = data.settings.banner_url;
+                });
+            } else {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getElSafe(id); if(el) { el.src = ''; el.classList.add('hidden'); }
+                });
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.classList.remove('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.value = 'DELETE';
+                });
+            }
+
+            if (data.settings.modifier_presets) {
+                try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
+                renderPresetSelector();
+            }
+        }
+    } catch(e) {}
+};
+
 window.saveStoreSettings = async function() {
     const btn = document.getElementById('btn-save-store-settings');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
@@ -8741,10 +8913,18 @@ window.saveStoreSettings = async function() {
         await fetch(`${API}/store/settings`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ 
-                groupId: currentGroup.id, isActive: getEl('store-is-active').checked, welcomeMessage: val('store-welcome-msg'), 
-                phone: val('store-phone'), minOrder: val('store-min-order'), slogan: val('store-slogan'), storeType: val('store-type'), 
-                logoUrl: val('store-logo-base64') || null, bannerUrl: val('store-banner-base64') || null,
-                openTime: val('store-open-time'), closeTime: val('store-close-time'), whatsappNumber: val('store-whatsapp')
+                groupId: currentGroup.id, 
+                isActive: document.getElementById('store-is-active') ? document.getElementById('store-is-active').checked : true, 
+                welcomeMessage: val('store-welcome-msg'), 
+                phone: val('store-phone'), 
+                minOrder: val('store-min-order'), 
+                slogan: val('store-slogan'), 
+                storeType: val('store-type'), 
+                logoUrl: val('store-logo-base64') || null, 
+                bannerUrl: val('store-banner-base64') || null,
+                openTime: val('store-open-time'), 
+                closeTime: val('store-close-time'), 
+                whatsappNumber: val('store-whatsapp')
             })
         });
         showToast('success', 'הגדרות החנות והמע"מ נשמרו בהצלחה!');
