@@ -828,6 +828,9 @@ function switchTab(t) {
         const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
     } else if (t === 'shop') { 
         try { renderShopList(); } catch(e) {} 
+    } else if (t === 'pos') {
+        const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
+        const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
     }
     
     // הפעלת לוגיקה ספציפית לכל טאב
@@ -847,7 +850,7 @@ function switchTab(t) {
     if (t === 'tasks') try { renderTasks(allTasks); } catch(e) {}
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
-    if (t === 'pos') try { window.renderPOSCatalog('all'); } catch(e) {}
+    if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
 }
 
 function updateBatteryUI() {
