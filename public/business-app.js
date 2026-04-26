@@ -8382,6 +8382,10 @@ setInterval(() => {
     }
 }, 20000);
 
+// ============================================================
+// --- לוגיקת קופה (POS) ---
+// ============================================================
+
 window.posCart = [];
 window.posCurrentCategory = 'all';
 window.posSplitPayments = [];
@@ -8449,7 +8453,7 @@ window.renderPOSCart = function() {
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
-    // הזרקה דינמית של תצוגת המע"מ כדי להבטיח שהיא קיימת ב-DOM
+    // הזרקה דינמית של תצוגת המע"מ כדי להבטיח שהיא קיימת ב-DOM של הקופה
     let vatDisplay = document.getElementById('pos-vat-display');
     if (!vatDisplay && countEl) {
         const totalContainer = countEl.parentNode;
@@ -8543,7 +8547,7 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
-    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
+    // הזרקה וחישוב דינמי של תצוגת מע"מ גם בחלון הסליקה עצמו
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -8568,7 +8572,7 @@ window.openPOSTender = function() {
         }
     }
     
-    // ווידוא שכפתור ההקפה מוצג רק אם זוהה לקוח
+    // ווידוא שכפתור ההקפה מוצג רק אם זוהה לקוח (למניעת הקפות פתוחות)
     const tenderAccountBtn = document.getElementById('tender-on-account-container');
     if(tenderAccountBtn) {
         if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
@@ -8684,6 +8688,7 @@ window.finalizePOSOrder = async function() {
         vatDetails = { enabled: true, rate: rate, subtotal: subtotal, vatAmount: vatAmount };
     }
     
+    // שמירת כל נתוני המע"מ ואמצעי התשלום לקבלה עתידית (הדפסה מתוך כרטיס הזמנה)
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
 
     try {
@@ -8691,7 +8696,6 @@ window.finalizePOSOrder = async function() {
         const data = await res.json();
         
         if(data.success) {
-            // טיפול בשליחת קבלה לווצאפ כולל מע"מ ופירוט
             if(document.getElementById('tender-send-receipt').checked && phone) {
                 let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
                 waMsg += `הזמנה #${Date.now().toString().slice(-4)}\n`;
@@ -8716,6 +8720,7 @@ window.finalizePOSOrder = async function() {
             
             showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); 
             
+            // עדכון רשימת ההזמנות כדי שההזמנה החדשה תיכנס מיד להיסטוריה (ומשם נשלוף להדפסה)
             if(typeof window.fetchStoreOrders === 'function') {
                 await window.fetchStoreOrders();
             }
@@ -8792,7 +8797,7 @@ window.printPOSReceipt = function(orderId = null) {
         </html>
     `;
 
-    // עקיפת חסימות פופאפים בעזרת iframe נסתר
+    // הדפסה מוסתרת דרך iframe (תומך במדפסות תרמיות POS)
     let iframe = document.getElementById('receipt-printer-frame');
     if(!iframe) {
         iframe = document.createElement('iframe');
@@ -8931,6 +8936,7 @@ window.saveStoreSettings = async function() {
     } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 };
+
 // ============================================================
 // --- מסך סטטוס ללקוחות (Live Customer Status Screen) ---
 // ============================================================
