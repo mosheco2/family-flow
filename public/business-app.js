@@ -390,13 +390,18 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 window.injectBusinessUI = function() {
-    if(!getEl('content-shifts')) {
-        const contentFeed = getEl('content-feed');
-        if(contentFeed) contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
+    // מניעת כפילויות במקרה של קריאה חוזרת
+    ['content-shifts', 'cust-main-tabs', 'content-sales', 'content-pos'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.remove();
+    });
+
+    const contentFeed = document.getElementById('content-feed');
+    if(contentFeed) {
+        contentFeed.insertAdjacentHTML('afterend', '<div id="content-shifts" class="hidden"><div class="flex justify-between items-center mb-4 px-2 mt-2"><h3 class="font-bold text-slate-700 text-lg">סידור עבודה ומשמרות 🗓️</h3><button onclick="openShiftModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> שיבוץ מנהל</button></div><div id="shifts-list" class="space-y-3 pb-20"></div></div>');
     }
 
-    const custContainer = getEl('content-customers');
-    if (custContainer && !getEl('cust-main-tabs')) {
+    const custContainer = document.getElementById('content-customers');
+    if (custContainer) {
         custContainer.innerHTML = `
             <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 mb-4">
                 <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול קשרי לקוחות 🤝</h3>
@@ -404,7 +409,6 @@ window.injectBusinessUI = function() {
                     <button id="btn-cust-main-list" onclick="window.switchCustomerMainTab('list')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים מזהים (רשימה)</button>
                     <button id="btn-cust-main-history" onclick="window.switchCustomerMainTab('history')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">היסטוריית הזמנות כללית</button>
                 </div>
-                
                 <div id="cust-main-view-list">
                     <div class="flex flex-col sm:flex-row gap-3 mb-4 mt-2">
                         <div class="relative flex-1">
@@ -420,7 +424,6 @@ window.injectBusinessUI = function() {
                     </div>
                     <div id="store-customers-list" class="space-y-3 pb-8"></div>
                 </div>
-                
                 <div id="cust-main-view-history" class="hidden">
                     <div class="flex justify-between items-center mb-3">
                         <p class="text-xs font-bold text-slate-500">כלל ההזמנות והצעות המחיר בארגון</p>
@@ -436,57 +439,63 @@ window.injectBusinessUI = function() {
         `;
     }
 
-    if(!getEl('content-sales')) {
-        const contentShifts = getEl('content-shifts');
-        if(contentShifts) contentShifts.insertAdjacentHTML('afterend', `
-            <div id="content-sales" class="hidden">
+    const contentShiftsNew = document.getElementById('content-shifts');
+    if(contentShiftsNew) {
+        contentShiftsNew.insertAdjacentHTML('afterend', `
+            <div id="content-pos" class="hidden pb-20 mt-4">
+                <div class="flex flex-col md:flex-row h-[85vh] gap-4 w-full">
+                    <div class="w-full md:w-[65%] bg-slate-50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
+                        <div class="p-3 bg-white border-b border-slate-200 flex gap-2 items-center shadow-sm z-10">
+                            <div class="relative flex-1">
+                                <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
+                            </div>
+                        </div>
+                        <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
+                        <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
+                            <div id="pos-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-[35%] bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl text-right">
+                        <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow-md z-10">
+                            <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-receipt"></i> החשבון</h3>
+                            <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
+                        </div>
+                        <div class="p-4 border-b border-slate-100 bg-slate-50">
+                            <div class="relative">
+                                <i class="fa-solid fa-user-tag absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400"></i>
+                                <input type="tel" id="pos-customer-phone" oninput="window.checkPOSCustomer()" placeholder="מספר טלפון לזיהוי לקוח..." class="w-full py-3 pr-11 pl-4 rounded-xl border border-slate-200 text-sm focus:border-indigo-500 outline-none transition font-bold dir-ltr text-left shadow-sm">
+                            </div>
+                            <div id="pos-cust-indicator" class="mt-2 px-1 hidden"></div>
+                        </div>
+                        <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
+                        <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
+                            <div class="flex justify-between items-end mb-4">
+                                <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
+                                <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
+                            </div>
+                            <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
+                                תשלום <i class="fa-solid fa-credit-card"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="content-sales" class="hidden pb-20 mt-4">
                 <div class="bg-white rounded-[2rem] p-4 sm:p-6 shadow-sm border border-slate-100 relative overflow-hidden mb-4">
                     <h3 class="font-bold text-slate-800 text-lg mb-4 px-2">ניהול חנות ומכירות 🛍️</h3>
+                    
                     <div class="flex bg-slate-100 p-1.5 rounded-xl mb-6 overflow-x-auto modal-scroll whitespace-nowrap">
-                        <button id="btn-sales-pos" onclick="window.switchSalesTab('pos')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition"><i class="fa-solid fa-cash-register text-emerald-500 mr-1"></i> קופה (POS)</button>
-                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות</button>
+                        <button id="btn-sales-orders" onclick="window.switchSalesTab('orders')" class="flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">הזמנות חנות</button>
                         <button id="btn-sales-quotes" onclick="window.switchSalesTab('quotes')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הצעות מחיר</button>
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">קטלוג מנות</button>
-                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">מבצעים</button>
-                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות</button>
-                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">דוחות</button>
+                        <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">שיווק ומבצעים</button>
+                        <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">הגדרות חנות</button>
+                        <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition hidden">אנליטיקה ודוחות</button>
                     </div>
                     
-                    <div id="sales-view-pos" class="hidden h-[75vh] flex flex-col md:flex-row gap-4">
-                        <div class="w-full md:w-[65%] bg-slate-50 rounded-2xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
-                            <div class="p-3 bg-white border-b border-slate-200 shadow-sm z-10 flex gap-2 items-center">
-                                <div class="relative flex-1">
-                                    <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                    <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2 pr-9 pl-3 rounded-xl text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition dir-rtl">
-                                </div>
-                            </div>
-                            <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
-                            <div class="flex-1 overflow-y-auto p-3 modal-scroll dir-rtl">
-                                <div id="pos-catalog-grid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3"></div>
-                            </div>
-                        </div>
-
-                        <div class="w-full md:w-[35%] bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl">
-                            <div class="p-4 bg-indigo-600 text-white flex justify-between items-center shadow-md z-10">
-                                <h3 class="font-black text-lg flex items-center gap-2"><i class="fa-solid fa-cash-register"></i> קופה</h3>
-                                <button onclick="window.clearPOSCart()" class="text-indigo-200 hover:text-white transition text-xs font-bold"><i class="fa-solid fa-trash-can mr-1"></i>נקה קופה</button>
-                            </div>
-                            <div class="p-3 border-b border-slate-100 bg-slate-50 flex gap-2">
-                                <input type="tel" id="pos-customer-phone" placeholder="מס' טלפון לחבר מועדון..." class="modern-input py-2 text-sm w-full dir-ltr text-left border-slate-200 focus:border-indigo-500">
-                            </div>
-                            <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-3 bg-slate-50/30"></div>
-                            <div class="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-                                <div class="flex justify-between items-end mb-4">
-                                    <span class="text-sm font-bold text-slate-500" id="pos-items-count">0 פריטים</span>
-                                    <span class="text-3xl font-black text-indigo-700 dir-ltr" id="pos-total-display">₪0.00</span>
-                                </div>
-                                <button id="btn-submit-pos" onclick="window.submitPOSOrder()" class="w-full bg-emerald-500 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-2">
-                                    אישור ותשלום <i class="fa-solid fa-check-double"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div id="sales-view-orders" class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
@@ -501,7 +510,7 @@ window.injectBusinessUI = function() {
                         </div>
                         <div class="relative mb-4 px-1">
                             <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש מהיר לפי מספר הזמנה, שם לקוח או טלפון..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
+                            <input type="text" id="orders-search-id" oninput="renderStoreOrders()" placeholder="חיפוש לפי מספר הזמנה, שם לקוח או טלפון..." class="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-11 pl-4 text-sm font-bold shadow-sm outline-none focus:border-indigo-400 transition">
                         </div>
                         <div id="store-orders-list" class="space-y-3 pb-8"></div>
                     </div>
@@ -527,72 +536,12 @@ window.injectBusinessUI = function() {
                     <div id="sales-view-analytics" class="hidden space-y-4"></div>
                 </div>
             </div>`);
-
-        // הוספת מודאל המודפיירים של הקופה (הרכבת מנה / תוספות)
-        document.body.insertAdjacentHTML('beforeend', `
-        <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 fade-in">
-            <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-indigo-600 p-5 flex justify-between items-center text-white shrink-0">
-                    <h3 class="text-xl font-black truncate pr-2 flex items-center gap-2"><i class="fa-solid fa-utensils"></i> <span id="pos-mod-title">הרכבת מנה</span></h3>
-                    <button onclick="document.getElementById('pos-modifiers-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/40 transition"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <div id="pos-mod-groups" class="flex-1 overflow-y-auto p-5 modal-scroll bg-slate-50 space-y-4 dir-rtl"></div>
-                <div class="p-4 bg-white border-t border-slate-100 shrink-0">
-                    <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-md hover:bg-indigo-700 transition text-lg">אשר והוסף למנה <i class="fa-solid fa-plus ml-1"></i></button>
-                </div>
-            </div>
-        </div>`);
-    }
-
-    if(!getEl('content-pos')) {
-        const contentSales = getEl('content-sales');
-        if(contentSales) {
-            contentSales.insertAdjacentHTML('afterend', `
-            <div id="content-pos" class="hidden h-[85vh] flex flex-col md:flex-row gap-4 pb-20 mt-4">
-                <div class="w-full md:w-[65%] bg-slate-50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
-                    <div class="p-3 bg-white border-b border-slate-200 flex gap-2 items-center shadow-sm z-10">
-                        <div class="relative flex-1">
-                            <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
-                        </div>
-                    </div>
-                    <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
-                    <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
-                        <div id="pos-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
-                    </div>
-                </div>
-
-                <div class="w-full md:w-[35%] bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden dir-rtl text-right">
-                    <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow-md z-10">
-                        <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-receipt"></i> החשבון</h3>
-                        <button onclick="window.clearPOSCart()" class="text-slate-400 hover:text-white transition text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg">נקה הכל</button>
-                    </div>
-                    <div class="p-4 border-b border-slate-100 bg-slate-50">
-                        <div class="relative">
-                            <i class="fa-solid fa-user-tag absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400"></i>
-                            <input type="tel" id="pos-customer-phone" oninput="window.checkPOSCustomer()" placeholder="מספר טלפון לזיהוי לקוח..." class="w-full py-3 pr-11 pl-4 rounded-xl border border-slate-200 text-sm focus:border-indigo-500 outline-none transition font-bold dir-ltr text-left shadow-sm">
-                        </div>
-                        <div id="pos-cust-indicator" class="mt-2 px-1 hidden"></div>
-                    </div>
-                    <div id="pos-cart-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3 bg-slate-50/50"></div>
-                    <div class="p-5 bg-white border-t border-slate-200 shadow-[0_-4px_10px_rgba(0,0,0,0.03)] shrink-0">
-                        <div class="flex justify-between items-end mb-4">
-                            <span class="text-sm font-bold text-slate-400" id="pos-items-count">0 פריטים</span>
-                            <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
-                        </div>
-                        <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
-                            תשלום <i class="fa-solid fa-credit-card"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>`);
-        }
     }
 
     if(!getEl('tab-sales')) {
         const tabBank = getEl('tab-bank');
         if(tabBank) {
-            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('pos')" id="tab-pos" class="tab-btn bg-gradient-to-r from-emerald-500 to-green-600 text-white border-transparent shadow-md font-black px-5 ml-2">קופה (POS) 💰</button>`);
+            tabBank.insertAdjacentHTML('beforebegin', `<button onclick="switchTab('pos')" id="tab-pos" class="tab-btn bg-gradient-to-r from-emerald-500 to-green-600 text-white border-transparent shadow-md font-black px-5 mr-2">קופה 💰</button>`);
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('sales')" id="tab-sales" class="tab-btn bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent">מכירות וחנות 🛍️</button>`);
             tabBank.insertAdjacentHTML('beforebegin', `<button onclick="window.switchTab('deliveries')" id="tab-deliveries" class="tab-btn bg-gradient-to-r from-blue-500 to-blue-700 text-white border-transparent" style="display:none;">שליחויות 🛵</button>`);
         }
