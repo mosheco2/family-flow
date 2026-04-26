@@ -390,7 +390,6 @@ function triggerManualTour() { getEl('profile-modal').classList.add('hidden'); s
 function openAlertModal(title, text) { const titleEl = getEl('generic-alert-title'); const textEl = getEl('generic-alert-text'); const modal = getEl('generic-alert-modal'); if(titleEl && textEl && modal) { titleEl.innerText = title; textEl.innerText = text; modal.classList.remove('hidden'); } }
 
 window.injectBusinessUI = function() {
-    // מניעת כפילויות במקרה של קריאה חוזרת
     ['content-shifts', 'cust-main-tabs', 'content-sales', 'content-pos'].forEach(id => {
         const el = document.getElementById(id); if(el) el.remove();
     });
@@ -532,7 +531,82 @@ window.injectBusinessUI = function() {
                     </div>
                     
                     <div id="sales-view-marketing" class="hidden space-y-4"><div id="store-promotions-list" class="space-y-3 pb-8"></div></div>
-                    <div id="sales-view-settings" class="hidden space-y-4"></div>
+                    
+                    <div id="sales-view-settings" class="hidden space-y-6 pb-12">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h4 class="font-black text-slate-800 mb-4">הגדרות חנות ומיתוג</h4>
+                            <div class="space-y-4">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded">
+                                    <span class="font-bold text-slate-700 text-sm">החנות פעילה ומקבלת הזמנות</span>
+                                </label>
+                                
+                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" id="store-include-vat" class="w-5 h-5 accent-indigo-600 rounded">
+                                            הצג רכיב מע"מ בקבלות (מגולם במחיר)
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <label class="text-xs font-bold text-slate-600">אחוז מע"מ:</label>
+                                        <input type="number" id="store-vat-rate" class="modern-input py-1.5 px-3 text-sm text-center w-24 bg-white" value="18">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
+                                    <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm w-full"><option value="retail">קמעונאות / כללי</option><option value="food">מזון / מסעדה</option><option value="services">שירותים</option></select></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי):</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לחנות הציבורית:</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="store-public-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
+                                        <button onclick="copyStoreLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
+                                    </div>
+                                </div>
+                                
+                                <h4 class="font-black text-slate-800 mb-4 mt-8">עיצוב ומיתוג</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                         <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
+                                         <div class="flex items-center gap-3">
+                                             <div class="relative w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                                 <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                                 <i id="store-logo-placeholder" class="fa-solid fa-store text-2xl text-slate-300"></i>
+                                             </div>
+                                             <div class="flex flex-col gap-2 w-full">
+                                                 <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                             </div>
+                                             <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="handleStoreLogoUpload(event)">
+                                             <input type="hidden" id="store-logo-base64">
+                                         </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                         <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
+                                         <div class="flex items-center gap-3 mb-2">
+                                             <div class="relative w-24 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                                 <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden">
+                                                 <i id="store-banner-placeholder" class="fa-regular fa-image text-2xl text-slate-300"></i>
+                                             </div>
+                                             <div class="flex flex-col gap-2 w-full">
+                                                 <button onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                             </div>
+                                             <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
+                                             <input type="hidden" id="store-banner-base64">
+                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
+                        </div>
+                    </div>
                     <div id="sales-view-analytics" class="hidden space-y-4"></div>
                 </div>
             </div>`);
