@@ -4395,6 +4395,81 @@ window.processDebtPayment = async function(phone, amount) {
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
 
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                const itemsArr = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+                const metaItem = itemsArr.find(i => i.is_quote_metadata || i.catalogId === 999999);
+                if (metaItem && metaItem.data) {
+                    const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
+                    if (meta.payments) {
+                        meta.payments.forEach(p => {
+                            if (p.method === 'on_account') debt += p.amount;
+                            if (p.method === 'debt_payment') debt -= p.amount;
+                        });
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח קבוע';
+    
+    const metaData = { 
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
+    };
+    
+    // מזהה 999999 עוקף את שגיאת הרשת בשרת מכיוון שהשרת לא מחפש אותו בטבלת מוצרים
+    const items = [
+        { catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) }
+    ];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false 
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            const newOrderId = data.orderId || data.id;
+            if (newOrderId) {
+                await fetch(`${API}/store/orders/status`, { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                });
+            }
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התשלום');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
 window.openCustomerModal = function(id = null, tab = 'details') {
     let modal = document.getElementById('customer-modal');
     if (modal) modal.remove(); 
@@ -4472,14 +4547,17 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     
     modal = document.getElementById('customer-modal');
     
-    if (c) {
-        if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
-        document.getElementById('cust-name').value = c.name || '';
-        document.getElementById('cust-phone').value = c.phone || '';
-        document.getElementById('cust-email').value = c.email || '';
-        document.getElementById('cust-business-id').value = c.business_id || '';
-        document.getElementById('cust-notes').value = c.notes || '';
-        document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
+    if (id) {
+        const c = storeCustomersCache.find(x => String(x.id) === String(id));
+        if (c) {
+            if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
+            document.getElementById('cust-name').value = c.name || '';
+            document.getElementById('cust-phone').value = c.phone || '';
+            document.getElementById('cust-email').value = c.email || '';
+            document.getElementById('cust-business-id').value = c.business_id || '';
+            document.getElementById('cust-notes').value = c.notes || '';
+            document.getElementById('btn-cust-tab-history').classList.remove('hidden'); 
+        }
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
         document.getElementById('cust-name').value = '';
@@ -8662,9 +8740,6 @@ setInterval(() => {
 // ==========================================
 // --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
 // ==========================================
-// ==========================================
-// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
-// ==========================================
 window.posCart = [];
 window.posCurrentCategory = 'all';
 window.posSplitPayments = [];
@@ -8732,11 +8807,12 @@ window.renderPOSCart = function() {
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
     
+    // הזרקה דינמית של תצוגת המע"מ לתוך העגלה
     let vatDisplay = document.getElementById('pos-vat-display');
-    if (!vatDisplay && countEl) {
-        const totalContainer = countEl.parentNode;
-        if(totalContainer) {
-            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+    if (!vatDisplay && totalEl) {
+        const wrapper = totalEl.parentNode;
+        if(wrapper) {
+            wrapper.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
             vatDisplay = document.getElementById('pos-vat-display');
         }
     }
@@ -8778,6 +8854,7 @@ window.renderPOSCart = function() {
     if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
     if(countEl) countEl.innerText = `${count} פריטים`;
     
+    // חישוב המע"מ הדינמי והצגתו בעגלה
     if(vatDisplay) {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled) {
@@ -8826,6 +8903,7 @@ window.openPOSTender = function() {
     document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = total.toFixed(2);
     
+    // הזרקה וחישוב דינמי של תצוגת מע"מ בחלון הסליקה
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
         const tenderDueEl = document.getElementById('tender-total-due');
@@ -8849,7 +8927,8 @@ window.openPOSTender = function() {
             tenderVatDisplay.classList.add('hidden');
         }
     }
-    
+
+    // נוודא שכפתור הקפה לא מוצג ללקוח לא מזוהה
     const tenderAccountBtn = document.getElementById('tender-on-account-container');
     if(tenderAccountBtn) {
         if(window.posCurrentCustomer) tenderAccountBtn.classList.remove('hidden');
@@ -8949,11 +9028,14 @@ window.submitPOSModifiers = function() {
 };
 
 window.finalizePOSOrder = async function() {
-    const btn = document.getElementById('btn-finalize-pos'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד סליקה...';
+    const btn = document.getElementById('btn-finalize-pos'); 
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק...';
+    
     let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח מזדמן';
     
+    // מכין את הפריטים לשמירה.
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
     const vatSettings = window.getVatSettings();
@@ -8966,7 +9048,8 @@ window.finalizePOSOrder = async function() {
     }
     
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
-    // אובייקט "דמה" שנושא את המידע החשוב אך עוקף את שגיאת המפתח הזר במסד הנתונים
+    
+    // מוסיף פריט דמה למטא-דאטה, השרת מדלג עליו ורק שומר אותו בתוך המחרוזת של ההזמנה.
     items.push({ catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
     try {
@@ -8979,7 +9062,7 @@ window.finalizePOSOrder = async function() {
         if(data.success) {
             const newOrderId = data.orderId || data.id;
             
-            // עדכון הסטטוס לקומפליט נעשה כאן למנוע שגיאת רשת בבקשה המקורית
+            // עדכון סטטוס בנפרד (מניעת שגיאת רשת בגלל שרת שלא תומך העברת סטטוס ראשוני)
             if (newOrderId) {
                 await fetch(`${API}/store/orders/status`, { 
                     method: 'POST', headers: {'Content-Type':'application/json'}, 
@@ -8987,9 +9070,26 @@ window.finalizePOSOrder = async function() {
                 });
             }
 
-            if(document.getElementById('tender-send-receipt').checked && phone) {
+            // הפקת והדפסת קבלה ישירות תמיד!
+            if(newOrderId) {
+                // עדכון דינמי של המטמון כדי שההדפסה תזהה מיד את ההזמנה
+                if(storeOrdersCache) {
+                    storeOrdersCache.unshift({
+                        id: newOrderId,
+                        customer_name: customerName,
+                        customer_phone: phone,
+                        total_amount: total,
+                        items: JSON.stringify(items),
+                        created_at: new Date().toISOString()
+                    });
+                }
+                window.printPOSReceipt(newOrderId);
+            }
+
+            // שליחת קבלה בוואטסאפ אם מסומן ויש טלפון
+            if(document.getElementById('tender-send-receipt') && document.getElementById('tender-send-receipt').checked && phone) {
                 let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
-                waMsg += `הזמנה #${Date.now().toString().slice(-4)}\n`;
+                waMsg += `הזמנה #${newOrderId || Date.now().toString().slice(-4)}\n`;
                 waMsg += `------------------------\n`;
                 window.posCart.forEach(item => {
                     waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
@@ -9006,16 +9106,14 @@ window.finalizePOSOrder = async function() {
                     window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
                 }
                 waMsg += `\nתודה שקנית אצלנו! 🙏`;
-                window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                // פותח את הוואטסאפ בחלון חדש לאחר השהיה קלה כדי לתת להדפסה לרוץ קודם
+                setTimeout(() => {
+                    window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                }, 800);
             }
             
             showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); 
-            
-            if(typeof window.fetchStoreOrders === 'function') {
-                await window.fetchStoreOrders();
-            }
-            
-            if(newOrderId) window.printPOSReceipt(newOrderId);
+            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
 
             window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
             document.getElementById('pos-customer-phone').value = '';
@@ -9024,7 +9122,7 @@ window.finalizePOSOrder = async function() {
             showToast('error', data.error || 'שגיאה בשמירת ההזמנה');
         }
     } catch(e) { showToast('error', 'שגיאת רשת בסיום העסקה'); } 
-    finally { btn.disabled = false; btn.innerHTML = 'סיום סליקה והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
+    finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
 };
 
 window.printPOSReceipt = function(orderId = null) {
@@ -9039,7 +9137,7 @@ window.printPOSReceipt = function(orderId = null) {
         const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
         
         rawItems.forEach(i => {
-            if (i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+            if (i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
             itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
             if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
         });
@@ -9048,7 +9146,7 @@ window.printPOSReceipt = function(orderId = null) {
         let paymentsHtml = '';
         
         try {
-            const metaItem = rawItems.find(i => i.is_quote_metadata);
+            const metaItem = rawItems.find(i => i.catalogId === 999999 || i.is_quote_metadata);
             if(metaItem && metaItem.data) {
                 const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
                 if (meta.vat && meta.vat.enabled) {
@@ -9106,7 +9204,83 @@ window.printPOSReceipt = function(orderId = null) {
             iframe.contentWindow.print();
             showToast('success', 'הקבלה נשלחה להדפסה');
         }, 500);
-    }, 500);
+    }, 300);
+};
+
+window.handleStoreLogoUpload = function(event) {
+    const file = event.target.files[0]; 
+    if(!file) return; 
+    showToast('info', 'מכווץ תמונה...');
+    if(typeof compressImage === 'function') {
+        compressImage(file, 300, 300, 0.8, (base64) => {
+            document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => { 
+                el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
+            });
+            document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
+            document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = base64);
+            document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
+        });
+    }
+};
+
+window.handleStoreBannerUpload = function(event) {
+    const file = event.target.files[0]; 
+    if(!file) return; 
+    showToast('info', 'מכווץ תמונת באנר...');
+    if(typeof compressImage === 'function') {
+        compressImage(file, 800, 400, 0.8, (base64) => {
+            document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { 
+                el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
+            });
+            document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
+            document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = base64);
+            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'הבאנר הועלה ומוכן לשמירה!');
+        });
+    }
+};
+
+window.clearImage = function(targetIdPrefix) {
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
+        el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; 
+    });
+    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => { el.classList.remove('hidden'); el.style.display = 'flex'; });
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = 'DELETE');
+    
+    if (targetIdPrefix.includes('logo')) {
+        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+    }
+    if (targetIdPrefix.includes('banner')) {
+        document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+    }
+    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
+};
+
+window.generateBannerAI = async function() {
+    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null;
+    if (!logoBase64 || logoBase64 === 'DELETE') {
+        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך רקע!');
+    }
+    const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
+    btns.forEach(btn => { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...'; });
+    showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
+    try {
+        const res = await fetch(`${API}/ai/generate-image`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner', logoBase64: logoBase64 })
+        });
+        const data = await res.json();
+        if (data.success && data.imageUrl) {
+            const freshUrl = data.imageUrl + '?t=' + new Date().getTime();
+            document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = freshUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
+            document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
+            document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
+            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
+        } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
+    } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); } 
+    finally { btns.forEach(btn => { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); }
 };
 
 window.fetchStoreSettings = async function() {
@@ -9159,6 +9333,13 @@ window.fetchStoreSettings = async function() {
                 const el = getElSafe(id);
                 if(el) el.value = hasLogo ? logoUrl : 'DELETE';
             });
+            
+            // תצוגת הכפתורים של לוגו אם יש/אין לוגו
+            if(hasLogo) {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+            }
 
             const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
             const headerBannerEl = getElSafe('main-header-banner');
@@ -9174,6 +9355,7 @@ window.fetchStoreSettings = async function() {
                 ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
                     const el = getElSafe(id); if(el) el.value = data.settings.banner_url;
                 });
+                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
             } else {
                 if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
                 ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
@@ -9185,6 +9367,7 @@ window.fetchStoreSettings = async function() {
                 ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
                     const el = getElSafe(id); if(el) el.value = 'DELETE';
                 });
+                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
             }
 
             if (data.settings.modifier_presets) {
