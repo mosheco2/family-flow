@@ -1945,6 +1945,7 @@ app.get('/api/store/orders/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הוספת הזמנה לחנות
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
     try {
@@ -1974,7 +1975,8 @@ app.post('/api/store/orders', async (req, res) => {
         await dbClient.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
         
         for (let item of items) {
-            if (item.catalogId === 999999 || item.is_quote_metadata || item.is_delivery_metadata) continue;
+            // דילוג על מטא-דאטה ופריטים וירטואלים (כמו סגירת חוב) כדי למנוע קריסת DB
+            if (item.is_quote_metadata || item.catalogId === 999999 || item.catalogId === null) continue; 
             
             await dbClient.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1, $2, $3, $4, $5)', [orderId, item.catalogId, item.name, item.quantity, item.price]);
             itemsHtmlList += `<li>${item.name} - כמות: ${item.quantity} - ₪${item.price}</li>`;
@@ -2000,7 +2002,7 @@ app.post('/api/store/orders', async (req, res) => {
                     await pool.query(
                         `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
                          VALUES ($1, $2, $3, '', '', $4, CURRENT_TIMESTAMP)`,
-                        [groupId, customerName, customerPhone || '', `נוצר אוטומטית מהזמנה בקופה #${orderId}`]
+                        [groupId, customerName, customerPhone || '', `נוצר אוטומטית מהזמנה לחנות #${orderId}`]
                     );
                 } else {
                     if (customerPhone) {
