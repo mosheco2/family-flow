@@ -3757,11 +3757,15 @@ window.renderStoreCustomers = function() {
     if (!list) return;
 
     const searchTerm = (val('filter-customer-search') || '').toLowerCase();
+    const cleanSearchTerm = searchTerm.replace(/\D/g, ''); // מסיר כל תו שאינו מספר לטובת חיפוש טלפון
     const filterType = val('filter-customer-type') || 'all';
 
     let filtered = storeCustomersCache.filter(c => {
         const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
-        return searchStr.includes(searchTerm);
+        const cleanPhone = (c.phone || '').replace(/\D/g, '');
+        
+        // בודק התאמה לשם ולטקסט, או התאמה נקייה של מספר טלפון
+        return searchStr.includes(searchTerm) || (cleanSearchTerm && cleanPhone.includes(cleanSearchTerm));
     });
 
     if (filterType === 'order') {
@@ -3804,7 +3808,8 @@ window.renderStoreCustomers = function() {
                 <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
             </div>
         </div>
-    `}).join('');
+        `;
+    }).join('');
 };
 
 window.switchCustomerMainTab = function(tab) {
@@ -3908,7 +3913,10 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-cart-shopping text-indigo-400 text-[10px]"></i> הזמנה #${o.id}</span>
                     <span class="text-[10px] text-slate-500 block">${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-indigo-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                    <button onclick="event.stopPropagation(); if(typeof window.printPOSReceipt === 'function') window.printPOSReceipt(${o.id})" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="הדפס/שחזר קבלה"><i class="fa-solid fa-print text-xs"></i></button>
+                </div>
             </div>`;
         });
     } else { 
@@ -3940,7 +3948,10 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                     <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-check-double text-green-500 text-[10px]"></i> הצעה #${o.id}</span>
                     <span class="text-[10px] text-slate-500 block mt-0.5"><span class="bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ml-1 font-bold">אושרה -> הזמנה</span> ${safeStr(o.customer_name)} | ${new Date(o.created_at).toLocaleDateString('he-IL')}</span>
                 </div>
-                <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(o.total_amount || 0).toFixed(2)}</span>
+                    <button onclick="event.stopPropagation(); if(typeof window.printPOSReceipt === 'function') window.printPOSReceipt(${o.id})" class="text-slate-400 hover:text-green-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="הדפס/שחזר קבלה"><i class="fa-solid fa-print text-xs"></i></button>
+                </div>
             </div>`;
         });
     } else { 
@@ -9662,13 +9673,13 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     let vatHtml = '';
     let paymentsHtml = '';
-    let titleStr = 'קבלה / חשבונית';
+    let titleStr = 'קבלה';
     
     try {
         const metaStr = order.notes;
         if(metaStr && metaStr.includes('{')) {
             const meta = JSON.parse(metaStr);
-            if (meta.is_debt_recovery) titleStr = 'קבלה - פירעון חוב';
+            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
             
             if (meta.vat && meta.vat.enabled) {
                 vatHtml = `
@@ -9688,14 +9699,19 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         }
     } catch(e) {}
     
+    // יצירת פורמט תאריך נקי עבור שם הקובץ בעת שמירה
+    const dateObj = new Date(order.created_at || Date.now());
+    const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+    const docTitle = `${titleStr}-${order.id}_${dateStr}`;
+    
     const receiptHtml = `
         <html dir="rtl">
-        <head><title>${titleStr} ${order.id}</title>
+        <head><title>${docTitle}</title>
         <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
         </head>
         <body>
             <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
-            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr} #${order.id}<br>${new Date(order.created_at || Date.now()).toLocaleString('he-IL')}</div>
+            <div style="text-align:center; margin-bottom:15px; font-size:12px;">${titleStr.replace('_',' ')} #${order.id}<br>${dateObj.toLocaleString('he-IL')}</div>
             <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
                 ${itemsHtml}
             </div>
@@ -9726,7 +9742,6 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         showToast('info', 'הקבלה נשלחה להדפסה!');
     }, 500);
 };
-
 window.fetchStoreSettings = async function() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
