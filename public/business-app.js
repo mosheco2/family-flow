@@ -9392,7 +9392,6 @@ window.renderPOSCart = function() {
     if(totalEl) totalEl.innerText = `₪${grandTotal.toFixed(2)}`;
     if(countEl) countEl.innerText = `${count} פריטים`;
     
-    // החלפת הפונקציה הישנה בפונקציית הבדיקה החכמה שמקפיצה התראת חוב
     const btnSubmitPos = document.getElementById('btn-submit-pos');
     if (btnSubmitPos) btnSubmitPos.setAttribute('onclick', 'window.handlePosTenderClick()');
 };
@@ -9425,7 +9424,6 @@ window.checkPOSCustomer = function() {
     if(indicator) indicator.classList.add('hidden'); 
 };
 
-// פונקציית המעבר לסליקה - בודקת חובות ומקפיצה התראה מעוצבת
 window.handlePosTenderClick = function() {
     if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
     
@@ -9437,7 +9435,9 @@ window.handlePosTenderClick = function() {
             let modal = document.getElementById('pos-debt-alert-modal');
             if(modal) modal.remove();
             
-            document.body.insertAdjacentHTML('beforeend', `
+            const targetNode = document.fullscreenElement || document.body;
+            
+            targetNode.insertAdjacentHTML('beforeend', `
                 <div id="pos-debt-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
                     <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-red-100">
                         <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-red-100">
@@ -9452,11 +9452,10 @@ window.handlePosTenderClick = function() {
                     </div>
                 </div>
             `);
-            return; // עוצר את התהליך עד לאישור בחלונית
+            return;
         }
     }
     
-    // אם אין חוב או שהחלון אושר, ממשיכים כרגיל
     window.openPOSTender(true);
 };
 
@@ -9498,7 +9497,15 @@ window.openPOSTender = function(skipCheck = false) {
     document.getElementById('tender-total-due').innerText = `₪${grandTotal.toFixed(2)}`;
     document.getElementById('tender-input-amount').value = grandTotal.toFixed(2);
 
-    document.getElementById('pos-tender-modal').classList.remove('hidden');
+    const modal = document.getElementById('pos-tender-modal');
+    if (modal) {
+        const targetNode = document.fullscreenElement || document.body;
+        if (modal.parentNode !== targetNode) {
+            targetNode.appendChild(modal);
+        }
+        modal.classList.remove('hidden');
+    }
+
     window.setTenderMethod('cash'); window.updateTenderDisplay();
 };
 
@@ -9565,6 +9572,10 @@ window.updateTenderDisplay = function() {
 
 window.openPOSModifiersModal = function(p, mods) {
     window.currentPOSProduct = p; window.currentPOSModifiers = mods;
+    
+    const modal = document.getElementById('pos-modifiers-modal');
+    if (!modal) return;
+    
     document.getElementById('pos-mod-title').innerText = p.name;
     document.getElementById('pos-mod-groups').innerHTML = mods.map((g, gi) => `
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -9585,7 +9596,12 @@ window.openPOSModifiersModal = function(p, mods) {
             </div>
         </div>
     `).join('');
-    document.getElementById('pos-modifiers-modal').classList.remove('hidden');
+    
+    const targetNode = document.fullscreenElement || document.body;
+    if (modal.parentNode !== targetNode) {
+        targetNode.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
 };
 
 window.submitPOSModifiers = function() {
@@ -9624,12 +9640,15 @@ window.finalizePOSOrder = async function() {
     const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
-    // 1. סגירה מיידית של חלון הסליקה למניעת תקיעות ותחושת איטיות
     const modal = document.getElementById('pos-tender-modal');
     if (modal) modal.classList.add('hidden');
 
+    const toastEl = document.getElementById('toast');
+    if (toastEl && document.fullscreenElement && toastEl.parentNode !== document.fullscreenElement) {
+        document.fullscreenElement.appendChild(toastEl);
+    }
+
     try {
-        // 2. שמירת העסקה
         const res = await fetch(`${API}/store/orders`, { 
             method: 'POST', headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
@@ -9639,7 +9658,6 @@ window.finalizePOSOrder = async function() {
         if(data.success) {
             const newOrderId = data.orderId || data.id;
             
-            // עדכון סטטוס מופרד (שוב - בהגנה)
             try {
                 if (newOrderId) {
                     fetch(`${API}/store/orders/status`, { 
@@ -9649,7 +9667,6 @@ window.finalizePOSOrder = async function() {
                 }
             } catch(e){}
 
-            // 3. הפקת הדפסה מיידית ללא תלות בשרת או בוואטסאפ
             const rawOrderObj = {
                 id: newOrderId || 'קופה',
                 created_at: new Date().toISOString(),
@@ -9659,7 +9676,6 @@ window.finalizePOSOrder = async function() {
             };
             try { window.printPOSReceipt(newOrderId, rawOrderObj); } catch(e){}
 
-            // 4. טיפול נפרד לחלוטין בוואטסאפ בהשהיה (כדי לא להפריע להדפסה)
             try {
                 const waCheckbox = document.getElementById('tender-send-receipt');
                 if(waCheckbox && waCheckbox.checked && phone) {
@@ -9691,7 +9707,6 @@ window.finalizePOSOrder = async function() {
             try { triggerConfetti(); } catch(e){}
             setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
 
-            // ניקוי עגלה והכנה ללקוח הבא
             window.posCart = []; window.renderPOSCart(); 
             const phoneInput = document.getElementById('pos-customer-phone');
             if(phoneInput) phoneInput.value = '';
@@ -9728,13 +9743,13 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     let vatHtml = '';
     let paymentsHtml = '';
-    let titleStr = 'קבלה';
+    let titleStr = 'קבלה / חשבונית';
     
     try {
         const metaStr = order.notes;
         if(metaStr && metaStr.includes('{')) {
             const meta = JSON.parse(metaStr);
-            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
+            if (meta.is_debt_recovery) titleStr = 'קבלה - פירעון חוב';
             
             if (meta.vat && meta.vat.enabled) {
                 vatHtml = `
@@ -9754,7 +9769,6 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         }
     } catch(e) {}
     
-    // יצירת פורמט תאריך נקי עבור שם הקובץ בעת שמירה
     const dateObj = new Date(order.created_at || Date.now());
     const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
     const docTitle = `${titleStr}-${order.id}_${dateStr}`;
@@ -9797,6 +9811,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         showToast('info', 'הקבלה נשלחה להדפסה!');
     }, 500);
 };
+
 window.fetchStoreSettings = async function() {
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
@@ -9967,3 +9982,58 @@ window.generateBannerAI = async function() {
     } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); } 
     finally { btns.forEach(btn => { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); }
 };
+
+window.togglePOSFullscreen = function() {
+    const posContainer = document.getElementById('content-pos');
+    if (!posContainer) return;
+    
+    if (!document.fullscreenElement) {
+        try {
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+            
+            posContainer.classList.add('fixed', 'inset-0', 'bg-slate-100', 'p-2', 'sm:p-4', 'z-[50000]', 'overflow-y-auto');
+            posContainer.classList.remove('pb-20', 'mt-4');
+            posContainer.style.height = '100vh';
+            
+            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+            if(wrapper) {
+                wrapper.classList.remove('h-[85vh]');
+                wrapper.classList.add('h-full');
+            }
+        } catch(e) {}
+    } else {
+        try {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+        } catch(e) {}
+    }
+};
+
+document.addEventListener('fullscreenchange', () => {
+    const posContainer = document.getElementById('content-pos');
+    if (!posContainer) return;
+    
+    const btn = document.getElementById('btn-pos-fullscreen');
+    const wrapper = posContainer.querySelector('.h-full') || posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+    
+    if (!document.fullscreenElement) {
+        posContainer.classList.remove('fixed', 'inset-0', 'bg-slate-100', 'p-2', 'sm:p-4', 'z-[50000]', 'overflow-y-auto');
+        posContainer.classList.add('pb-20', 'mt-4');
+        posContainer.style.height = '';
+        if(wrapper) {
+            wrapper.classList.remove('h-full');
+            wrapper.classList.add('h-[85vh]');
+        }
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+    } else {
+        if(wrapper) {
+            wrapper.classList.remove('h-[85vh]');
+            wrapper.classList.add('h-full');
+        }
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+    }
+});
