@@ -4604,6 +4604,71 @@ window.processDebtPayment = async function(phone, amount) {
     } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
 };
 
+window.getCustomerDebt = function(customerPhone) {
+    if (!customerPhone || !storeOrdersCache) return 0;
+    let debt = 0;
+    storeOrdersCache.forEach(o => {
+        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
+            try {
+                if (o.notes && o.notes.includes('{')) {
+                    const meta = JSON.parse(o.notes);
+                    if (meta.payments) {
+                        meta.payments.forEach(p => {
+                            if (p.method === 'on_account') debt += parseFloat(p.amount);
+                            if (p.method === 'debt_payment') debt -= parseFloat(p.amount);
+                        });
+                    }
+                }
+            } catch(e) {}
+        }
+    });
+    return debt;
+};
+
+window.openDebtPaymentModal = function(phone, maxDebt) {
+    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
+    if (amt === null) return;
+    const parsed = parseFloat(amt);
+    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
+    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt.toFixed(2)})`);
+    window.processDebtPayment(phone, parsed);
+};
+
+window.processDebtPayment = async function(phone, amount) {
+    const customer = storeCustomersCache.find(c => c.phone === phone);
+    const customerName = customer ? customer.name : 'לקוח קבוע';
+    
+    const metaData = { 
+        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 },
+        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }]
+    };
+    
+    const items = [
+        { catalogId: 999999, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }
+    ];
+    
+    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
+    
+    try {
+        const res = await fetch(`${API}/store/orders`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
+                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', 'החוב שולם בהצלחה!');
+            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
+            if (customer) window.openCustomerModal(customer.id, 'details');
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת התשלום');
+        }
+    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
+};
+
 window.openCustomerModal = function(id = null, tab = 'details') {
     let modal = document.getElementById('customer-modal');
     if (modal) modal.remove(); 
@@ -8868,654 +8933,6 @@ setInterval(() => {
     }
 }, 20000);
 
-// ==========================================
-// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
-// ==========================================
-window.posCart = [];
-window.posCurrentCategory = 'all';
-window.posSplitPayments = [];
-window.tenderMethod = 'cash';
-window.posCurrentCustomer = null;
-window.currentPOSProduct = null;
-window.currentPOSModifiers = [];
-
-window.getVatSettings = function() {
-    try {
-        const id = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : '';
-        const savedVat = localStorage.getItem('ofl_vat_' + id);
-        return savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
-    } catch(e) { return { enabled: true, rate: 18 }; }
-};
-
-window.renderPOSCatalog = function(cat = 'all') {
-    window.posCurrentCategory = cat;
-    const grid = document.getElementById('pos-catalog-grid');
-    const catTabs = document.getElementById('pos-categories-tabs');
-    if(!grid || !catTabs) return;
-
-    const categories = ['all', ...new Set(storeCatalogCache.filter(p => p.is_available).map(p => p.category || 'כללי'))];
-    catTabs.innerHTML = categories.map(c => 
-        `<button onclick="window.renderPOSCatalog('${safeStr(c)}')" class="px-5 py-2.5 whitespace-nowrap rounded-2xl font-bold text-sm transition shadow-sm ${c === cat ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-200'}">${c === 'all' ? 'הכל' : safeStr(c)}</button>`
-    ).join('');
-
-    let products = storeCatalogCache.filter(p => p.is_available);
-    if(cat !== 'all') products = products.filter(p => (p.category || 'כללי') === cat);
-    const searchQ = (document.getElementById('pos-search') ? document.getElementById('pos-search').value : '').toLowerCase();
-    if(searchQ) products = products.filter(p => p.name.toLowerCase().includes(searchQ));
-
-    grid.innerHTML = products.map(p => {
-        const hasMods = p.options_text && p.options_text.length > 10;
-        return `
-        <div onclick="window.addPOSItem(${p.id})" class="bg-white rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col relative overflow-hidden group h-full">
-            ${hasMods ? `<span class="absolute top-3 left-3 bg-purple-500 text-white text-[9px] font-black px-2 py-1 rounded-lg shadow-sm z-10"><i class="fa-solid fa-list-ul ml-1"></i>הרכבה</span>` : ''}
-            <div class="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden">
-                ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-utensils text-3xl text-slate-300"></i>`}
-            </div>
-            <div class="p-4 flex-1 flex flex-col justify-between text-right">
-                <h4 class="font-bold text-slate-800 text-sm leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</h4>
-                <span class="font-black text-indigo-600 text-base dir-ltr block text-right mt-1">₪${parseFloat(p.price).toFixed(2)}</span>
-            </div>
-        </div>`;
-    }).join('');
-};
-
-window.addPOSItem = function(id) {
-    const p = storeCatalogCache.find(x => x.id === id); if(!p) return;
-    if (p.options_text && p.options_text.length > 10) {
-        try { 
-            const parsed = JSON.parse(p.options_text);
-            if (Array.isArray(parsed)) { window.openPOSModifiersModal(p, parsed); return; }
-        } catch(e) {}
-    }
-    const existing = window.posCart.find(i => i.real_id === p.id && !i.modifiers);
-    if(existing) existing.qty++;
-    else window.posCart.push({ id: 'pos_' + Date.now(), real_id: p.id, name: p.name, price: parseFloat(p.price), qty: 1, modifiers: null });
-    window.renderPOSCart();
-};
-
-window.renderPOSCart = function() {
-    const list = document.getElementById('pos-cart-list');
-    const totalEl = document.getElementById('pos-total-display');
-    const countEl = document.getElementById('pos-items-count');
-    
-    // מע"מ דינמי שמוזרק ישירות לעגלה (כמו שביקשת)
-    let vatDisplay = document.getElementById('pos-vat-display');
-    if (!vatDisplay && totalEl) {
-        const totalContainer = totalEl.parentNode;
-        if(totalContainer) {
-            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
-            vatDisplay = document.getElementById('pos-vat-display');
-        }
-    }
-
-    if(!list) return;
-    if(window.posCart.length === 0) {
-        list.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300 py-10 opacity-60"><i class="fa-solid fa-cart-shopping text-5xl mb-4"></i><p class="font-bold text-sm">העגלה ריקה</p></div>`;
-        if(totalEl) totalEl.innerText = '₪0.00'; 
-        if(countEl) countEl.innerText = '0 פריטים'; 
-        if(vatDisplay) vatDisplay.classList.add('hidden');
-        return;
-    }
-    
-    let total = 0; let count = 0;
-    list.innerHTML = window.posCart.map((item, idx) => {
-        const rowTotal = item.price * item.qty; total += rowTotal; count += item.qty;
-        const modTxt = item.modifiers ? `<div class="text-[10px] text-slate-500 mt-2 font-medium leading-relaxed">${item.modifiers.map(m => `<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 ml-1 inline-block">+ ${m.name}</span>`).join('')}</div>` : '';
-        return `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 slide-up text-right relative overflow-hidden">
-            <div class="absolute right-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r-2xl"></div>
-            <div class="flex justify-between items-start mb-3 pr-2">
-                <div class="flex-1 pr-1 overflow-hidden">
-                    <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h5>
-                    ${modTxt}
-                </div>
-                <span class="font-black text-slate-800 text-sm dir-ltr">₪${rowTotal.toFixed(2)}</span>
-            </div>
-            <div class="flex justify-between items-center bg-slate-50 rounded-xl p-1.5 border border-slate-100 pr-2">
-                <button onclick="window.posRemoveItem(${idx})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
-                <div class="flex items-center gap-4 bg-white rounded-lg border border-slate-200 shadow-sm px-1.5">
-                    <button onclick="window.updatePOSQty(${idx}, -1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">-</button>
-                    <span class="font-black text-base w-6 text-center text-slate-800">${item.qty}</span>
-                    <button onclick="window.updatePOSQty(${idx}, 1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition text-lg font-black">+</button>
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-    
-    if(totalEl) totalEl.innerText = `₪${total.toFixed(2)}`;
-    if(countEl) countEl.innerText = `${count} פריטים`;
-    
-    if(vatDisplay) {
-        const vatSettings = window.getVatSettings();
-        if(vatSettings && vatSettings.enabled) {
-            const rate = vatSettings.rate || 18;
-            const subtotal = total / (1 + (rate / 100));
-            const vatAmount = total - subtotal;
-            const vatValEl = document.getElementById('pos-vat-val');
-            if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
-            vatDisplay.classList.remove('hidden');
-        } else {
-            vatDisplay.classList.add('hidden');
-        }
-    }
-};
-
-window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
-window.posRemoveItem = (idx) => { window.posCart.splice(idx,1); window.renderPOSCart(); };
-window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.posCart = []; window.renderPOSCart(); document.getElementById('pos-customer-phone').value = ''; window.checkPOSCustomer(); } };
-
-window.checkPOSCustomer = function() {
-    const phone = document.getElementById('pos-customer-phone').value;
-    const indicator = document.getElementById('pos-cust-indicator');
-    
-    if (phone.length >= 9 && storeCustomersCache) {
-        const c = storeCustomersCache.find(x => x.phone === phone);
-        if (c) { 
-            window.posCurrentCustomer = c; 
-            if(indicator) {
-                indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
-                indicator.classList.remove('hidden');
-            }
-            return;
-        }
-    }
-    window.posCurrentCustomer = null; 
-    if(indicator) indicator.classList.add('hidden'); 
-};
-
-window.openPOSTender = function() {
-    if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
-    window.posSplitPayments = []; window.tenderMethod = 'cash';
-    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
-    document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
-    document.getElementById('tender-input-amount').value = total.toFixed(2);
-    
-    // תצוגת מע"מ בחלון הסליקה
-    let tenderVatDisplay = document.getElementById('tender-vat-display');
-    if (tenderVatDisplay) {
-        const vatSettings = window.getVatSettings();
-        if (vatSettings && vatSettings.enabled) {
-            const rate = vatSettings.rate || 18;
-            const subtotal = total / (1 + (rate / 100));
-            const vatAmount = total - subtotal;
-            const tenderVatVal = document.getElementById('tender-vat-val');
-            if(tenderVatVal) tenderVatVal.innerText = vatAmount.toFixed(2);
-            tenderVatDisplay.classList.remove('hidden');
-        } else {
-            tenderVatDisplay.classList.add('hidden');
-        }
-    }
-
-    document.getElementById('pos-tender-modal').classList.remove('hidden');
-    window.setTenderMethod('cash'); window.updateTenderDisplay();
-};
-
-window.setTenderMethod = function(m) {
-    if (m === 'on_account' && !window.posCurrentCustomer) {
-        showToast('error', 'חובה להזין טלפון ולזהות לקוח כדי לרשום הקפה!');
-        document.getElementById('pos-customer-phone').focus();
-        return;
-    }
-
-    window.tenderMethod = m;
-    const btnCash = document.getElementById('btn-tender-cash');
-    const btnCredit = document.getElementById('btn-tender-credit');
-    const btnAccount = document.getElementById('btn-tender-account');
-    
-    if(btnCash) btnCash.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    if(btnCredit) btnCredit.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    if(btnAccount) btnAccount.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-    
-    let activeBtn;
-    if(m === 'cash') activeBtn = btnCash;
-    if(m === 'credit') activeBtn = btnCredit;
-    if(m === 'on_account') activeBtn = btnAccount;
-    
-    if(activeBtn) activeBtn.classList.add('border-indigo-600', 'bg-indigo-50/50');
-};
-
-window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
-
-window.addPaymentToSplit = function() {
-    const amt = parseFloat(document.getElementById('tender-input-amount').value) || 0; if(amt <= 0) return;
-    const names = { 'cash': 'מזומן', 'credit': 'אשראי', 'on_account': 'הקפה' };
-    window.posSplitPayments.push({ method: window.tenderMethod, name: names[window.tenderMethod], amount: amt });
-    window.updateTenderDisplay();
-};
-
-window.updateTenderDisplay = function() {
-    const list = document.getElementById('tender-payments-list');
-    let totalDue = 0; window.posCart.forEach(i => totalDue += (i.price * i.qty));
-    let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
-    
-    list.innerHTML = window.posSplitPayments.map((p, i) => `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm mb-2"><span class="font-bold text-slate-700">${p.name}</span><div class="flex items-center gap-3"><strong class="text-base text-slate-800">₪${p.amount.toFixed(2)}</strong><button onclick="window.posSplitPayments.splice(${i},1); window.updateTenderDisplay();" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button></div></div>`).join('');
-    
-    const balance = totalDue - paid;
-    const btn = document.getElementById('btn-finalize-pos');
-    if (balance <= 0) {
-        document.getElementById('tender-balance-label').innerText = "עודף להחזרה:"; document.getElementById('tender-balance-val').innerText = `₪${Math.abs(balance).toFixed(2)}`;
-        btn.disabled = false; btn.classList.replace('bg-slate-300', 'bg-emerald-500'); btn.classList.remove('cursor-not-allowed', 'opacity-50');
-    } else {
-        document.getElementById('tender-balance-label').innerText = "יתרה לתשלום:"; document.getElementById('tender-balance-val').innerText = `₪${balance.toFixed(2)}`;
-        document.getElementById('tender-input-amount').value = balance.toFixed(2);
-        btn.disabled = true; btn.classList.replace('bg-emerald-500', 'bg-slate-300'); btn.classList.add('cursor-not-allowed', 'opacity-50');
-    }
-};
-
-window.openPOSModifiersModal = function(p, mods) {
-    window.currentPOSProduct = p; window.currentPOSModifiers = mods;
-    document.getElementById('pos-mod-title').innerText = p.name;
-    document.getElementById('pos-mod-groups').innerHTML = mods.map((g, gi) => `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-2">
-                <h4 class="font-black text-slate-800 text-base">${safeStr(g.name)}</h4>
-                <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">${g.type==='multiple' ? 'בחירה חופשית' : 'חובה (1)'}</span>
-            </div>
-            <div class="space-y-2">
-                ${g.options.map((o, oi) => `
-                    <label class="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <input type="${g.type==='multiple'?'checkbox':'radio'}" name="mod_g_${gi}" value="${oi}" class="w-5 h-5 accent-indigo-600" ${!g.type==='multiple' && oi===0 ? 'checked' : ''}>
-                            <span class="text-sm font-bold text-slate-700 group-hover:text-indigo-800 transition">${safeStr(o.name)}</span>
-                        </div>
-                        ${o.price>0?`<span class="text-xs font-black text-indigo-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm dir-ltr">+₪${o.price}</span>`:''}
-                    </label>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
-    document.getElementById('pos-modifiers-modal').classList.remove('hidden');
-};
-
-window.submitPOSModifiers = function() {
-    let finalPrice = parseFloat(window.currentPOSProduct.price);
-    let selected = [];
-    window.currentPOSModifiers.forEach((g, gi) => {
-        const checked = document.querySelectorAll(`input[name="mod_g_${gi}"]:checked`);
-        checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
-    });
-    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
-    document.getElementById('pos-modifiers-modal').classList.add('hidden'); window.renderPOSCart();
-};
-
-window.finalizePOSOrder = async function() {
-    const btn = document.getElementById('btn-finalize-pos'); 
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק...';
-    
-    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
-    const phone = document.getElementById('pos-customer-phone').value;
-    const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח מזדמן';
-    
-    const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
-    
-    const vatSettings = window.getVatSettings();
-    let vatDetails = null;
-    if (vatSettings && vatSettings.enabled) {
-        const rate = vatSettings.rate || 18;
-        const subtotal = total / (1 + (rate / 100));
-        const vatAmount = total - subtotal;
-        vatDetails = { enabled: true, rate: rate, subtotal: subtotal, vatAmount: vatAmount };
-    }
-    
-    const metaData = { payments: window.posSplitPayments, vat: vatDetails };
-    
-    try {
-        // שלב 1: שמירת ההזמנה בשרת כסטטוס new עם ההערות
-        const res = await fetch(`${API}/store/orders`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: total, isDelivery: false, notes: JSON.stringify(metaData) }) 
-        });
-        const data = await res.json();
-        
-        if(data.success) {
-            const newOrderId = data.orderId || data.id;
-            
-            // שלב 2: סגירת ההזמנה מיד באמצעות קריאה נפרדת כדי לא לגרום לשרת לקרוס
-            if (newOrderId) {
-                await fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                });
-            }
-
-            // הפקת הדפסה מיידית למדפסת הקופה תמיד!
-            const rawOrderObj = {
-                id: newOrderId || 'חדשה',
-                created_at: new Date().toISOString(),
-                total_amount: total,
-                items: items,
-                notes: JSON.stringify(metaData)
-            };
-            window.printPOSReceipt(newOrderId, rawOrderObj);
-
-            // הפקת וואטסאפ במקביל (אם סומן)
-            const waCheckbox = document.getElementById('tender-send-receipt');
-            if(waCheckbox && waCheckbox.checked && phone) {
-                let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
-                waMsg += `הזמנה #${newOrderId || Date.now().toString().slice(-4)}\n`;
-                waMsg += `------------------------\n`;
-                window.posCart.forEach(item => {
-                    waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
-                    if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
-                });
-                waMsg += `------------------------\n`;
-                if (vatDetails) {
-                    waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
-                    waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
-                }
-                waMsg += `*סה"כ שולם: ₪${total.toFixed(2)}*\n\n`;
-                if (window.posSplitPayments.length > 0) {
-                    waMsg += `*אמצעי תשלום:*\n`;
-                    window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
-                }
-                waMsg += `\nתודה שקנית אצלנו! 🙏`;
-                // פתיחת וואטסאפ בהשהיה כדי לא לחסום את ההדפסה
-                setTimeout(() => {
-                    window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
-                }, 1000);
-            }
-            
-            showToast('success', 'העסקה נסלקה והודפסה!'); triggerConfetti(); 
-            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
-
-            window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
-            document.getElementById('pos-customer-phone').value = '';
-            window.checkPOSCustomer();
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת ההזמנה');
-        }
-    } catch(e) { showToast('error', 'שגיאת רשת בסיום העסקה'); } 
-    finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
-};
-
-window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
-    const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
-    if(!idToPrint && !rawOrderObj) return;
-    
-    let order = rawOrderObj;
-    if (!order) {
-        order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
-        if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
-    }
-    
-    let itemsHtml = '';
-    const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
-    
-    rawItems.forEach(i => {
-        if (i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
-        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
-        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
-    });
-    
-    let vatHtml = '';
-    let paymentsHtml = '';
-    
-    try {
-        const metaStr = order.notes;
-        if(metaStr && metaStr.includes('{')) {
-            const meta = JSON.parse(metaStr);
-            if (meta.vat && meta.vat.enabled) {
-                vatHtml = `
-                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
-                        <div style="display:flex; justify-content:space-between;"><span>סכום ביניים:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
-                        <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
-                    </div>
-                `;
-            }
-            if (meta.payments && meta.payments.length > 0) {
-                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
-                meta.payments.forEach(p => {
-                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${p.amount.toFixed(2)}</span></div>`;
-                });
-                paymentsHtml += `</div>`;
-            }
-        }
-    } catch(e) {}
-    
-    const receiptHtml = `
-        <html dir="rtl">
-        <head><title>קבלה ${order.id}</title>
-        <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
-        </head>
-        <body>
-            <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
-            <div style="text-align:center; margin-bottom:15px; font-size:12px;">קבלה / הזמנה #${order.id}<br>${new Date(order.created_at || Date.now()).toLocaleString('he-IL')}</div>
-            <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
-                ${itemsHtml}
-            </div>
-            ${vatHtml}
-            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
-                <span>סה"כ שולם:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
-            </div>
-            ${paymentsHtml}
-            <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
-        </body>
-        </html>
-    `;
-
-    let iframe = document.getElementById('receipt-printer-frame');
-    if(!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'receipt-printer-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-    iframe.contentWindow.document.open();
-    iframe.contentWindow.document.write(receiptHtml);
-    iframe.contentWindow.document.close();
-    
-    setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        showToast('info', 'הקבלה נשלחה למדפסת!');
-    }, 500);
-};
-
-window.handleStoreLogoUpload = function(event) {
-    const file = event.target.files[0]; 
-    if(!file) return; 
-    showToast('info', 'מכווץ תמונה...');
-    if(typeof compressImage === 'function') {
-        compressImage(file, 300, 300, 0.8, (base64) => {
-            document.querySelectorAll('[id="store-logo-preview"], [id="wizard-logo-preview"], [id="dash-logo-preview"]').forEach(el => { 
-                el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
-            });
-            document.querySelectorAll('[id="store-logo-placeholder"], [id="wizard-logo-icon"], [id="dash-logo-placeholder"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
-            document.querySelectorAll('[id="store-logo-base64"], [id="wizard-logo-base64"]').forEach(el => el.value = base64);
-            document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'הלוגו הועלה ומוכן לשמירה!');
-        });
-    }
-};
-
-window.handleStoreBannerUpload = function(event) {
-    const file = event.target.files[0]; 
-    if(!file) return; 
-    showToast('info', 'מכווץ תמונת באנר...');
-    if(typeof compressImage === 'function') {
-        compressImage(file, 800, 400, 0.8, (base64) => {
-            document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { 
-                el.src = base64; el.classList.remove('hidden'); el.style.display = 'block'; 
-            });
-            document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
-            document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = base64);
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'הבאנר הועלה ומוכן לשמירה!');
-        });
-    }
-};
-
-window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
-        el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; 
-    });
-    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => { el.classList.remove('hidden'); el.style.display = 'flex'; });
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = 'DELETE');
-    
-    if (targetIdPrefix.includes('logo')) {
-        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
-    }
-    if (targetIdPrefix.includes('banner')) {
-        document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
-    }
-    showToast('info', 'התמונה הוסרה. אל תשכחו לשמור!');
-};
-
-window.generateBannerAI = async function() {
-    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null;
-    if (!logoBase64 || logoBase64 === 'DELETE') {
-        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך רקע!');
-    }
-    const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
-    btns.forEach(btn => { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...'; });
-    showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
-    try {
-        const res = await fetch(`${API}/ai/generate-image`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner', logoBase64: logoBase64 })
-        });
-        const data = await res.json();
-        if (data.success && data.imageUrl) {
-            const freshUrl = data.imageUrl + '?t=' + new Date().getTime();
-            document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = freshUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
-            document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
-            document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
-            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
-        } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
-    } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); } 
-    finally { btns.forEach(btn => { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); }
-};
-
-window.fetchStoreSettings = async function() {
-    try {
-        const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
-        const data = await res.json();
-        if (data.success && data.settings) {
-            const getElSafe = (id) => document.getElementById(id);
-            if(getElSafe('store-is-active')) getElSafe('store-is-active').checked = data.settings.is_active;
-            if(getElSafe('store-welcome-msg')) getElSafe('store-welcome-msg').value = data.settings.welcome_message || '';
-            if(getElSafe('store-phone')) getElSafe('store-phone').value = data.settings.phone || '';
-            if(getElSafe('store-min-order')) getElSafe('store-min-order').value = data.settings.min_order || '';
-            if(getElSafe('store-slogan')) getElSafe('store-slogan').value = data.settings.slogan || '';
-            if(getElSafe('store-type')) getElSafe('store-type').value = data.settings.store_type || 'retail';
-            if(getElSafe('store-open-time')) getElSafe('store-open-time').value = data.settings.open_time || '';
-            if(getElSafe('store-close-time')) getElSafe('store-close-time').value = data.settings.close_time || '';
-            if(getElSafe('store-whatsapp')) getElSafe('store-whatsapp').value = data.settings.whatsapp_number || '';
-            if(getElSafe('store-public-link')) getElSafe('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
-            
-            const headerSlogan = getElSafe('main-header-slogan');
-            if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
-
-            const savedVat = localStorage.getItem('ofl_vat_' + currentGroup.id);
-            if(savedVat) {
-                window.storeVatSettings = JSON.parse(savedVat);
-                if(getElSafe('store-include-vat')) getElSafe('store-include-vat').checked = window.storeVatSettings.enabled;
-                if(getElSafe('store-vat-rate')) getElSafe('store-vat-rate').value = window.storeVatSettings.rate;
-            }
-
-            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
-            const logoUrl = data.settings.logo_url;
-            
-            ['store-logo-preview', 'wizard-logo-preview', 'dash-logo-preview'].forEach(id => {
-                const el = getElSafe(id);
-                if(el) { 
-                    if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
-                    else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
-                }
-            });
-            
-            ['store-logo-placeholder', 'wizard-logo-icon', 'dash-logo-placeholder'].forEach(id => {
-                const el = getElSafe(id);
-                if(el) {
-                    if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
-                    else { el.classList.remove('hidden'); el.style.display = 'flex'; }
-                }
-            });
-
-            ['store-logo-base64', 'wizard-logo-base64'].forEach(id => {
-                const el = getElSafe(id);
-                if(el) el.value = hasLogo ? logoUrl : 'DELETE';
-            });
-            
-            if(hasLogo) {
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
-            }
-
-            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
-            const headerBannerEl = getElSafe('main-header-banner');
-            
-            if (hasBanner) {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getElSafe(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getElSafe(id); if(el) el.classList.add('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getElSafe(id); if(el) el.value = data.settings.banner_url;
-                });
-                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
-            } else {
-                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
-                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
-                    const el = getElSafe(id); if(el) { el.src = ''; el.classList.add('hidden'); }
-                });
-                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
-                    const el = getElSafe(id); if(el) el.classList.remove('hidden');
-                });
-                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
-                    const el = getElSafe(id); if(el) el.value = 'DELETE';
-                });
-                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
-            }
-
-            if (data.settings.modifier_presets) {
-                try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
-                renderPresetSelector();
-            }
-        }
-    } catch(e) {}
-};
-
-window.saveStoreSettings = async function() {
-    const btn = document.getElementById('btn-save-store-settings');
-    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    
-    window.storeVatSettings = { 
-        enabled: document.getElementById('store-include-vat') ? document.getElementById('store-include-vat').checked : false, 
-        rate: document.getElementById('store-vat-rate') ? parseFloat(document.getElementById('store-vat-rate').value) || 18 : 18 
-    };
-    if (typeof currentGroup !== 'undefined' && currentGroup) {
-        localStorage.setItem('ofl_vat_' + currentGroup.id, JSON.stringify(window.storeVatSettings));
-    }
-
-    try {
-        await fetch(`${API}/store/settings`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, 
-                isActive: document.getElementById('store-is-active') ? document.getElementById('store-is-active').checked : true, 
-                welcomeMessage: val('store-welcome-msg'), 
-                phone: val('store-phone'), 
-                minOrder: val('store-min-order'), 
-                slogan: val('store-slogan'), 
-                storeType: val('store-type'), 
-                logoUrl: val('store-logo-base64') || null, 
-                bannerUrl: val('store-banner-base64') || null,
-                openTime: val('store-open-time'), 
-                closeTime: val('store-close-time'), 
-                whatsappNumber: val('store-whatsapp')
-            })
-        });
-        showToast('success', 'הגדרות החנות והמע"מ נשמרו בהצלחה!');
-    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
-    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
-};
-
 // ============================================================
 // --- מסך סטטוס ללקוחות (Live Customer Status Screen) ---
 // ============================================================
@@ -10303,7 +9720,7 @@ if (!window._originalRenderStoreOrders) {
     };
 }
 // ==========================================
-// --- לוגיקת קופה (POS) ---
+// --- לוגיקת קופה, מע"מ והדפסות (POS Engine) ---
 // ==========================================
 window.posCart = [];
 window.posCurrentCategory = 'all';
@@ -10312,6 +9729,14 @@ window.tenderMethod = 'cash';
 window.posCurrentCustomer = null;
 window.currentPOSProduct = null;
 window.currentPOSModifiers = [];
+
+window.getVatSettings = function() {
+    try {
+        const id = (typeof currentGroup !== 'undefined' && currentGroup) ? currentGroup.id : '';
+        const savedVat = localStorage.getItem('ofl_vat_' + id);
+        return savedVat ? JSON.parse(savedVat) : { enabled: true, rate: 18 };
+    } catch(e) { return { enabled: true, rate: 18 }; }
+};
 
 window.renderPOSCatalog = function(cat = 'all') {
     window.posCurrentCategory = cat;
@@ -10363,14 +9788,28 @@ window.renderPOSCart = function() {
     const list = document.getElementById('pos-cart-list');
     const totalEl = document.getElementById('pos-total-display');
     const countEl = document.getElementById('pos-items-count');
+    
+    let vatDisplay = document.getElementById('pos-vat-display');
+    if (!vatDisplay && totalEl) {
+        const totalContainer = totalEl.parentNode;
+        if(totalContainer) {
+            totalContainer.insertAdjacentHTML('afterend', `<div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">סכום נטו: ₪<span id="pos-net-val">0.00</span> | מע"מ: ₪<span id="pos-vat-val">0.00</span></div>`);
+            vatDisplay = document.getElementById('pos-vat-display');
+        }
+    }
+
     if(!list) return;
     if(window.posCart.length === 0) {
         list.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-slate-300 py-10 opacity-60"><i class="fa-solid fa-cart-shopping text-5xl mb-4"></i><p class="font-bold text-sm">העגלה ריקה</p></div>`;
-        totalEl.innerText = '₪0.00'; countEl.innerText = '0 פריטים'; return;
+        if(totalEl) totalEl.innerText = '₪0.00'; 
+        if(countEl) countEl.innerText = '0 פריטים'; 
+        if(vatDisplay) vatDisplay.classList.add('hidden');
+        return;
     }
-    let total = 0; let count = 0;
+    
+    let netTotal = 0; let count = 0;
     list.innerHTML = window.posCart.map((item, idx) => {
-        const rowTotal = item.price * item.qty; total += rowTotal; count += item.qty;
+        const rowTotal = item.price * item.qty; netTotal += rowTotal; count += item.qty;
         const modTxt = item.modifiers ? `<div class="text-[10px] text-slate-500 mt-2 font-medium leading-relaxed">${item.modifiers.map(m => `<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 ml-1 inline-block">+ ${m.name}</span>`).join('')}</div>` : '';
         return `
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-3 slide-up text-right relative overflow-hidden">
@@ -10380,7 +9819,10 @@ window.renderPOSCart = function() {
                     <h5 class="font-bold text-slate-800 text-sm leading-tight">${safeStr(item.name)}</h5>
                     ${modTxt}
                 </div>
-                <span class="font-black text-slate-800 text-sm dir-ltr">₪${rowTotal.toFixed(2)}</span>
+                <div class="text-left">
+                    <span class="font-black text-slate-800 text-sm dir-ltr block">₪${rowTotal.toFixed(2)}</span>
+                    <span class="text-[9px] text-slate-400">מחיר נטו</span>
+                </div>
             </div>
             <div class="flex justify-between items-center bg-slate-50 rounded-xl p-1.5 border border-slate-100 pr-2">
                 <button onclick="window.posRemoveItem(${idx})" class="text-slate-400 hover:text-red-500 bg-white w-8 h-8 rounded-lg shadow-sm border border-slate-200 flex items-center justify-center transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
@@ -10392,8 +9834,29 @@ window.renderPOSCart = function() {
             </div>
         </div>`;
     }).join('');
-    totalEl.innerText = `₪${total.toFixed(2)}`;
-    countEl.innerText = `${count} פריטים`;
+    
+    let grandTotal = netTotal;
+    
+    // חישוב המע"מ הדינמי - הוספת מע"מ על מחיר הנטו
+    if(vatDisplay) {
+        const vatSettings = window.getVatSettings();
+        if(vatSettings && vatSettings.enabled) {
+            const rate = vatSettings.rate || 18;
+            const vatAmount = netTotal * (rate / 100);
+            grandTotal = netTotal + vatAmount;
+            
+            const netValEl = document.getElementById('pos-net-val');
+            if(netValEl) netValEl.innerText = netTotal.toFixed(2);
+            const vatValEl = document.getElementById('pos-vat-val');
+            if(vatValEl) vatValEl.innerText = vatAmount.toFixed(2);
+            vatDisplay.classList.remove('hidden');
+        } else {
+            vatDisplay.classList.add('hidden');
+        }
+    }
+    
+    if(totalEl) totalEl.innerText = `₪${grandTotal.toFixed(2)}`;
+    if(countEl) countEl.innerText = `${count} פריטים`;
 };
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
@@ -10403,33 +9866,85 @@ window.clearPOSCart = () => { if(confirm('לרוקן את הסל?')) { window.po
 window.checkPOSCustomer = function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const indicator = document.getElementById('pos-cust-indicator');
+    
     if (phone.length >= 9 && storeCustomersCache) {
         const c = storeCustomersCache.find(x => x.phone === phone);
         if (c) { 
             window.posCurrentCustomer = c; 
-            indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
-            indicator.classList.remove('hidden');
-            document.getElementById('tender-on-account-container').classList.remove('hidden');
+            if(indicator) {
+                indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
+                indicator.classList.remove('hidden');
+            }
             return;
         }
     }
-    window.posCurrentCustomer = null; indicator.classList.add('hidden'); document.getElementById('tender-on-account-container').classList.add('hidden');
+    window.posCurrentCustomer = null; 
+    if(indicator) indicator.classList.add('hidden'); 
 };
 
 window.openPOSTender = function() {
     if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
     window.posSplitPayments = []; window.tenderMethod = 'cash';
-    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
-    document.getElementById('tender-total-due').innerText = `₪${total.toFixed(2)}`;
-    document.getElementById('tender-input-amount').value = total.toFixed(2);
+    
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    let grandTotal = netTotal;
+    
+    let tenderVatDisplay = document.getElementById('tender-vat-display');
+    if (!tenderVatDisplay) {
+        const tenderDueEl = document.getElementById('tender-total-due');
+        if (tenderDueEl && tenderDueEl.parentNode) {
+            tenderDueEl.parentNode.classList.add('relative');
+            tenderDueEl.parentNode.insertAdjacentHTML('beforeend', `<div id="tender-vat-display" class="absolute bottom-2 left-0 right-0 text-[10px] text-indigo-400 font-bold hidden">סכום נטו: ₪<span id="tender-net-val">0.00</span> | מע"מ: ₪<span id="tender-vat-val">0.00</span></div>`);
+            tenderVatDisplay = document.getElementById('tender-vat-display');
+        }
+    }
+
+    if (tenderVatDisplay) {
+        const vatSettings = window.getVatSettings();
+        if (vatSettings && vatSettings.enabled) {
+            const rate = vatSettings.rate || 18;
+            const vatAmount = netTotal * (rate / 100);
+            grandTotal = netTotal + vatAmount;
+            
+            const tNetVal = document.getElementById('tender-net-val');
+            if(tNetVal) tNetVal.innerText = netTotal.toFixed(2);
+            const tVatVal = document.getElementById('tender-vat-val');
+            if(tVatVal) tVatVal.innerText = vatAmount.toFixed(2);
+            tenderVatDisplay.classList.remove('hidden');
+        } else {
+            tenderVatDisplay.classList.add('hidden');
+        }
+    }
+    
+    document.getElementById('tender-total-due').innerText = `₪${grandTotal.toFixed(2)}`;
+    document.getElementById('tender-input-amount').value = grandTotal.toFixed(2);
+
     document.getElementById('pos-tender-modal').classList.remove('hidden');
     window.setTenderMethod('cash'); window.updateTenderDisplay();
 };
 
 window.setTenderMethod = function(m) {
+    if (m === 'on_account' && !window.posCurrentCustomer) {
+        showToast('error', 'חובה להזין טלפון ולזהות לקוח כדי לרשום הקפה!');
+        document.getElementById('pos-customer-phone').focus();
+        return;
+    }
+
     window.tenderMethod = m;
-    ['cash', 'credit', 'account'].forEach(btn => document.getElementById(`btn-tender-${btn}`).classList.remove('border-indigo-600', 'bg-indigo-50/50'));
-    document.getElementById(`btn-tender-${m === 'on_account' ? 'account' : m}`).classList.add('border-indigo-600', 'bg-indigo-50/50');
+    const btnCash = document.getElementById('btn-tender-cash');
+    const btnCredit = document.getElementById('btn-tender-credit');
+    const btnAccount = document.getElementById('btn-tender-account');
+    
+    if(btnCash) btnCash.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    if(btnCredit) btnCredit.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    if(btnAccount) btnAccount.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+    
+    let activeBtn;
+    if(m === 'cash') activeBtn = btnCash;
+    if(m === 'credit') activeBtn = btnCredit;
+    if(m === 'on_account') activeBtn = btnAccount;
+    
+    if(activeBtn) activeBtn.classList.add('border-indigo-600', 'bg-indigo-50/50');
 };
 
 window.addTenderShortcut = (a) => document.getElementById('tender-input-amount').value = a;
@@ -10443,10 +9958,19 @@ window.addPaymentToSplit = function() {
 
 window.updateTenderDisplay = function() {
     const list = document.getElementById('tender-payments-list');
-    let totalDue = 0; window.posCart.forEach(i => totalDue += (i.price * i.qty));
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    let grandTotal = netTotal;
+    
+    const vatSettings = window.getVatSettings();
+    if (vatSettings && vatSettings.enabled) {
+        grandTotal += netTotal * ((vatSettings.rate || 18) / 100);
+    }
+    
     let paid = 0; window.posSplitPayments.forEach(p => paid += p.amount);
+    
     list.innerHTML = window.posSplitPayments.map((p, i) => `<div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm mb-2"><span class="font-bold text-slate-700">${p.name}</span><div class="flex items-center gap-3"><strong class="text-base text-slate-800">₪${p.amount.toFixed(2)}</strong><button onclick="window.posSplitPayments.splice(${i},1); window.updateTenderDisplay();" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button></div></div>`).join('');
-    const balance = totalDue - paid;
+    
+    const balance = grandTotal - paid;
     const btn = document.getElementById('btn-finalize-pos');
     if (balance <= 0) {
         document.getElementById('tender-balance-label').innerText = "עודף להחזרה:"; document.getElementById('tender-balance-val').innerText = `₪${Math.abs(balance).toFixed(2)}`;
@@ -10495,20 +10019,177 @@ window.submitPOSModifiers = function() {
 };
 
 window.finalizePOSOrder = async function() {
-    const btn = document.getElementById('btn-finalize-pos'); btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד...';
-    let total = 0; window.posCart.forEach(i => total += (i.price * i.qty));
-    const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price * i.qty, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
+    const btn = document.getElementById('btn-finalize-pos'); 
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק ומדפיס...';
+    
+    let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
+    let grandTotal = netTotal;
+    
+    const phone = document.getElementById('pos-customer-phone').value;
+    const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
+    
+    // הפריטים נשמרים במחיר נטו
+    const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
+    
+    const vatSettings = window.getVatSettings();
+    let vatDetails = null;
+    if (vatSettings && vatSettings.enabled) {
+        const rate = vatSettings.rate || 18;
+        const vatAmount = netTotal * (rate / 100);
+        grandTotal = netTotal + vatAmount;
+        vatDetails = { enabled: true, rate: rate, subtotal: netTotal, vatAmount: vatAmount };
+    }
+    
+    const metaData = { payments: window.posSplitPayments, vat: vatDetails };
+
     try {
-        const res = await fetch(`${API}/store/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, customerName: window.posCurrentCustomer?.name || 'לקוח קופה', customerPhone: document.getElementById('pos-customer-phone').value, items, totalAmount: total, isDelivery: false, notes: 'עסקת קופה (POS) | אמצעי תשלום: ' + JSON.stringify(window.posSplitPayments) }) });
-        if((await res.json()).success) {
-            if(document.getElementById('tender-send-receipt').checked && document.getElementById('pos-customer-phone').value) {
-                const waMsg = encodeURIComponent(`היי ${window.posCurrentCustomer?.name || ''}, תודה שקנית ב-${currentGroup.name}! 🙏\nההזמנה שלך בוצעה בהצלחה.\nסה"כ לתשלום: ₪${total.toFixed(2)}`);
-                window.open(`https://wa.me/972${document.getElementById('pos-customer-phone').value.substring(1)}?text=${waMsg}`, '_blank');
+        const res = await fetch(`${API}/store/orders`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            const newOrderId = data.orderId || data.id;
+            
+            // עדכון סטטוס מופרד למניעת קריסת שרת
+            if (newOrderId) {
+                await fetch(`${API}/store/orders/status`, { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                });
             }
-            showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
+
+            // הפקת הדפסה מיידית למדפסת הקופה תמיד!
+            const rawOrderObj = {
+                id: newOrderId || 'קופה',
+                created_at: new Date().toISOString(),
+                total_amount: grandTotal,
+                items: items,
+                notes: JSON.stringify(metaData)
+            };
+            window.printPOSReceipt(newOrderId, rawOrderObj);
+
+            // שליחה לווצאפ בנוסף (במידה וסומן)
+            const waCheckbox = document.getElementById('tender-send-receipt');
+            if(waCheckbox && waCheckbox.checked && phone) {
+                let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
+                waMsg += `הזמנה #${newOrderId || Date.now().toString().slice(-4)}\n`;
+                waMsg += `------------------------\n`;
+                window.posCart.forEach(item => {
+                    waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
+                    if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
+                });
+                waMsg += `------------------------\n`;
+                if (vatDetails) {
+                    waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
+                    waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
+                }
+                waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
+                if (window.posSplitPayments.length > 0) {
+                    waMsg += `*אמצעי תשלום:*\n`;
+                    window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
+                }
+                waMsg += `\nתודה שקנית אצלנו! 🙏`;
+                
+                // עיכוב קל לוואטסאפ כדי שהדפדפן לא יחסום את פופ-אפ ההדפסה
+                setTimeout(() => {
+                    window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                }, 1000);
+            }
+            
+            showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); 
             if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+
+            window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
             document.getElementById('pos-customer-phone').value = '';
             window.checkPOSCustomer();
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ההזמנה');
         }
-    } catch(e) { showToast('error', 'שגיאת רשת'); } finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
+    } catch(e) { showToast('error', 'שגיאת תקשורת בסיום העסקה'); } 
+    finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
+};
+
+window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
+    const idToPrint = orderId || (typeof currentStoreOrderId !== 'undefined' ? currentStoreOrderId : null);
+    if(!idToPrint && !rawOrderObj) return;
+    
+    let order = rawOrderObj;
+    if (!order) {
+        order = storeOrdersCache.find(o => String(o.id) === String(idToPrint));
+        if(!order) return showToast('error', 'לא נמצאו נתוני הזמנה להדפסה');
+    }
+    
+    let itemsHtml = '';
+    const rawItems = Array.isArray(order.items) ? order.items : (typeof order.items === 'string' ? JSON.parse(order.items) : []);
+    
+    rawItems.forEach(i => {
+        if (i.catalogId === null || i.catalogId === 0 || i.catalogId === 999999 || i.is_quote_metadata || i.is_delivery_metadata || (i.name && i.name.startsWith('DELIVERY_META|'))) return;
+        itemsHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-weight:bold;"><span>${i.item_name || i.name} x${i.quantity}</span><span>₪${((i.price_at_order || i.price || 0) * i.quantity).toFixed(2)}</span></div>`;
+        if (i.note) itemsHtml += `<div style="font-size:11px; color:#555; margin-bottom:6px; padding-right:10px;">${i.note}</div>`;
+    });
+    
+    let vatHtml = '';
+    let paymentsHtml = '';
+    
+    try {
+        const metaStr = order.notes;
+        if(metaStr && metaStr.includes('{')) {
+            const meta = JSON.parse(metaStr);
+            if (meta.vat && meta.vat.enabled) {
+                vatHtml = `
+                    <div style="border-top:1px dashed #000; margin:10px 0; padding-top:10px; font-size:12px;">
+                        <div style="display:flex; justify-content:space-between;"><span>סכום ביניים נטו:</span><span>₪${meta.vat.subtotal.toFixed(2)}</span></div>
+                        <div style="display:flex; justify-content:space-between;"><span>מע"מ (${meta.vat.rate}%):</span><span>₪${meta.vat.vatAmount.toFixed(2)}</span></div>
+                    </div>
+                `;
+            }
+            if (meta.payments && meta.payments.length > 0) {
+                paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
+                meta.payments.forEach(p => {
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${p.amount.toFixed(2)}</span></div>`;
+                });
+                paymentsHtml += `</div>`;
+            }
+        }
+    } catch(e) {}
+    
+    const receiptHtml = `
+        <html dir="rtl">
+        <head><title>קבלה ${order.id}</title>
+        <style>body{font-family:sans-serif; padding:10px; font-size:13px; max-width: 300px; margin:0 auto;} @media print { body { width: 100%; margin: 0; padding: 0; } }</style>
+        </head>
+        <body>
+            <h2 style="text-align:center; margin-bottom:5px;">${typeof currentGroup !== 'undefined' && currentGroup ? currentGroup.name : 'קבלה'}</h2>
+            <div style="text-align:center; margin-bottom:15px; font-size:12px;">קבלה / הזמנה #${order.id}<br>${new Date(order.created_at || Date.now()).toLocaleString('he-IL')}</div>
+            <div style="border-top:1px dashed #000; border-bottom:1px dashed #000; padding:10px 0; margin-bottom:10px;">
+                ${itemsHtml}
+            </div>
+            ${vatHtml}
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+                <span>סה"כ לתשלום:</span><span>₪${parseFloat(order.total_amount).toFixed(2)}</span>
+            </div>
+            ${paymentsHtml}
+            <div style="text-align:center; margin-top:20px; font-size:12px; font-weight:bold;">תודה שקנית אצלנו! 🙏</div>
+        </body>
+        </html>
+    `;
+
+    let iframe = document.getElementById('receipt-printer-frame');
+    if(!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt-printer-frame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.contentWindow.document.open();
+    iframe.contentWindow.document.write(receiptHtml);
+    iframe.contentWindow.document.close();
+    
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        showToast('success', 'הקבלה נשלחה להדפסה');
+    }, 500);
 };
