@@ -1374,21 +1374,45 @@ async function setBusinessLocation() {
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 
+let liveTimeclockInterval = null;
+
 async function checkTimeclockStatus() {
     try {
         const res = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`); const data = await res.json();
         const btn = getEl('btn-punch'); const icon = getEl('tc-icon'); const text = getEl('tc-btn-text'); const info = getEl('tc-active-info'); const startTime = getEl('tc-start-time');
+        
         if(!btn) return;
         isPunchedIn = data.isPunchedIn;
+        
+        if (liveTimeclockInterval) { clearInterval(liveTimeclockInterval); liveTimeclockInterval = null; }
+
         if (isPunchedIn) {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(239,68,68,0.4)] transition-all duration-300 bg-red-500 text-white hover:bg-red-600";
-            icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2"; text.innerText = "יציאה"; info.classList.remove('hidden');
-            const d = new Date(data.punchInTime); startTime.innerText = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            icon.className = "fa-solid fa-arrow-right-from-bracket text-5xl mb-2"; 
+            if(info) info.classList.remove('hidden');
+            
+            const d = new Date(data.punchInTime); 
+            if(startTime) startTime.innerText = d.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+
+            const punchInTimeMs = d.getTime();
+            liveTimeclockInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const diffMs = now - punchInTimeMs;
+                const hrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+                
+                const timeString = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                if(text) text.innerText = `יציאה (${timeString})`;
+            }, 1000);
+
         } else {
             btn.className = "punch-btn w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-[0_10px_40px_-10px_rgba(59,130,246,0.4)] transition-all duration-300 bg-blue-600 text-white hover:bg-blue-700";
-            icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; text.innerText = "כניסה"; info.classList.add('hidden');
+            icon.className = "fa-solid fa-fingerprint text-5xl mb-2"; 
+            if(text) text.innerText = "כניסה"; 
+            if(info) info.classList.add('hidden');
         }
-        // רענון אוטומטי של הרשימה למטה בכל פעם שהסטטוס נבדק (פותר את הבעיה שלא רואים יציאה/כניסה)
+        
         fetchTimeclockReport();
     } catch(e) {}
 }
@@ -1451,7 +1475,6 @@ async function submitManualPunch() {
         await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         showToast('success', 'דווח בהצלחה!');
         getEl('manual-punch-modal').classList.add('hidden');
-        // רענון אוטומטי של הרשימה
         fetchTimeclockReport();
     } catch(e) {
         showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
@@ -1470,7 +1493,6 @@ async function fetchTimeclockReport() {
         const res = await fetch(reqUrl); 
         let rawData = await res.json();
         
-        // הגנה קריטית: חילוץ המערך למקרה והשרת עוטף אותו באובייקט
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
         if (monthFilter !== 'all') {
@@ -1491,7 +1513,7 @@ async function fetchTimeclockReport() {
             let totalStr = '-'; 
             let costStr = '';
             
-            const user = membersCache.find(m => m.nickname === r.nickname) || {};
+            const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
             const hourlyRate = parseFloat(user.allowance_amount) || 0;
             
             if(r.punch_out) { 
@@ -1499,7 +1521,8 @@ async function fetchTimeclockReport() {
                 const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
                 totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
                 const cost = (r.total_minutes / 60) * hourlyRate;
-                if(currentUser.role === 'ADMIN') costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
+                
+                costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
                 
                 if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
                 userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
@@ -1507,7 +1530,7 @@ async function fetchTimeclockReport() {
                 outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
             }
             
-            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : '';
+            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">שכר ש'</span>`;
             html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                         <div class="flex items-center gap-2">
                             ${nameDisp}
@@ -1521,7 +1544,6 @@ async function fetchTimeclockReport() {
                      </div>`;
         });
         
-        // עדכון כרטיסי KPI בראש הטאב
         let totalMinutes = 0, totalCost = 0;
         for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
         const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
@@ -1529,12 +1551,13 @@ async function fetchTimeclockReport() {
         const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(0)}`;
 
         let summaryHtml = '';
-        if(currentUser.role === 'ADMIN' && Object.keys(userSummaries).length > 0) {
-            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום עלויות שכר (תקופה נבחרת):</h4><div class="space-y-2">`;
+        if(Object.keys(userSummaries).length > 0) {
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות (תקופה נבחרת):</h4><div class="space-y-2">`;
             for(let name in userSummaries) {
                 const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(1); const minH = s.minHours;
                 const minWarning = (minH > 0 && (s.minutes/60) < minH) ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">חסרות ${ (minH - (s.minutes/60)).toFixed(1) } שעות למינימום</span>` : '';
-                summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${name} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
+                const titleName = currentUser.role === 'ADMIN' ? name : 'שעות עבודה שלי';
+                summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
         }
