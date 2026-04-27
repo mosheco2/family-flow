@@ -4035,7 +4035,6 @@ window.getCustomerDebt = function(customerPhone) {
         if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
             try {
                 let meta = null;
-                // סריקה מתקדמת מכל המקומות האפשריים למניעת פספוסים
                 if (o.notes && o.notes.includes('{')) {
                     meta = JSON.parse(o.notes);
                 } else {
@@ -4058,7 +4057,8 @@ window.getCustomerDebt = function(customerPhone) {
             } catch(e) {}
         }
     });
-    return Math.max(0, debt);
+    // מחזירים את החוב המדויק (גם אם הוא במינוס/זכות)
+    return debt;
 };
 
 window.openDebtPaymentModal = function(phone, maxDebt) {
@@ -4067,7 +4067,7 @@ window.openDebtPaymentModal = function(phone, maxDebt) {
     
     document.body.insertAdjacentHTML('beforeend', `
     <div id="debt-amount-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-slate-100">
             <button onclick="document.getElementById('debt-amount-modal').remove()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition"><i class="fa-solid fa-xmark"></i></button>
             <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner border border-emerald-100">
                 <i class="fa-solid fa-money-bill-wave"></i>
@@ -4116,7 +4116,7 @@ window.proceedToDebtTender = function(phone, maxDebt) {
     window.switchTab('sales');
     window.switchSalesTab('pos');
     
-    window.openPOSTender();
+    window.openPOSTender(true); // עוקף את חלונית החוב כי אנחנו באים לשלם
 };
 
 window.openCustomerModal = function(id = null, tab = 'details') {
@@ -4140,12 +4140,14 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                     <button onclick="window.openDebtPaymentModal('${safeStr(c.phone)}', ${debt})" class="bg-red-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold shadow-md hover:bg-red-700 transition">תשלום חוב</button>
                 </div>`;
             } else {
+                const zchut = Math.abs(debt);
                 debtHtml = `
                 <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 mb-4 flex justify-between items-center shadow-sm">
                     <div>
-                        <span class="text-[10px] font-bold text-emerald-600 block uppercase tracking-wider mb-1"><i class="fa-solid fa-shield-halved"></i> מצב חשבון</span>
-                        <span class="text-lg font-bold text-emerald-800">אין חובות פתוחים במערכת</span>
+                        <span class="text-[10px] font-bold text-emerald-600 block uppercase tracking-wider mb-1"><i class="fa-solid fa-shield-halved"></i> ${zchut > 0 ? 'יתרת זכות' : 'מצב חשבון'}</span>
+                        <span class="text-2xl font-black text-emerald-700 dir-ltr inline-block">₪${zchut.toFixed(2)}</span>
                     </div>
+                    <div class="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm flex items-center gap-1"><i class="fa-solid fa-check"></i> אין חוב</div>
                 </div>`;
             }
         }
@@ -9188,6 +9190,21 @@ window.getVatSettings = function() {
     } catch(e) { return { enabled: true, rate: 18 }; }
 };
 
+window.forceLoadCatalog = async function(e) {
+    if(e) { e.preventDefault(); e.stopPropagation(); }
+    const btn = e ? e.currentTarget : null;
+    if(btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...';
+    try {
+        if(typeof fetchStoreCatalog === 'function') await fetchStoreCatalog();
+        if(typeof window.renderPOSCatalog === 'function') window.renderPOSCatalog(window.posCurrentCategory);
+        showToast('success', 'הקטלוג סונכרן בהצלחה!');
+    } catch(err) {
+        showToast('error', 'שגיאה ברענון הקטלוג');
+    } finally {
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> טען מוצרים';
+    }
+};
+
 window.renderPOSCatalog = function(cat = 'all') {
     window.posCurrentCategory = cat;
     const grid = document.getElementById('pos-catalog-grid');
@@ -9308,6 +9325,10 @@ window.renderPOSCart = function() {
     
     if(totalEl) totalEl.innerText = `₪${grandTotal.toFixed(2)}`;
     if(countEl) countEl.innerText = `${count} פריטים`;
+    
+    // החלפת הפונקציה הישנה בפונקציית הבדיקה החכמה שמקפיצה התראת חוב
+    const btnSubmitPos = document.getElementById('btn-submit-pos');
+    if (btnSubmitPos) btnSubmitPos.setAttribute('onclick', 'window.handlePosTenderClick()');
 };
 
 window.updatePOSQty = (idx, d) => { if(window.posCart[idx]) { window.posCart[idx].qty += d; if(window.posCart[idx].qty <= 0) window.posCart.splice(idx,1); window.renderPOSCart(); } };
@@ -9323,7 +9344,12 @@ window.checkPOSCustomer = function() {
         if (c) { 
             window.posCurrentCustomer = c; 
             if(indicator) {
-                indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
+                const debt = window.getCustomerDebt(c.phone);
+                if (debt > 0) {
+                    indicator.innerHTML = `<span class="text-red-700 bg-red-50 px-3 py-1.5 rounded-xl border border-red-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-triangle-exclamation"></i> לקוח מזוהה (חוב: ₪${debt.toFixed(2)}): <strong>${safeStr(c.name)}</strong></span>`;
+                } else {
+                    indicator.innerHTML = `<span class="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center gap-1.5 shadow-sm text-xs mt-1"><i class="fa-solid fa-circle-check"></i> לקוח מזוהה: <strong>${safeStr(c.name)}</strong></span>`;
+                }
                 indicator.classList.remove('hidden');
             }
             return;
@@ -9333,24 +9359,48 @@ window.checkPOSCustomer = function() {
     if(indicator) indicator.classList.add('hidden'); 
 };
 
-window.openPOSTender = function() {
+// פונקציית המעבר לסליקה - בודקת חובות ומקפיצה התראה מעוצבת
+window.handlePosTenderClick = function() {
     if(window.posCart.length === 0) return showToast('error', 'העגלה ריקה!');
-    window.posSplitPayments = []; window.tenderMethod = 'cash';
     
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     
-    // בדיקה והתראה על חוב פתוח של הלקוח
     if (window.posCurrentCustomer && !isDebtPayment) {
         const debt = window.getCustomerDebt(window.posCurrentCustomer.phone);
         if (debt > 0) {
-            if (!confirm(`שים לב: ללקוח זה (${safeStr(window.posCurrentCustomer.name)}) קיים חוב פתוח על סך ₪${debt.toFixed(2)}.\n\nהאם ברצונך להמשיך בסליקה של ההזמנה החדשה?`)) {
-                return;
-            }
+            let modal = document.getElementById('pos-debt-alert-modal');
+            if(modal) modal.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="pos-debt-alert-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+                    <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative text-center border-2 border-red-100">
+                        <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-red-100">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-800 mb-2">חוב פתוח ללקוח!</h3>
+                        <p class="text-sm text-slate-600 mb-6 leading-relaxed">ללקוח <strong>${safeStr(window.posCurrentCustomer.name)}</strong> קיים חוב פתוח על סך <strong class="text-red-600 dir-ltr inline-block">₪${debt.toFixed(2)}</strong>.<br>האם להמשיך בסליקת ההזמנה החדשה?</p>
+                        <div class="flex gap-3">
+                            <button onclick="document.getElementById('pos-debt-alert-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm">ביטול סליקה</button>
+                            <button onclick="document.getElementById('pos-debt-alert-modal').remove(); window.openPOSTender(true);" class="flex-[1.5] bg-red-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-red-600 transition text-sm flex items-center justify-center gap-2">המשך סליקה <i class="fa-solid fa-arrow-left"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            return; // עוצר את התהליך עד לאישור בחלונית
         }
     }
     
+    // אם אין חוב או שהחלון אושר, ממשיכים כרגיל
+    window.openPOSTender(true);
+};
+
+window.openPOSTender = function(skipCheck = false) {
+    window.posSplitPayments = []; window.tenderMethod = 'cash';
+    
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     let grandTotal = netTotal;
+    
+    const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     
     let tenderVatDisplay = document.getElementById('tender-vat-display');
     if (!tenderVatDisplay) {
@@ -9485,9 +9535,8 @@ window.submitPOSModifiers = function() {
 
 window.finalizePOSOrder = async function() {
     const btn = document.getElementById('btn-finalize-pos'); 
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד סליקה...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק ומדפיס...';
     
-    // משיכת נתוני העסקה בצורה בטוחה
     const isDebtPayment = window.posCart.length === 1 && window.posCart[0].real_id === null && window.posCart[0].name.includes('חוב');
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     let grandTotal = netTotal;
@@ -9509,77 +9558,87 @@ window.finalizePOSOrder = async function() {
     const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
-    // שמירה בשרת מאחורי הקלעים וסגירה מיידית של חלון הקופה
-    fetch(`${API}/store/orders`, { 
-        method: 'POST', headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            const newOrderId = data.orderId || data.id;
-            if (newOrderId) {
-                fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                }).catch(e=>{});
-            }
-        }
-    }).catch(e=>{});
-
-    // סגירה מיידית של החלון!
+    // 1. סגירה מיידית של חלון הסליקה למניעת תקיעות ותחושת איטיות
     const modal = document.getElementById('pos-tender-modal');
     if (modal) modal.classList.add('hidden');
-    
-    // הכנת אובייקט להדפסה מיידית ללא תלות בשרת
-    const rawOrderObj = {
-        id: 'קופה',
-        created_at: new Date().toISOString(),
-        total_amount: grandTotal,
-        items: items,
-        notes: JSON.stringify(metaData)
-    };
-    
-    try { window.printPOSReceipt(null, rawOrderObj); } catch(e){}
 
-    // שליחת וואטסאפ בהשהיה קלה
     try {
-        const waCheckbox = document.getElementById('tender-send-receipt');
-        if(waCheckbox && waCheckbox.checked && phone) {
-            let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
-            waMsg += `------------------------\n`;
-            window.posCart.forEach(item => {
-                waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
-                if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
-            });
-            waMsg += `------------------------\n`;
-            if (vatDetails && !isDebtPayment) {
-                waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
-                waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
-            }
-            waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
-            if (window.posSplitPayments.length > 0) {
-                waMsg += `*אמצעי תשלום:*\n`;
-                window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
-            }
-            waMsg += `\nתודה שקנית אצלנו! 🙏`;
+        // 2. שמירת העסקה
+        const res = await fetch(`${API}/store/orders`, { 
+            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ groupId: currentGroup.id, customerName: customerName, customerPhone: phone, items, totalAmount: grandTotal, isDelivery: false, notes: JSON.stringify(metaData) }) 
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            const newOrderId = data.orderId || data.id;
             
-            setTimeout(() => {
-                window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
-            }, 1500);
-        }
-    } catch(e){}
-    
-    showToast('success', 'העסקה הושלמה בהצלחה!'); 
-    try { triggerConfetti(); } catch(e){}
-    setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
+            // עדכון סטטוס מופרד (שוב - בהגנה)
+            try {
+                if (newOrderId) {
+                    fetch(`${API}/store/orders/status`, { 
+                        method: 'POST', headers: {'Content-Type':'application/json'}, 
+                        body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                    }).catch(e=>{});
+                }
+            } catch(e){}
 
-    window.posCart = []; window.renderPOSCart(); 
-    const phoneInput = document.getElementById('pos-customer-phone');
-    if(phoneInput) phoneInput.value = '';
-    try { window.checkPOSCustomer(); } catch(e){}
-    
-    btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>';
+            // 3. הפקת הדפסה מיידית ללא תלות בשרת או בוואטסאפ
+            const rawOrderObj = {
+                id: newOrderId || 'קופה',
+                created_at: new Date().toISOString(),
+                total_amount: grandTotal,
+                items: items,
+                notes: JSON.stringify(metaData)
+            };
+            try { window.printPOSReceipt(newOrderId, rawOrderObj); } catch(e){}
+
+            // 4. טיפול נפרד לחלוטין בוואטסאפ בהשהיה (כדי לא להפריע להדפסה)
+            try {
+                const waCheckbox = document.getElementById('tender-send-receipt');
+                if(waCheckbox && waCheckbox.checked && phone) {
+                    let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
+                    waMsg += `------------------------\n`;
+                    window.posCart.forEach(item => {
+                        waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
+                        if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
+                    });
+                    waMsg += `------------------------\n`;
+                    if (vatDetails && !isDebtPayment) {
+                        waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
+                        waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
+                    }
+                    waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
+                    if (window.posSplitPayments.length > 0) {
+                        waMsg += `*אמצעי תשלום:*\n`;
+                        window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
+                    }
+                    waMsg += `\nתודה שקנית אצלנו! 🙏`;
+                    
+                    setTimeout(() => {
+                        window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                    }, 1500);
+                }
+            } catch(e){}
+            
+            showToast('success', 'העסקה הושלמה ונשמרה בהצלחה!'); 
+            try { triggerConfetti(); } catch(e){}
+            setTimeout(() => { try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){} }, 2000);
+
+            // ניקוי עגלה והכנה ללקוח הבא
+            window.posCart = []; window.renderPOSCart(); 
+            const phoneInput = document.getElementById('pos-customer-phone');
+            if(phoneInput) phoneInput.value = '';
+            try { window.checkPOSCustomer(); } catch(e){}
+            
+        } else {
+            showToast('error', data.error || 'שגיאה בשמירת ההזמנה במסד הנתונים');
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בסיום העסקה. העסקה לא נשמרה בשרת.'); 
+    } finally { 
+        btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; 
+    }
 };
 
 window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
