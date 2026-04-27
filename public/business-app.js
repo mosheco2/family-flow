@@ -1359,10 +1359,12 @@ async function loadDashboard() {
        
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
-    if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
-    if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
+    if (!navigator.geolocation) { 
+        return showToast('error', 'הדפדפן שלך אינו תומך ב-GPS');
+    }
+    if (!confirm('האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
     
-    showToast('info', 'מאתר מיקום... נא לאשר גישה למיקום בדפדפן/מכשיר.');
+    showToast('info', 'מאתר מיקום... נא לאשר גישה למיקום בטאבלט.');
     
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude; 
@@ -1375,14 +1377,14 @@ async function setBusinessLocation() {
                 body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) 
             });
             const data = await res.json();
-            if(data.success) {
+            if(res.ok && data.success) {
                 showToast('success', 'מיקום העסק נשמר בהצלחה בהנהלה!');
-                // מתקן את תקלה 3: מעדכן את הממשק באותו הרגע כדי להציג שנשמר
+                // עדכון הממשק בלייב
                 const locAlerts = document.querySelectorAll('.text-red-500');
                 locAlerts.forEach(el => {
                     if(el.innerText && el.innerText.includes('לא הוגדר')) {
-                        el.className = 'text-xs text-green-600 font-bold mb-4 bg-green-50 p-2 rounded-lg';
-                        el.innerText = '✓ מיקום העסק הוגדר בהצלחה. עובדים יוכלו להחתים רק בסביבת העסק.';
+                        el.className = 'text-xs text-green-600 font-bold mb-4 bg-green-50 p-2 rounded-lg block';
+                        el.innerText = '✓ מיקום העסק הוגדר בהצלחה. מערכת ה-GPS פעילה.';
                     }
                 });
             } else {
@@ -1391,8 +1393,8 @@ async function setBusinessLocation() {
         } catch(e) { showToast('error', 'שגיאת רשת בשמירת המיקום'); }
     }, (error) => {
         let errMsg = 'שגיאה באיתור המיקום.';
-        if (error.code === 1) errMsg = 'הדפדפן או המכשיר חוסמים את הגישה ל-GPS. אנא אשר בהגדרות.';
-        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע.';
+        if (error.code === 1) errMsg = 'הגישה למיקום נחסמה. נא לאשר הגדרות GPS!';
+        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע במכשיר.';
         if (error.code === 3) errMsg = 'זמן איתור המיקום עבר.';
         showToast('error', errMsg);
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
@@ -1443,7 +1445,7 @@ async function checkTimeclockStatus() {
 
 async function handlePunch() {
     const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
-    if (!navigator.geolocation) return showToast('error', 'הדפדפן לא תומך במיקום');
+    if (!navigator.geolocation) return showToast('error', 'הדפדפן או הטאבלט לא תומכים בשירותי מיקום');
     
     btn.disabled = true; 
     const icon = getEl('tc-icon'); const text = getEl('tc-btn-text');
@@ -1451,10 +1453,11 @@ async function handlePunch() {
         icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
         text.innerText = 'מאתר מיקום...';
     }
-    
+
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude; 
         const lng = position.coords.longitude;
+        
         try {
             const res = await fetch(`${API}/timeclock/punch`, { 
                 method: 'POST', 
@@ -1466,7 +1469,7 @@ async function handlePunch() {
             
             // תפיסת שגיאות GPS אמיתיות והצגת ההודעה שחוזרת מהשרת
             if(!res.ok || !data.success) { 
-                showToast('error', data.error || 'שגיאה בדיווח נוכחות'); 
+                showToast('error', data.error || 'שגיאה בדיווח נוכחות (וודא שהמנהל קבע מיקום ושהנך בקרבת העסק)'); 
                 checkTimeclockStatus(); 
                 return;
             }
@@ -1476,16 +1479,17 @@ async function handlePunch() {
             await checkTimeclockStatus(); 
             fetchData();
         } catch(e) { 
-            showToast('error', 'שגיאת רשת מול השרת בעת דיווח הנוכחות'); 
+            console.error("Punch error:", e);
+            showToast('error', 'שגיאת תקשורת עם השרת בעת דיווח הנוכחות'); 
             checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
         }
     }, (error) => {
         let errMsg = 'שגיאה באיתור המיקום.';
-        if (error.code === 1) errMsg = 'גישה למיקום נחסמה. נא לאשר הגדרות GPS במכשיר/דפדפן!';
+        if (error.code === 1) errMsg = 'הגישה ל-GPS נחסמה בטאבלט. נא לאשר בהגדרות!';
         if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע.';
-        if (error.code === 3) errMsg = 'טיים-אאוט באיתור המיקום.';
+        if (error.code === 3) errMsg = 'איתור המיקום ארך זמן רב מדי.';
         showToast('error', errMsg);
         checkTimeclockStatus();
         btn.disabled = false;
@@ -1613,9 +1617,9 @@ async function fetchTimeclockReport() {
                 summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
-        } else if (data.length === 0) {
-            // מתקן את התקלה - יצירת מראה חצי ריק יפה במידה ואין נתונים כלל (מניעת קריסה חזותית)
-            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
+        } else {
+            // מתקן את התקלה - יצירת מראה חצי ריק יפה במידה ואין נתונים כלל (מניעת קריסה חזותית של הדוח)
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתוני שעות עבודה בחודש הנבחר.</p></div>`;
         }
         
         list.innerHTML = `
