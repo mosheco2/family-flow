@@ -8658,8 +8658,7 @@ window.switchSalesTab = function(subTab) {
         setTimeout(window.renderAnalytics, 150);
     }
 };
-// ספירת הצעות מחיר פתוחות בלבד
-{
+    // ספירת הצעות מחיר פתוחות בלבד
     const pendingQuotesCount = (storeQuotesCache && Array.isArray(storeQuotesCache)) 
         ? storeQuotesCache.filter(q => q.status === 'quote' && (q.quote_status === 'draft' || q.quote_status === 'sent' || q.quote_status === 'waiting_customer')).length 
         : 0;
@@ -8675,6 +8674,7 @@ window.switchSalesTab = function(subTab) {
 // ============================================================
 // --- Analytics & Reporting Module (Pro Version) ---
 // ============================================================
+let analyticsRevChart = null;
 let analyticsCatChart = null;
 let activeCatFilter = null; // Drill-down filter
 
