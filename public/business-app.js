@@ -649,15 +649,22 @@ window.togglePOSFullscreen = function() {
     
     if (!document.fullscreenElement) {
         try {
-            if (posContainer.requestFullscreen) posContainer.requestFullscreen();
-            else if (posContainer.webkitRequestFullscreen) posContainer.webkitRequestFullscreen();
-            else if (posContainer.msRequestFullscreen) posContainer.msRequestFullscreen();
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) docEl.requestFullscreen();
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+            else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
             
-            posContainer.classList.add('bg-slate-100', 'p-2', 'sm:p-4', 'z-[999999]');
+            // תלישת הקופה מהדף ופריסה על הכל
+            posContainer.classList.add('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-4');
             posContainer.classList.remove('pb-20', 'mt-4');
-            posContainer.style.height = '100vh';
             
-            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+            // הסתרת Header ותפריט צד אם יש
+            const mainHeader = document.querySelector('header');
+            const sliderScroll = document.getElementById('slider-scroll');
+            if (mainHeader) mainHeader.style.display = 'none';
+            if (sliderScroll) sliderScroll.style.display = 'none';
+            
+            const wrapper = posContainer.querySelector('.pos-wrapper-height');
             if(wrapper) {
                 wrapper.classList.remove('h-[85vh]');
                 wrapper.classList.add('h-full');
@@ -677,12 +684,19 @@ document.addEventListener('fullscreenchange', () => {
     if (!posContainer) return;
     
     const btn = document.getElementById('btn-pos-fullscreen');
-    const wrapper = posContainer.querySelector('.h-full') || posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+    const wrapper = posContainer.querySelector('.pos-wrapper-height');
     
     if (!document.fullscreenElement) {
-        posContainer.classList.remove('bg-slate-100', 'p-2', 'sm:p-4', 'z-[999999]');
+        // החזרת הקופה למקומה הרגיל
+        posContainer.classList.remove('fixed', 'inset-0', 'z-[999999]', 'bg-slate-50', 'p-4');
         posContainer.classList.add('pb-20', 'mt-4');
-        posContainer.style.height = '';
+        
+        // החזרת הניווט הכללי של האפליקציה
+        const mainHeader = document.querySelector('header');
+        const sliderScroll = document.getElementById('slider-scroll');
+        if (mainHeader) mainHeader.style.display = '';
+        if (sliderScroll) sliderScroll.style.display = '';
+        
         if(wrapper) {
             wrapper.classList.remove('h-full');
             wrapper.classList.add('h-[85vh]');
@@ -3812,14 +3826,12 @@ window.renderStoreCustomers = function() {
     if (!list) return;
 
     const searchTerm = (val('filter-customer-search') || '').toLowerCase();
-    const cleanSearchTerm = searchTerm.replace(/\D/g, ''); // מסיר כל תו שאינו מספר לטובת חיפוש טלפון
+    const cleanSearchTerm = searchTerm.replace(/\D/g, ''); 
     const filterType = val('filter-customer-type') || 'all';
 
     let filtered = storeCustomersCache.filter(c => {
         const searchStr = `${c.name || ''} ${c.phone || ''} ${c.business_id || ''} ${c.email || ''}`.toLowerCase();
         const cleanPhone = (c.phone || '').replace(/\D/g, '');
-        
-        // בודק התאמה לשם ולטקסט, או התאמה נקייה של מספר טלפון
         return searchStr.includes(searchTerm) || (cleanSearchTerm && cleanPhone.includes(cleanSearchTerm));
     });
 
@@ -3860,12 +3872,26 @@ window.renderStoreCustomers = function() {
             </div>
             <div class="flex items-center gap-2">
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[150px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
-                <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm z-50 relative" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
             </div>
         </div>
         `;
     }).join('');
 };
+
+// תיקון כפתור ה"הוספת מאפיינים" (Modifiers) שהפסיק לעבוד בגלל תצורת ה-Window:
+window.addModifierGroup = function() { 
+    if(!currentModifiersUI) currentModifiersUI = [];
+    currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
+    window.renderModifiersUI(); 
+};
+window.removeModifierGroup = function(index) { currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
+window.updateModName = function(index, v) { currentModifiersUI[index].name = v; };
+window.updateModType = function(index, v) { currentModifiersUI[index].type = v; };
+window.addModifierOption = function(gIndex) { currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
+window.removeModifierOption = function(gIndex, optIndex) { currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
+window.updateModOptionName = function(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].name = v; };
+window.updateModOptionPrice = function(gIndex, optIndex, v) { currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
 
 window.switchCustomerMainTab = function(tab) {
     const listBtn = getEl('btn-cust-main-list');
