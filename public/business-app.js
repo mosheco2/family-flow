@@ -4016,48 +4016,6 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
     listContainer.innerHTML = historyHtml;
 };
 
-window.switchCustomerTab = async function(tab) {
-    const viewDetails = getEl('cust-view-details');
-    const viewHistory = getEl('cust-view-history');
-    const btnDetails = getEl('btn-cust-tab-details');
-    const btnHistory = getEl('btn-cust-tab-history');
-    const btnSubmit = getEl('btn-submit-customer');
-    const btnCancel = getEl('btn-cancel-customer');
-    
-    if (!viewDetails || !viewHistory) return;
-
-    viewDetails.classList.add('hidden');
-    viewHistory.classList.add('hidden');
-    
-    if(btnDetails) {
-        btnDetails.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        btnDetails.classList.add('text-slate-500', 'hover:text-slate-700');
-    }
-    
-    if(btnHistory) {
-        btnHistory.classList.remove('bg-white', 'text-slate-800', 'shadow-sm');
-        btnHistory.classList.add('text-slate-500', 'hover:text-slate-700');
-    }
-
-    getEl(`cust-view-${tab}`).classList.remove('hidden');
-    const activeBtn = getEl(`btn-cust-tab-${tab}`);
-    if(activeBtn) {
-        activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700');
-        activeBtn.classList.add('bg-white', 'text-slate-800', 'shadow-sm');
-    }
-
-    if (tab === 'history') {
-        if(btnSubmit) btnSubmit.classList.add('hidden');
-        if(btnCancel) { btnCancel.classList.replace('w-1/3', 'w-full'); btnCancel.innerText = 'סגור חלון'; }
-        
-        getEl('cust-history-list').innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען היסטוריה...</p>';
-        window.renderCustomerHistory(false, 'modal');
-    } else {
-        if(btnSubmit) btnSubmit.classList.remove('hidden');
-        if(btnCancel) { btnCancel.classList.replace('w-full', 'w-1/3'); btnCancel.innerText = 'ביטול'; }
-    }
-};
-
 window.submitNewCustomer = async function() {
     const id = document.getElementById('cust-id').value;
     const name = document.getElementById('cust-name').value;
@@ -4123,7 +4081,6 @@ window.getCustomerDebt = function(customerPhone) {
             } catch(e) {}
         }
     });
-    // מחזירים את החוב המדויק (גם אם הוא במינוס/זכות)
     return debt;
 };
 
@@ -4182,7 +4139,7 @@ window.proceedToDebtTender = function(phone, maxDebt) {
     window.switchTab('sales');
     window.switchSalesTab('pos');
     
-    window.openPOSTender(true); // עוקף את חלונית החוב כי אנחנו באים לשלם
+    window.openPOSTender(true);
 };
 
 window.openCustomerModal = function(id = null, tab = 'details') {
@@ -4609,12 +4566,11 @@ function updateModOptionPrice(gIndex, optIndex, v) { currentModifiersUI[gIndex].
 let currentBundleStepsUI = [];
 let currentPizzaToppingsUI = [];
 
-function openStoreProductModal(id = null) {
+window.openStoreProductModal = function(id = null) {
     currentModifiersUI = []; 
     currentBundleStepsUI = [];
     currentPizzaToppingsUI = [];
     
-    // הזרקת הממשק להרכבת באנדל (אם לא קיים ב-HTML)
     let bundleContainer = getEl('bundle-builder-container');
     if (!bundleContainer) {
         const modContainer = getEl('modifiers-builder-container');
@@ -4626,9 +4582,14 @@ function openStoreProductModal(id = null) {
             
             const pTypeEl = getEl('sp-product-type');
             if (pTypeEl) {
-                if (!pTypeEl.querySelector('option[value="bundle"]')) {
-                    pTypeEl.insertAdjacentHTML('beforeend', '<option value="bundle">📦 מארז / קומבו (Bundle)</option>');
-                }
+                pTypeEl.innerHTML = `
+                    <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                    <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
+                    <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+                    <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+                    <option value="event_menu">🎉 תפריט אירועים וקייטרינג</option>
+                    <option value="service">✂️ שירות / טיפול</option>
+                `;
                 pTypeEl.addEventListener('change', (e) => toggleProductTypeUI(e.target.value));
             }
         }
@@ -4685,7 +4646,7 @@ function toggleProductTypeUI(type) {
     const presetContainer = getEl('preset-selector') ? getEl('preset-selector').parentNode : null;
     const pizzaContainer = getEl('sp-pizza-section');
     
-    if (type === 'bundle') {
+    if (type === 'bundle' || type === 'event_menu') {
         if (modContainer) modContainer.classList.add('hidden');
         if (presetContainer) presetContainer.classList.add('hidden');
         if (bundleContainer) bundleContainer.classList.remove('hidden');
@@ -9573,35 +9534,45 @@ window.updateTenderDisplay = function() {
 window.openPOSModifiersModal = function(p, mods) {
     window.currentPOSProduct = p; window.currentPOSModifiers = mods;
     
-    const modal = document.getElementById('pos-modifiers-modal');
-    if (!modal) return;
+    let modal = document.getElementById('pos-modifiers-modal');
+    if (modal) modal.remove();
     
-    document.getElementById('pos-mod-title').innerText = p.name;
-    document.getElementById('pos-mod-groups').innerHTML = mods.map((g, gi) => `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-2">
-                <h4 class="font-black text-slate-800 text-base">${safeStr(g.name)}</h4>
-                <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">${g.type==='multiple' ? 'בחירה חופשית' : 'חובה (1)'}</span>
+    let html = `
+    <div id="pos-modifiers-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-list-ul text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-modifiers-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="space-y-2">
-                ${g.options.map((o, oi) => `
-                    <label class="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <input type="${g.type==='multiple'?'checkbox':'radio'}" name="mod_g_${gi}" value="${oi}" class="w-5 h-5 accent-indigo-600" ${!g.type==='multiple' && oi===0 ? 'checked' : ''}>
-                            <span class="text-sm font-bold text-slate-700 group-hover:text-indigo-800 transition">${safeStr(o.name)}</span>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4">
+                ${mods.map((g, gi) => `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                            <h4 class="font-black text-slate-800 text-base">${safeStr(g.name)}</h4>
+                            <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md shadow-sm">${g.type==='multiple' ? 'בחירה חופשית' : 'חובה (1)'}</span>
                         </div>
-                        ${o.price>0?`<span class="text-xs font-black text-indigo-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm dir-ltr">+₪${o.price}</span>`:''}
-                    </label>
+                        <div class="space-y-2">
+                            ${g.options.map((o, oi) => `
+                                <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition group shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <input type="${g.type==='multiple'?'checkbox':'radio'}" name="mod_g_${gi}" value="${oi}" class="w-4 h-4 accent-indigo-600" ${!g.type==='multiple' && oi===0 ? 'checked' : ''}>
+                                        <span class="text-xs font-bold text-slate-700 group-hover:text-indigo-800">${safeStr(o.name)}</span>
+                                    </div>
+                                    ${o.price>0?`<span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 shadow-sm dir-ltr">+₪${o.price}</span>`:''}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
                 `).join('')}
             </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSModifiers()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">הוסף לעגלה</button>
+            </div>
         </div>
-    `).join('');
+    </div>`;
     
     const targetNode = document.fullscreenElement || document.body;
-    if (modal.parentNode !== targetNode) {
-        targetNode.appendChild(modal);
-    }
-    modal.classList.remove('hidden');
+    targetNode.insertAdjacentHTML('beforeend', html);
 };
 
 window.submitPOSModifiers = function() {
@@ -9612,7 +9583,186 @@ window.submitPOSModifiers = function() {
         checked.forEach(inp => { const o = g.options[parseInt(inp.value)]; finalPrice += parseFloat(o.price); selected.push(o); });
     });
     window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
-    document.getElementById('pos-modifiers-modal').classList.add('hidden'); window.renderPOSCart();
+    const modal = document.getElementById('pos-modifiers-modal');
+    if(modal) modal.remove(); 
+    window.renderPOSCart();
+};
+
+window.openPOSPizzaModal = function(p, pizzaData) {
+    window.currentPOSProduct = p;
+    const toppings = pizzaData.toppings || [];
+    
+    let modal = document.getElementById('pos-pizza-modal');
+    if (modal) modal.remove();
+    
+    let html = `
+    <div id="pos-pizza-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-pizza-slice text-orange-500 mr-2"></i> הרכבת ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-pizza-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-4">
+                <p class="text-xs text-slate-500 font-bold mb-2">בחרו תוספות והיכן למקם אותן על המגש:</p>
+                ${toppings.map((top, idx) => `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-700 text-sm">${safeStr(top.name)}</span>
+                            <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded dir-ltr border border-orange-100">+₪${top.price} למגש</span>
+                        </div>
+                        <div class="flex gap-1 mt-1">
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0" class="peer hidden" checked>
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-400 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">ללא</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="1" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">שלם</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0.5" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">חצי</div>
+                            </label>
+                            <label class="flex-1 cursor-pointer relative">
+                                <input type="radio" name="pizza_top_${idx}" value="0.25" class="peer hidden">
+                                <div class="text-[10px] font-bold text-center py-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 peer-checked:border-orange-300 transition shadow-sm">רבע</div>
+                            </label>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSPizza()" class="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-orange-600 transition">הוסף פיצה להזמנה</button>
+            </div>
+        </div>
+    </div>`;
+    
+    const targetNode = document.fullscreenElement || document.body;
+    targetNode.insertAdjacentHTML('beforeend', html);
+};
+
+window.submitPOSPizza = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    const parsed = JSON.parse(window.currentPOSProduct.options_text);
+    parsed.toppings.forEach((top, idx) => {
+        const checkedEl = document.querySelector(`input[name="pizza_top_${idx}"]:checked`);
+        if (checkedEl) {
+            const val = parseFloat(checkedEl.value);
+            if (val > 0) {
+                const addPrice = parseFloat(top.price) * val;
+                finalPrice += addPrice;
+                let portion = val === 1 ? 'מגש שלם' : (val === 0.5 ? 'חצי' : 'רבע');
+                selected.push({ name: `${top.name} (${portion})`, price: addPrice });
+            }
+        }
+    });
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    const modal = document.getElementById('pos-pizza-modal');
+    if (modal) modal.remove(); 
+    window.renderPOSCart();
+};
+
+window.openPOSBundleModal = function(p, bundleData) {
+    window.currentPOSProduct = p;
+    const steps = bundleData.steps || [];
+    
+    let modal = document.getElementById('pos-bundle-modal');
+    if (modal) modal.remove();
+    
+    let html = `
+    <div id="pos-bundle-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] flex items-center justify-center p-4 fade-in">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div class="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center shrink-0">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-boxes-stacked text-indigo-500 mr-2"></i> ${safeStr(p.name)}</h3>
+                <button onclick="document.getElementById('pos-bundle-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-4 pb-4">
+                ${steps.map((step, idx) => {
+                    let availableItems = [];
+                    if (step.selectionType === 'category') {
+                        availableItems = storeCatalogCache.filter(c => c.category === step.category && c.is_available);
+                    } else {
+                        availableItems = storeCatalogCache.filter(c => step.items && step.items.includes(c.id) && c.is_available);
+                    }
+                    
+                    let optionsHtml = '';
+                    if (availableItems.length === 0) {
+                        optionsHtml = '<p class="text-[10px] text-slate-400 font-bold bg-white p-3 rounded-lg border border-dashed text-center">אין פריטים זמינים לבחירה בשלב זה.</p>';
+                    } else {
+                        optionsHtml = availableItems.map((item, itemIdx) => `
+                            <label class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 transition shadow-sm mb-2 group relative">
+                                <div class="flex items-center gap-3">
+                                    <input type="${step.qty === 1 ? 'radio' : 'checkbox'}" name="bundle_step_${idx}" value="${safeStr(item.name)}" data-price="${item.price}" class="w-4 h-4 accent-indigo-600 bundle-step-input-${idx}" ${step.qty === 1 && itemIdx === 0 ? 'checked' : ''}>
+                                    <span class="font-bold text-slate-700 text-sm group-hover:text-indigo-800">${safeStr(item.name)}</span>
+                                </div>
+                            </label>
+                        `).join('');
+                    }
+                    
+                    return `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                            <h4 class="font-bold text-slate-800 text-sm">${safeStr(step.name)}</h4>
+                            <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 shadow-sm">בחר ${step.qty} ${step.qty===1 ? 'פריט' : 'פריטים'}</span>
+                        </div>
+                        <div class="bundle-options-wrapper" data-max="${step.qty}">
+                            ${optionsHtml}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div class="pt-3 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPOSBundle()" class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">סיים הרכבה והוסף לעגלה</button>
+            </div>
+        </div>
+    </div>`;
+    
+    const targetNode = document.fullscreenElement || document.body;
+    targetNode.insertAdjacentHTML('beforeend', html);
+    
+    // Add event listeners to enforce max selections for checkboxes
+    steps.forEach((step, idx) => {
+        if (step.qty > 1) {
+            const inputs = document.querySelectorAll(`.bundle-step-input-${idx}`);
+            inputs.forEach(inp => {
+                inp.addEventListener('change', () => {
+                    const checked = document.querySelectorAll(`.bundle-step-input-${idx}:checked`);
+                    if (checked.length > step.qty) {
+                        inp.checked = false;
+                        showToast('info', `ניתן לבחור עד ${step.qty} פריטים בשלב: ${step.name}`);
+                    }
+                });
+            });
+        }
+    });
+};
+
+window.submitPOSBundle = function() {
+    let finalPrice = parseFloat(window.currentPOSProduct.price);
+    let selected = [];
+    const parsed = JSON.parse(window.currentPOSProduct.options_text);
+    const steps = parsed.steps || [];
+    
+    let isValid = true;
+    
+    steps.forEach((step, idx) => {
+        const checked = document.querySelectorAll(`input[name="bundle_step_${idx}"]:checked`);
+        if (checked.length === 0) {
+            showToast('error', `חובה לבחור פריטים בשלב: ${step.name}`);
+            isValid = false;
+        }
+        checked.forEach(inp => {
+            selected.push({ name: inp.value, price: 0 }); // Bundle items are included in base price
+        });
+    });
+    
+    if (!isValid) return;
+
+    window.posCart.push({ id: 'pos_' + Date.now(), real_id: window.currentPOSProduct.id, name: window.currentPOSProduct.name, price: finalPrice, qty: 1, modifiers: selected });
+    const modal = document.getElementById('pos-bundle-modal');
+    if (modal) modal.remove(); 
+    window.renderPOSCart();
 };
 
 window.finalizePOSOrder = async function() {
@@ -9640,13 +9790,9 @@ window.finalizePOSOrder = async function() {
     const metaData = { payments: window.posSplitPayments, vat: vatDetails, is_debt_recovery: isDebtPayment };
     items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
+    // סגירה מיידית של חלון הסליקה
     const modal = document.getElementById('pos-tender-modal');
     if (modal) modal.classList.add('hidden');
-
-    const toastEl = document.getElementById('toast');
-    if (toastEl && document.fullscreenElement && toastEl.parentNode !== document.fullscreenElement) {
-        document.fullscreenElement.appendChild(toastEl);
-    }
 
     try {
         const res = await fetch(`${API}/store/orders`, { 
@@ -9743,13 +9889,13 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
     
     let vatHtml = '';
     let paymentsHtml = '';
-    let titleStr = 'קבלה / חשבונית';
+    let titleStr = 'קבלה';
     
     try {
         const metaStr = order.notes;
         if(metaStr && metaStr.includes('{')) {
             const meta = JSON.parse(metaStr);
-            if (meta.is_debt_recovery) titleStr = 'קבלה - פירעון חוב';
+            if (meta.is_debt_recovery) titleStr = 'פירעון_חוב';
             
             if (meta.vat && meta.vat.enabled) {
                 vatHtml = `
