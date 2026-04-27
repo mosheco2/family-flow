@@ -8671,7 +8671,6 @@ window.switchSalesTab = function(subTab) {
     setTxt('stat-orders-today', todayOrdersCount);
     setTxt('stat-revenue-today', `₪${todayRevenue.toFixed(0)}`);
 }
-
 // ============================================================
 // --- Analytics & Reporting Module (Pro Version) ---
 // ============================================================
