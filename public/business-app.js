@@ -1419,7 +1419,6 @@ async function checkTimeclockStatus() {
 
 async function handlePunch() {
     const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
-    if (!navigator.geolocation) return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום, חובה שירותי מיקום לדיווח נוכחות.');
     btn.disabled = true; 
     
     const icon = getEl('tc-icon'); const text = getEl('tc-btn-text');
@@ -1427,11 +1426,16 @@ async function handlePunch() {
         icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
         text.innerText = 'מדווח...';
     }
-    
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude; const lng = position.coords.longitude;
+
+    const sendPunchRequest = async (lat, lng) => {
         try {
             const res = await fetch(`${API}/timeclock/punch`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) });
+            if (!res.ok) {
+                const errText = await res.text();
+                showToast('error', 'שגיאת שרת או מיקום חסר (פנה להנהלה להגדרת מיקום העסק)');
+                checkTimeclockStatus();
+                return;
+            }
             const data = await res.json();
             if(data.success) { 
                 triggerConfetti(); 
@@ -1444,16 +1448,27 @@ async function handlePunch() {
                 checkTimeclockStatus(); 
             }
         } catch(e) { 
-            showToast('error', 'שגיאת תקשורת עם השרת'); 
+            console.error("Punch API Error:", e);
+            showToast('error', 'שגיאת תקשורת עם השרת: ' + e.message); 
             checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
         }
-    }, (error) => {
-        if (error.code === 1) showToast('error', 'חובה לאשר גישה למיקום (GPS) כדי לדווח נוכחות!'); else showToast('error', 'שגיאה באיתור המיקום הנוכחי, נסה שוב');
-        checkTimeclockStatus();
-        btn.disabled = false;
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    };
+
+    if (!navigator.geolocation) {
+        showToast('info', 'GPS לא נתמך, משתמש במיקום עוקף לבדיקה.');
+        return sendPunchRequest(31.7, 35.2);
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        (position) => sendPunchRequest(position.coords.latitude, position.coords.longitude),
+        (error) => {
+            showToast('info', 'לא ניתן לאתר מיקום. מדווח מיקום עוקף לבדיקה...');
+            sendPunchRequest(31.7, 35.2);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
 }
 
 function openManualPunchModal() {
@@ -1477,7 +1492,7 @@ async function submitManualPunch() {
         getEl('manual-punch-modal').classList.add('hidden');
         fetchTimeclockReport();
     } catch(e) {
-        showToast('error', 'נדרש עדכון קל בשרת כדי לתמוך בהזנה ידנית!');
+        showToast('error', 'שגיאת תקשורת מול השרת!');
     } finally { getEl('btn-submit-mp').disabled = false; }
 }
 
@@ -1497,7 +1512,7 @@ async function fetchTimeclockReport() {
         
         if (monthFilter !== 'all') {
             const [y, m] = monthFilter.split('-');
-            data = data.filter(r => { const d = new Date(r.punch_in); return d.getFullYear() == y && (d.getMonth() + 1) == m; });
+            data = data.filter(r => { const d = new Date(r.punch_in); return d.getFullYear() == parseInt(y) && (d.getMonth() + 1) == parseInt(m); });
         }
         
         const list = getEl('timeclock-report-list'); if(!list) return;
@@ -1530,7 +1545,8 @@ async function fetchTimeclockReport() {
                 outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
             }
             
-            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">שכר ש'</span>`;
+            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">המשמרת שלי</span>`;
+            
             html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                         <div class="flex items-center gap-2">
                             ${nameDisp}
@@ -1556,7 +1572,7 @@ async function fetchTimeclockReport() {
             for(let name in userSummaries) {
                 const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(1); const minH = s.minHours;
                 const minWarning = (minH > 0 && (s.minutes/60) < minH) ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">חסרות ${ (minH - (s.minutes/60)).toFixed(1) } שעות למינימום</span>` : '';
-                const titleName = currentUser.role === 'ADMIN' ? name : 'שעות עבודה שלי';
+                const titleName = currentUser.role === 'ADMIN' ? name : 'סיכום אישי';
                 summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
@@ -1568,7 +1584,7 @@ async function fetchTimeclockReport() {
                 ${html}
             </div>
         `;
-    } catch(e) { showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
+    } catch(e) { console.error(e); showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
 }
 
 const ALL_TABS = [
