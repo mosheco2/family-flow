@@ -442,15 +442,16 @@ window.injectBusinessUI = function() {
     const contentShiftsNew = document.getElementById('content-shifts');
     if(contentShiftsNew) {
         contentShiftsNew.insertAdjacentHTML('afterend', `
-            <div id="content-pos" class="hidden pb-20 mt-4">
-                <div class="flex flex-col md:flex-row h-[85vh] gap-4 w-full">
+            <div id="content-pos" class="hidden pb-20 mt-4 transition-all duration-300 relative bg-slate-50 rounded-[2rem] sm:bg-transparent">
+                <div class="flex flex-col md:flex-row h-[85vh] gap-4 w-full pos-wrapper-height">
                     <div class="w-full md:w-[65%] bg-slate-50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden shadow-inner">
                         <div class="p-3 bg-white border-b border-slate-200 flex gap-2 items-center shadow-sm z-10">
                             <div class="relative flex-1">
                                 <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                                 <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
                             </div>
-                            <button onclick="window.forceLoadCatalog(event)" class="bg-indigo-50 text-indigo-600 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-100 shadow-sm shrink-0"><i class="fa-solid fa-rotate"></i> טען מוצרים</button>
+                            <button onclick="window.forceLoadCatalog(event)" class="bg-indigo-50 text-indigo-600 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-100 shadow-sm shrink-0" title="טען מוצרים"><i class="fa-solid fa-rotate"></i> טען מוצרים</button>
+                            <button id="btn-pos-fullscreen" onclick="window.togglePOSFullscreen()" class="bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition whitespace-nowrap shadow-sm shrink-0" title="מסך מלא"><i class="fa-solid fa-expand"></i></button>
                         </div>
                         <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
                         <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
@@ -477,7 +478,7 @@ window.injectBusinessUI = function() {
                                 <span class="text-4xl font-black text-indigo-600 dir-ltr" id="pos-total-display">₪0.00</span>
                             </div>
                             <div id="pos-vat-display" class="text-left text-[11px] text-indigo-400 font-bold mb-4 hidden">כולל מע"מ: ₪<span id="pos-vat-val">0.00</span></div>
-                            <button id="btn-submit-pos" onclick="window.openPOSTender()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
+                            <button id="btn-submit-pos" onclick="window.handlePosTenderClick()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition flex justify-center items-center gap-3">
                                 תשלום <i class="fa-solid fa-credit-card"></i>
                             </button>
                         </div>
@@ -641,6 +642,60 @@ window.injectBusinessUI = function() {
         }
     }
 };
+
+window.togglePOSFullscreen = function() {
+    const posContainer = document.getElementById('content-pos');
+    if (!posContainer) return;
+    
+    if (!document.fullscreenElement) {
+        try {
+            if (posContainer.requestFullscreen) posContainer.requestFullscreen();
+            else if (posContainer.webkitRequestFullscreen) posContainer.webkitRequestFullscreen();
+            else if (posContainer.msRequestFullscreen) posContainer.msRequestFullscreen();
+            
+            posContainer.classList.add('bg-slate-100', 'p-2', 'sm:p-4', 'z-[999999]');
+            posContainer.classList.remove('pb-20', 'mt-4');
+            posContainer.style.height = '100vh';
+            
+            const wrapper = posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+            if(wrapper) {
+                wrapper.classList.remove('h-[85vh]');
+                wrapper.classList.add('h-full');
+            }
+        } catch(e) {}
+    } else {
+        try {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+        } catch(e) {}
+    }
+};
+
+document.addEventListener('fullscreenchange', () => {
+    const posContainer = document.getElementById('content-pos');
+    if (!posContainer) return;
+    
+    const btn = document.getElementById('btn-pos-fullscreen');
+    const wrapper = posContainer.querySelector('.h-full') || posContainer.querySelector('.pos-wrapper-height') || posContainer.querySelector('.h-\\[85vh\\]');
+    
+    if (!document.fullscreenElement) {
+        posContainer.classList.remove('bg-slate-100', 'p-2', 'sm:p-4', 'z-[999999]');
+        posContainer.classList.add('pb-20', 'mt-4');
+        posContainer.style.height = '';
+        if(wrapper) {
+            wrapper.classList.remove('h-full');
+            wrapper.classList.add('h-[85vh]');
+        }
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+    } else {
+        if(wrapper) {
+            wrapper.classList.remove('h-[85vh]');
+            wrapper.classList.add('h-full');
+        }
+        if(btn) btn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+    }
+});
     const menuContainer = getEl('slider-scroll');
     if(menuContainer && !getEl('tab-sales')) {
         const tabShop = getEl('tab-shop');
