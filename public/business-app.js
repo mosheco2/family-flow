@@ -8675,7 +8675,6 @@ window.switchSalesTab = function(subTab) {
 // ============================================================
 // --- Analytics & Reporting Module (Pro Version) ---
 // ============================================================
-let analyticsRevChart = null;
 let analyticsCatChart = null;
 let activeCatFilter = null; // Drill-down filter
 
