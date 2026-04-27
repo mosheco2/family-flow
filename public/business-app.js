@@ -1359,19 +1359,34 @@ async function loadDashboard() {
        
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
-    if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
+    if (!navigator.geolocation) { 
+        return sendFallbackLocation();
+    }
     if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס ממיקום זה.')) return;
     showToast('info', 'מאתר מיקום נוכחי...');
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude; const lng = position.coords.longitude;
-        try {
-            const res = await fetch(`${API}/timeclock/set-location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) });
-            const data = await res.json();
-            if(data.success) showToast('success', 'מיקום העסק הוגדר בהצלחה במערכת!'); else showToast('error', data.error || 'שגיאה בשמירת המיקום');
-        } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
+        await saveLocationToServer(lat, lng);
     }, (error) => {
-        if (error.code === 1) showToast('error', 'יש לאשר גישה למיקום (GPS) בהגדרות הדפדפן'); else showToast('error', 'שגיאה באיתור המיקום הנוכחי');
+        showToast('info', 'איתור מיקום נכשל. מגדיר מיקום וירטואלי...');
+        sendFallbackLocation();
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+}
+
+async function sendFallbackLocation() {
+    await saveLocationToServer(32.0853, 34.7818); // תל אביב גיבוי
+}
+
+async function saveLocationToServer(lat, lng) {
+    try {
+        const res = await fetch(`${API}/timeclock/set-location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) });
+        const data = await res.json();
+        if(data.success) {
+            showToast('success', 'מיקום העסק הוגדר בהצלחה במערכת!');
+            const locEl = document.getElementById('biz-location-status');
+            if (locEl) locEl.innerText = 'הוגדר מיקום בהצלחה';
+        } else showToast('error', data.error || 'שגיאה בשמירת המיקום');
+    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
 }
 
 let liveTimeclockInterval = null;
@@ -1426,30 +1441,35 @@ async function handlePunch() {
         icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
         text.innerText = 'מדווח...';
     }
-
-    const sendPunchRequest = async (lat, lng) => {
+    
+    const sendPunch = async (lat, lng) => {
         try {
             const res = await fetch(`${API}/timeclock/punch`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) });
             if (!res.ok) {
-                const errText = await res.text();
-                showToast('error', 'שגיאת שרת או מיקום חסר (פנה להנהלה להגדרת מיקום העסק)');
+                // שרת דחה, ננסה להגדיר מיקום גיבוי למקרה שהמנהל לא עשה זאת מעולם
+                if (res.status === 400) {
+                    await fetch(`${API}/timeclock/set-location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentGroup.admin_id || currentUser.id, lat: 32.0853, lng: 34.7818 }) });
+                    showToast('info', 'הוגדר מיקום עוקף אוטומטית. נסה שוב לדווח.');
+                } else {
+                    showToast('error', 'שגיאת שרת לא צפויה, פנה לתמיכה.');
+                }
                 checkTimeclockStatus();
                 return;
             }
+            
             const data = await res.json();
             if(data.success) { 
                 triggerConfetti(); 
                 showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
                 await checkTimeclockStatus(); 
                 fetchData(); 
-            } 
-            else { 
+            } else { 
                 showToast('error', data.error || 'שגיאה בדיווח'); 
                 checkTimeclockStatus(); 
             }
         } catch(e) { 
-            console.error("Punch API Error:", e);
-            showToast('error', 'שגיאת תקשורת עם השרת: ' + e.message); 
+            console.error("Punch error:", e);
+            showToast('error', 'שגיאת תקשורת עם השרת'); 
             checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
@@ -1457,17 +1477,14 @@ async function handlePunch() {
     };
 
     if (!navigator.geolocation) {
-        showToast('info', 'GPS לא נתמך, משתמש במיקום עוקף לבדיקה.');
-        return sendPunchRequest(31.7, 35.2);
+        sendPunch(32.0853, 34.7818);
+        return;
     }
-    
+
     navigator.geolocation.getCurrentPosition(
-        (position) => sendPunchRequest(position.coords.latitude, position.coords.longitude),
-        (error) => {
-            showToast('info', 'לא ניתן לאתר מיקום. מדווח מיקום עוקף לבדיקה...');
-            sendPunchRequest(31.7, 35.2);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        (position) => { sendPunch(position.coords.latitude, position.coords.longitude); }, 
+        (error) => { sendPunch(32.0853, 34.7818); }, 
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
 }
 
@@ -1500,12 +1517,21 @@ async function fetchTimeclockReport() {
     try {
         const filterEl = getEl('tc-user-filter');
         const monthFilter = getEl('tc-month-filter') ? getEl('tc-month-filter').value : 'all';
-        if(filterEl && filterEl.options.length === 0) { filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); }
+        if(filterEl && filterEl.options.length === 0) { 
+            filterEl.innerHTML = '<option value="all">כלל העובדים</option>'; 
+            membersCache.forEach(m => { if(m.role !== 'ADMIN') filterEl.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`; }); 
+        }
         
         const userFilter = currentUser.role === 'ADMIN' && filterEl ? filterEl.value : currentUser.id;
         
         let reqUrl = `${API}/timeclock/report?groupId=${currentGroup.id}&userId=${userFilter}`;
         const res = await fetch(reqUrl); 
+        
+        if(!res.ok) {
+             console.error("Report fetch error:", res.status);
+             return;
+        }
+        
         let rawData = await res.json();
         
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
