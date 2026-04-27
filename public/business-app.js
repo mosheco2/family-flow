@@ -1359,34 +1359,43 @@ async function loadDashboard() {
        
 // -------------------- שעון נוכחות --------------------
 async function setBusinessLocation() {
-    if (!navigator.geolocation) { 
-        return sendFallbackLocation();
-    }
-    if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס ממיקום זה.')) return;
-    showToast('info', 'מאתר מיקום נוכחי...');
+    if (!navigator.geolocation) { return showToast('error', 'הדפדפן שלך לא תומך בשירותי מיקום'); }
+    if (!confirm('האם להגדיר את המיקום הנוכחי שלך כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
+    
+    showToast('info', 'מאתר מיקום... נא לאשר גישה למיקום בדפדפן/מכשיר.');
+    
     navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude; const lng = position.coords.longitude;
-        await saveLocationToServer(lat, lng);
+        const lat = position.coords.latitude; 
+        const lng = position.coords.longitude;
+        
+        try {
+            const res = await fetch(`${API}/timeclock/set-location`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) 
+            });
+            const data = await res.json();
+            if(data.success) {
+                showToast('success', 'מיקום העסק נשמר בהצלחה בהנהלה!');
+                // מתקן את תקלה 3: מעדכן את הממשק באותו הרגע כדי להציג שנשמר
+                const locAlerts = document.querySelectorAll('.text-red-500');
+                locAlerts.forEach(el => {
+                    if(el.innerText && el.innerText.includes('לא הוגדר')) {
+                        el.className = 'text-xs text-green-600 font-bold mb-4 bg-green-50 p-2 rounded-lg';
+                        el.innerText = '✓ מיקום העסק הוגדר בהצלחה. עובדים יוכלו להחתים רק בסביבת העסק.';
+                    }
+                });
+            } else {
+                showToast('error', data.error || 'שגיאה בשמירת המיקום');
+            }
+        } catch(e) { showToast('error', 'שגיאת רשת בשמירת המיקום'); }
     }, (error) => {
-        showToast('info', 'איתור מיקום נכשל. מגדיר מיקום וירטואלי...');
-        sendFallbackLocation();
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-}
-
-async function sendFallbackLocation() {
-    await saveLocationToServer(32.0853, 34.7818); // תל אביב גיבוי
-}
-
-async function saveLocationToServer(lat, lng) {
-    try {
-        const res = await fetch(`${API}/timeclock/set-location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) });
-        const data = await res.json();
-        if(data.success) {
-            showToast('success', 'מיקום העסק הוגדר בהצלחה במערכת!');
-            const locEl = document.getElementById('biz-location-status');
-            if (locEl) locEl.innerText = 'הוגדר מיקום בהצלחה';
-        } else showToast('error', data.error || 'שגיאה בשמירת המיקום');
-    } catch(e) { showToast('error', 'שגיאת תקשורת עם השרת'); }
+        let errMsg = 'שגיאה באיתור המיקום.';
+        if (error.code === 1) errMsg = 'הדפדפן או המכשיר חוסמים את הגישה ל-GPS. אנא אשר בהגדרות.';
+        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע.';
+        if (error.code === 3) errMsg = 'זמן איתור המיקום עבר.';
+        showToast('error', errMsg);
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
 
 let liveTimeclockInterval = null;
@@ -1434,58 +1443,53 @@ async function checkTimeclockStatus() {
 
 async function handlePunch() {
     const btn = getEl('btn-punch'); if(!btn || btn.disabled) return;
-    btn.disabled = true; 
+    if (!navigator.geolocation) return showToast('error', 'הדפדפן לא תומך במיקום');
     
+    btn.disabled = true; 
     const icon = getEl('tc-icon'); const text = getEl('tc-btn-text');
     if (icon && text) {
         icon.className = 'fa-solid fa-location-crosshairs fa-spin text-5xl mb-2';
-        text.innerText = 'מדווח...';
+        text.innerText = 'מאתר מיקום...';
     }
     
-    const sendPunch = async (lat, lng) => {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude; 
+        const lng = position.coords.longitude;
         try {
-            const res = await fetch(`${API}/timeclock/punch`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) });
-            if (!res.ok) {
-                // שרת דחה, ננסה להגדיר מיקום גיבוי למקרה שהמנהל לא עשה זאת מעולם
-                if (res.status === 400) {
-                    await fetch(`${API}/timeclock/set-location`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentGroup.admin_id || currentUser.id, lat: 32.0853, lng: 34.7818 }) });
-                    showToast('info', 'הוגדר מיקום עוקף אוטומטית. נסה שוב לדווח.');
-                } else {
-                    showToast('error', 'שגיאת שרת לא צפויה, פנה לתמיכה.');
-                }
-                checkTimeclockStatus();
-                return;
-            }
+            const res = await fetch(`${API}/timeclock/punch`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id, lat, lng }) 
+            });
             
             const data = await res.json();
-            if(data.success) { 
-                triggerConfetti(); 
-                showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
-                await checkTimeclockStatus(); 
-                fetchData(); 
-            } else { 
-                showToast('error', data.error || 'שגיאה בדיווח'); 
+            
+            // תפיסת שגיאות GPS אמיתיות והצגת ההודעה שחוזרת מהשרת
+            if(!res.ok || !data.success) { 
+                showToast('error', data.error || 'שגיאה בדיווח נוכחות'); 
                 checkTimeclockStatus(); 
+                return;
             }
+
+            triggerConfetti(); 
+            showToast('success', data.status === 'in' ? 'נרשמה כניסה למשמרת! עבודה נעימה' : 'נרשמה יציאה, תודה ולהתראות!'); 
+            await checkTimeclockStatus(); 
+            fetchData();
         } catch(e) { 
-            console.error("Punch error:", e);
-            showToast('error', 'שגיאת תקשורת עם השרת'); 
+            showToast('error', 'שגיאת רשת מול השרת בעת דיווח הנוכחות'); 
             checkTimeclockStatus(); 
         } finally {
             btn.disabled = false;
         }
-    };
-
-    if (!navigator.geolocation) {
-        sendPunch(32.0853, 34.7818);
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        (position) => { sendPunch(position.coords.latitude, position.coords.longitude); }, 
-        (error) => { sendPunch(32.0853, 34.7818); }, 
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
+    }, (error) => {
+        let errMsg = 'שגיאה באיתור המיקום.';
+        if (error.code === 1) errMsg = 'גישה למיקום נחסמה. נא לאשר הגדרות GPS במכשיר/דפדפן!';
+        if (error.code === 2) errMsg = 'אין קליטת GPS זמינה כרגע.';
+        if (error.code === 3) errMsg = 'טיים-אאוט באיתור המיקום.';
+        showToast('error', errMsg);
+        checkTimeclockStatus();
+        btn.disabled = false;
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
 
 function openManualPunchModal() {
@@ -1504,12 +1508,17 @@ async function submitManualPunch() {
     
     getEl('btn-submit-mp').disabled = true;
     try {
-        await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
-        showToast('success', 'דווח בהצלחה!');
-        getEl('manual-punch-modal').classList.add('hidden');
-        fetchTimeclockReport();
+        const res = await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
+        const data = await res.json();
+        if(res.ok && data.success) {
+            showToast('success', 'דווח בהצלחה!');
+            getEl('manual-punch-modal').classList.add('hidden');
+            fetchTimeclockReport();
+        } else {
+            showToast('error', data.error || 'שגיאה בהזנה ידנית');
+        }
     } catch(e) {
-        showToast('error', 'שגיאת תקשורת מול השרת!');
+        showToast('error', 'שגיאת רשת מול השרת');
     } finally { getEl('btn-submit-mp').disabled = false; }
 }
 
@@ -1533,7 +1542,6 @@ async function fetchTimeclockReport() {
         }
         
         let rawData = await res.json();
-        
         let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.report || rawData.records || []);
         
         if (monthFilter !== 'all') {
@@ -1542,49 +1550,52 @@ async function fetchTimeclockReport() {
         }
         
         const list = getEl('timeclock-report-list'); if(!list) return;
-        if(!data || data.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-10">אין דיווחי נוכחות לתקופה זו</p>'; return; }
         
         let html = ''; let userSummaries = {};
         
-        data.forEach(r => {
-            const inTime = new Date(r.punch_in); 
-            const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
-            const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
-            let outStr = '...'; 
-            let totalStr = '-'; 
-            let costStr = '';
-            
-            const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
-            const hourlyRate = parseFloat(user.allowance_amount) || 0;
-            
-            if(r.punch_out) { 
-                const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
-                const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
-                totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
-                const cost = (r.total_minutes / 60) * hourlyRate;
+        if(data.length === 0) {
+            html = '<p class="text-center text-slate-400 text-sm py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50 mt-4">אין דיווחי נוכחות לתקופה זו</p>';
+        } else {
+            data.forEach(r => {
+                const inTime = new Date(r.punch_in); 
+                const dateStr = inTime.toLocaleDateString('he-IL', {day: '2-digit', month: '2-digit', year:'2-digit'});
+                const inStr = inTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+                let outStr = '...'; 
+                let totalStr = '-'; 
+                let costStr = '';
                 
-                costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
+                const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
+                const hourlyRate = parseFloat(user.allowance_amount) || 0;
                 
-                if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
-                userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
-            } else {
-                outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
-            }
-            
-            const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">המשמרת שלי</span>`;
-            
-            html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
-                        <div class="flex items-center gap-2">
-                            ${nameDisp}
-                            <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
-                            <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
-                        </div>
-                        <div class="flex items-center">
-                            ${costStr}
-                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
-                        </div>
-                     </div>`;
-        });
+                if(r.punch_out) { 
+                    const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
+                    const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
+                    totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
+                    const cost = (r.total_minutes / 60) * hourlyRate;
+                    
+                    costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
+                    
+                    if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
+                    userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
+                } else {
+                    outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
+                }
+                
+                const nameDisp = currentUser.role === 'ADMIN' ? `<span class="font-bold text-slate-700 text-xs w-20 truncate">${safeStr(r.nickname)}</span>` : `<span class="font-bold text-slate-700 text-xs w-16 truncate">המשמרת שלי</span>`;
+                
+                html += `<div class="flex justify-between items-center px-3 py-2 hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
+                            <div class="flex items-center gap-2">
+                                ${nameDisp}
+                                <span class="text-xs text-slate-500 font-mono">${dateStr}</span>
+                                <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${inStr} - ${outStr}</span>
+                            </div>
+                            <div class="flex items-center">
+                                ${costStr}
+                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">${totalStr}</span>
+                            </div>
+                         </div>`;
+            });
+        }
         
         let totalMinutes = 0, totalCost = 0;
         for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
@@ -1602,6 +1613,9 @@ async function fetchTimeclockReport() {
                 summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
+        } else if (data.length === 0) {
+            // מתקן את התקלה - יצירת מראה חצי ריק יפה במידה ואין נתונים כלל (מניעת קריסה חזותית)
+            summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
         }
         
         list.innerHTML = `
