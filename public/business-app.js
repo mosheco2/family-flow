@@ -450,6 +450,7 @@ window.injectBusinessUI = function() {
                                 <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                                 <input type="text" id="pos-search" oninput="window.renderPOSCatalog(window.posCurrentCategory)" placeholder="חיפוש מנה בקופה..." class="w-full bg-slate-100 py-2.5 pr-10 pl-4 rounded-xl text-sm font-bold outline-none focus:bg-white transition dir-rtl">
                             </div>
+                            <button onclick="window.forceLoadCatalog(event)" class="bg-indigo-50 text-indigo-600 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition whitespace-nowrap border border-indigo-100 shadow-sm shrink-0"><i class="fa-solid fa-rotate"></i> טען מוצרים</button>
                         </div>
                         <div id="pos-categories-tabs" class="flex overflow-x-auto modal-scroll gap-2 p-3 bg-white border-b border-slate-200 shrink-0 dir-rtl"></div>
                         <div class="flex-1 overflow-y-auto p-4 modal-scroll dir-rtl">
@@ -609,7 +610,7 @@ window.injectBusinessUI = function() {
                                              <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="handleStoreBannerUpload(event)">
                                              <input type="hidden" id="store-banner-base64">
                                          </div>
-                                         <button id="btn-generate-banner-ai" onclick="generateBannerAI()" class="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full hidden"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
+                                         <button id="btn-generate-banner-ai" onclick="generateBannerAI()" class="hidden bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
                                     </div>
                                 </div>
 
