@@ -3997,620 +3997,19 @@ window.getCustomerDebt = function(customerPhone) {
     storeOrdersCache.forEach(o => {
         if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
             try {
-                if (o.notes && o.notes.includes('{')) {
-                    const meta = JSON.parse(o.notes);
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח מזדמן';
-    
-    // תשלום חוב לא מייצר מע"מ כפול ולכן אנו רושמים אותו ב-0
-    const metaData = { 
-        payments: [{ method: 'debt_payment', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
-    
-    showToast('info', 'רושם תשלום וסוגר חוב...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, 
-                customerName: customerName, 
-                customerPhone: phone, 
-                items, 
-                totalAmount: amount, 
-                isDelivery: false, 
-                notes: JSON.stringify(metaData),
-                status: 'completed'
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם ועודכן בכרטיס הלקוח בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.notes && o.notes.includes('{')) {
-                    const meta = JSON.parse(o.notes);
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח מזדמן';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.notes && o.notes.includes('{')) {
-                    const meta = JSON.parse(o.notes);
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.notes && o.notes.includes('{')) {
-                    const meta = JSON.parse(o.notes);
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    const items = [{ catalogId: 0, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData)
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            const newOrderId = data.orderId || data.id;
-            if (newOrderId) {
-                await fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                });
-            }
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.items && typeof o.items === 'string') {
-                    const itemsArr = JSON.parse(o.items);
-                    const metaItem = itemsArr.find(i => i.is_quote_metadata);
-                    if (metaItem && metaItem.data) {
-                        const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
-                        if (meta.payments) {
-                            meta.payments.forEach(p => {
-                                if (p.method === 'on_account') debt += p.amount;
-                                if (p.method === 'debt_payment') debt -= p.amount;
-                            });
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    // שימוש ב-catalogId=999999 כדי שהשרת לא יזרוק שגיאת רשת (Foreign Key)
-    const items = [
-        { catalogId: 999999, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' },
-        { catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) }
-    ];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false 
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            const newOrderId = data.orderId || data.id;
-            if (newOrderId) {
-                await fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                });
-            }
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.items && typeof o.items === 'string') {
-                    const itemsArr = JSON.parse(o.items);
-                    const metaItem = itemsArr.find(i => i.is_quote_metadata);
-                    if (metaItem && metaItem.data) {
-                        const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
-                        if (meta.payments) {
-                            meta.payments.forEach(p => {
-                                if (p.method === 'on_account') debt += p.amount;
-                                if (p.method === 'debt_payment') debt -= p.amount;
-                            });
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    
-    const items = [
-        { catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) }
-    ];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false 
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
+                // המערכת מחפשת את הנתונים בפריטים ואם לא מוצאת, מחפשת ב-Notes
                 const itemsArr = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-                const metaItem = itemsArr.find(i => i.is_quote_metadata || i.catalogId === 999999);
+                const metaItem = itemsArr.find(i => i.is_quote_metadata || i.is_delivery_metadata || i.catalogId === null || i.catalogId === 999999);
+                
                 if (metaItem && metaItem.data) {
                     const meta = typeof metaItem.data === 'string' ? JSON.parse(metaItem.data) : metaItem.data;
                     if (meta.payments) {
                         meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
+                            if (p.method === 'on_account') debt += parseFloat(p.amount);
+                            if (p.method === 'debt_payment') debt -= parseFloat(p.amount);
                         });
                     }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }],
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 } 
-    };
-    
-    // מזהה 999999 עוקף את שגיאת הרשת בשרת מכיוון שהשרת לא מחפש אותו בטבלת מוצרים
-    const items = [
-        { catalogId: 999999, is_quote_metadata: true, data: JSON.stringify(metaData) }
-    ];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false 
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            const newOrderId = data.orderId || data.id;
-            if (newOrderId) {
-                await fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                });
-            }
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                const itemsArr = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
-                const metaItem = itemsArr.find(i => i.is_delivery_metadata || i.catalogId === null);
-                if (metaItem && metaItem.pos_data) {
-                    const meta = typeof metaItem.pos_data === 'string' ? JSON.parse(metaItem.pos_data) : metaItem.pos_data;
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt.toFixed(2)})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 },
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }]
-    };
-    
-    // מזהה null מאפשר שמירה תקינה מבלי לגרום לשגיאת שרת (Foreign Key)
-    const items = [
-        { catalogId: null, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' },
-        { is_delivery_metadata: true, pos_data: metaData }
-    ];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false 
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.notes && o.notes.includes('{')) {
-                    const meta = JSON.parse(o.notes);
-                    if (meta.payments) {
-                        meta.payments.forEach(p => {
-                            if (p.method === 'on_account') debt += p.amount;
-                            if (p.method === 'debt_payment') debt -= p.amount;
-                        });
-                    }
-                }
-            } catch(e) {}
-        }
-    });
-    return debt;
-};
-
-window.openDebtPaymentModal = function(phone, maxDebt) {
-    const amt = prompt(`תשלום חוב (הקפה) עבור טלפון ${phone}\n\nמה הסכום שהלקוח משלם כעת? (יתרה נוכחית: ₪${maxDebt.toFixed(2)})`);
-    if (amt === null) return;
-    const parsed = parseFloat(amt);
-    if (isNaN(parsed) || parsed <= 0) return showToast('error', 'סכום לא תקין');
-    if (parsed > maxDebt) return showToast('error', `לא ניתן לשלם יותר מהחוב הקיים (₪${maxDebt.toFixed(2)})`);
-    window.processDebtPayment(phone, parsed);
-};
-
-window.processDebtPayment = async function(phone, amount) {
-    const customer = storeCustomersCache.find(c => c.phone === phone);
-    const customerName = customer ? customer.name : 'לקוח קבוע';
-    
-    const metaData = { 
-        vat: { enabled: false, rate: 0, subtotal: amount, vatAmount: 0 },
-        payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }]
-    };
-    
-    const items = [
-        { catalogId: 999999, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }
-    ];
-    
-    showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
-    
-    try {
-        const res = await fetch(`${API}/store/orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                groupId: currentGroup.id, customerName: customerName, customerPhone: phone, 
-                items, totalAmount: amount, isDelivery: false, notes: JSON.stringify(metaData), status: 'completed'
-            })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            showToast('success', 'החוב שולם בהצלחה!');
-            if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
-            if (customer) window.openCustomerModal(customer.id, 'details');
-        } else {
-            showToast('error', data.error || 'שגיאה בשמירת התשלום');
-        }
-    } catch(e) { showToast('error', 'שגיאה בתשלום חוב'); }
-};
-
-window.getCustomerDebt = function(customerPhone) {
-    if (!customerPhone || !storeOrdersCache) return 0;
-    let debt = 0;
-    storeOrdersCache.forEach(o => {
-        if (o.customer_phone === customerPhone && o.status !== 'cancelled') {
-            try {
-                if (o.notes && o.notes.includes('{')) {
+                } else if (o.notes && o.notes.includes('{')) {
                     const meta = JSON.parse(o.notes);
                     if (meta.payments) {
                         meta.payments.forEach(p => {
@@ -4643,8 +4042,10 @@ window.processDebtPayment = async function(phone, amount) {
         payments: [{ method: 'debt_payment', name: 'תשלום חוב', amount: amount }]
     };
     
+    // מזהה null חיוני כדי לעקוף את שגיאת Foreign Key בשרת
     const items = [
-        { catalogId: 999999, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' }
+        { catalogId: null, name: 'תשלום חוב / סגירת הקפה', quantity: 1, price: amount, note: '' },
+        { catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) }
     ];
     
     showToast('info', 'רושם תשלום ומעדכן מאזן לקוח...');
@@ -4660,6 +4061,13 @@ window.processDebtPayment = async function(phone, amount) {
         const data = await res.json();
         
         if (data.success) {
+            const newOrderId = data.orderId || data.id;
+            if (newOrderId) {
+                fetch(`${API}/store/orders/status`, { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                }).catch(e=>{});
+            }
             showToast('success', 'החוב שולם בהצלחה!');
             if (typeof window.fetchStoreOrders === 'function') await window.fetchStoreOrders();
             if (customer) window.openCustomerModal(customer.id, 'details');
@@ -9837,7 +9245,6 @@ window.renderPOSCart = function() {
     
     let grandTotal = netTotal;
     
-    // חישוב המע"מ הדינמי - הוספת מע"מ על מחיר הנטו
     if(vatDisplay) {
         const vatSettings = window.getVatSettings();
         if(vatSettings && vatSettings.enabled) {
@@ -10020,7 +9427,7 @@ window.submitPOSModifiers = function() {
 
 window.finalizePOSOrder = async function() {
     const btn = document.getElementById('btn-finalize-pos'); 
-    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק ומדפיס...';
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> סולק...';
     
     let netTotal = 0; window.posCart.forEach(i => netTotal += (i.price * i.qty));
     let grandTotal = netTotal;
@@ -10028,7 +9435,6 @@ window.finalizePOSOrder = async function() {
     const phone = document.getElementById('pos-customer-phone').value;
     const customerName = window.posCurrentCustomer ? window.posCurrentCustomer.name : 'לקוח קופה';
     
-    // הפריטים נשמרים במחיר נטו
     const items = window.posCart.map(i => ({ catalogId: i.real_id, name: i.name, quantity: i.qty, price: i.price, note: i.modifiers ? i.modifiers.map(m => m.name).join(', ') : '' }));
     
     const vatSettings = window.getVatSettings();
@@ -10041,6 +9447,9 @@ window.finalizePOSOrder = async function() {
     }
     
     const metaData = { payments: window.posSplitPayments, vat: vatDetails };
+    
+    // מזהה null חיוני כדי למנוע שגיאת רשת בשרת
+    items.push({ catalogId: null, is_quote_metadata: true, data: JSON.stringify(metaData) });
 
     try {
         const res = await fetch(`${API}/store/orders`, { 
@@ -10052,15 +9461,21 @@ window.finalizePOSOrder = async function() {
         if(data.success) {
             const newOrderId = data.orderId || data.id;
             
-            // עדכון סטטוס מופרד למניעת קריסת שרת
-            if (newOrderId) {
-                await fetch(`${API}/store/orders/status`, { 
-                    method: 'POST', headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
-                });
-            }
+            // סגירת המודאל מיידית כדי להבטיח זרימה חלקה
+            const modal = document.getElementById('pos-tender-modal');
+            if (modal) modal.classList.add('hidden');
+            
+            // עדכון סטטוס מוגן משגיאות
+            try {
+                if (newOrderId) {
+                    fetch(`${API}/store/orders/status`, { 
+                        method: 'POST', headers: {'Content-Type':'application/json'}, 
+                        body: JSON.stringify({ orderId: newOrderId, status: 'completed' }) 
+                    }).catch(e=>{});
+                }
+            } catch(e){}
 
-            // הפקת הדפסה מיידית למדפסת הקופה תמיד!
+            // הפקת הדפסה מיידית מוגנת
             const rawOrderObj = {
                 id: newOrderId || 'קופה',
                 created_at: new Date().toISOString(),
@@ -10068,46 +9483,50 @@ window.finalizePOSOrder = async function() {
                 items: items,
                 notes: JSON.stringify(metaData)
             };
-            window.printPOSReceipt(newOrderId, rawOrderObj);
+            try { window.printPOSReceipt(newOrderId, rawOrderObj); } catch(e){}
 
-            // שליחה לווצאפ בנוסף (במידה וסומן)
-            const waCheckbox = document.getElementById('tender-send-receipt');
-            if(waCheckbox && waCheckbox.checked && phone) {
-                let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
-                waMsg += `הזמנה #${newOrderId || Date.now().toString().slice(-4)}\n`;
-                waMsg += `------------------------\n`;
-                window.posCart.forEach(item => {
-                    waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
-                    if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
-                });
-                waMsg += `------------------------\n`;
-                if (vatDetails) {
-                    waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
-                    waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
+            // שליחה לווצאפ בנוסף (במידה וסומן) מוגנת
+            try {
+                const waCheckbox = document.getElementById('tender-send-receipt');
+                if(waCheckbox && waCheckbox.checked && phone) {
+                    let waMsg = `*חשבונית קבלה - ${currentGroup.name}* 🧾\n`;
+                    waMsg += `הזמנה #${newOrderId || Date.now().toString().slice(-4)}\n`;
+                    waMsg += `------------------------\n`;
+                    window.posCart.forEach(item => {
+                        waMsg += `▪️ ${item.name} x${item.qty} - ₪${(item.price * item.qty).toFixed(2)}\n`;
+                        if (item.modifiers && item.modifiers.length > 0) waMsg += `   (${item.modifiers.map(m => m.name).join(', ')})\n`;
+                    });
+                    waMsg += `------------------------\n`;
+                    if (vatDetails) {
+                        waMsg += `סכום לפני מע"מ: ₪${vatDetails.subtotal.toFixed(2)}\n`;
+                        waMsg += `מע"מ (${vatDetails.rate}%): ₪${vatDetails.vatAmount.toFixed(2)}\n`;
+                    }
+                    waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
+                    if (window.posSplitPayments.length > 0) {
+                        waMsg += `*אמצעי תשלום:*\n`;
+                        window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
+                    }
+                    waMsg += `\nתודה שקנית אצלנו! 🙏`;
+                    
+                    setTimeout(() => {
+                        window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
+                    }, 1500);
                 }
-                waMsg += `*סה"כ שולם: ₪${grandTotal.toFixed(2)}*\n\n`;
-                if (window.posSplitPayments.length > 0) {
-                    waMsg += `*אמצעי תשלום:*\n`;
-                    window.posSplitPayments.forEach(p => { waMsg += `- ${p.name}: ₪${p.amount.toFixed(2)}\n`; });
-                }
-                waMsg += `\nתודה שקנית אצלנו! 🙏`;
-                
-                // עיכוב קל לוואטסאפ כדי שהדפדפן לא יחסום את פופ-אפ ההדפסה
-                setTimeout(() => {
-                    window.open(`https://wa.me/972${phone.replace(/\D/g,'').substring(1)}?text=${encodeURIComponent(waMsg)}`, '_blank');
-                }, 1000);
-            }
+            } catch(e){}
             
-            showToast('success', 'העסקה הושלמה בהצלחה!'); triggerConfetti(); 
-            if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+            showToast('success', 'העסקה הושלמה בהצלחה!'); 
+            try { triggerConfetti(); } catch(e){}
+            try { if(typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders(); } catch(e){}
 
-            window.posCart = []; window.renderPOSCart(); document.getElementById('pos-tender-modal').classList.add('hidden');
-            document.getElementById('pos-customer-phone').value = '';
-            window.checkPOSCustomer();
+            window.posCart = []; window.renderPOSCart(); 
+            const phoneInput = document.getElementById('pos-customer-phone');
+            if(phoneInput) phoneInput.value = '';
+            try { window.checkPOSCustomer(); } catch(e){}
+            
         } else {
             showToast('error', data.error || 'שגיאה בשמירת ההזמנה');
         }
-    } catch(e) { showToast('error', 'שגיאת תקשורת בסיום העסקה'); } 
+    } catch(e) { showToast('error', 'שגיאת רשת בסיום העסקה. יתכן ולא נשמר.'); } 
     finally { btn.disabled = false; btn.innerHTML = 'סיום והפקת קבלה <i class="fa-solid fa-receipt"></i>'; }
 };
 
@@ -10148,7 +9567,7 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
             if (meta.payments && meta.payments.length > 0) {
                 paymentsHtml = `<div style="margin-top:10px; font-size:12px; border-top:1px dashed #000; padding-top:10px;"><b>אמצעי תשלום:</b><br>`;
                 meta.payments.forEach(p => {
-                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${p.amount.toFixed(2)}</span></div>`;
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between;"><span>${p.name || p.method}</span><span>₪${parseFloat(p.amount).toFixed(2)}</span></div>`;
                 });
                 paymentsHtml += `</div>`;
             }
@@ -10192,4 +9611,175 @@ window.printPOSReceipt = function(orderId = null, rawOrderObj = null) {
         iframe.contentWindow.print();
         showToast('success', 'הקבלה נשלחה להדפסה');
     }, 500);
+};
+
+window.fetchStoreSettings = async function() {
+    try {
+        const res = await fetch(`${API}/store/settings/${currentGroup.id}`);
+        const data = await res.json();
+        if (data.success && data.settings) {
+            const getElSafe = (id) => document.getElementById(id);
+            if(getElSafe('store-is-active')) getElSafe('store-is-active').checked = data.settings.is_active;
+            if(getElSafe('store-welcome-msg')) getElSafe('store-welcome-msg').value = data.settings.welcome_message || '';
+            if(getElSafe('store-phone')) getElSafe('store-phone').value = data.settings.phone || '';
+            if(getElSafe('store-min-order')) getElSafe('store-min-order').value = data.settings.min_order || '';
+            if(getElSafe('store-slogan')) getElSafe('store-slogan').value = data.settings.slogan || '';
+            if(getElSafe('store-type')) getElSafe('store-type').value = data.settings.store_type || 'retail';
+            if(getElSafe('store-open-time')) getElSafe('store-open-time').value = data.settings.open_time || '';
+            if(getElSafe('store-close-time')) getElSafe('store-close-time').value = data.settings.close_time || '';
+            if(getElSafe('store-whatsapp')) getElSafe('store-whatsapp').value = data.settings.whatsapp_number || '';
+            if(getElSafe('store-public-link')) getElSafe('store-public-link').value = `${window.location.origin}/storefront.html?store=${currentGroup.group_code}`;
+            
+            const headerSlogan = getElSafe('main-header-slogan');
+            if (headerSlogan) headerSlogan.innerText = data.settings.slogan || 'Business Control Center';
+
+            const savedVat = localStorage.getItem('ofl_vat_' + currentGroup.id);
+            if(savedVat) {
+                window.storeVatSettings = JSON.parse(savedVat);
+                if(getElSafe('store-include-vat')) getElSafe('store-include-vat').checked = window.storeVatSettings.enabled;
+                if(getElSafe('store-vat-rate')) getElSafe('store-vat-rate').value = window.storeVatSettings.rate;
+            }
+
+            const hasLogo = data.settings.logo_url && data.settings.logo_url.trim() !== '' && data.settings.logo_url !== 'DELETE';
+            const logoUrl = data.settings.logo_url;
+            
+            ['store-logo-preview', 'wizard-logo-preview', 'dash-logo-preview'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) { 
+                    if(hasLogo) { el.src = logoUrl; el.classList.remove('hidden'); el.style.display = 'block'; }
+                    else { el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; }
+                }
+            });
+            
+            ['store-logo-placeholder', 'wizard-logo-icon', 'dash-logo-placeholder'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) {
+                    if(hasLogo) { el.classList.add('hidden'); el.style.display = 'none'; }
+                    else { el.classList.remove('hidden'); el.style.display = 'flex'; }
+                }
+            });
+
+            ['store-logo-base64', 'wizard-logo-base64'].forEach(id => {
+                const el = getElSafe(id);
+                if(el) el.value = hasLogo ? logoUrl : 'DELETE';
+            });
+            
+            if(hasLogo) {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            const hasBanner = data.settings.banner_url && data.settings.banner_url.trim() !== '' && data.settings.banner_url !== 'DELETE';
+            const headerBannerEl = getElSafe('main-header-banner');
+            
+            if (hasBanner) {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `url('${data.settings.banner_url}')`;
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getElSafe(id); if(el) { el.src = data.settings.banner_url; el.classList.remove('hidden'); el.style.display = 'block'; }
+                });
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.classList.add('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.value = data.settings.banner_url;
+                });
+                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            } else {
+                if(headerBannerEl) headerBannerEl.style.backgroundImage = `none`;
+                ['store-banner-preview', 'wizard-banner-preview'].forEach(id => {
+                    const el = getElSafe(id); if(el) { el.src = ''; el.classList.add('hidden'); }
+                });
+                ['store-banner-placeholder', 'wizard-banner-icon'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.classList.remove('hidden');
+                });
+                ['store-banner-base64', 'wizard-banner-base64'].forEach(id => {
+                    const el = getElSafe(id); if(el) el.value = 'DELETE';
+                });
+                document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+            }
+
+            if (data.settings.modifier_presets) {
+                try { storeModifierPresets = JSON.parse(data.settings.modifier_presets); } catch(e) { storeModifierPresets = []; }
+                renderPresetSelector();
+            }
+        }
+    } catch(e) {}
+};
+
+window.saveStoreSettings = async function() {
+    const btn = document.getElementById('btn-save-store-settings');
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    
+    window.storeVatSettings = { 
+        enabled: document.getElementById('store-include-vat') ? document.getElementById('store-include-vat').checked : false, 
+        rate: document.getElementById('store-vat-rate') ? parseFloat(document.getElementById('store-vat-rate').value) || 18 : 18 
+    };
+    if (typeof currentGroup !== 'undefined' && currentGroup) {
+        localStorage.setItem('ofl_vat_' + currentGroup.id, JSON.stringify(window.storeVatSettings));
+    }
+
+    try {
+        await fetch(`${API}/store/settings`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ 
+                groupId: currentGroup.id, 
+                isActive: document.getElementById('store-is-active') ? document.getElementById('store-is-active').checked : true, 
+                welcomeMessage: val('store-welcome-msg'), 
+                phone: val('store-phone'), 
+                minOrder: val('store-min-order'), 
+                slogan: val('store-slogan'), 
+                storeType: val('store-type'), 
+                logoUrl: val('store-logo-base64') || null, 
+                bannerUrl: val('store-banner-base64') || null,
+                openTime: val('store-open-time'), 
+                closeTime: val('store-close-time'), 
+                whatsappNumber: val('store-whatsapp')
+            })
+        });
+        showToast('success', 'הגדרות החנות והמע"מ נשמרו בהצלחה!');
+    } catch(e) { showToast('error', 'תקלת רשת בשמירת הגדרות'); }
+    finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
+};
+
+window.clearImage = function(targetIdPrefix) {
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
+        el.src = ''; el.classList.add('hidden'); el.style.display = 'none'; 
+    });
+    document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => { el.classList.remove('hidden'); el.style.display = 'flex'; });
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = 'DELETE');
+    
+    if (targetIdPrefix.includes('logo')) {
+        document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"], [id="btn-clear-logo"]').forEach(el => el.classList.add('hidden'));
+    }
+    if (targetIdPrefix.includes('banner')) {
+        document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.add('hidden'));
+    }
+    showToast('info', 'התמונה הוסרה. לחצו על שמור לאישור סופי.');
+};
+
+window.generateBannerAI = async function() {
+    const logoBase64 = document.getElementById('store-logo-base64') ? document.getElementById('store-logo-base64').value : null;
+    if (!logoBase64 || logoBase64 === 'DELETE') {
+        return showToast('error', 'יש להעלות לוגו תחילה כדי שה-AI יוכל להתאים עבורך רקע!');
+    }
+    const btns = document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]');
+    btns.forEach(btn => { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעצב רקע...'; });
+    showToast('info', 'ה-AI מנתח את הלוגו ויוצר רקע תואם... (כ-10 שניות)');
+    try {
+        const res = await fetch(`${API}/ai/generate-image`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: currentGroup.name || 'העסק שלי', groupId: currentGroup.id, type: 'banner', logoBase64: logoBase64 })
+        });
+        const data = await res.json();
+        if (data.success && data.imageUrl) {
+            const freshUrl = data.imageUrl + '?t=' + new Date().getTime();
+            document.querySelectorAll('[id="store-banner-preview"], [id="wizard-banner-preview"]').forEach(el => { el.src = freshUrl; el.classList.remove('hidden'); el.style.display = 'block'; });
+            document.querySelectorAll('[id="store-banner-placeholder"], [id="wizard-banner-icon"]').forEach(el => { el.classList.add('hidden'); el.style.display = 'none'; });
+            document.querySelectorAll('[id="store-banner-base64"], [id="wizard-banner-base64"]').forEach(el => el.value = freshUrl);
+            document.querySelectorAll('[id="btn-clear-bg"]').forEach(el => el.classList.remove('hidden'));
+            showToast('success', 'הבאנר הותאם ללוגו בהצלחה!');
+        } else { showToast('error', data.error || 'שגיאה ביצירת באנר'); }
+    } catch (e) { showToast('error', 'שגיאת רשת מול שרת ה-AI'); } 
+    finally { btns.forEach(btn => { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)'; }); }
 };
