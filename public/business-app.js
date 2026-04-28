@@ -1625,16 +1625,22 @@ async function fetchTimeclockReport() {
                 const user = membersCache.find(m => m.nickname === r.nickname) || (r.nickname === currentUser.nickname ? currentUser : {});
                 const hourlyRate = parseFloat(user.allowance_amount) || 0;
                 
+                let actualMins = r.total_minutes || 0;
                 if(r.punch_out) { 
-                    const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
-                    const hours = Math.floor(r.total_minutes / 60); const mins = r.total_minutes % 60; 
-                    totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
-                    const cost = (r.total_minutes / 60) * hourlyRate;
+                    // תיקון לבדיקות: אם המשתמש דפק יציאה מיד, זה יעוגל ללפחות דקה אחת (1)
+                    const msDiff = new Date(r.punch_out) - inTime;
+                    actualMins = Math.max(1, Math.round(msDiff / 60000));
                     
-                    costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(1)}</span>`;
+                    const outTime = new Date(r.punch_out); outStr = outTime.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}); 
+                    const hours = Math.floor(actualMins / 60); const mins = actualMins % 60; 
+                    totalStr = `${hours}:${mins < 10 ? '0'+mins : mins} ש'`;
+                    const cost = (actualMins / 60) * hourlyRate;
+                    
+                    costStr = `<span class="text-[10px] text-slate-400 ml-2">₪${cost.toFixed(2)}</span>`;
                     
                     if(!userSummaries[r.nickname]) userSummaries[r.nickname] = { minutes: 0, cost: 0, minHours: parseFloat(user.interest_rate)||0 };
-                    userSummaries[r.nickname].minutes += r.total_minutes; userSummaries[r.nickname].cost += cost;
+                    userSummaries[r.nickname].minutes += actualMins; 
+                    userSummaries[r.nickname].cost += cost;
                 } else {
                     outStr = '<span class="text-[10px] text-orange-500 font-bold animate-pulse">פעיל</span>';
                 }
@@ -1659,19 +1665,19 @@ async function fetchTimeclockReport() {
         for(let name in userSummaries) { totalMinutes += userSummaries[name].minutes; totalCost += userSummaries[name].cost; }
         const sh = Math.floor(totalMinutes / 60), sm = totalMinutes % 60;
         const sumHEl = getEl('tc-summary-hours'); if(sumHEl) sumHEl.innerText = `${sh}:${sm < 10 ? '0'+sm : sm}`;
-        const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(0)}`;
+        const sumWEl = getEl('tc-summary-wage'); if(sumWEl) sumWEl.innerText = `₪${totalCost.toFixed(2)}`;
 
         let summaryHtml = '';
         if(Object.keys(userSummaries).length > 0) {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות (תקופה נבחרת):</h4><div class="space-y-2">`;
             for(let name in userSummaries) {
-                const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(1); const minH = s.minHours;
+                const s = userSummaries[name]; const h = (s.minutes / 60).toFixed(2); const minH = s.minHours;
                 const minWarning = (minH > 0 && (s.minutes/60) < minH) ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">חסרות ${ (minH - (s.minutes/60)).toFixed(1) } שעות למינימום</span>` : '';
                 const titleName = currentUser.role === 'ADMIN' ? name : 'סיכום אישי';
-                summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(0)} (${h} ש')</span></div>`;
+                summaryHtml += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-700">${titleName} ${minWarning}</span><span class="font-mono font-bold text-indigo-700">₪${s.cost.toFixed(2)} (${h} ש')</span></div>`;
             }
             summaryHtml += `</div></div>`;
-        } else {
+        } else if (data.length === 0) {
             summaryHtml = `<div class="bg-indigo-50 p-4 rounded-2xl mb-4 border border-indigo-100"><h4 class="font-black text-indigo-800 text-sm mb-2">סיכום משמרות:</h4><p class="text-xs text-indigo-600">אין נתונים להצגה.</p></div>`;
         }
         
@@ -1683,6 +1689,73 @@ async function fetchTimeclockReport() {
         `;
     } catch(e) { console.error(e); showToast('error', 'שגיאה בטעינת דוח נוכחות'); }
 }
+
+// פונקציות חלון הרשאות צוות (Team Permissions) שהיו חסרות!
+window.openPermissionsModal = function(id, name, role, permsStr) {
+    const permIdEl = getEl('perm-user-id');
+    const permNameEl = getEl('perm-user-name');
+    const permRoleEl = getEl('perm-role-select');
+    
+    if (permIdEl) permIdEl.value = id;
+    if (permNameEl) permNameEl.innerText = `הרשאות עבור: ${name}`;
+    if (permRoleEl) permRoleEl.value = role;
+    
+    let perms = { tabs: [] };
+    try { if(permsStr) perms = JSON.parse(permsStr.replace(/&quot;/g, '"')); } catch(e) {}
+    
+    const tabsContainer = getEl('perm-tabs-container');
+    if(tabsContainer) {
+        tabsContainer.innerHTML = '';
+        ALL_TABS.forEach(t => {
+            if(t.id === 'feed') return; // Feed is always accessible
+            const isChecked = perms.tabs && perms.tabs.includes(t.id) ? 'checked' : '';
+            tabsContainer.innerHTML += `
+                <label class="flex items-center gap-2 text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:border-indigo-300 transition">
+                    <input type="checkbox" value="${t.id}" class="perm-tab-cb w-3.5 h-3.5 accent-indigo-600" ${isChecked}>
+                    ${t.name}
+                </label>
+            `;
+        });
+    }
+    
+    const modal = getEl('permissions-modal');
+    if(modal) modal.classList.remove('hidden');
+};
+
+window.applyRoleDefaults = function(role) {
+    const defaults = ROLE_DEFAULTS[role] || ROLE_DEFAULTS['MEMBER'];
+    document.querySelectorAll('.perm-tab-cb').forEach(cb => {
+        cb.checked = defaults.includes(cb.value);
+    });
+};
+
+window.submitPermissions = async function() {
+    const uid = getEl('perm-user-id').value;
+    const role = getEl('perm-role-select').value;
+    const tabs = ['feed']; // Feed is mandatory
+    document.querySelectorAll('.perm-tab-cb:checked').forEach(cb => tabs.push(cb.value));
+    
+    const btn = getEl('btn-submit-permissions');
+    if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
+    try {
+        const res = await fetch(`${API}/users/${uid}/permissions`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ tabs, role }) 
+        });
+        if(res.ok) {
+            showToast('success', 'הרשאות וסיווג עודכנו בהצלחה!');
+            getEl('permissions-modal').classList.add('hidden');
+            if(typeof fetchMembers === 'function') fetchMembers();
+        } else { 
+            showToast('error', 'שגיאה בשמירת הרשאות'); 
+        }
+    } catch(e) { 
+        showToast('error', 'שגיאת רשת בשמירת ההרשאות'); 
+    } finally { 
+        if(btn){ btn.disabled = false; btn.innerText = 'שמור הרשאות'; } 
+    }
+};
 
 const ALL_TABS = [
     { id: 'feed', name: 'ראשי 🏠' },
