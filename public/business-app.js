@@ -11038,10 +11038,11 @@ window.updateModOptionName = function(gIndex, optIndex, v) { window.currentModif
 window.updateModOptionPrice = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
 
 window.renderModifiersUI = function() {
-    const container = document.getElementById('modifiers-builder-container');
+    // התיקון: שימוש ב-ID ייחודי למודאל כדי למנוע התנגשות
+    const container = document.getElementById('sp-modal-modifiers-container');
     if (!container) return;
     if (!window.currentModifiersUI || window.currentModifiersUI.length === 0) {
-        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות להרכבה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
         return;
     }
     
@@ -11066,7 +11067,7 @@ window.renderModifiersUI = function() {
         html += `
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in mt-3">
             <div class="absolute top-2 left-2 flex gap-2">
-                <button type="button" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button type="button" id="btn-save-preset-${groupIndex}" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
                 <button type="button" onclick="window.removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
             </div>
             <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
@@ -11258,7 +11259,7 @@ window.openStoreProductModal = function(id = null) {
         <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
             <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
                 <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-box text-indigo-500 mr-2"></i> ניהול פריט בקטלוג</h3>
-                <button onclick="document.getElementById('store-product-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
@@ -11315,12 +11316,31 @@ window.openStoreProductModal = function(id = null) {
                     </div>
 
                     <div class="pt-3 border-t border-slate-100 mt-2">
-                        <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
-                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mt-1" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
+                            <button type="button" onclick="if(typeof generateStoreProductAI === 'function') generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
                     </div>
                 </div>
 
-                <div id="modifiers-builder-container-wrapper" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                    <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sp-badge-text" class="modern-input py-2.5 text-sm flex-1 bg-white shadow-sm" placeholder="למשל: חדש!" maxlength="15">
+                        <select id="sp-badge-color" class="modern-input py-2.5 text-sm w-28 bg-white font-bold shadow-sm">
+                            <option value="red" class="text-red-500">אדום</option>
+                            <option value="green" class="text-green-500">ירוק</option>
+                            <option value="blue" class="text-blue-500">כחול</option>
+                            <option value="yellow" class="text-yellow-600">צהוב</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm" id="modifiers-builder-container-wrapper">
                     <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-3">
                         <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות (Modifiers):</label>
                         <button type="button" onclick="window.addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-2 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> קבוצה חדשה</button>
@@ -11328,7 +11348,7 @@ window.openStoreProductModal = function(id = null) {
                     <select id="preset-selector" onchange="if(typeof window.loadPreset === 'function') window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-full bg-slate-50 mb-3 ${typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0 ? '' : 'hidden'}">
                         ${presetOptions}
                     </select>
-                    <div id="modifiers-builder-container" class="space-y-3"></div>
+                    <div id="sp-modal-modifiers-container" class="space-y-3"></div>
                     <input type="hidden" id="sp-options">
                 </div>
             </div>
@@ -11353,6 +11373,1153 @@ window.openStoreProductModal = function(id = null) {
             document.getElementById('sp-desc').value = p.description || ''; 
             
             if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
+            if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
+            
+            document.getElementById('sp-image-base64').value = p.image_url || '';
+            if (p.image_url) { 
+                document.getElementById('sp-image-preview').src = p.image_url; 
+                document.getElementById('sp-image-preview').classList.remove('hidden'); 
+                document.getElementById('sp-image-placeholder').classList.add('hidden'); 
+            }
+            
+            if (p.options_text) {
+                try { 
+                    const parsed = JSON.parse(p.options_text); 
+                    if (parsed && parsed.isBundle) {
+                        window.currentBundleStepsUI = parsed.steps || [];
+                    } else if (parsed && parsed.isPizza) {
+                        window.currentPizzaToppingsUI = parsed.toppings || [];
+                    } else {
+                        window.currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
+                    }
+                } catch(e) { }
+            }
+        }
+    }
+    
+    window.toggleProductTypeUI(document.getElementById('sp-product-type') ? document.getElementById('sp-product-type').value : 'retail');
+    window.renderModifiersUI(); 
+    if(typeof window.renderBundleBuilderUI === 'function') window.renderBundleBuilderUI();
+    
+    modal.classList.remove('hidden');
+};
+
+window.openModifierTemplatesModal = function() {
+    showToast('info', 'מערכת התבניות זמינה כעת בתוך עריכת המוצר!');
+};window.addModifierGroup = function() { 
+    if(!window.currentModifiersUI) window.currentModifiersUI = [];
+    window.currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
+    window.renderModifiersUI(); 
+};
+window.removeModifierGroup = function(index) { window.currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
+window.updateModName = function(index, v) { window.currentModifiersUI[index].name = v; };
+window.updateModType = function(index, v) { window.currentModifiersUI[index].type = v; };
+window.addModifierOption = function(gIndex) { window.currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
+window.removeModifierOption = function(gIndex, optIndex) { window.currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
+window.updateModOptionName = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].name = v; };
+window.updateModOptionPrice = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
+
+window.renderModifiersUI = function() {
+    // התיקון: שימוש ב-ID ייחודי למודאל כדי למנוע התנגשות
+    const container = document.getElementById('sp-modal-modifiers-container');
+    if (!container) return;
+    if (!window.currentModifiersUI || window.currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentModifiersUI.forEach((mod, groupIndex) => {
+        const typeSingle = mod.type === 'single' ? 'selected' : ''; 
+        const typeMulti = mod.type === 'multiple' ? 'selected' : '';
+        
+        let optionsHtml = '';
+        mod.options.forEach((opt, optIndex) => {
+            optionsHtml += `
+            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="window.updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
+                <div class="w-20 relative">
+                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="window.updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
+                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                </div>
+                <button type="button" onclick="window.removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            </div>`;
+        });
+
+        html += `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in mt-3">
+            <div class="absolute top-2 left-2 flex gap-2">
+                <button type="button" id="btn-save-preset-${groupIndex}" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button type="button" onclick="window.removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
+                    <input type="text" class="modern-input py-1.5 text-xs w-full bg-slate-50" value="${safeStr(mod.name)}" onchange="window.updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
+                </div>
+                <div class="w-[45%]">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
+                    <select onchange="window.updateModType(${groupIndex}, this.value)" class="modern-input py-1.5 text-xs w-full bg-white">
+                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
+                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
+                    </select>
+                </div>
+            </div>
+            <div class="space-y-1">
+                ${optionsHtml}
+                <button type="button" onclick="window.addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
+            </div>
+        </div>`;
+    }); 
+    container.innerHTML = html;
+};
+
+// --- פונקציות הפיצה והבאנדלים (כדי למנוע שגיאות Reference) ---
+window.toggleProductTypeUI = function(type) {
+    const modContainer = document.getElementById('modifiers-builder-container-wrapper');
+    const bundleContainer = document.getElementById('bundle-builder-container');
+    const pizzaContainer = document.getElementById('sp-pizza-section');
+    
+    if (type === 'bundle' || type === 'event_menu') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.remove('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    } else if (type === 'pizza_builder') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+        if (typeof window.renderPizzaToppingsUI === 'function') window.renderPizzaToppingsUI();
+    } else {
+        if (modContainer) modContainer.classList.remove('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    }
+};
+
+window.onProductTypeChange = function() {
+    const type = document.getElementById('sp-product-type').value;
+    window.toggleProductTypeUI(type);
+};
+
+window.renderPizzaToppingsUI = function() {
+    const list = getEl('pizza-toppings-list');
+    if (!list) return;
+    if (!window.currentPizzaToppingsUI || window.currentPizzaToppingsUI.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-500 text-center py-4 bg-white rounded-lg border border-dashed border-red-200">לא הוגדרו תוספות. לחצו למטה כדי להוסיף תוספת ראשונה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentPizzaToppingsUI.forEach((top, idx) => {
+        html += `
+        <div class="flex gap-2 items-center mb-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm fade-in">
+            <input type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 outline-none focus:border-red-400 text-slate-700 font-bold" value="${safeStr(top.name)}" onchange="window.currentPizzaToppingsUI[${idx}].name = this.value" placeholder="שם התוספת (למשל: זיתים ירוקים)">
+            <div class="w-24 relative">
+                <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2 outline-none focus:border-red-400 text-slate-700 text-center dir-ltr font-bold" value="${top.price}" onchange="window.currentPizzaToppingsUI[${idx}].price = parseFloat(this.value) || 0" placeholder="0">
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪</span>
+            </div>
+            <button type="button" onclick="window.removePizzaTopping(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg"><i class="fa-solid fa-times text-xs"></i></button>
+        </div>`;
+    });
+    list.innerHTML = html;
+};
+
+window.addPizzaTopping = function() {
+    if(!window.currentPizzaToppingsUI) window.currentPizzaToppingsUI = [];
+    window.currentPizzaToppingsUI.push({ name: '', price: 0 });
+    window.renderPizzaToppingsUI();
+};
+
+window.removePizzaTopping = function(idx) {
+    window.currentPizzaToppingsUI.splice(idx, 1);
+    window.renderPizzaToppingsUI();
+};
+
+window.addBundleStep = function() {
+    if(!window.currentBundleStepsUI) window.currentBundleStepsUI = [];
+    window.currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
+    window.renderBundleBuilderUI();
+};
+
+window.removeBundleStep = function(idx) {
+    window.currentBundleStepsUI.splice(idx, 1);
+    window.renderBundleBuilderUI();
+};
+
+window.updateBundleStepItems = function(stepIdx, cb) {
+    const id = parseInt(cb.value);
+    if (cb.checked) {
+        if (!window.currentBundleStepsUI[stepIdx].items.includes(id)) window.currentBundleStepsUI[stepIdx].items.push(id);
+    } else {
+        window.currentBundleStepsUI[stepIdx].items = window.currentBundleStepsUI[stepIdx].items.filter(i => i !== id);
+    }
+};
+
+window.renderBundleBuilderUI = function() {
+    const container = getEl('bundle-builder-container');
+    if (!container) return;
+
+    let html = '<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2 fade-in">';
+    html += '<h4 class="font-bold text-indigo-900 text-sm mb-2"><i class="fa-solid fa-boxes-packing"></i> הרכבת המארז (Bundle)</h4>';
+    html += '<p class="text-[11px] text-indigo-700 mb-4 opacity-90">הגדירו מאילו קטגוריות או מוצרים יוכל הלקוח להרכיב את החבילה.</p>';
+
+    if (!window.currentBundleStepsUI || window.currentBundleStepsUI.length === 0) {
+        html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
+    } else {
+        const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))] : [];
+        let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
+        cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
+
+        const prods = storeCatalogCache ? storeCatalogCache.filter(p => p.product_type !== 'bundle') : [];
+        
+        window.currentBundleStepsUI.forEach((step, idx) => {
+            const isCat = step.selectionType === 'category';
+            
+            let prodOptionsHtml = '';
+            prods.forEach(p => {
+                const selected = step.items.includes(p.id) ? 'checked' : '';
+                prodOptionsHtml += `<label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"><div class="flex items-center gap-2"><input type="checkbox" value="${p.id}" onchange="window.updateBundleStepItems(${idx}, this)" ${selected} class="w-3.5 h-3.5 accent-indigo-600"> <span class="font-medium text-slate-700 truncate w-32">${safeStr(p.name)}</span></div><span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded truncate max-w-[80px]">${safeStr(p.category)}</span></label>`;
+            });
+
+            html += `
+            <div class="bg-white p-3.5 rounded-xl border border-indigo-200 shadow-sm mb-3 relative group">
+                <button type="button" onclick="window.removeBundleStep(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-slate-50 rounded shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                <div class="grid grid-cols-3 gap-2 mb-3 pr-6">
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת עיקרית):</label>
+                        <input type="text" class="modern-input py-1.5 text-xs" value="${safeStr(step.name)}" onchange="window.currentBundleStepsUI[${idx}].name = this.value">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות בחירה:</label>
+                        <input type="number" min="1" class="modern-input py-1.5 text-xs text-center dir-ltr" value="${step.qty}" onchange="window.currentBundleStepsUI[${idx}].qty = parseInt(this.value) || 1">
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">הלקוח יבחר פריטים מתוך:</label>
+                    <select class="modern-input py-1.5 text-xs mb-2 text-indigo-700 font-bold bg-white" onchange="window.currentBundleStepsUI[${idx}].selectionType = this.value; window.renderBundleBuilderUI();">
+                        <option value="category" ${isCat ? 'selected' : ''}>קטגוריה שלמה מהקטלוג</option>
+                        <option value="items" ${!isCat ? 'selected' : ''}>רשימת מוצרים ספציפית</option>
+                    </select>
+                    ${isCat ? `
+                    <div class="fade-in">
+                        <select class="modern-input py-1.5 text-xs bg-white" onchange="window.currentBundleStepsUI[${idx}].category = this.value">
+                            ${catOptions.replace(`value="${step.category}"`, `value="${step.category}" selected`)}
+                        </select>
+                    </div>` : `
+                    <div class="h-28 overflow-y-auto bg-white border border-slate-200 rounded-md p-1 modal-scroll fade-in">
+                        ${prodOptionsHtml || '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים זמינים בקטלוג.</p>'}
+                    </div>`}
+                </div>
+            </div>`;
+        });
+    }
+    
+    html += `<button type="button" onclick="window.addBundleStep()" class="w-full bg-white text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition border border-indigo-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוספת שלב בחירה למארז</button>`;
+    html += `</div>`;
+    container.innerHTML = html;
+};
+
+// --- מודאל יצירת/עריכת מוצר נקי לחלוטין ---
+window.openStoreProductModal = function(id = null) {
+    window.currentModifiersUI = []; 
+    window.currentBundleStepsUI = [];
+    window.currentPizzaToppingsUI = [];
+    
+    let modal = document.getElementById('store-product-modal');
+    if (modal) modal.remove();
+    
+    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    let dataListHtml = `<datalist id="sp-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    
+    let presetOptions = '<option value="">טען תבנית שמורה...</option>';
+    if (typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0) {
+        storeModifierPresets.forEach((p, idx) => { presetOptions += `<option value="${idx}">${safeStr(p.name)}</option>`; });
+    }
+
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-box text-indigo-500 mr-2"></i> ניהול פריט בקטלוג</h3>
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
+                <input type="hidden" id="sp-id" value="">
+                ${dataListHtml}
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
+                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                        <div id="sp-image-placeholder" class="text-center py-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                        </div>
+                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
+                        <input type="hidden" id="sp-image-base64">
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    <label class="text-xs font-bold text-indigo-800 block mb-2">סוג תבנית מוצר:</label>
+                    <select id="sp-product-type" onchange="window.onProductTypeChange()" class="modern-input py-2.5 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm">
+                        <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                        <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
+                        <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+                        <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+                        <option value="service">✂️ שירות / טיפול</option>
+                    </select>
+                </div>
+
+                <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
+                
+                <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                    <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                    <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                    <button type="button" onclick="window.addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="sp-price" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white text-center dir-ltr" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 mt-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
+                            <button type="button" onclick="if(typeof generateStoreProductAI === 'function') generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                    <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sp-badge-text" class="modern-input py-2.5 text-sm flex-1 bg-white shadow-sm" placeholder="למשל: חדש!" maxlength="15">
+                        <select id="sp-badge-color" class="modern-input py-2.5 text-sm w-28 bg-white font-bold shadow-sm">
+                            <option value="red" class="text-red-500">אדום</option>
+                            <option value="green" class="text-green-500">ירוק</option>
+                            <option value="blue" class="text-blue-500">כחול</option>
+                            <option value="yellow" class="text-yellow-600">צהוב</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm" id="modifiers-builder-container-wrapper">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-3">
+                        <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות (Modifiers):</label>
+                        <button type="button" onclick="window.addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-2 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> קבוצה חדשה</button>
+                    </div>
+                    <select id="preset-selector" onchange="if(typeof window.loadPreset === 'function') window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-full bg-slate-50 mb-3 ${typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0 ? '' : 'hidden'}">
+                        ${presetOptions}
+                    </select>
+                    <div id="sp-modal-modifiers-container" class="space-y-3"></div>
+                    <input type="hidden" id="sp-options">
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 flex gap-3 z-10">
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">ביטול</button>
+                <button type="button" id="btn-submit-sp" onclick="window.submitStoreProduct()" class="flex-[1.2] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition text-base flex justify-center items-center gap-2"><i class="fa-solid fa-save"></i> שמור מוצר</button>
+            </div>
+        </div>
+    </div>
+    `);
+    
+    modal = document.getElementById('store-product-modal');
+
+    if (id && storeCatalogCache) {
+        const p = storeCatalogCache.find(item => item.id === id); 
+        if(p) {
+            document.getElementById('sp-id').value = p.id; 
+            document.getElementById('sp-name').value = p.name || ''; 
+            document.getElementById('sp-price').value = p.price || ''; 
+            document.getElementById('sp-category').value = p.category || ''; 
+            document.getElementById('sp-desc').value = p.description || ''; 
+            
+            if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
+            if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
+            
+            document.getElementById('sp-image-base64').value = p.image_url || '';
+            if (p.image_url) { 
+                document.getElementById('sp-image-preview').src = p.image_url; 
+                document.getElementById('sp-image-preview').classList.remove('hidden'); 
+                document.getElementById('sp-image-placeholder').classList.add('hidden'); 
+            }
+            
+            if (p.options_text) {
+                try { 
+                    const parsed = JSON.parse(p.options_text); 
+                    if (parsed && parsed.isBundle) {
+                        window.currentBundleStepsUI = parsed.steps || [];
+                    } else if (parsed && parsed.isPizza) {
+                        window.currentPizzaToppingsUI = parsed.toppings || [];
+                    } else {
+                        window.currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
+                    }
+                } catch(e) { }
+            }
+        }
+    }
+    
+    window.toggleProductTypeUI(document.getElementById('sp-product-type') ? document.getElementById('sp-product-type').value : 'retail');
+    window.renderModifiersUI(); 
+    if(typeof window.renderBundleBuilderUI === 'function') window.renderBundleBuilderUI();
+    
+    modal.classList.remove('hidden');
+};
+
+window.openModifierTemplatesModal = function() {
+    showToast('info', 'מערכת התבניות זמינה כעת בתוך עריכת המוצר!');
+};window.addModifierGroup = function() { 
+    if(!window.currentModifiersUI) window.currentModifiersUI = [];
+    window.currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
+    window.renderModifiersUI(); 
+};
+window.removeModifierGroup = function(index) { window.currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
+window.updateModName = function(index, v) { window.currentModifiersUI[index].name = v; };
+window.updateModType = function(index, v) { window.currentModifiersUI[index].type = v; };
+window.addModifierOption = function(gIndex) { window.currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
+window.removeModifierOption = function(gIndex, optIndex) { window.currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
+window.updateModOptionName = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].name = v; };
+window.updateModOptionPrice = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
+
+window.renderModifiersUI = function() {
+    // התיקון: שימוש ב-ID ייחודי למודאל כדי למנוע התנגשות
+    const container = document.getElementById('sp-modal-modifiers-container');
+    if (!container) return;
+    if (!window.currentModifiersUI || window.currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentModifiersUI.forEach((mod, groupIndex) => {
+        const typeSingle = mod.type === 'single' ? 'selected' : ''; 
+        const typeMulti = mod.type === 'multiple' ? 'selected' : '';
+        
+        let optionsHtml = '';
+        mod.options.forEach((opt, optIndex) => {
+            optionsHtml += `
+            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="window.updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
+                <div class="w-20 relative">
+                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="window.updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
+                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                </div>
+                <button type="button" onclick="window.removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            </div>`;
+        });
+
+        html += `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in mt-3">
+            <div class="absolute top-2 left-2 flex gap-2">
+                <button type="button" id="btn-save-preset-${groupIndex}" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button type="button" onclick="window.removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
+                    <input type="text" class="modern-input py-1.5 text-xs w-full bg-slate-50" value="${safeStr(mod.name)}" onchange="window.updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
+                </div>
+                <div class="w-[45%]">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
+                    <select onchange="window.updateModType(${groupIndex}, this.value)" class="modern-input py-1.5 text-xs w-full bg-white">
+                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
+                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
+                    </select>
+                </div>
+            </div>
+            <div class="space-y-1">
+                ${optionsHtml}
+                <button type="button" onclick="window.addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
+            </div>
+        </div>`;
+    }); 
+    container.innerHTML = html;
+};
+
+// --- פונקציות הפיצה והבאנדלים (כדי למנוע שגיאות Reference) ---
+window.toggleProductTypeUI = function(type) {
+    const modContainer = document.getElementById('modifiers-builder-container-wrapper');
+    const bundleContainer = document.getElementById('bundle-builder-container');
+    const pizzaContainer = document.getElementById('sp-pizza-section');
+    
+    if (type === 'bundle' || type === 'event_menu') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.remove('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    } else if (type === 'pizza_builder') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+        if (typeof window.renderPizzaToppingsUI === 'function') window.renderPizzaToppingsUI();
+    } else {
+        if (modContainer) modContainer.classList.remove('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    }
+};
+
+window.onProductTypeChange = function() {
+    const type = document.getElementById('sp-product-type').value;
+    window.toggleProductTypeUI(type);
+};
+
+window.renderPizzaToppingsUI = function() {
+    const list = getEl('pizza-toppings-list');
+    if (!list) return;
+    if (!window.currentPizzaToppingsUI || window.currentPizzaToppingsUI.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-500 text-center py-4 bg-white rounded-lg border border-dashed border-red-200">לא הוגדרו תוספות. לחצו למטה כדי להוסיף תוספת ראשונה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentPizzaToppingsUI.forEach((top, idx) => {
+        html += `
+        <div class="flex gap-2 items-center mb-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm fade-in">
+            <input type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 outline-none focus:border-red-400 text-slate-700 font-bold" value="${safeStr(top.name)}" onchange="window.currentPizzaToppingsUI[${idx}].name = this.value" placeholder="שם התוספת (למשל: זיתים ירוקים)">
+            <div class="w-24 relative">
+                <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2 outline-none focus:border-red-400 text-slate-700 text-center dir-ltr font-bold" value="${top.price}" onchange="window.currentPizzaToppingsUI[${idx}].price = parseFloat(this.value) || 0" placeholder="0">
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪</span>
+            </div>
+            <button type="button" onclick="window.removePizzaTopping(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg"><i class="fa-solid fa-times text-xs"></i></button>
+        </div>`;
+    });
+    list.innerHTML = html;
+};
+
+window.addPizzaTopping = function() {
+    if(!window.currentPizzaToppingsUI) window.currentPizzaToppingsUI = [];
+    window.currentPizzaToppingsUI.push({ name: '', price: 0 });
+    window.renderPizzaToppingsUI();
+};
+
+window.removePizzaTopping = function(idx) {
+    window.currentPizzaToppingsUI.splice(idx, 1);
+    window.renderPizzaToppingsUI();
+};
+
+window.addBundleStep = function() {
+    if(!window.currentBundleStepsUI) window.currentBundleStepsUI = [];
+    window.currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
+    window.renderBundleBuilderUI();
+};
+
+window.removeBundleStep = function(idx) {
+    window.currentBundleStepsUI.splice(idx, 1);
+    window.renderBundleBuilderUI();
+};
+
+window.updateBundleStepItems = function(stepIdx, cb) {
+    const id = parseInt(cb.value);
+    if (cb.checked) {
+        if (!window.currentBundleStepsUI[stepIdx].items.includes(id)) window.currentBundleStepsUI[stepIdx].items.push(id);
+    } else {
+        window.currentBundleStepsUI[stepIdx].items = window.currentBundleStepsUI[stepIdx].items.filter(i => i !== id);
+    }
+};
+
+window.renderBundleBuilderUI = function() {
+    const container = getEl('bundle-builder-container');
+    if (!container) return;
+
+    let html = '<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2 fade-in">';
+    html += '<h4 class="font-bold text-indigo-900 text-sm mb-2"><i class="fa-solid fa-boxes-packing"></i> הרכבת המארז (Bundle)</h4>';
+    html += '<p class="text-[11px] text-indigo-700 mb-4 opacity-90">הגדירו מאילו קטגוריות או מוצרים יוכל הלקוח להרכיב את החבילה.</p>';
+
+    if (!window.currentBundleStepsUI || window.currentBundleStepsUI.length === 0) {
+        html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
+    } else {
+        const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))] : [];
+        let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
+        cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
+
+        const prods = storeCatalogCache ? storeCatalogCache.filter(p => p.product_type !== 'bundle') : [];
+        
+        window.currentBundleStepsUI.forEach((step, idx) => {
+            const isCat = step.selectionType === 'category';
+            
+            let prodOptionsHtml = '';
+            prods.forEach(p => {
+                const selected = step.items.includes(p.id) ? 'checked' : '';
+                prodOptionsHtml += `<label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"><div class="flex items-center gap-2"><input type="checkbox" value="${p.id}" onchange="window.updateBundleStepItems(${idx}, this)" ${selected} class="w-3.5 h-3.5 accent-indigo-600"> <span class="font-medium text-slate-700 truncate w-32">${safeStr(p.name)}</span></div><span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded truncate max-w-[80px]">${safeStr(p.category)}</span></label>`;
+            });
+
+            html += `
+            <div class="bg-white p-3.5 rounded-xl border border-indigo-200 shadow-sm mb-3 relative group">
+                <button type="button" onclick="window.removeBundleStep(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-slate-50 rounded shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                <div class="grid grid-cols-3 gap-2 mb-3 pr-6">
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת עיקרית):</label>
+                        <input type="text" class="modern-input py-1.5 text-xs" value="${safeStr(step.name)}" onchange="window.currentBundleStepsUI[${idx}].name = this.value">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות בחירה:</label>
+                        <input type="number" min="1" class="modern-input py-1.5 text-xs text-center dir-ltr" value="${step.qty}" onchange="window.currentBundleStepsUI[${idx}].qty = parseInt(this.value) || 1">
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">הלקוח יבחר פריטים מתוך:</label>
+                    <select class="modern-input py-1.5 text-xs mb-2 text-indigo-700 font-bold bg-white" onchange="window.currentBundleStepsUI[${idx}].selectionType = this.value; window.renderBundleBuilderUI();">
+                        <option value="category" ${isCat ? 'selected' : ''}>קטגוריה שלמה מהקטלוג</option>
+                        <option value="items" ${!isCat ? 'selected' : ''}>רשימת מוצרים ספציפית</option>
+                    </select>
+                    ${isCat ? `
+                    <div class="fade-in">
+                        <select class="modern-input py-1.5 text-xs bg-white" onchange="window.currentBundleStepsUI[${idx}].category = this.value">
+                            ${catOptions.replace(`value="${step.category}"`, `value="${step.category}" selected`)}
+                        </select>
+                    </div>` : `
+                    <div class="h-28 overflow-y-auto bg-white border border-slate-200 rounded-md p-1 modal-scroll fade-in">
+                        ${prodOptionsHtml || '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים זמינים בקטלוג.</p>'}
+                    </div>`}
+                </div>
+            </div>`;
+        });
+    }
+    
+    html += `<button type="button" onclick="window.addBundleStep()" class="w-full bg-white text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition border border-indigo-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוספת שלב בחירה למארז</button>`;
+    html += `</div>`;
+    container.innerHTML = html;
+};
+
+// --- מודאל יצירת/עריכת מוצר נקי לחלוטין ---
+window.openStoreProductModal = function(id = null) {
+    window.currentModifiersUI = []; 
+    window.currentBundleStepsUI = [];
+    window.currentPizzaToppingsUI = [];
+    
+    let modal = document.getElementById('store-product-modal');
+    if (modal) modal.remove();
+    
+    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    let dataListHtml = `<datalist id="sp-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    
+    let presetOptions = '<option value="">טען תבנית שמורה...</option>';
+    if (typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0) {
+        storeModifierPresets.forEach((p, idx) => { presetOptions += `<option value="${idx}">${safeStr(p.name)}</option>`; });
+    }
+
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-box text-indigo-500 mr-2"></i> ניהול פריט בקטלוג</h3>
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
+                <input type="hidden" id="sp-id" value="">
+                ${dataListHtml}
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
+                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                        <div id="sp-image-placeholder" class="text-center py-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                        </div>
+                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
+                        <input type="hidden" id="sp-image-base64">
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    <label class="text-xs font-bold text-indigo-800 block mb-2">סוג תבנית מוצר:</label>
+                    <select id="sp-product-type" onchange="window.onProductTypeChange()" class="modern-input py-2.5 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm">
+                        <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                        <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
+                        <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+                        <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+                        <option value="service">✂️ שירות / טיפול</option>
+                    </select>
+                </div>
+
+                <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
+                
+                <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                    <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                    <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                    <button type="button" onclick="window.addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="sp-price" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white text-center dir-ltr" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 mt-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
+                            <button type="button" onclick="if(typeof generateStoreProductAI === 'function') generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                    <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sp-badge-text" class="modern-input py-2.5 text-sm flex-1 bg-white shadow-sm" placeholder="למשל: חדש!" maxlength="15">
+                        <select id="sp-badge-color" class="modern-input py-2.5 text-sm w-28 bg-white font-bold shadow-sm">
+                            <option value="red" class="text-red-500">אדום</option>
+                            <option value="green" class="text-green-500">ירוק</option>
+                            <option value="blue" class="text-blue-500">כחול</option>
+                            <option value="yellow" class="text-yellow-600">צהוב</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm" id="modifiers-builder-container-wrapper">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-3">
+                        <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות (Modifiers):</label>
+                        <button type="button" onclick="window.addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-2 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> קבוצה חדשה</button>
+                    </div>
+                    <select id="preset-selector" onchange="if(typeof window.loadPreset === 'function') window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-full bg-slate-50 mb-3 ${typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0 ? '' : 'hidden'}">
+                        ${presetOptions}
+                    </select>
+                    <div id="sp-modal-modifiers-container" class="space-y-3"></div>
+                    <input type="hidden" id="sp-options">
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 flex gap-3 z-10">
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">ביטול</button>
+                <button type="button" id="btn-submit-sp" onclick="window.submitStoreProduct()" class="flex-[1.2] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition text-base flex justify-center items-center gap-2"><i class="fa-solid fa-save"></i> שמור מוצר</button>
+            </div>
+        </div>
+    </div>
+    `);
+    
+    modal = document.getElementById('store-product-modal');
+
+    if (id && storeCatalogCache) {
+        const p = storeCatalogCache.find(item => item.id === id); 
+        if(p) {
+            document.getElementById('sp-id').value = p.id; 
+            document.getElementById('sp-name').value = p.name || ''; 
+            document.getElementById('sp-price').value = p.price || ''; 
+            document.getElementById('sp-category').value = p.category || ''; 
+            document.getElementById('sp-desc').value = p.description || ''; 
+            
+            if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
+            if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
+            
+            document.getElementById('sp-image-base64').value = p.image_url || '';
+            if (p.image_url) { 
+                document.getElementById('sp-image-preview').src = p.image_url; 
+                document.getElementById('sp-image-preview').classList.remove('hidden'); 
+                document.getElementById('sp-image-placeholder').classList.add('hidden'); 
+            }
+            
+            if (p.options_text) {
+                try { 
+                    const parsed = JSON.parse(p.options_text); 
+                    if (parsed && parsed.isBundle) {
+                        window.currentBundleStepsUI = parsed.steps || [];
+                    } else if (parsed && parsed.isPizza) {
+                        window.currentPizzaToppingsUI = parsed.toppings || [];
+                    } else {
+                        window.currentModifiersUI = Array.isArray(parsed) ? parsed : []; 
+                    }
+                } catch(e) { }
+            }
+        }
+    }
+    
+    window.toggleProductTypeUI(document.getElementById('sp-product-type') ? document.getElementById('sp-product-type').value : 'retail');
+    window.renderModifiersUI(); 
+    if(typeof window.renderBundleBuilderUI === 'function') window.renderBundleBuilderUI();
+    
+    modal.classList.remove('hidden');
+};
+
+window.openModifierTemplatesModal = function() {
+    showToast('info', 'מערכת התבניות זמינה כעת בתוך עריכת המוצר!');
+};window.addModifierGroup = function() { 
+    if(!window.currentModifiersUI) window.currentModifiersUI = [];
+    window.currentModifiersUI.push({ name: '', type: 'single', options: [{name: '', price: 0}] }); 
+    window.renderModifiersUI(); 
+};
+window.removeModifierGroup = function(index) { window.currentModifiersUI.splice(index, 1); window.renderModifiersUI(); };
+window.updateModName = function(index, v) { window.currentModifiersUI[index].name = v; };
+window.updateModType = function(index, v) { window.currentModifiersUI[index].type = v; };
+window.addModifierOption = function(gIndex) { window.currentModifiersUI[gIndex].options.push({name: '', price: 0}); window.renderModifiersUI(); };
+window.removeModifierOption = function(gIndex, optIndex) { window.currentModifiersUI[gIndex].options.splice(optIndex, 1); window.renderModifiersUI(); };
+window.updateModOptionName = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].name = v; };
+window.updateModOptionPrice = function(gIndex, optIndex, v) { window.currentModifiersUI[gIndex].options[optIndex].price = parseFloat(v) || 0; };
+
+window.renderModifiersUI = function() {
+    // התיקון: שימוש ב-ID ייחודי למודאל כדי למנוע התנגשות
+    const container = document.getElementById('sp-modal-modifiers-container');
+    if (!container) return;
+    if (!window.currentModifiersUI || window.currentModifiersUI.length === 0) {
+        container.innerHTML = '<p class="text-[11px] text-slate-500 text-center py-6 bg-white rounded-xl border border-dashed border-slate-200 font-medium">לא הוגדרו תוספות / מנות למארז זה.<br>לחצו על "הוסף קבוצה" או בחרו מתבנית שמורה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentModifiersUI.forEach((mod, groupIndex) => {
+        const typeSingle = mod.type === 'single' ? 'selected' : ''; 
+        const typeMulti = mod.type === 'multiple' ? 'selected' : '';
+        
+        let optionsHtml = '';
+        mod.options.forEach((opt, optIndex) => {
+            optionsHtml += `
+            <div class="flex gap-2 items-center mb-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <input type="text" class="flex-1 bg-white border border-slate-200 rounded text-xs px-2 py-1.5 outline-none focus:border-indigo-400 text-slate-700" value="${safeStr(opt.name)}" onchange="window.updateModOptionName(${groupIndex}, ${optIndex}, this.value)" placeholder="שם (למשל: צ'יפס / XL)">
+                <div class="w-20 relative">
+                    <input type="number" class="w-full bg-white border border-slate-200 rounded text-xs pl-2 pr-5 py-1.5 outline-none focus:border-indigo-400 text-slate-700 text-left dir-ltr" value="${opt.price}" onchange="window.updateModOptionPrice(${groupIndex}, ${optIndex}, this.value)" placeholder="0">
+                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪+</span>
+                </div>
+                <button type="button" onclick="window.removeModifierOption(${groupIndex}, ${optIndex})" class="text-slate-300 hover:text-red-500 w-6 h-6 flex items-center justify-center transition"><i class="fa-solid fa-times text-xs"></i></button>
+            </div>`;
+        });
+
+        html += `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex flex-col gap-3 fade-in mt-3">
+            <div class="absolute top-2 left-2 flex gap-2">
+                <button type="button" id="btn-save-preset-${groupIndex}" onclick="window.saveModifierAsPreset(${groupIndex})" class="text-blue-500 hover:text-blue-700 w-7 h-7 flex items-center justify-center transition bg-blue-50 rounded-lg border border-blue-100" title="שמור כתבנית לשימוש עתידי"><i class="fa-solid fa-save text-xs"></i></button>
+                <button type="button" onclick="window.removeModifierGroup(${groupIndex})" class="text-slate-400 hover:text-red-500 w-7 h-7 flex items-center justify-center transition bg-slate-50 rounded-lg border border-slate-100 hover:bg-red-50 hover:border-red-100"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+            <div class="flex gap-3 w-[80%] pr-1 mb-2 border-b border-slate-100 pb-3">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">שם הקבוצה:</label>
+                    <input type="text" class="modern-input py-1.5 text-xs w-full bg-slate-50" value="${safeStr(mod.name)}" onchange="window.updateModName(${groupIndex}, this.value)" placeholder="למשל: בחירת שתייה">
+                </div>
+                <div class="w-[45%]">
+                    <label class="text-[10px] font-bold text-slate-500 block mb-1">סוג בחירה:</label>
+                    <select onchange="window.updateModType(${groupIndex}, this.value)" class="modern-input py-1.5 text-xs w-full bg-white">
+                        <option value="single" ${typeSingle}>בחירה 1 (חובה)</option>
+                        <option value="multiple" ${typeMulti}>בחירה מרובה</option>
+                    </select>
+                </div>
+            </div>
+            <div class="space-y-1">
+                ${optionsHtml}
+                <button type="button" onclick="window.addModifierOption(${groupIndex})" class="mt-1 w-full bg-slate-50 border border-dashed border-slate-300 text-slate-500 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-plus"></i> הוסף אפשרות לשורה זו</button>
+            </div>
+        </div>`;
+    }); 
+    container.innerHTML = html;
+};
+
+// --- פונקציות הפיצה והבאנדלים (כדי למנוע שגיאות Reference) ---
+window.toggleProductTypeUI = function(type) {
+    const modContainer = document.getElementById('modifiers-builder-container-wrapper');
+    const bundleContainer = document.getElementById('bundle-builder-container');
+    const pizzaContainer = document.getElementById('sp-pizza-section');
+    
+    if (type === 'bundle' || type === 'event_menu') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.remove('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    } else if (type === 'pizza_builder') {
+        if (modContainer) modContainer.classList.add('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.remove('hidden');
+        if (typeof window.renderPizzaToppingsUI === 'function') window.renderPizzaToppingsUI();
+    } else {
+        if (modContainer) modContainer.classList.remove('hidden');
+        if (bundleContainer) bundleContainer.classList.add('hidden');
+        if (pizzaContainer) pizzaContainer.classList.add('hidden');
+    }
+};
+
+window.onProductTypeChange = function() {
+    const type = document.getElementById('sp-product-type').value;
+    window.toggleProductTypeUI(type);
+};
+
+window.renderPizzaToppingsUI = function() {
+    const list = getEl('pizza-toppings-list');
+    if (!list) return;
+    if (!window.currentPizzaToppingsUI || window.currentPizzaToppingsUI.length === 0) {
+        list.innerHTML = '<p class="text-[10px] text-slate-500 text-center py-4 bg-white rounded-lg border border-dashed border-red-200">לא הוגדרו תוספות. לחצו למטה כדי להוסיף תוספת ראשונה.</p>';
+        return;
+    }
+    
+    let html = '';
+    window.currentPizzaToppingsUI.forEach((top, idx) => {
+        html += `
+        <div class="flex gap-2 items-center mb-2 bg-white p-2 rounded-xl border border-red-100 shadow-sm fade-in">
+            <input type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 outline-none focus:border-red-400 text-slate-700 font-bold" value="${safeStr(top.name)}" onchange="window.currentPizzaToppingsUI[${idx}].name = this.value" placeholder="שם התוספת (למשל: זיתים ירוקים)">
+            <div class="w-24 relative">
+                <input type="number" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs pl-2 pr-6 py-2 outline-none focus:border-red-400 text-slate-700 text-center dir-ltr font-bold" value="${top.price}" onchange="window.currentPizzaToppingsUI[${idx}].price = parseFloat(this.value) || 0" placeholder="0">
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">₪</span>
+            </div>
+            <button type="button" onclick="window.removePizzaTopping(${idx})" class="text-slate-300 hover:text-red-500 w-8 h-8 flex items-center justify-center transition bg-slate-50 rounded-lg"><i class="fa-solid fa-times text-xs"></i></button>
+        </div>`;
+    });
+    list.innerHTML = html;
+};
+
+window.addPizzaTopping = function() {
+    if(!window.currentPizzaToppingsUI) window.currentPizzaToppingsUI = [];
+    window.currentPizzaToppingsUI.push({ name: '', price: 0 });
+    window.renderPizzaToppingsUI();
+};
+
+window.removePizzaTopping = function(idx) {
+    window.currentPizzaToppingsUI.splice(idx, 1);
+    window.renderPizzaToppingsUI();
+};
+
+window.addBundleStep = function() {
+    if(!window.currentBundleStepsUI) window.currentBundleStepsUI = [];
+    window.currentBundleStepsUI.push({ name: '', selectionType: 'category', category: '', items: [], qty: 1 });
+    window.renderBundleBuilderUI();
+};
+
+window.removeBundleStep = function(idx) {
+    window.currentBundleStepsUI.splice(idx, 1);
+    window.renderBundleBuilderUI();
+};
+
+window.updateBundleStepItems = function(stepIdx, cb) {
+    const id = parseInt(cb.value);
+    if (cb.checked) {
+        if (!window.currentBundleStepsUI[stepIdx].items.includes(id)) window.currentBundleStepsUI[stepIdx].items.push(id);
+    } else {
+        window.currentBundleStepsUI[stepIdx].items = window.currentBundleStepsUI[stepIdx].items.filter(i => i !== id);
+    }
+};
+
+window.renderBundleBuilderUI = function() {
+    const container = getEl('bundle-builder-container');
+    if (!container) return;
+
+    let html = '<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mb-2 fade-in">';
+    html += '<h4 class="font-bold text-indigo-900 text-sm mb-2"><i class="fa-solid fa-boxes-packing"></i> הרכבת המארז (Bundle)</h4>';
+    html += '<p class="text-[11px] text-indigo-700 mb-4 opacity-90">הגדירו מאילו קטגוריות או מוצרים יוכל הלקוח להרכיב את החבילה.</p>';
+
+    if (!window.currentBundleStepsUI || window.currentBundleStepsUI.length === 0) {
+        html += '<p class="text-[11px] text-slate-500 text-center py-5 bg-white rounded-lg border border-dashed font-medium mb-3">לא הוגדרו שלבים. <br>לדוגמה: "בחר מנה עיקרית אחת", "בחר 2 תוספות".</p>';
+    } else {
+        const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.product_type !== 'bundle' && p.category).map(p => p.category))] : [];
+        let catOptions = '<option value="">בחרו קטגוריה שלמה...</option>';
+        cats.forEach(c => { catOptions += `<option value="${safeStr(c)}">${safeStr(c)}</option>`; });
+
+        const prods = storeCatalogCache ? storeCatalogCache.filter(p => p.product_type !== 'bundle') : [];
+        
+        window.currentBundleStepsUI.forEach((step, idx) => {
+            const isCat = step.selectionType === 'category';
+            
+            let prodOptionsHtml = '';
+            prods.forEach(p => {
+                const selected = step.items.includes(p.id) ? 'checked' : '';
+                prodOptionsHtml += `<label class="flex items-center justify-between gap-2 text-[10px] p-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"><div class="flex items-center gap-2"><input type="checkbox" value="${p.id}" onchange="window.updateBundleStepItems(${idx}, this)" ${selected} class="w-3.5 h-3.5 accent-indigo-600"> <span class="font-medium text-slate-700 truncate w-32">${safeStr(p.name)}</span></div><span class="text-[9px] text-slate-400 bg-slate-100 px-1.5 rounded truncate max-w-[80px]">${safeStr(p.category)}</span></label>`;
+            });
+
+            html += `
+            <div class="bg-white p-3.5 rounded-xl border border-indigo-200 shadow-sm mb-3 relative group">
+                <button type="button" onclick="window.removeBundleStep(${idx})" class="absolute top-2 left-2 text-slate-300 hover:text-red-500 transition w-6 h-6 flex items-center justify-center bg-slate-50 rounded shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                <div class="grid grid-cols-3 gap-2 mb-3 pr-6">
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">שם השלב (למשל: בחירת עיקרית):</label>
+                        <input type="text" class="modern-input py-1.5 text-xs" value="${safeStr(step.name)}" onchange="window.currentBundleStepsUI[${idx}].name = this.value">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">כמות בחירה:</label>
+                        <input type="number" min="1" class="modern-input py-1.5 text-xs text-center dir-ltr" value="${step.qty}" onchange="window.currentBundleStepsUI[${idx}].qty = parseInt(this.value) || 1">
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <label class="text-[10px] font-bold text-slate-600 block mb-1.5">הלקוח יבחר פריטים מתוך:</label>
+                    <select class="modern-input py-1.5 text-xs mb-2 text-indigo-700 font-bold bg-white" onchange="window.currentBundleStepsUI[${idx}].selectionType = this.value; window.renderBundleBuilderUI();">
+                        <option value="category" ${isCat ? 'selected' : ''}>קטגוריה שלמה מהקטלוג</option>
+                        <option value="items" ${!isCat ? 'selected' : ''}>רשימת מוצרים ספציפית</option>
+                    </select>
+                    ${isCat ? `
+                    <div class="fade-in">
+                        <select class="modern-input py-1.5 text-xs bg-white" onchange="window.currentBundleStepsUI[${idx}].category = this.value">
+                            ${catOptions.replace(`value="${step.category}"`, `value="${step.category}" selected`)}
+                        </select>
+                    </div>` : `
+                    <div class="h-28 overflow-y-auto bg-white border border-slate-200 rounded-md p-1 modal-scroll fade-in">
+                        ${prodOptionsHtml || '<p class="text-[9px] text-slate-400 p-2 text-center">אין מוצרים זמינים בקטלוג.</p>'}
+                    </div>`}
+                </div>
+            </div>`;
+        });
+    }
+    
+    html += `<button type="button" onclick="window.addBundleStep()" class="w-full bg-white text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-50 transition border border-indigo-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוספת שלב בחירה למארז</button>`;
+    html += `</div>`;
+    container.innerHTML = html;
+};
+
+// --- מודאל יצירת/עריכת מוצר נקי לחלוטין ---
+window.openStoreProductModal = function(id = null) {
+    window.currentModifiersUI = []; 
+    window.currentBundleStepsUI = [];
+    window.currentPizzaToppingsUI = [];
+    
+    let modal = document.getElementById('store-product-modal');
+    if (modal) modal.remove();
+    
+    const cats = storeCatalogCache ? [...new Set(storeCatalogCache.filter(p => p.category).map(p => p.category))] : [];
+    let dataListHtml = `<datalist id="sp-category-list"><option value="כללי">` + cats.map(c => `<option value="${safeStr(c)}">`).join('') + `</datalist>`;
+    
+    let presetOptions = '<option value="">טען תבנית שמורה...</option>';
+    if (typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0) {
+        storeModifierPresets.forEach((p, idx) => { presetOptions += `<option value="${idx}">${safeStr(p.name)}</option>`; });
+    }
+
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
+        <div class="bg-slate-50 w-full max-w-xl rounded-[2rem] shadow-2xl relative flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 shrink-0 bg-white z-10">
+                <h3 class="text-xl font-black text-slate-800"><i class="fa-solid fa-box text-indigo-500 mr-2"></i> ניהול פריט בקטלוג</h3>
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition flex items-center justify-center border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5 modal-scroll">
+                <input type="hidden" id="sp-id" value="">
+                ${dataListHtml}
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תמונת הפריט:</label>
+                    <div class="flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-4 cursor-pointer hover:bg-slate-100 transition shadow-sm" onclick="document.getElementById('sp-image-upload').click()">
+                        <div id="sp-image-placeholder" class="text-center py-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-indigo-400 mb-2 drop-shadow-sm"></i>
+                            <p class="text-sm font-bold text-slate-600">לחץ להעלאת תמונה</p>
+                        </div>
+                        <img id="sp-image-preview" class="hidden h-32 w-full object-cover rounded-xl shadow-sm">
+                        <input type="file" id="sp-image-upload" accept="image/*" class="hidden" onchange="if(typeof handleProductImageBase64 === 'function') handleProductImageBase64(event)">
+                        <input type="hidden" id="sp-image-base64">
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    <label class="text-xs font-bold text-indigo-800 block mb-2">סוג תבנית מוצר:</label>
+                    <select id="sp-product-type" onchange="window.onProductTypeChange()" class="modern-input py-2.5 text-sm bg-white font-bold text-indigo-700 outline-none focus:border-indigo-400 shadow-sm">
+                        <option value="retail">🛍️ מוצר קמעונאי / פיזי</option>
+                        <option value="food">🍔 מנת מזון / מסעדה (עם תוספות)</option>
+                        <option value="pizza_builder">🍕 הרכבת פיצה (רבעים/חצאים)</option>
+                        <option value="bundle">🍱 ארוחת קומבו / סט מוצרים</option>
+                        <option value="service">✂️ שירות / טיפול</option>
+                    </select>
+                </div>
+
+                <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
+                
+                <div id="sp-pizza-section" class="hidden bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm mt-4">
+                    <label class="text-xs font-bold text-red-800 block mb-2"><i class="fa-solid fa-pizza-slice ml-1"></i> ניהול תוספות למגש:</label>
+                    <div id="pizza-toppings-list" class="space-y-2 max-h-48 overflow-y-auto modal-scroll pr-1"></div>
+                    <button type="button" onclick="window.addPizzaTopping()" class="w-full mt-2 bg-white text-red-600 py-2.5 rounded-xl text-xs font-bold hover:bg-red-100 transition border border-red-200 shadow-sm"><i class="fa-solid fa-plus mr-1"></i> הוסף תוספת לתפריט</button>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
+                        <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">מחיר (₪):</label>
+                            <input type="number" id="sp-price" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white text-center dir-ltr" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
+                            <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 mt-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-xs font-bold text-slate-600">תיאור קצר:</label>
+                            <button type="button" onclick="if(typeof generateStoreProductAI === 'function') generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
+                        </div>
+                        <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
+                        
+                        <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (עמוד מוצר):</label>
+                        <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-slate-50 focus:bg-white" placeholder="מרכיבים, מפרט טכני..."></textarea>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100 shadow-sm">
+                    <label class="text-xs font-bold text-purple-800 block mb-2"><i class="fa-solid fa-tag"></i> תגית מיוחדת למוצר:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="sp-badge-text" class="modern-input py-2.5 text-sm flex-1 bg-white shadow-sm" placeholder="למשל: חדש!" maxlength="15">
+                        <select id="sp-badge-color" class="modern-input py-2.5 text-sm w-28 bg-white font-bold shadow-sm">
+                            <option value="red" class="text-red-500">אדום</option>
+                            <option value="green" class="text-green-500">ירוק</option>
+                            <option value="blue" class="text-blue-500">כחול</option>
+                            <option value="yellow" class="text-yellow-600">צהוב</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm" id="modifiers-builder-container-wrapper">
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-3">
+                        <label class="text-xs font-bold text-slate-800 block">מאפיינים ותוספות (Modifiers):</label>
+                        <button type="button" onclick="window.addModifierGroup()" class="text-[10px] font-bold text-white bg-slate-800 px-3 py-2 rounded-lg shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-plus"></i> קבוצה חדשה</button>
+                    </div>
+                    <select id="preset-selector" onchange="if(typeof window.loadPreset === 'function') window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-full bg-slate-50 mb-3 ${typeof storeModifierPresets !== 'undefined' && storeModifierPresets.length > 0 ? '' : 'hidden'}">
+                        ${presetOptions}
+                    </select>
+                    <div id="sp-modal-modifiers-container" class="space-y-3"></div>
+                    <input type="hidden" id="sp-options">
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 flex gap-3 z-10">
+                <button type="button" onclick="document.getElementById('store-product-modal').remove()" class="flex-[0.8] bg-slate-100 py-3.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition">ביטול</button>
+                <button type="button" id="btn-submit-sp" onclick="window.submitStoreProduct()" class="flex-[1.2] bg-indigo-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition text-base flex justify-center items-center gap-2"><i class="fa-solid fa-save"></i> שמור מוצר</button>
+            </div>
+        </div>
+    </div>
+    `);
+    
+    modal = document.getElementById('store-product-modal');
+
+    if (id && storeCatalogCache) {
+        const p = storeCatalogCache.find(item => item.id === id); 
+        if(p) {
+            document.getElementById('sp-id').value = p.id; 
+            document.getElementById('sp-name').value = p.name || ''; 
+            document.getElementById('sp-price').value = p.price || ''; 
+            document.getElementById('sp-category').value = p.category || ''; 
+            document.getElementById('sp-desc').value = p.description || ''; 
+            
+            if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
+            if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
             
             document.getElementById('sp-image-base64').value = p.image_url || '';
             if (p.image_url) { 
